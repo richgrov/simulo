@@ -7,7 +7,7 @@ namespace villa {
 
 class App {
 public:
-   App();
+   explicit App();
 
    void run();
 
