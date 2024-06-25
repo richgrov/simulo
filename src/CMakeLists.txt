@@ -7,12 +7,22 @@ if (WIN32)
     set(VULKAN true)
 endif()
 
+if (VULKAN)
+   add_compile_definitions(VILLA_VULKAN)
+   set(GPU_SPECIFIC_FILES
+      "gpu/vk/gpu.cc"
+      "gpu/vk/gpu.h"
+   )
+endif()
+
 add_executable(villa 
+   "gpu/gpu.h"
    "window/window.h"
    "app.cc"
    "app.h"
    "main.cc"
    ${OS_SPECIFIC_FILES}
+   ${GPU_SPECIFIC_FILES}
 )
 
 if (VULKAN)
