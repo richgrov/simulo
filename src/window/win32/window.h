@@ -7,7 +7,7 @@ namespace villa {
 
 class Window {
 public:
-   explicit Window();
+   explicit Window(const char *title);
 
    bool poll();
 

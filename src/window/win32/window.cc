@@ -28,7 +28,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_par
 
 } // namespace
 
-Window::Window() : open_(false) {
+Window::Window(const char *title) : open_(false) {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
    WNDCLASS clazz = {};
@@ -41,8 +41,8 @@ Window::Window() : open_(false) {
    }
 
    HWND window = CreateWindowEx(
-       0, WIN32_CLASS_NAME, "hello", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-       CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, h_instance, nullptr
+       0, WIN32_CLASS_NAME, title, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+       CW_USEDEFAULT, nullptr, nullptr, h_instance, nullptr
    );
 
    if (window == nullptr) {

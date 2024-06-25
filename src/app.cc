@@ -2,7 +2,7 @@
 
 using namespace villa;
 
-App::App() {}
+App::App() : window_("villa") {}
 
 void App::run() {
    while (window_.poll()) {
