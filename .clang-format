@@ -1,0 +1,6 @@
+ColumnLimit: 100
+IndentWidth: 3
+AccessModifierOffset: -3
+AllowShortFunctionsOnASingleLine: Empty
+AlignAfterOpenBracket: BlockIndent
+
