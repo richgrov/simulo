@@ -31,10 +31,11 @@ LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_par
 Window::Window(const char *title) : open_(false) {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
-   WNDCLASS clazz = {};
-   clazz.lpfnWndProc = window_proc;
-   clazz.hInstance = h_instance;
-   clazz.lpszClassName = WIN32_CLASS_NAME;
+   WNDCLASS clazz = {
+       .lpfnWndProc = window_proc,
+       .hInstance = h_instance,
+       .lpszClassName = WIN32_CLASS_NAME,
+   };
 
    if (RegisterClass(&clazz) == 0) {
       throw std::runtime_error(std::format("RegisterClass returned {}", GetLastError()));
