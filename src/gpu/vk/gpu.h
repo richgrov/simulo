@@ -8,6 +8,7 @@ namespace villa {
 class Gpu {
 public:
    explicit Gpu();
+   ~Gpu();
 
 private:
    VkInstance vk_instance_;

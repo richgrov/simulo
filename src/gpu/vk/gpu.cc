@@ -24,3 +24,7 @@ Gpu::Gpu() {
       throw std::runtime_error("failed to create vulkan instance");
    }
 }
+
+Gpu::~Gpu() {
+   vkDestroyInstance(vk_instance_, nullptr);
+}
