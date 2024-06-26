@@ -157,9 +157,15 @@ void Gpu::init(const std::vector<const char *> &extensions) {
 }
 
 Gpu::~Gpu() {
-   vkDestroyDevice(device_, nullptr);
+   if (device_ != VK_NULL_HANDLE) {
+      vkDestroyDevice(device_, nullptr);
+   }
+
    if (surface_ != VK_NULL_HANDLE) {
       vkDestroySurfaceKHR(vk_instance_, surface_, nullptr);
    }
-   vkDestroyInstance(vk_instance_, nullptr);
+
+   if (vk_instance_ != VK_NULL_HANDLE) {
+      vkDestroyInstance(vk_instance_, nullptr);
+   }
 }
