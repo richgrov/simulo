@@ -1,5 +1,6 @@
 #include "gpu.h"
 
+#include <format>
 #include <optional>
 #include <stdexcept>
 #include <vector>
@@ -11,14 +12,17 @@ using namespace villa;
 namespace {
 
 #ifdef VILLA_DEBUG
-bool validation_layers_supported(const std::vector<const char *> layers) {
+
+const std::vector<const char *> validation_layers = {"VK_LAYER_KHRONOS_validation"};
+
+void ensure_validation_layers_supported() {
    uint32_t total_layers;
    vkEnumerateInstanceLayerProperties(&total_layers, nullptr);
 
    std::vector<VkLayerProperties> all_layers(total_layers);
    vkEnumerateInstanceLayerProperties(&total_layers, all_layers.data());
 
-   for (const char *const layer_name : layers) {
+   for (const char *const layer_name : validation_layers) {
       bool match = false;
 
       for (const auto &layer : all_layers) {
@@ -29,11 +33,9 @@ bool validation_layers_supported(const std::vector<const char *> layers) {
       }
 
       if (!match) {
-         return false;
+         throw std::runtime_error(std::format("validation layer {} not supported", layer_name));
       }
    }
-
-   return true;
 }
 #endif
 
@@ -98,11 +100,7 @@ Gpu::Gpu() {
    // TODO extensions?
 
 #ifdef VILLA_DEBUG
-   std::vector<const char *> validation_layers = {"VK_LAYER_KHRONOS_validation"};
-   if (!validation_layers_supported(validation_layers)) {
-      throw std::runtime_error("validation layers not supported");
-   }
-
+   ensure_validation_layers_supported();
    create_info.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
    create_info.ppEnabledLayerNames = validation_layers.data();
 #endif
