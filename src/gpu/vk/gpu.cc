@@ -86,9 +86,7 @@ std::optional<PhysicalDeviceInfo> find_best_physical_device(VkInstance instance)
 Gpu::Gpu() {
    VkApplicationInfo app_info = {
        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-       .pApplicationName = "villa",
        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-       .pEngineName = "villa",
        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
        .apiVersion = VK_API_VERSION_1_0,
    };
