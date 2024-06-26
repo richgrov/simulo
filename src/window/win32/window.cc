@@ -41,18 +41,18 @@ Window::Window(const char *title) : open_(false) {
       throw std::runtime_error(std::format("RegisterClass returned {}", GetLastError()));
    }
 
-   HWND window = CreateWindowEx(
+   window_ = CreateWindowEx(
        0, WIN32_CLASS_NAME, title, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
        CW_USEDEFAULT, nullptr, nullptr, h_instance, nullptr
    );
 
-   if (window == nullptr) {
+   if (window_ == nullptr) {
       throw std::runtime_error(std::format("CreateWindowEx returned {}", GetLastError()));
    }
 
-   SetWindowLongPtr(window, GWLP_USERDATA, (int64_t)this);
+   SetWindowLongPtr(window_, GWLP_USERDATA, (int64_t)this);
 
-   ShowWindow(window, SW_SHOW);
+   ShowWindow(window_, SW_SHOW);
    open_ = true;
 }
 

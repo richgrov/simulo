@@ -16,6 +16,7 @@ public:
    }
 
 private:
+   HWND window_;
    bool open_;
 };
 
