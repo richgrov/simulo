@@ -1,5 +1,6 @@
 #include "gpu.h"
 
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
@@ -36,6 +37,50 @@ bool validation_layers_supported(const std::vector<const char *> layers) {
 }
 #endif
 
+std::optional<uint32_t> get_graphics_queue_family(VkPhysicalDevice device) {
+   uint32_t num_queue_families;
+   vkGetPhysicalDeviceQueueFamilyProperties(device, &num_queue_families, nullptr);
+
+   std::vector<VkQueueFamilyProperties> queue_families(num_queue_families);
+   vkGetPhysicalDeviceQueueFamilyProperties(device, &num_queue_families, queue_families.data());
+
+   for (int i = 0; i < queue_families.size(); ++i) {
+      if ((queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 1) {
+         return std::make_optional(i);
+      }
+   }
+
+   return std::nullopt;
+}
+
+struct PhysicalDeviceInfo {
+   VkPhysicalDevice device;
+   uint32_t graphics_queue_family;
+};
+
+std::optional<PhysicalDeviceInfo> find_best_physical_device(VkInstance instance) {
+   uint32_t num_devices;
+   vkEnumeratePhysicalDevices(instance, &num_devices, nullptr);
+   if (num_devices == 0) {
+      throw std::runtime_error("no vulkan devices");
+   }
+
+   std::vector<VkPhysicalDevice> devices(num_devices);
+   vkEnumeratePhysicalDevices(instance, &num_devices, devices.data());
+
+   for (const auto &device : devices) {
+      std::optional<uint32_t> graphics_queue_family = get_graphics_queue_family(device);
+      if (graphics_queue_family.has_value()) {
+         return PhysicalDeviceInfo{
+             .device = device,
+             .graphics_queue_family = graphics_queue_family.value(),
+         };
+      }
+   }
+
+   return std::nullopt;
+}
+
 } // namespace
 
 Gpu::Gpu() {
@@ -66,6 +111,11 @@ Gpu::Gpu() {
 
    if (vkCreateInstance(&create_info, nullptr, &vk_instance_) != VK_SUCCESS) {
       throw std::runtime_error("failed to create vulkan instance");
+   }
+
+   auto physical_device = find_best_physical_device(vk_instance_);
+   if (!physical_device.has_value()) {
+      throw std::runtime_error("no suitable physical device");
    }
 }
 
