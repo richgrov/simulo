@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <Windows.h>
+#include <vulkan/vulkan_core.h>
 
 namespace villa {
 
@@ -20,6 +21,8 @@ public:
    inline std::vector<const char *> vulkan_extensions() const {
       return {"VK_KHR_surface", "VK_KHR_win32_surface"};
    }
+
+   VkSurfaceKHR create_surface(VkInstance instance);
 
 private:
    HWND window_;

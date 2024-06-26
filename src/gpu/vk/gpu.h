@@ -14,9 +14,18 @@ public:
 
    void init(const std::vector<const char *> &extensions);
 
+   inline VkInstance instance() const {
+      return vk_instance_;
+   }
+
+   inline void set_surface(VkSurfaceKHR surface) {
+      surface_ = surface;
+   }
+
 private:
    VkInstance vk_instance_;
    VkDevice device_;
+   VkSurfaceKHR surface_;
 };
 
 }; // namespace villa

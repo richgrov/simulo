@@ -4,6 +4,10 @@
 #include <format>
 #include <stdexcept>
 
+#include "vulkan/vulkan_core.h"
+#define VK_USE_PLATFORM_WIN32_KHR
+#include <vulkan/vulkan_win32.h>
+
 using namespace villa;
 
 namespace {
@@ -65,4 +69,19 @@ bool Window::poll() {
    TranslateMessage(&msg);
    DispatchMessage(&msg);
    return open_;
+}
+
+VkSurfaceKHR Window::create_surface(VkInstance instance) {
+   VkWin32SurfaceCreateInfoKHR surface_create = {
+       .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+       .hinstance = GetModuleHandle(nullptr),
+       .hwnd = window_,
+   };
+
+   VkSurfaceKHR surface;
+   if (vkCreateWin32SurfaceKHR(instance, &surface_create, nullptr, &surface) != VK_SUCCESS) {
+      throw std::runtime_error("couldn't create win32 surface");
+   }
+
+   return surface;
 }
