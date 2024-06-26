@@ -116,7 +116,11 @@ VkDevice create_logical_device(const PhysicalDeviceInfo &device_info) {
 
 } // namespace
 
-Gpu::Gpu() {
+Gpu::Gpu()
+    : vk_instance_(VK_NULL_HANDLE), physical_device_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE),
+      surface_(VK_NULL_HANDLE) {}
+
+void Gpu::init(const std::vector<const char *> &extensions) {
    VkApplicationInfo app_info = {
        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
@@ -127,8 +131,9 @@ Gpu::Gpu() {
    VkInstanceCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
        .pApplicationInfo = &app_info,
+       .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+       .ppEnabledExtensionNames = extensions.data(),
    };
-   // TODO extensions?
 
 #ifdef VILLA_DEBUG
    ensure_validation_layers_supported();

@@ -1,6 +1,8 @@
 #ifndef VILLA_WINDOW_WIN32_WINDOW_H_
 #define VILLA_WINDOW_WIN32_WINDOW_H_
 
+#include <vector>
+
 #include <Windows.h>
 
 namespace villa {
@@ -13,6 +15,10 @@ public:
 
    inline void close__internal() {
       open_ = false;
+   }
+
+   inline std::vector<const char *> vulkan_extensions() const {
+      return {"VK_KHR_surface", "VK_KHR_win32_surface"};
    }
 
 private:
