@@ -83,6 +83,37 @@ std::optional<PhysicalDeviceInfo> find_best_physical_device(VkInstance instance)
    return std::nullopt;
 }
 
+VkDevice create_logical_device(const PhysicalDeviceInfo &device_info) {
+   float queue_priority = 1.0f;
+
+   VkDeviceQueueCreateInfo queue_create_info = {
+       .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+       .queueFamilyIndex = device_info.graphics_queue_family,
+       .queueCount = 1,
+       .pQueuePriorities = &queue_priority,
+   };
+
+   VkPhysicalDeviceFeatures physical_device_features = {};
+
+   VkDeviceCreateInfo create_info = {
+       .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+       .queueCreateInfoCount = 1,
+       .pQueueCreateInfos = &queue_create_info,
+#ifdef VILLA_DEBUG
+       .enabledLayerCount = static_cast<uint32_t>(validation_layers.size()),
+       .ppEnabledLayerNames = validation_layers.data(),
+#endif
+       .pEnabledFeatures = &physical_device_features,
+   };
+
+   VkDevice device;
+   if (vkCreateDevice(device_info.device, &create_info, nullptr, &device) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create logical device");
+   }
+
+   return device;
+}
+
 } // namespace
 
 Gpu::Gpu() {
@@ -113,8 +144,14 @@ Gpu::Gpu() {
    if (!physical_device.has_value()) {
       throw std::runtime_error("no suitable physical device");
    }
+
+   device_ = create_logical_device(physical_device.value());
+
+   VkQueue graphics_queue;
+   vkGetDeviceQueue(device_, physical_device.value().graphics_queue_family, 0, &graphics_queue);
 }
 
 Gpu::~Gpu() {
+   vkDestroyDevice(device_, nullptr);
    vkDestroyInstance(vk_instance_, nullptr);
 }

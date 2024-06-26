@@ -12,6 +12,7 @@ public:
 
 private:
    VkInstance vk_instance_;
+   VkDevice device_;
 };
 
 }; // namespace villa
