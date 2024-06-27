@@ -7,6 +7,8 @@
 
 namespace villa {
 
+struct QueueFamilies;
+
 class Gpu {
 public:
    explicit Gpu();
@@ -18,12 +20,13 @@ public:
       return vk_instance_;
    }
 
-   inline void set_surface(VkSurfaceKHR surface) {
-      surface_ = surface;
-   }
+   void connect_to_surface(VkSurfaceKHR surface);
 
 private:
+   bool init_physical_device(QueueFamilies *families);
+
    VkInstance vk_instance_;
+   VkPhysicalDevice physical_device_;
    VkDevice device_;
    VkSurfaceKHR surface_;
 };
