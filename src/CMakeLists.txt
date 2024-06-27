@@ -3,33 +3,22 @@ if (WIN32)
         "window/win32/window.cc"
         "window/win32/window.h"
     )
-
-    set(VULKAN true)
-endif()
-
-if (VULKAN)
-   add_compile_definitions(VILLA_VULKAN)
-   set(GPU_SPECIFIC_FILES
-      "gpu/vk/gpu.cc"
-      "gpu/vk/gpu.h"
-   )
 endif()
 
 add_executable(villa 
+   "gpu/vk/gpu.cc"
+   "gpu/vk/gpu.h"
    "gpu/gpu.h"
    "window/window.h"
    "app.cc"
    "app.h"
    "main.cc"
    ${OS_SPECIFIC_FILES}
-   ${GPU_SPECIFIC_FILES}
 )
 
-if (VULKAN)
-   target_link_directories(villa PRIVATE "$ENV{VULKAN_SDK}/Lib")
-   target_link_libraries(villa "vulkan-1.lib")
-   target_include_directories(villa PRIVATE "$ENV{VULKAN_SDK}/Include")
-endif()
+target_link_directories(villa PRIVATE "$ENV{VULKAN_SDK}/Lib")
+target_link_libraries(villa "vulkan-1.lib")
+target_include_directories(villa PRIVATE "$ENV{VULKAN_SDK}/Include")
 
 set_property(TARGET villa PROPERTY CXX_STANDARD 20)
 
