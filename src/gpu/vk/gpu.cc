@@ -20,6 +20,7 @@ namespace {
 #ifdef VILLA_DEBUG
 
 const std::vector<const char *> validation_layers = {"VK_LAYER_KHRONOS_validation"};
+static const char *SWAPCHAIN_EXTENSION_NAME = "VK_KHR_swapchain";
 
 void ensure_validation_layers_supported() {
    uint32_t total_layers;
@@ -44,6 +45,22 @@ void ensure_validation_layers_supported() {
    }
 }
 #endif
+
+bool has_swapchain_support(VkPhysicalDevice device) {
+   uint32_t num_extensions;
+   vkEnumerateDeviceExtensionProperties(device, nullptr, &num_extensions, nullptr);
+
+   std::vector<VkExtensionProperties> extensions(num_extensions);
+   vkEnumerateDeviceExtensionProperties(device, nullptr, &num_extensions, extensions.data());
+
+   for (const auto &ext : extensions) {
+      if (strcmp(ext.extensionName, SWAPCHAIN_EXTENSION_NAME) == 0) {
+         return true;
+      }
+   }
+
+   return false;
+}
 
 std::optional<QueueFamilies> get_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface) {
    uint32_t num_queue_families;
@@ -107,6 +124,8 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
        .enabledLayerCount = static_cast<uint32_t>(validation_layers.size()),
        .ppEnabledLayerNames = validation_layers.data(),
 #endif
+       .enabledExtensionCount = 1,
+       .ppEnabledExtensionNames = &SWAPCHAIN_EXTENSION_NAME,
        .pEnabledFeatures = &physical_device_features,
    };
 
@@ -194,6 +213,10 @@ bool Gpu::init_physical_device(QueueFamilies *out_families) {
    vkEnumeratePhysicalDevices(vk_instance_, &num_devices, devices.data());
 
    for (const auto &device : devices) {
+      if (!has_swapchain_support(device)) {
+         continue;
+      }
+
       std::optional<QueueFamilies> queue_familes = get_queue_families(device, surface_);
       if (queue_familes.has_value()) {
          physical_device_ = device;
