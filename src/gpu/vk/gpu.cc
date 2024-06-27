@@ -62,6 +62,16 @@ bool has_swapchain_support(VkPhysicalDevice device) {
    return false;
 }
 
+bool swapchain_format_acceptable(VkPhysicalDevice device, VkSurfaceKHR surface) {
+   uint32_t num_formats;
+   vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, nullptr);
+
+   uint32_t num_present_modes;
+   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &num_present_modes, nullptr);
+
+   return num_formats > 0 && num_present_modes > 0;
+}
+
 std::optional<QueueFamilies> get_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface) {
    uint32_t num_queue_families;
    vkGetPhysicalDeviceQueueFamilyProperties(device, &num_queue_families, nullptr);
@@ -213,7 +223,7 @@ bool Gpu::init_physical_device(QueueFamilies *out_families) {
    vkEnumeratePhysicalDevices(vk_instance_, &num_devices, devices.data());
 
    for (const auto &device : devices) {
-      if (!has_swapchain_support(device)) {
+      if (!has_swapchain_support(device) || !swapchain_format_acceptable(device, surface_)) {
          continue;
       }
 
