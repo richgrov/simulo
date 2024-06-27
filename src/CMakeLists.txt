@@ -6,8 +6,7 @@ if (WIN32)
 endif()
 
 add_executable(villa 
-   "gpu/vk/gpu.cc"
-   "gpu/vk/gpu.h"
+   "gpu/gpu.cc"
    "gpu/gpu.h"
    "window/window.h"
    "app.cc"

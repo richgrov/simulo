@@ -1,7 +1,7 @@
 #ifndef VILLA_APP_H_
 #define VILLA_APP_H_
 
-#include "gpu/gpu.h"       // IWYU pragma: export
+#include "gpu/gpu.h"
 #include "window/window.h" // IWYU pragma: export
 
 namespace villa {
