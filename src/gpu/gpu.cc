@@ -1,6 +1,5 @@
 #include "gpu.h"
 
-#include <algorithm>
 #include <format>
 #include <optional>
 #include <set>
