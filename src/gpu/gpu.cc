@@ -155,6 +155,9 @@ void Gpu::init(const std::vector<const char *> &extensions) {
 }
 
 Gpu::~Gpu() {
+   vertex_shader_.deinit();
+   fragment_shader_.deinit();
+
    swapchain_.deinit();
 
    if (device_ != VK_NULL_HANDLE) {
@@ -193,6 +196,9 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
        swapchain_info, {queue_familes.graphics, queue_familes.presentation}, physical_device_,
        device_, surface_, width, height
    );
+
+   vertex_shader_.init(device_, "shader-vert.spv");
+   fragment_shader_.init(device_, "shader-frag.spv");
 }
 
 bool Gpu::init_physical_device(

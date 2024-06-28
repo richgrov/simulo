@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "shader.h"
 #include "swapchain.h"
 
 namespace villa {
@@ -32,6 +33,8 @@ private:
    VkDevice device_;
    VkSurfaceKHR surface_;
    Swapchain swapchain_;
+   Shader vertex_shader_;
+   Shader fragment_shader_;
 };
 
 }; // namespace villa
