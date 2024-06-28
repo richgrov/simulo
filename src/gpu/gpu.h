@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "swapchain.h"
+
 namespace villa {
 
 struct QueueFamilies;
@@ -20,15 +22,16 @@ public:
       return vk_instance_;
    }
 
-   void connect_to_surface(VkSurfaceKHR surface);
+   void connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 
 private:
-   bool init_physical_device(QueueFamilies *families);
+   bool init_physical_device(QueueFamilies *families, SwapchainCreationInfo *info);
 
    VkInstance vk_instance_;
    VkPhysicalDevice physical_device_;
    VkDevice device_;
    VkSurfaceKHR surface_;
+   Swapchain swapchain_;
 };
 
 }; // namespace villa

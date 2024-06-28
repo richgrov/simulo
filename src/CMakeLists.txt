@@ -8,6 +8,8 @@ endif()
 add_executable(villa 
    "gpu/gpu.cc"
    "gpu/gpu.h"
+   "gpu/swapchain.cc"
+   "gpu/swapchain.h"
    "window/window.h"
    "app.cc"
    "app.h"

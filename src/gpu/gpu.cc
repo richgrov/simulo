@@ -1,5 +1,6 @@
 #include "gpu.h"
 
+#include <algorithm>
 #include <format>
 #include <optional>
 #include <set>
@@ -20,7 +21,6 @@ namespace {
 #ifdef VILLA_DEBUG
 
 const std::vector<const char *> validation_layers = {"VK_LAYER_KHRONOS_validation"};
-static const char *SWAPCHAIN_EXTENSION_NAME = "VK_KHR_swapchain";
 
 void ensure_validation_layers_supported() {
    uint32_t total_layers;
@@ -45,32 +45,6 @@ void ensure_validation_layers_supported() {
    }
 }
 #endif
-
-bool has_swapchain_support(VkPhysicalDevice device) {
-   uint32_t num_extensions;
-   vkEnumerateDeviceExtensionProperties(device, nullptr, &num_extensions, nullptr);
-
-   std::vector<VkExtensionProperties> extensions(num_extensions);
-   vkEnumerateDeviceExtensionProperties(device, nullptr, &num_extensions, extensions.data());
-
-   for (const auto &ext : extensions) {
-      if (strcmp(ext.extensionName, SWAPCHAIN_EXTENSION_NAME) == 0) {
-         return true;
-      }
-   }
-
-   return false;
-}
-
-bool swapchain_format_acceptable(VkPhysicalDevice device, VkSurfaceKHR surface) {
-   uint32_t num_formats;
-   vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, nullptr);
-
-   uint32_t num_present_modes;
-   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &num_present_modes, nullptr);
-
-   return num_formats > 0 && num_present_modes > 0;
-}
 
 std::optional<QueueFamilies> get_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface) {
    uint32_t num_queue_families;
@@ -126,6 +100,7 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
 
    VkPhysicalDeviceFeatures physical_device_features = {};
 
+   static const char *swapchain_extension = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
    VkDeviceCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
        .queueCreateInfoCount = static_cast<uint32_t>(create_queues.size()),
@@ -135,7 +110,7 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
        .ppEnabledLayerNames = validation_layers.data(),
 #endif
        .enabledExtensionCount = 1,
-       .ppEnabledExtensionNames = &SWAPCHAIN_EXTENSION_NAME,
+       .ppEnabledExtensionNames = &swapchain_extension,
        .pEnabledFeatures = &physical_device_features,
    };
 
@@ -180,6 +155,8 @@ void Gpu::init(const std::vector<const char *> &extensions) {
 }
 
 Gpu::~Gpu() {
+   swapchain_.deinit();
+
    if (device_ != VK_NULL_HANDLE) {
       vkDestroyDevice(device_, nullptr);
    }
@@ -193,7 +170,7 @@ Gpu::~Gpu() {
    }
 }
 
-void Gpu::connect_to_surface(VkSurfaceKHR surface) {
+void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
    if (surface_ != VK_NULL_HANDLE) {
       throw std::runtime_error("surface already set");
    }
@@ -201,7 +178,8 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface) {
    surface_ = surface;
 
    QueueFamilies queue_familes;
-   if (!init_physical_device(&queue_familes)) {
+   SwapchainCreationInfo swapchain_info;
+   if (!init_physical_device(&queue_familes, &swapchain_info)) {
       throw std::runtime_error("no suitable physical device");
    }
 
@@ -210,9 +188,16 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface) {
    VkQueue graphics_queue, presentation_queue;
    vkGetDeviceQueue(device_, queue_familes.graphics, 0, &graphics_queue);
    vkGetDeviceQueue(device_, queue_familes.presentation, 0, &presentation_queue);
+
+   swapchain_.init(
+       swapchain_info, {queue_familes.graphics, queue_familes.presentation}, physical_device_,
+       device_, surface_, width, height
+   );
 }
 
-bool Gpu::init_physical_device(QueueFamilies *out_families) {
+bool Gpu::init_physical_device(
+    QueueFamilies *out_families, SwapchainCreationInfo *out_swapchain_info
+) {
    uint32_t num_devices;
    vkEnumeratePhysicalDevices(vk_instance_, &num_devices, nullptr);
    if (num_devices == 0) {
@@ -223,16 +208,20 @@ bool Gpu::init_physical_device(QueueFamilies *out_families) {
    vkEnumeratePhysicalDevices(vk_instance_, &num_devices, devices.data());
 
    for (const auto &device : devices) {
-      if (!has_swapchain_support(device) || !swapchain_format_acceptable(device, surface_)) {
+      auto swapchain_info = Swapchain::get_creation_info(device, surface_);
+      if (!swapchain_info.has_value()) {
          continue;
       }
 
       std::optional<QueueFamilies> queue_familes = get_queue_families(device, surface_);
-      if (queue_familes.has_value()) {
-         physical_device_ = device;
-         *out_families = queue_familes.value();
-         return true;
+      if (!queue_familes.has_value()) {
+         continue;
       }
+
+      physical_device_ = device;
+      *out_families = queue_familes.value();
+      *out_swapchain_info = swapchain_info.value();
+      return true;
    }
 
    return false;
