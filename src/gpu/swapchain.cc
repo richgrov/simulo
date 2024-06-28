@@ -140,9 +140,33 @@ void Swapchain::init(
    vkGetSwapchainImagesKHR(device, swapchain_, &num_images, nullptr);
    images_.resize(num_images);
    vkGetSwapchainImagesKHR(device, swapchain_, &num_images, images_.data());
+
+   image_views_.resize(images_.size());
+   for (int i = 0; i < image_views_.size(); ++i) {
+      VkImageViewCreateInfo create_info = {
+          .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+          .image = images_[i],
+          .viewType = VK_IMAGE_VIEW_TYPE_2D,
+          .format = img_format_,
+          .subresourceRange =
+              {
+                  .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                  .levelCount = 1,
+                  .layerCount = 1,
+              },
+      };
+
+      if (vkCreateImageView(device_, &create_info, nullptr, &image_views_[i]) != VK_SUCCESS) {
+         throw std::runtime_error("failed to create image view");
+      }
+   }
 }
 
 void Swapchain::deinit() {
+   for (const VkImageView img_view : image_views_) {
+      vkDestroyImageView(device_, img_view, nullptr);
+   }
+
    if (swapchain_ != VK_NULL_HANDLE) {
       vkDestroySwapchainKHR(device_, swapchain_, nullptr);
    }

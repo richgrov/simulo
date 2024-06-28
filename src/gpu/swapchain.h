@@ -32,6 +32,7 @@ private:
    VkDevice device_;
    VkSwapchainKHR swapchain_;
    std::vector<VkImage> images_;
+   std::vector<VkImageView> image_views_;
    VkFormat img_format_;
    VkExtent2D extent_;
 };
