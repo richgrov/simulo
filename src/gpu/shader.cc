@@ -9,8 +9,9 @@
 
 using namespace villa;
 
-void Shader::init(VkDevice device, const char *file_path) {
+void Shader::init(VkDevice device, const char *file_path, ShaderType type) {
    device_ = device;
+   type_ = type;
 
    std::ifstream file(file_path, std::ios::ate | std::ios::binary);
    file.unsetf(std::ios::skipws);
@@ -40,4 +41,23 @@ void Shader::deinit() {
    if (module_ != VK_NULL_HANDLE) {
       vkDestroyShaderModule(device_, module_, nullptr);
    }
+}
+
+VkPipelineShaderStageCreateInfo Shader::pipeline_stage() const {
+   VkShaderStageFlagBits type;
+   switch (type_) {
+   case ShaderType::kVertex:
+      type = VK_SHADER_STAGE_VERTEX_BIT;
+      break;
+   case ShaderType::kFragment:
+      type = VK_SHADER_STAGE_FRAGMENT_BIT;
+      break;
+   }
+
+   return {
+       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+       .stage = type,
+       .module = module_,
+       .pName = "main",
+   };
 }

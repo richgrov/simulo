@@ -9,6 +9,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "shader.h"
+
 using namespace villa;
 
 struct villa::QueueFamilies {
@@ -197,8 +199,8 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
        device_, surface_, width, height
    );
 
-   vertex_shader_.init(device_, "shader-vert.spv");
-   fragment_shader_.init(device_, "shader-frag.spv");
+   vertex_shader_.init(device_, "shader-vert.spv", ShaderType::kVertex);
+   fragment_shader_.init(device_, "shader-frag.spv", ShaderType::kFragment);
 }
 
 bool Gpu::init_physical_device(
