@@ -107,6 +107,9 @@ void Swapchain::init(
    }
 
    VkSurfaceFormatKHR format = best_surface_format(swapchain_info.surface_formats);
+   img_format_ = format.format;
+
+   extent_ = create_swap_extent(swapchain_info.surface_capabilities, width, height);
 
    VkSwapchainCreateInfoKHR create_info = {
        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -114,7 +117,7 @@ void Swapchain::init(
        .minImageCount = image_count,
        .imageFormat = format.format,
        .imageColorSpace = format.colorSpace,
-       .imageExtent = create_swap_extent(swapchain_info.surface_capabilities, width, height),
+       .imageExtent = extent_,
        .imageArrayLayers = 1,
        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
        .preTransform = swapchain_info.surface_capabilities.currentTransform,

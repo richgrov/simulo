@@ -31,6 +31,8 @@ public:
 private:
    VkDevice device_;
    VkSwapchainKHR swapchain_;
+   VkFormat img_format_;
+   VkExtent2D extent_;
 };
 
 } // namespace villa
