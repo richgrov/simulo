@@ -14,16 +14,27 @@ namespace {
 
 const char *WIN32_CLASS_NAME = "villa";
 
-LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param) {
-   if (msg == WM_DESTROY) {
-      LONG_PTR user_ptr = GetWindowLongPtr(window, GWLP_USERDATA);
-      if (user_ptr == 0) {
-         throw std::runtime_error(std::format("GetWindowLongPtr returned {}", GetLastError()));
-      }
+static Window *get_window_class(HWND window) {
+   LONG_PTR user_ptr = GetWindowLongPtr(window, GWLP_USERDATA);
+   if (user_ptr == 0) {
+      throw std::runtime_error(std::format("GetWindowLongPtr returned {}", GetLastError()));
+   }
 
-      auto *window_class = reinterpret_cast<Window *>(user_ptr);
-      window_class->close__internal();
+   return reinterpret_cast<Window *>(user_ptr);
+}
+
+LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param) {
+   switch (msg) {
+   case WM_DESTROY:
+      get_window_class(window)->close__internal();
       PostQuitMessage(0);
+      return 0;
+
+   case WM_SIZE:
+      WORD height = HIWORD(l_param);
+      WORD width = LOWORD(l_param);
+      auto window_class = get_window_class(window);
+      window_class->set_size__internal(width, height);
       return 0;
    }
 

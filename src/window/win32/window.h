@@ -24,9 +24,24 @@ public:
 
    VkSurfaceKHR create_surface(VkInstance instance);
 
+   inline void set_size__internal(WORD width, WORD height) {
+      width_ = width;
+      height_ = height;
+   }
+
+   int width() const {
+      return width_;
+   }
+
+   int height() const {
+      return height_;
+   }
+
 private:
    HWND window_;
    bool open_;
+   WORD width_;
+   WORD height_;
 };
 
 }; // namespace villa
