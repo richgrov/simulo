@@ -135,6 +135,11 @@ void Swapchain::init(
    if (vkCreateSwapchainKHR(device_, &create_info, nullptr, &swapchain_) != VK_SUCCESS) {
       throw std::runtime_error("failed to create swapchain");
    }
+
+   uint32_t num_images;
+   vkGetSwapchainImagesKHR(device, swapchain_, &num_images, nullptr);
+   images_.resize(num_images);
+   vkGetSwapchainImagesKHR(device, swapchain_, &num_images, images_.data());
 }
 
 void Swapchain::deinit() {
