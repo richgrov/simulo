@@ -27,6 +27,8 @@ public:
 
    void connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 
+   void draw();
+
 private:
    bool init_physical_device(QueueFamilies *families, SwapchainCreationInfo *info);
 
@@ -34,6 +36,8 @@ private:
    VkPhysicalDevice physical_device_;
    VkDevice device_;
    VkSurfaceKHR surface_;
+   VkQueue graphics_queue_;
+   VkQueue present_queue_;
    Swapchain swapchain_;
    Shader vertex_shader_;
    Shader fragment_shader_;
@@ -41,6 +45,9 @@ private:
    std::vector<VkFramebuffer> framebuffers_;
    CommandPool command_pool_;
    VkCommandBuffer command_buffer_;
+   VkSemaphore sem_img_avail;
+   VkSemaphore sem_render_complete;
+   VkFence draw_cycle_complete;
 };
 
 }; // namespace villa

@@ -104,12 +104,23 @@ void Pipeline::init(
        .pColorAttachments = &color_attachment_ref,
    };
 
+   VkSubpassDependency subpass_dependency = {
+       .srcSubpass = VK_SUBPASS_EXTERNAL,
+       .dstSubpass = 0,
+       .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+       .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+       .srcAccessMask = 0,
+       .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+   };
+
    VkRenderPassCreateInfo render_create = {
        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
        .attachmentCount = 1,
        .pAttachments = &color_attachment,
        .subpassCount = 1,
        .pSubpasses = &subpass,
+       .dependencyCount = 1,
+       .pDependencies = &subpass_dependency,
    };
 
    if (vkCreateRenderPass(device, &render_create, nullptr, &render_pass_) != VK_SUCCESS) {

@@ -11,5 +11,6 @@ App::App() : window_("villa") {
 
 void App::run() {
    while (window_.poll()) {
+      gpu_.draw();
    }
 }

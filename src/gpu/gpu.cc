@@ -157,6 +157,12 @@ void Gpu::init(const std::vector<const char *> &extensions) {
 }
 
 Gpu::~Gpu() {
+   vkDeviceWaitIdle(device_);
+
+   vkDestroySemaphore(device_, sem_img_avail, nullptr);
+   vkDestroySemaphore(device_, sem_render_complete, nullptr);
+   vkDestroyFence(device_, draw_cycle_complete, nullptr);
+
    for (const VkFramebuffer framebuffer : framebuffers_) {
       vkDestroyFramebuffer(device_, framebuffer, nullptr);
    }
@@ -198,9 +204,8 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
 
    device_ = create_logical_device(physical_device_, queue_familes);
 
-   VkQueue graphics_queue, presentation_queue;
-   vkGetDeviceQueue(device_, queue_familes.graphics, 0, &graphics_queue);
-   vkGetDeviceQueue(device_, queue_familes.presentation, 0, &presentation_queue);
+   vkGetDeviceQueue(device_, queue_familes.graphics, 0, &graphics_queue_);
+   vkGetDeviceQueue(device_, queue_familes.presentation, 0, &present_queue_);
 
    swapchain_.init(
        swapchain_info, {queue_familes.graphics, queue_familes.presentation}, physical_device_,
@@ -234,6 +239,104 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
 
    command_pool_.init(device_, queue_familes.graphics);
    command_buffer_ = command_pool_.allocate();
+
+   VkSemaphoreCreateInfo semaphore_create = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+   VkFenceCreateInfo fence_create = {
+       .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .flags = VK_FENCE_CREATE_SIGNALED_BIT
+   };
+
+   if (vkCreateSemaphore(device_, &semaphore_create, nullptr, &sem_img_avail) != VK_SUCCESS ||
+       vkCreateSemaphore(device_, &semaphore_create, nullptr, &sem_render_complete) != VK_SUCCESS ||
+       vkCreateFence(device_, &fence_create, nullptr, &draw_cycle_complete) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create semaphore(s)");
+   }
+}
+
+void Gpu::draw() {
+   vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
+   vkResetFences(device_, 1, &draw_cycle_complete);
+
+   uint32_t framebuffer_index;
+   if (vkAcquireNextImageKHR(
+           device_, swapchain_.handle(), UINT64_MAX, sem_img_avail, VK_NULL_HANDLE,
+           &framebuffer_index
+       ) != VK_SUCCESS) {
+      throw std::runtime_error("failed to acquire next swapchain image");
+   }
+
+   vkResetCommandBuffer(command_buffer_, 0);
+
+   VkCommandBufferBeginInfo cmd_begin = {
+       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+   };
+
+   if (vkBeginCommandBuffer(command_buffer_, &cmd_begin) != VK_SUCCESS) {
+      throw std::runtime_error("the command buffer could not begin recording");
+   }
+
+   VkClearValue clear_color = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
+   VkRenderPassBeginInfo render_begin = {
+       .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+       .renderPass = pipeline_.render_pass(),
+       .framebuffer = framebuffers_[framebuffer_index],
+       .renderArea =
+           {
+               .extent = swapchain_.extent(),
+           },
+       .clearValueCount = 1,
+       .pClearValues = &clear_color,
+   };
+
+   vkCmdBeginRenderPass(command_buffer_, &render_begin, VK_SUBPASS_CONTENTS_INLINE);
+   vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_.handle());
+
+   VkViewport viewport = {
+       .width = static_cast<float>(swapchain_.extent().width),
+       .height = static_cast<float>(swapchain_.extent().height),
+       .maxDepth = 1.0f,
+   };
+   vkCmdSetViewport(command_buffer_, 0, 1, &viewport);
+
+   VkRect2D scissor = {
+       .extent = swapchain_.extent(),
+   };
+   vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
+
+   vkCmdDraw(command_buffer_, 3, 1, 0, 0);
+
+   vkCmdEndRenderPass(command_buffer_);
+
+   if (vkEndCommandBuffer(command_buffer_) != VK_SUCCESS) {
+      throw std::runtime_error("command buffer couldn't stop recording");
+   }
+
+   VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+   VkSubmitInfo submit_info = {
+       .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+       .waitSemaphoreCount = 1,
+       .pWaitSemaphores = &sem_img_avail,
+       .pWaitDstStageMask = wait_stages,
+       .commandBufferCount = 1,
+       .pCommandBuffers = &command_buffer_,
+       .signalSemaphoreCount = 1,
+       .pSignalSemaphores = &sem_render_complete,
+   };
+
+   if (vkQueueSubmit(graphics_queue_, 1, &submit_info, draw_cycle_complete) != VK_SUCCESS) {
+      throw std::runtime_error("failed to submit command buffer");
+   }
+
+   VkSwapchainKHR swap_chains[] = {swapchain_.handle()};
+   VkPresentInfoKHR present_info = {
+       .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+       .waitSemaphoreCount = 1,
+       .pWaitSemaphores = &sem_render_complete,
+       .swapchainCount = VILLA_ARRAY_LEN(swap_chains),
+       .pSwapchains = swap_chains,
+       .pImageIndices = &framebuffer_index,
+   };
+
+   vkQueuePresentKHR(present_queue_, &present_info);
 }
 
 bool Gpu::init_physical_device(
