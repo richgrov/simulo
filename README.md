@@ -25,6 +25,25 @@ it has the potential to bring a new age to the beloved version of the game.
 - Shaders, PBR, and other graphical enhancements
 - Easy-access client-side scripting
 
+# Setup
+
+Download the [Vulkan SDK](https://vulkan.lunarg.com/)
+
+Compile shaders:
+
+```
+glslc src/shader/shader.vert -o shader-vert.spv
+glslc src/shader/shader.frag -o shader-frag.spv
+```
+
+Build & run:
+```
+mkdir build
+cmake -B build
+cmake --build build
+./build/example/example(.exe)
+```
+
 # Credits
 
 Font by [zedseven](https://github.com/zedseven/Pixellari)
