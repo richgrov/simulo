@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "pipeline.h"
 #include "shader.h"
 #include "swapchain.h"
 
@@ -35,6 +36,7 @@ private:
    Swapchain swapchain_;
    Shader vertex_shader_;
    Shader fragment_shader_;
+   Pipeline pipeline_;
 };
 
 }; // namespace villa
