@@ -25,6 +25,10 @@ public:
 
    void deinit();
 
+   inline VkFormat img_format() const {
+      return img_format_;
+   }
+
    static std::optional<SwapchainCreationInfo>
    get_creation_info(VkPhysicalDevice device, VkSurfaceKHR surface);
 
