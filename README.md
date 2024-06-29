@@ -2,6 +2,8 @@
 
 A clean-room implementation of the Minecraft Beta 1.7.3 client.
 
+This is C++ rewrite of the original (WIP) project at https://github.com/richgrov/villa
+
 ![Screenshot](./screenshot.png)
 
 Villa is in **extremely early alpha**. It lacks many features and is subject to crashing. However,
