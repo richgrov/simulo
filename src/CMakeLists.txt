@@ -6,6 +6,8 @@ if (WIN32)
 endif()
 
 add_executable(villa 
+   "gpu/command_pool.cc"
+   "gpu/command_pool.h"
    "gpu/gpu.cc"
    "gpu/gpu.h"
    "gpu/pipeline.cc"

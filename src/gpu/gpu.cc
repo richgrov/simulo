@@ -161,6 +161,8 @@ Gpu::~Gpu() {
       vkDestroyFramebuffer(device_, framebuffer, nullptr);
    }
 
+   command_pool_.deinit();
+
    pipeline_.deinit();
 
    vertex_shader_.deinit();
@@ -229,6 +231,9 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
          throw std::runtime_error(std::format("failed to create framebuffer {}", i));
       }
    }
+
+   command_pool_.init(device_, queue_familes.graphics);
+   command_buffer_ = command_pool_.allocate();
 }
 
 bool Gpu::init_physical_device(

@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "command_pool.h"
 #include "pipeline.h"
 #include "shader.h"
 #include "swapchain.h"
@@ -38,6 +39,8 @@ private:
    Shader fragment_shader_;
    Pipeline pipeline_;
    std::vector<VkFramebuffer> framebuffers_;
+   CommandPool command_pool_;
+   VkCommandBuffer command_buffer_;
 };
 
 }; // namespace villa
