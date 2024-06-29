@@ -302,7 +302,7 @@ void Gpu::draw() {
    };
    vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
 
-   vkCmdDraw(command_buffer_, 3, 1, 0, 0);
+   vkCmdDraw(command_buffer_, 9, 1, 0, 0);
 
    vkCmdEndRenderPass(command_buffer_);
 
