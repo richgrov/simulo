@@ -24,6 +24,10 @@ public:
 
    void deinit();
 
+   inline VkRenderPass render_pass() const {
+      return render_pass_;
+   }
+
 private:
    VkRenderPass render_pass_;
    VkPipelineLayout layout_;

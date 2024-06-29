@@ -37,6 +37,7 @@ private:
    Shader vertex_shader_;
    Shader fragment_shader_;
    Pipeline pipeline_;
+   std::vector<VkFramebuffer> framebuffers_;
 };
 
 }; // namespace villa

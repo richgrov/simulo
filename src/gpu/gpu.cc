@@ -9,6 +9,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "shader.h"
+#include "util/array.h"
 
 using namespace villa;
 
@@ -156,6 +157,10 @@ void Gpu::init(const std::vector<const char *> &extensions) {
 }
 
 Gpu::~Gpu() {
+   for (const VkFramebuffer framebuffer : framebuffers_) {
+      vkDestroyFramebuffer(device_, framebuffer, nullptr);
+   }
+
    pipeline_.deinit();
 
    vertex_shader_.deinit();
@@ -204,6 +209,26 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
    fragment_shader_.init(device_, "shader-frag.spv", ShaderType::kFragment);
 
    pipeline_.init(device_, {vertex_shader_, fragment_shader_}, swapchain_);
+
+   framebuffers_.resize(swapchain_.num_images());
+   for (int i = 0; i < swapchain_.num_images(); ++i) {
+      VkImageView attachments[] = {swapchain_.image_view(i)};
+
+      VkExtent2D extent = swapchain_.extent();
+      VkFramebufferCreateInfo create_info = {
+          .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+          .renderPass = pipeline_.render_pass(),
+          .attachmentCount = VILLA_ARRAY_LEN(attachments),
+          .pAttachments = attachments,
+          .width = extent.width,
+          .height = extent.height,
+          .layers = 1,
+      };
+
+      if (vkCreateFramebuffer(device_, &create_info, nullptr, &framebuffers_[i]) != VK_SUCCESS) {
+         throw std::runtime_error(std::format("failed to create framebuffer {}", i));
+      }
+   }
 }
 
 bool Gpu::init_physical_device(

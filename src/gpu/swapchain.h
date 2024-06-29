@@ -25,8 +25,20 @@ public:
 
    void deinit();
 
+   inline int num_images() const {
+      return images_.size();
+   }
+
+   inline VkImageView image_view(int index) const {
+      return image_views_[index];
+   }
+
    inline VkFormat img_format() const {
       return img_format_;
+   }
+
+   inline VkExtent2D extent() const {
+      return extent_;
    }
 
    static std::optional<SwapchainCreationInfo>
@@ -37,6 +49,7 @@ private:
    VkSwapchainKHR swapchain_;
    std::vector<VkImage> images_;
    std::vector<VkImageView> image_views_;
+   std::vector<VkFramebuffer> frame_buffers_;
    VkFormat img_format_;
    VkExtent2D extent_;
 };
