@@ -28,6 +28,10 @@ public:
       return render_pass_;
    }
 
+   inline VkPipeline handle() const {
+      return pipeline_;
+   }
+
 private:
    VkRenderPass render_pass_;
    VkPipelineLayout layout_;

@@ -25,6 +25,10 @@ public:
 
    void deinit();
 
+   inline VkSwapchainKHR handle() const {
+      return swapchain_;
+   }
+
    inline int num_images() const {
       return images_.size();
    }
