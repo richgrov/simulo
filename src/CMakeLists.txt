@@ -12,6 +12,7 @@ add_executable(villa
    "gpu/shader.h"
    "gpu/swapchain.cc"
    "gpu/swapchain.h"
+   "util/array.h"
    "window/window.h"
    "app.cc"
    "app.h"
