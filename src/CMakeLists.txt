@@ -18,8 +18,6 @@ add_library(villa
    "gpu/swapchain.h"
    "util/array.h"
    "window/window.h"
-   "app.cc"
-   "app.h"
    ${OS_SPECIFIC_FILES}
 )
 
