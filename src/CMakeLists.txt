@@ -5,7 +5,7 @@ if (WIN32)
     )
 endif()
 
-add_executable(villa 
+add_library(villa 
    "gpu/command_pool.cc"
    "gpu/command_pool.h"
    "gpu/gpu.cc"
@@ -20,15 +20,14 @@ add_executable(villa
    "window/window.h"
    "app.cc"
    "app.h"
-   "main.cc"
    ${OS_SPECIFIC_FILES}
 )
 
-target_include_directories(villa PRIVATE "${PROJECT_SOURCE_DIR}/src")
+target_include_directories(villa PUBLIC "${PROJECT_SOURCE_DIR}/src")
 
-target_link_directories(villa PRIVATE "$ENV{VULKAN_SDK}/Lib")
+target_link_directories(villa PUBLIC "$ENV{VULKAN_SDK}/Lib")
 target_link_libraries(villa "vulkan-1.lib")
-target_include_directories(villa PRIVATE "$ENV{VULKAN_SDK}/Include")
+target_include_directories(villa PUBLIC "$ENV{VULKAN_SDK}/Include")
 
 set_property(TARGET villa PROPERTY CXX_STANDARD 20)
 
