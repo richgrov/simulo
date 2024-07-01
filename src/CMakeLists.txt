@@ -16,6 +16,8 @@ add_library(villa
    "gpu/shader.h"
    "gpu/swapchain.cc"
    "gpu/swapchain.h"
+   "gpu/buffer.cc"
+   "gpu/buffer.h"
    "util/array.h"
    "window/window.h"
    ${OS_SPECIFIC_FILES}

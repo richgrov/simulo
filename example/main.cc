@@ -6,6 +6,22 @@
 
 using namespace villa;
 
+typedef struct {
+   float x;
+   float y;
+} Vec2;
+
+typedef struct {
+   float x;
+   float y;
+   float z;
+} Vec3;
+
+typedef struct {
+   Vec2 pos;
+   Vec3 color;
+} Vertex;
+
 int main(int argc, char **argv) {
    try {
       Window window("villa");
@@ -16,8 +32,17 @@ int main(int argc, char **argv) {
       auto surface = window.create_surface(gpu.instance());
       gpu.connect_to_surface(surface, window.width(), window.height());
 
+      Vertex vertices[] = {
+          {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+          {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+          {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+      };
+
+      auto vertex_buffer = gpu.allocate_vertex_buffer<Vertex>(3);
+      vertex_buffer.upload_memory(&vertices, sizeof(vertices));
+
       while (window.poll()) {
-         gpu.draw();
+         gpu.draw(vertex_buffer);
       }
    } catch (const std::exception &e) {
       std::cerr << "Unhandled exception: " << e.what() << "\n";

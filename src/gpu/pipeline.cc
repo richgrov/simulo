@@ -11,8 +11,9 @@
 using namespace villa;
 
 void Pipeline::init(
-    VkDevice device, const std::vector<std::reference_wrapper<Shader>> &shaders,
-    const Swapchain &swapchain
+    VkDevice device, VkVertexInputBindingDescription vertex_binding,
+    const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
+    const std::vector<std::reference_wrapper<Shader>> &shaders, const Swapchain &swapchain
 ) {
    device_ = device;
 
@@ -23,6 +24,10 @@ void Pipeline::init(
 
    VkPipelineVertexInputStateCreateInfo vertex_input_create = {
        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+       .vertexBindingDescriptionCount = 1,
+       .pVertexBindingDescriptions = &vertex_binding,
+       .vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attributes.size()),
+       .pVertexAttributeDescriptions = vertex_attributes.data(),
    };
 
    VkPipelineInputAssemblyStateCreateInfo assembly_create = {

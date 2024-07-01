@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "buffer.h"
 #include "command_pool.h"
 #include "pipeline.h"
 #include "shader.h"
@@ -27,7 +28,11 @@ public:
 
    void connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 
-   void draw();
+   template <class T> inline VertexBuffer allocate_vertex_buffer(size_t num_vertices) {
+      return VertexBuffer(num_vertices, sizeof(T), device_, physical_device_);
+   }
+
+   void draw(const VertexBuffer &vertices);
 
 private:
    bool init_physical_device(QueueFamilies *families, SwapchainCreationInfo *info);

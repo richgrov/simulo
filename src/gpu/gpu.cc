@@ -215,7 +215,28 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
    vertex_shader_.init(device_, "shader-vert.spv", ShaderType::kVertex);
    fragment_shader_.init(device_, "shader-frag.spv", ShaderType::kFragment);
 
-   pipeline_.init(device_, {vertex_shader_, fragment_shader_}, swapchain_);
+   VkVertexInputBindingDescription binding = {
+       .binding = 0,
+       .stride = (4 * 2) + (4 * 3),
+       .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+   };
+
+   std::vector<VkVertexInputAttributeDescription> attrs = {
+       VkVertexInputAttributeDescription{
+           .location = 0,
+           .binding = 0,
+           .format = VK_FORMAT_R32G32_SFLOAT,
+           .offset = 0,
+       },
+       VkVertexInputAttributeDescription{
+           .location = 1,
+           .binding = 0,
+           .format = VK_FORMAT_R32G32B32_SFLOAT,
+           .offset = 4 * 2,
+       },
+   };
+
+   pipeline_.init(device_, binding, attrs, {vertex_shader_, fragment_shader_}, swapchain_);
 
    framebuffers_.resize(swapchain_.num_images());
    for (int i = 0; i < swapchain_.num_images(); ++i) {
@@ -252,7 +273,7 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
    }
 }
 
-void Gpu::draw() {
+void Gpu::draw(const VertexBuffer &vertices) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
    vkResetFences(device_, 1, &draw_cycle_complete);
 
@@ -302,7 +323,11 @@ void Gpu::draw() {
    };
    vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
 
-   vkCmdDraw(command_buffer_, 9, 1, 0, 0);
+   VkBuffer buffers[] = {vertices.buffer()};
+   VkDeviceSize offsets[] = {0};
+   vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
+
+   vkCmdDraw(command_buffer_, vertices.num_vertices(), 1, 0, 0);
 
    vkCmdEndRenderPass(command_buffer_);
 

@@ -18,8 +18,9 @@ public:
          device_(VK_NULL_HANDLE) {}
 
    void init(
-       VkDevice device, const std::vector<std::reference_wrapper<Shader>> &shaders,
-       const Swapchain &swapchain
+       VkDevice device, VkVertexInputBindingDescription vertex_binding,
+       const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
+       const std::vector<std::reference_wrapper<Shader>> &shaders, const Swapchain &swapchain
    );
 
    void deinit();
