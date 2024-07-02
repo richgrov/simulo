@@ -1,6 +1,7 @@
 #include "swapchain.h"
 
 #include <algorithm>
+#include <cstring>
 #include <optional>
 #include <stdexcept>
 
