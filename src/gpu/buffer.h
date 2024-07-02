@@ -8,7 +8,8 @@ namespace villa {
 class Buffer {
 public:
    explicit Buffer(
-       size_t size, VkBufferUsageFlags usage, VkDevice device, VkPhysicalDevice physical_device
+       size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memory_properties,
+       VkDevice device, VkPhysicalDevice physical_device
    );
 
    inline ~Buffer() {
@@ -43,7 +44,11 @@ public:
        size_t num_vertices, size_t vertex_size, VkDevice device, VkPhysicalDevice physical_device
    )
        : Buffer(
-             num_vertices * vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, device, physical_device
+             num_vertices * vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+             static_cast<VkMemoryPropertyFlagBits>(
+                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+             ),
+             device, physical_device
          ),
          num_vertices_(num_vertices) {}
 

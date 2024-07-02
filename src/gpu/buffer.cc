@@ -32,7 +32,8 @@ uint32_t find_memory_type_index(
 } // namespace
 
 Buffer::Buffer(
-    size_t size, VkBufferUsageFlags usage, VkDevice device, VkPhysicalDevice physical_device
+    size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memory_properties,
+    VkDevice device, VkPhysicalDevice physical_device
 )
     : buffer_(VK_NULL_HANDLE), device_(device) {
    VkBufferCreateInfo create_info = {
@@ -52,12 +53,8 @@ Buffer::Buffer(
    VkMemoryAllocateInfo alloc_info = {
        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
        .allocationSize = requirements.size,
-       .memoryTypeIndex = find_memory_type_index(
-           physical_device, requirements.memoryTypeBits,
-           static_cast<VkMemoryPropertyFlagBits>(
-               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-           )
-       ),
+       .memoryTypeIndex =
+           find_memory_type_index(physical_device, requirements.memoryTypeBits, memory_properties),
    };
 
    if (vkAllocateMemory(device, &alloc_info, nullptr, &allocation_) != VK_SUCCESS) {
