@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <format>
 #include <stdexcept>
+#include <windowsx.h>
 
 #include "vulkan/vulkan_core.h"
 #define VK_USE_PLATFORM_WIN32_KHR
@@ -30,7 +31,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_par
       PostQuitMessage(0);
       return 0;
 
-   case WM_SIZE:
+   case WM_SIZE: {
       WORD height = HIWORD(l_param);
       WORD width = LOWORD(l_param);
       auto window_class = get_window_class(window);
@@ -38,12 +39,20 @@ LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_par
       return 0;
    }
 
+   case WM_MOUSEMOVE: {
+      int x = GET_X_LPARAM(l_param);
+      int y = GET_Y_LPARAM(l_param);
+      get_window_class(window)->set_mouse__internal(x, y);
+      return 0;
+   }
+   }
+
    return DefWindowProc(window, msg, w_param, l_param);
 }
 
 } // namespace
 
-Window::Window(const char *title) : open_(false) {
+Window::Window(const char *title) : open_(false), mouse_x_(0), mouse_y_(0) {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
    WNDCLASS clazz = {

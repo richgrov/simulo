@@ -37,11 +37,27 @@ public:
       return height_;
    }
 
+   inline void set_mouse__internal(int mouse_x, int mouse_y) {
+      mouse_x_ = mouse_x;
+      mouse_y_ = mouse_y;
+   }
+
+   int mouse_x() const {
+      return mouse_x_;
+   }
+
+   int mouse_y() const {
+      return mouse_y_;
+   }
+
 private:
    HWND window_;
    bool open_;
    WORD width_;
    WORD height_;
+
+   int mouse_x_;
+   int mouse_y_;
 };
 
 }; // namespace villa
