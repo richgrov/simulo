@@ -69,6 +69,19 @@ Buffer::Buffer(
    }
 }
 
+Buffer &Buffer::operator=(Buffer &&other) {
+   vkDestroyBuffer(device_, buffer_, nullptr);
+   vkFreeMemory(device_, allocation_, nullptr);
+
+   buffer_ = other.buffer_;
+   allocation_ = other.allocation_;
+   device_ = other.device_;
+   other.buffer_ = VK_NULL_HANDLE;
+   other.allocation_ = VK_NULL_HANDLE;
+   other.device_ = VK_NULL_HANDLE;
+   return *this;
+}
+
 void Buffer::upload_memory(void *data, size_t size) {
    void *cpy_dst;
    vkMapMemory(device_, allocation_, 0, size, 0, &cpy_dst);

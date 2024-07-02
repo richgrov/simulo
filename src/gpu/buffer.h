@@ -11,11 +11,18 @@ public:
    );
 
    inline ~Buffer() {
-      vkDestroyBuffer(device_, buffer_, nullptr);
-      vkFreeMemory(device_, allocation_, nullptr);
+      if (buffer_ != VK_NULL_HANDLE) {
+         vkDestroyBuffer(device_, buffer_, nullptr);
+      }
+
+      if (allocation_ != VK_NULL_HANDLE) {
+         vkFreeMemory(device_, allocation_, nullptr);
+      }
    }
 
    Buffer &operator=(const Buffer &other) = delete;
+
+   Buffer &operator=(Buffer &&other);
 
    void upload_memory(void *data, size_t size);
 
