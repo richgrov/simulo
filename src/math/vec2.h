@@ -4,7 +4,7 @@
 namespace villa {
 
 struct Vec2 {
-   Vec2(float x_, float y_) : x(x_), y(x_) {}
+   Vec2(float x_, float y_) : x(x_), y(y_) {}
 
    float x, y;
 };
