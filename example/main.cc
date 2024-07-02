@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
       Vertex vertices[] = {
           {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
           {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-          {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+          {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
       };
 
       auto vertex_buffer = gpu.allocate_vertex_buffer<Vertex>(3);
