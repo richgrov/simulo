@@ -5,7 +5,6 @@
 
 #include "vulkan/vulkan_core.h"
 
-#include "swapchain.h"
 #include "util/array.h"
 
 using namespace villa;
@@ -13,7 +12,7 @@ using namespace villa;
 void Pipeline::init(
     VkDevice device, VkVertexInputBindingDescription vertex_binding,
     const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
-    const std::vector<std::reference_wrapper<Shader>> &shaders, const Swapchain &swapchain
+    const std::vector<std::reference_wrapper<Shader>> &shaders, VkRenderPass render_pass
 ) {
    device_ = device;
 
@@ -87,51 +86,6 @@ void Pipeline::init(
       throw std::runtime_error("failed to create pipeline layout");
    }
 
-   VkAttachmentDescription color_attachment = {
-       .format = swapchain.img_format(),
-       .samples = VK_SAMPLE_COUNT_1_BIT,
-       .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-       .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-       .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-       .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-       .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-       .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-   };
-
-   VkAttachmentReference color_attachment_ref = {
-       .attachment = 0,
-       .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-   };
-
-   VkSubpassDescription subpass = {
-       .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-       .colorAttachmentCount = 1,
-       .pColorAttachments = &color_attachment_ref,
-   };
-
-   VkSubpassDependency subpass_dependency = {
-       .srcSubpass = VK_SUBPASS_EXTERNAL,
-       .dstSubpass = 0,
-       .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-       .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-       .srcAccessMask = 0,
-       .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-   };
-
-   VkRenderPassCreateInfo render_create = {
-       .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-       .attachmentCount = 1,
-       .pAttachments = &color_attachment,
-       .subpassCount = 1,
-       .pSubpasses = &subpass,
-       .dependencyCount = 1,
-       .pDependencies = &subpass_dependency,
-   };
-
-   if (vkCreateRenderPass(device, &render_create, nullptr, &render_pass_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create render pass");
-   }
-
    VkGraphicsPipelineCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
        .stageCount = static_cast<uint32_t>(shader_stages.size()),
@@ -145,7 +99,7 @@ void Pipeline::init(
        .pColorBlendState = &color_blend_create,
        .pDynamicState = &dynamic_create,
        .layout = layout_,
-       .renderPass = render_pass_,
+       .renderPass = render_pass,
        .subpass = 0,
    };
 
@@ -156,10 +110,6 @@ void Pipeline::init(
 }
 
 void Pipeline::deinit() {
-   if (render_pass_ != VK_NULL_HANDLE) {
-      vkDestroyRenderPass(device_, render_pass_, nullptr);
-   }
-
    if (pipeline_ != VK_NULL_HANDLE) {
       vkDestroyPipeline(device_, pipeline_, nullptr);
    }

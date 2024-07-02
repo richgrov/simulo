@@ -44,6 +44,7 @@ private:
    VkQueue graphics_queue_;
    VkQueue present_queue_;
    Swapchain swapchain_;
+   VkRenderPass render_pass_;
    Shader vertex_shader_;
    Shader fragment_shader_;
    Pipeline pipeline_;

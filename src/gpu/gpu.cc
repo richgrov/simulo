@@ -128,7 +128,7 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
 
 Gpu::Gpu()
     : vk_instance_(VK_NULL_HANDLE), physical_device_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE),
-      surface_(VK_NULL_HANDLE) {}
+      surface_(VK_NULL_HANDLE), render_pass_(VK_NULL_HANDLE) {}
 
 void Gpu::init(const std::vector<const char *> &extensions) {
    VkApplicationInfo app_info = {
@@ -174,6 +174,10 @@ Gpu::~Gpu() {
    vertex_shader_.deinit();
    fragment_shader_.deinit();
 
+   if (render_pass_ != VK_NULL_HANDLE) {
+      vkDestroyRenderPass(device_, render_pass_, nullptr);
+   }
+
    swapchain_.deinit();
 
    if (device_ != VK_NULL_HANDLE) {
@@ -212,6 +216,51 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
        device_, surface_, width, height
    );
 
+   VkAttachmentDescription color_attachment = {
+       .format = swapchain_.img_format(),
+       .samples = VK_SAMPLE_COUNT_1_BIT,
+       .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+       .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+       .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+       .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+       .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+       .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+   };
+
+   VkAttachmentReference color_attachment_ref = {
+       .attachment = 0,
+       .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+   };
+
+   VkSubpassDescription subpass = {
+       .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+       .colorAttachmentCount = 1,
+       .pColorAttachments = &color_attachment_ref,
+   };
+
+   VkSubpassDependency subpass_dependency = {
+       .srcSubpass = VK_SUBPASS_EXTERNAL,
+       .dstSubpass = 0,
+       .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+       .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+       .srcAccessMask = 0,
+       .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+   };
+
+   VkRenderPassCreateInfo render_create = {
+       .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+       .attachmentCount = 1,
+       .pAttachments = &color_attachment,
+       .subpassCount = 1,
+       .pSubpasses = &subpass,
+       .dependencyCount = 1,
+       .pDependencies = &subpass_dependency,
+   };
+
+   if (vkCreateRenderPass(device_, &render_create, nullptr, &render_pass_) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create render pass");
+   }
+
    vertex_shader_.init(device_, "shader-vert.spv", ShaderType::kVertex);
    fragment_shader_.init(device_, "shader-frag.spv", ShaderType::kFragment);
 
@@ -236,7 +285,7 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
        },
    };
 
-   pipeline_.init(device_, binding, attrs, {vertex_shader_, fragment_shader_}, swapchain_);
+   pipeline_.init(device_, binding, attrs, {vertex_shader_, fragment_shader_}, render_pass_);
 
    framebuffers_.resize(swapchain_.num_images());
    for (int i = 0; i < swapchain_.num_images(); ++i) {
@@ -245,7 +294,7 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
       VkExtent2D extent = swapchain_.extent();
       VkFramebufferCreateInfo create_info = {
           .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-          .renderPass = pipeline_.render_pass(),
+          .renderPass = render_pass_,
           .attachmentCount = VILLA_ARRAY_LEN(attachments),
           .pAttachments = attachments,
           .width = extent.width,
@@ -298,7 +347,7 @@ void Gpu::draw(const VertexBuffer &vertices) {
    VkClearValue clear_color = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
    VkRenderPassBeginInfo render_begin = {
        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-       .renderPass = pipeline_.render_pass(),
+       .renderPass = render_pass_,
        .framebuffer = framebuffers_[framebuffer_index],
        .renderArea =
            {

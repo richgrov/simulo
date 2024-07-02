@@ -7,34 +7,26 @@
 #include "vulkan/vulkan_core.h"
 
 #include "shader.h"
-#include "swapchain.h"
 
 namespace villa {
 
 class Pipeline {
 public:
-   Pipeline()
-       : render_pass_(VK_NULL_HANDLE), layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE),
-         device_(VK_NULL_HANDLE) {}
+   Pipeline() : layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE) {}
 
    void init(
        VkDevice device, VkVertexInputBindingDescription vertex_binding,
        const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
-       const std::vector<std::reference_wrapper<Shader>> &shaders, const Swapchain &swapchain
+       const std::vector<std::reference_wrapper<Shader>> &shaders, VkRenderPass render_pass
    );
 
    void deinit();
-
-   inline VkRenderPass render_pass() const {
-      return render_pass_;
-   }
 
    inline VkPipeline handle() const {
       return pipeline_;
    }
 
 private:
-   VkRenderPass render_pass_;
    VkPipelineLayout layout_;
    VkPipeline pipeline_;
    VkDevice device_;
