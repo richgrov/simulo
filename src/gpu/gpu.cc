@@ -8,6 +8,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "gpu/pipeline.h"
 #include "shader.h"
 #include "util/array.h"
 
@@ -169,8 +170,6 @@ Gpu::~Gpu() {
 
    command_pool_.deinit();
 
-   pipeline_.deinit();
-
    vertex_shader_.deinit();
    fragment_shader_.deinit();
 
@@ -264,29 +263,6 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
    vertex_shader_.init(device_, "shader-vert.spv", ShaderType::kVertex);
    fragment_shader_.init(device_, "shader-frag.spv", ShaderType::kFragment);
 
-   VkVertexInputBindingDescription binding = {
-       .binding = 0,
-       .stride = (4 * 2) + (4 * 3),
-       .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-   };
-
-   std::vector<VkVertexInputAttributeDescription> attrs = {
-       VkVertexInputAttributeDescription{
-           .location = 0,
-           .binding = 0,
-           .format = VK_FORMAT_R32G32_SFLOAT,
-           .offset = 0,
-       },
-       VkVertexInputAttributeDescription{
-           .location = 1,
-           .binding = 0,
-           .format = VK_FORMAT_R32G32B32_SFLOAT,
-           .offset = 4 * 2,
-       },
-   };
-
-   pipeline_.init(device_, binding, attrs, {vertex_shader_, fragment_shader_}, render_pass_);
-
    framebuffers_.resize(swapchain_.num_images());
    for (int i = 0; i < swapchain_.num_images(); ++i) {
       VkImageView attachments[] = {swapchain_.image_view(i)};
@@ -322,7 +298,7 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
    }
 }
 
-void Gpu::draw(const VertexBuffer &vertices) {
+void Gpu::draw(const Pipeline &pipeline, const VertexBuffer &vertices) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
    vkResetFences(device_, 1, &draw_cycle_complete);
 
@@ -358,7 +334,7 @@ void Gpu::draw(const VertexBuffer &vertices) {
    };
 
    vkCmdBeginRenderPass(command_buffer_, &render_begin, VK_SUBPASS_CONTENTS_INLINE);
-   vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_.handle());
+   vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle());
 
    VkViewport viewport = {
        .width = static_cast<float>(swapchain_.extent().width),

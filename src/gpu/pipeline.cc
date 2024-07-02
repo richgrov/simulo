@@ -9,11 +9,13 @@
 
 using namespace villa;
 
-void Pipeline::init(
+Pipeline::Pipeline(
     VkDevice device, VkVertexInputBindingDescription vertex_binding,
     const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
     const std::vector<std::reference_wrapper<Shader>> &shaders, VkRenderPass render_pass
-) {
+)
+    : layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE) {
+
    device_ = device;
 
    std::vector<VkPipelineShaderStageCreateInfo> shader_stages(shaders.size());
@@ -109,7 +111,7 @@ void Pipeline::init(
    }
 }
 
-void Pipeline::deinit() {
+Pipeline::~Pipeline() {
    if (pipeline_ != VK_NULL_HANDLE) {
       vkDestroyPipeline(device_, pipeline_, nullptr);
    }

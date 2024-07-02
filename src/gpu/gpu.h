@@ -28,11 +28,36 @@ public:
 
    void connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 
+   Pipeline create_pipeline() {
+      VkVertexInputBindingDescription binding = {
+          .binding = 0,
+          .stride = (4 * 2) + (4 * 3),
+          .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+      };
+
+      std::vector<VkVertexInputAttributeDescription> attrs = {
+          VkVertexInputAttributeDescription{
+              .location = 0,
+              .binding = 0,
+              .format = VK_FORMAT_R32G32_SFLOAT,
+              .offset = 0,
+          },
+          VkVertexInputAttributeDescription{
+              .location = 1,
+              .binding = 0,
+              .format = VK_FORMAT_R32G32B32_SFLOAT,
+              .offset = 4 * 2,
+          },
+      };
+
+      return Pipeline(device_, binding, attrs, {vertex_shader_, fragment_shader_}, render_pass_);
+   }
+
    template <class T> inline VertexBuffer allocate_vertex_buffer(size_t num_vertices) {
       return VertexBuffer(num_vertices, sizeof(T), device_, physical_device_);
    }
 
-   void draw(const VertexBuffer &vertices);
+   void draw(const Pipeline &pipeline, const VertexBuffer &vertices);
 
 private:
    bool init_physical_device(QueueFamilies *families, SwapchainCreationInfo *info);
@@ -47,7 +72,6 @@ private:
    VkRenderPass render_pass_;
    Shader vertex_shader_;
    Shader fragment_shader_;
-   Pipeline pipeline_;
    std::vector<VkFramebuffer> framebuffers_;
    CommandPool command_pool_;
    VkCommandBuffer command_buffer_;

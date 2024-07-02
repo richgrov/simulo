@@ -32,6 +32,8 @@ int main(int argc, char **argv) {
       auto surface = window.create_surface(gpu.instance());
       gpu.connect_to_surface(surface, window.width(), window.height());
 
+      auto pipeline = gpu.create_pipeline();
+
       Vertex vertices[] = {
           {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
           {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
@@ -42,7 +44,7 @@ int main(int argc, char **argv) {
       vertex_buffer.upload_memory(&vertices, sizeof(vertices));
 
       while (window.poll()) {
-         gpu.draw(vertex_buffer);
+         gpu.draw(pipeline, vertex_buffer);
       }
    } catch (const std::exception &e) {
       std::cerr << "Unhandled exception: " << e.what() << "\n";

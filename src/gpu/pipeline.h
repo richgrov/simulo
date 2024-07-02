@@ -12,15 +12,13 @@ namespace villa {
 
 class Pipeline {
 public:
-   Pipeline() : layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE) {}
-
-   void init(
+   Pipeline(
        VkDevice device, VkVertexInputBindingDescription vertex_binding,
        const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
        const std::vector<std::reference_wrapper<Shader>> &shaders, VkRenderPass render_pass
    );
 
-   void deinit();
+   ~Pipeline();
 
    inline VkPipeline handle() const {
       return pipeline_;
