@@ -50,6 +50,14 @@ public:
       return mouse_y_;
    }
 
+   inline void set_left_clicking__internal(bool left_click) {
+      left_clicking_ = left_click;
+   }
+
+   bool left_clicking() const {
+      return left_clicking_;
+   }
+
 private:
    HWND window_;
    bool open_;
@@ -58,6 +66,7 @@ private:
 
    int mouse_x_;
    int mouse_y_;
+   bool left_clicking_;
 };
 
 }; // namespace villa

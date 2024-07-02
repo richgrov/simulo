@@ -45,6 +45,14 @@ LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_par
       get_window_class(window)->set_mouse__internal(x, y);
       return 0;
    }
+
+   case WM_LBUTTONDOWN:
+      get_window_class(window)->set_left_clicking__internal(true);
+      return 0;
+
+   case WM_LBUTTONUP:
+      get_window_class(window)->set_left_clicking__internal(false);
+      return 0;
    }
 
    return DefWindowProc(window, msg, w_param, l_param);
@@ -52,7 +60,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_par
 
 } // namespace
 
-Window::Window(const char *title) : open_(false), mouse_x_(0), mouse_y_(0) {
+Window::Window(const char *title) : open_(false), mouse_x_(0), mouse_y_(0), left_clicking_(false) {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
    WNDCLASS clazz = {
