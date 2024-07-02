@@ -2,6 +2,7 @@
 #define VILLA_GPU_BUFFER_H_
 
 #include "vulkan/vulkan_core.h"
+
 namespace villa {
 
 class Buffer {
