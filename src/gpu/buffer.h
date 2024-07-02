@@ -15,6 +15,8 @@ public:
       vkFreeMemory(device_, allocation_, nullptr);
    }
 
+   Buffer &operator=(const Buffer &other) = delete;
+
    void upload_memory(void *data, size_t size);
 
    inline VkBuffer buffer() const {
