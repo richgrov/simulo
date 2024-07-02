@@ -28,27 +28,25 @@ public:
 
    void connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 
-   Pipeline create_pipeline() {
+   template <class T> Pipeline create_pipeline() {
       VkVertexInputBindingDescription binding = {
           .binding = 0,
-          .stride = (4 * 2) + (4 * 3),
+          .stride = sizeof(T),
           .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
       };
 
-      std::vector<VkVertexInputAttributeDescription> attrs = {
-          VkVertexInputAttributeDescription{
-              .location = 0,
-              .binding = 0,
-              .format = VK_FORMAT_R32G32_SFLOAT,
-              .offset = 0,
-          },
-          VkVertexInputAttributeDescription{
-              .location = 1,
-              .binding = 0,
-              .format = VK_FORMAT_R32G32B32_SFLOAT,
-              .offset = 4 * 2,
-          },
-      };
+      std::vector<VkVertexInputAttributeDescription> attrs(T::attributes.size());
+      uint32_t offset = 0;
+      for (uint32_t i = 0; i < T::attributes.size(); ++i) {
+         const auto &attr = T::attributes[i];
+         attrs[i] = {
+             .location = i,
+             .binding = 0,
+             .format = attr.format,
+             .offset = offset,
+         };
+         offset += attr.size;
+      }
 
       return Pipeline(device_, binding, attrs, {vertex_shader_, fragment_shader_}, render_pass_);
    }
