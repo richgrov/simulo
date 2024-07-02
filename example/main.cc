@@ -2,25 +2,16 @@
 #include <iostream>
 
 #include "gpu/gpu.h"
+#include "math/vec2.h"
+#include "math/vec3.h"
 #include "window/window.h" // IWYU pragma: export
 
 using namespace villa;
 
-typedef struct {
-   float x;
-   float y;
-} Vec2;
-
-typedef struct {
-   float x;
-   float y;
-   float z;
-} Vec3;
-
-typedef struct {
+struct Vertex {
    Vec2 pos;
    Vec3 color;
-} Vertex;
+};
 
 int main(int argc, char **argv) {
    try {

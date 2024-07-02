@@ -18,6 +18,8 @@ add_library(villa
    "gpu/swapchain.h"
    "gpu/buffer.cc"
    "gpu/buffer.h"
+   "math/vec2.h"
+   "math/vec3.h"
    "util/array.h"
    "window/window.h"
    ${OS_SPECIFIC_FILES}
