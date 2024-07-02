@@ -57,6 +57,10 @@ public:
 
    void draw(const Pipeline &pipeline, const VertexBuffer &vertices);
 
+   inline void wait_idle() const {
+      vkDeviceWaitIdle(device_);
+   }
+
 private:
    bool init_physical_device(QueueFamilies *families, SwapchainCreationInfo *info);
 

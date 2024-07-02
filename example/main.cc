@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
 
       while (window.poll()) {
          gpu.draw(pipeline, vertex_buffer);
+         gpu.wait_idle();
       }
    } catch (const std::exception &e) {
       std::cerr << "Unhandled exception: " << e.what() << "\n";
