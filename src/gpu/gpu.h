@@ -55,6 +55,12 @@ public:
       return VertexBuffer(num_vertices, sizeof(T), device_, physical_device_);
    }
 
+   StagingBuffer create_staging_buffer(size_t capacity) {
+      return StagingBuffer(capacity, device_, physical_device_);
+   }
+
+   void buffer_copy(const StagingBuffer &src, Buffer &dst);
+
    void draw(const Pipeline &pipeline, const VertexBuffer &vertices);
 
    inline void wait_idle() const {

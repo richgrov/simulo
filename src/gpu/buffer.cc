@@ -85,3 +85,8 @@ void Buffer::upload_memory(void *data, size_t size) {
    memcpy(cpy_dst, data, size);
    vkUnmapMemory(device_, allocation_);
 }
+
+void StagingBuffer::upload_memory(void *data, size_t size) {
+   size_ = size;
+   Buffer::upload_memory(data, size);
+}

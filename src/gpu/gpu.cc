@@ -298,6 +298,35 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
    }
 }
 
+void Gpu::buffer_copy(const StagingBuffer &src, Buffer &dst) {
+   VkCommandBuffer cmd_buf = command_pool_.allocate();
+
+   VkCommandBufferBeginInfo begin_info = {
+       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+       .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+   };
+
+   if (vkBeginCommandBuffer(cmd_buf, &begin_info) != VK_SUCCESS) {
+      throw std::runtime_error("command buffer for buffer copy couldn't begin recording");
+   }
+
+   VkBufferCopy copy_region = {
+       .srcOffset = 0,
+       .dstOffset = 0,
+       .size = src.size(),
+   };
+   vkCmdCopyBuffer(cmd_buf, src.buffer(), dst.buffer(), 1, &copy_region);
+   vkEndCommandBuffer(cmd_buf);
+
+   VkSubmitInfo submit_info = {
+       .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+       .commandBufferCount = 1,
+       .pCommandBuffers = &cmd_buf,
+   };
+   vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
+   vkQueueWaitIdle(graphics_queue_);
+}
+
 void Gpu::draw(const Pipeline &pipeline, const VertexBuffer &vertices) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
    vkResetFences(device_, 1, &draw_cycle_complete);
