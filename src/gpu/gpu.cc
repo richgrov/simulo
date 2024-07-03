@@ -8,6 +8,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "gpu/buffer.h"
 #include "gpu/pipeline.h"
 #include "shader.h"
 #include "util/array.h"
@@ -327,7 +328,7 @@ void Gpu::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    vkQueueWaitIdle(graphics_queue_);
 }
 
-void Gpu::draw(const Pipeline &pipeline, const VertexBuffer &vertices) {
+void Gpu::draw(const Pipeline &pipeline, const VertexBuffer &vertices, const IndexBuffer &indices) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
    vkResetFences(device_, 1, &draw_cycle_complete);
 
@@ -380,8 +381,9 @@ void Gpu::draw(const Pipeline &pipeline, const VertexBuffer &vertices) {
    VkBuffer buffers[] = {vertices.buffer()};
    VkDeviceSize offsets[] = {0};
    vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
+   vkCmdBindIndexBuffer(command_buffer_, indices.buffer(), 0, VK_INDEX_TYPE_UINT16);
 
-   vkCmdDraw(command_buffer_, vertices.num_vertices(), 1, 0, 0);
+   vkCmdDrawIndexed(command_buffer_, indices.num_indices(), 1, 0, 0, 0);
 
    vkCmdEndRenderPass(command_buffer_);
 

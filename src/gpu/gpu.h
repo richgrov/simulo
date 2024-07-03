@@ -65,7 +65,7 @@ public:
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
-   void draw(const Pipeline &pipeline, const VertexBuffer &vertices);
+   void draw(const Pipeline &pipeline, const VertexBuffer &vertices, const IndexBuffer &indices);
 
    inline void wait_idle() const {
       vkDeviceWaitIdle(device_);
