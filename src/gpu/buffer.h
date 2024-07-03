@@ -32,10 +32,12 @@ public:
       return buffer_;
    }
 
-private:
-   VkBuffer buffer_;
+protected:
    VkDeviceMemory allocation_;
    VkDevice device_;
+
+private:
+   VkBuffer buffer_;
 };
 
 class VertexBuffer : public Buffer {
