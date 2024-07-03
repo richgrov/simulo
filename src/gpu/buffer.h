@@ -59,6 +59,29 @@ private:
    size_t num_vertices_;
 };
 
+class IndexBuffer : public Buffer {
+public:
+   using IndexType = uint16_t;
+
+   explicit inline IndexBuffer(
+       IndexType num_indices, VkDevice device, VkPhysicalDevice physical_device
+   )
+       : Buffer(
+             sizeof(IndexType) * num_indices,
+             VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+             static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), device,
+             physical_device
+         ),
+         num_indices_(num_indices) {}
+
+   inline IndexType num_indices() const {
+      return num_indices_;
+   }
+
+private:
+   IndexType num_indices_;
+};
+
 class StagingBuffer : public Buffer {
 public:
    StagingBuffer(VkDeviceSize capacity, VkDevice device, VkPhysicalDevice physical_device)

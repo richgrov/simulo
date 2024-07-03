@@ -55,6 +55,10 @@ public:
       return VertexBuffer(num_vertices, sizeof(T), device_, physical_device_);
    }
 
+   inline IndexBuffer create_index_buffer(IndexBuffer::IndexType num_indices) {
+      return IndexBuffer(num_indices, device_, physical_device_);
+   }
+
    StagingBuffer create_staging_buffer(size_t capacity) {
       return StagingBuffer(capacity, device_, physical_device_);
    }
