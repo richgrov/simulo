@@ -2,6 +2,7 @@
 #define VILLA_GPU_BUFFER_H_
 
 #include "vulkan/vulkan_core.h"
+#include <cstring>
 
 namespace villa {
 
@@ -109,6 +110,22 @@ public:
 private:
    VkDeviceSize capacity_;
    VkDeviceSize size_;
+};
+
+class UniformBuffer : public Buffer {
+public:
+   explicit UniformBuffer(VkDeviceSize capacity, VkDevice device, VkPhysicalDevice physical_device);
+
+   inline ~UniformBuffer() {
+      vkUnmapMemory(device_, allocation_);
+   }
+
+   inline virtual void upload_memory(void *data, size_t size) override {
+      std::memcpy(mem_map_, data, size);
+   }
+
+private:
+   void *mem_map_;
 };
 
 } // namespace villa

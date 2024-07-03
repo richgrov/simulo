@@ -63,6 +63,10 @@ public:
       return StagingBuffer(capacity, device_, physical_device_);
    }
 
+   template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
+      return UniformBuffer(sizeof(T) * num_elements, device_, physical_device_);
+   }
+
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
    void draw(const Pipeline &pipeline, const VertexBuffer &vertices, const IndexBuffer &indices);

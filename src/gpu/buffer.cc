@@ -90,3 +90,15 @@ void StagingBuffer::upload_memory(void *data, size_t size) {
    size_ = size;
    Buffer::upload_memory(data, size);
 }
+
+UniformBuffer::UniformBuffer(
+    VkDeviceSize capacity, VkDevice device, VkPhysicalDevice physical_device
+)
+    : Buffer(
+          capacity, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+          static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT), device,
+          physical_device
+      ) {
+
+   vkMapMemory(device, allocation_, 0, capacity, 0, &mem_map_);
+}
