@@ -14,7 +14,8 @@ Pipeline::Pipeline(
     const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
     const std::vector<std::reference_wrapper<Shader>> &shaders, VkRenderPass render_pass
 )
-    : layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE) {
+    : layout_(VK_NULL_HANDLE), descriptor_layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE),
+      device_(VK_NULL_HANDLE) {
 
    device_ = device;
 
@@ -80,8 +81,28 @@ Pipeline::Pipeline(
        .pDynamicStates = dynamic_states,
    };
 
+   VkDescriptorSetLayoutBinding layout_binding = {
+       .binding = 0,
+       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+       .descriptorCount = 1,
+   };
+
+   VkDescriptorSetLayoutCreateInfo descriptor_layout_create = {
+       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+       .bindingCount = 1,
+       .pBindings = &layout_binding,
+   };
+
+   if (vkCreateDescriptorSetLayout(
+           device, &descriptor_layout_create, nullptr, &descriptor_layout_
+       ) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create descriptor set");
+   }
+
    VkPipelineLayoutCreateInfo layout_create = {
        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+       .setLayoutCount = 1,
+       .pSetLayouts = &descriptor_layout_,
    };
 
    if (vkCreatePipelineLayout(device, &layout_create, nullptr, &layout_) != VK_SUCCESS) {
@@ -112,6 +133,10 @@ Pipeline::Pipeline(
 }
 
 Pipeline::~Pipeline() {
+   if (descriptor_layout_ != VK_NULL_HANDLE) {
+      vkDestroyDescriptorSetLayout(device_, descriptor_layout_, nullptr);
+   }
+
    if (pipeline_ != VK_NULL_HANDLE) {
       vkDestroyPipeline(device_, pipeline_, nullptr);
    }

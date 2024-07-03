@@ -26,6 +26,7 @@ public:
 
 private:
    VkPipelineLayout layout_;
+   VkDescriptorSetLayout descriptor_layout_;
    VkPipeline pipeline_;
    VkDevice device_;
 };
