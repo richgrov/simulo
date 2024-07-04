@@ -10,8 +10,6 @@ add_library(villa
    "gpu/command_pool.h"
    "gpu/descriptor_pool.cc"
    "gpu/descriptor_pool.h"
-   "gpu/gpu.cc"
-   "gpu/gpu.h"
    "gpu/pipeline.cc"
    "gpu/pipeline.h"
    "gpu/shader.cc"
@@ -24,6 +22,8 @@ add_library(villa
    "math/vec3.h"
    "util/array.h"
    "window/window.h"
+   "game.cc"
+   "game.h"
    ${OS_SPECIFIC_FILES}
 )
 

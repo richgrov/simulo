@@ -1,4 +1,4 @@
-#include "gpu.h"
+#include "game.h"
 
 #include <format>
 #include <optional>
@@ -10,7 +10,7 @@
 
 #include "gpu/buffer.h"
 #include "gpu/pipeline.h"
-#include "shader.h"
+#include "gpu/shader.h"
 #include "util/array.h"
 
 using namespace villa;
@@ -128,9 +128,9 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
 
 } // namespace
 
-Gpu::Gpu(const std::vector<const char *> &extensions)
-    : vk_instance_(VK_NULL_HANDLE), physical_device_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE),
-      surface_(VK_NULL_HANDLE), render_pass_(VK_NULL_HANDLE) {
+Game::Game(const char *title)
+    : window_(title), vk_instance_(VK_NULL_HANDLE), physical_device_(VK_NULL_HANDLE),
+      device_(VK_NULL_HANDLE), surface_(VK_NULL_HANDLE), render_pass_(VK_NULL_HANDLE) {
 
    VkApplicationInfo app_info = {
        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -139,6 +139,7 @@ Gpu::Gpu(const std::vector<const char *> &extensions)
        .apiVersion = VK_API_VERSION_1_0,
    };
 
+   std::vector<const char *> extensions = window_.vulkan_extensions();
    VkInstanceCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
        .pApplicationInfo = &app_info,
@@ -155,9 +156,14 @@ Gpu::Gpu(const std::vector<const char *> &extensions)
    if (vkCreateInstance(&create_info, nullptr, &vk_instance_) != VK_SUCCESS) {
       throw std::runtime_error("failed to create vulkan instance");
    }
+
+   auto surface = window_.create_surface(vk_instance_);
+   int width = window_.width();
+   int height = window_.height();
+   connect_to_surface(surface, width, height);
 }
 
-Gpu::~Gpu() {
+Game::~Game() {
    vkDeviceWaitIdle(device_);
 
    vkDestroySemaphore(device_, sem_img_avail, nullptr);
@@ -192,7 +198,7 @@ Gpu::~Gpu() {
    }
 }
 
-void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
+void Game::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
    if (surface_ != VK_NULL_HANDLE) {
       throw std::runtime_error("surface already set");
    }
@@ -298,7 +304,7 @@ void Gpu::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t heig
    }
 }
 
-void Gpu::buffer_copy(const StagingBuffer &src, Buffer &dst) {
+void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    VkCommandBuffer cmd_buf = command_pool_.allocate();
 
    VkCommandBufferBeginInfo begin_info = {
@@ -327,7 +333,7 @@ void Gpu::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    vkQueueWaitIdle(graphics_queue_);
 }
 
-void Gpu::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) {
+void Game::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
    vkResetFences(device_, 1, &draw_cycle_complete);
 
@@ -382,7 +388,7 @@ void Gpu::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) {
    );
 }
 
-void Gpu::draw(const VertexBuffer &vertices, const IndexBuffer &indices) {
+void Game::draw(const VertexBuffer &vertices, const IndexBuffer &indices) {
    VkBuffer buffers[] = {vertices.buffer()};
    VkDeviceSize offsets[] = {0};
    vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
@@ -391,7 +397,7 @@ void Gpu::draw(const VertexBuffer &vertices, const IndexBuffer &indices) {
    vkCmdDrawIndexed(command_buffer_, indices.num_indices(), 1, 0, 0, 0);
 }
 
-void Gpu::end_draw() {
+void Game::end_draw() {
    vkCmdEndRenderPass(command_buffer_);
 
    if (vkEndCommandBuffer(command_buffer_) != VK_SUCCESS) {
@@ -427,7 +433,7 @@ void Gpu::end_draw() {
    vkQueuePresentKHR(present_queue_, &present_info);
 }
 
-bool Gpu::init_physical_device(
+bool Game::init_physical_device(
     QueueFamilies *out_families, SwapchainCreationInfo *out_swapchain_info
 ) {
    uint32_t num_devices;

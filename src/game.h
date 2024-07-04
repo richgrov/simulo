@@ -5,25 +5,22 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "buffer.h"
-#include "command_pool.h"
+#include "gpu/buffer.h"
+#include "gpu/command_pool.h"
 #include "gpu/descriptor_pool.h"
-#include "pipeline.h"
-#include "shader.h"
-#include "swapchain.h"
+#include "gpu/pipeline.h"
+#include "gpu/shader.h"
+#include "gpu/swapchain.h"
+#include "window/window.h" // IWYU pragma: export
 
 namespace villa {
 
 struct QueueFamilies;
 
-class Gpu {
+class Game {
 public:
-   explicit Gpu(const std::vector<const char *> &extensions);
-   ~Gpu();
-
-   inline VkInstance instance() const {
-      return vk_instance_;
-   }
+   explicit Game(const char *title);
+   ~Game();
 
    void connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 
@@ -72,6 +69,30 @@ public:
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
+   inline bool poll() {
+      return window_.poll();
+   }
+
+   inline int width() const {
+      return window_.width();
+   }
+
+   inline int height() const {
+      return window_.height();
+   }
+
+   inline int mouse_x() const {
+      return window_.mouse_x();
+   }
+
+   inline int mouse_y() const {
+      return window_.mouse_y();
+   }
+
+   inline bool left_clicking() const {
+      return window_.left_clicking();
+   }
+
    void begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set);
 
    void draw(const VertexBuffer &vertices, const IndexBuffer &indices);
@@ -85,6 +106,7 @@ public:
 private:
    bool init_physical_device(QueueFamilies *families, SwapchainCreationInfo *info);
 
+   Window window_;
    VkInstance vk_instance_;
    VkPhysicalDevice physical_device_;
    VkDevice device_;
