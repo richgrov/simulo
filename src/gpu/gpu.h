@@ -69,7 +69,11 @@ public:
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
-   void draw(const Pipeline &pipeline, const VertexBuffer &vertices, const IndexBuffer &indices);
+   void begin_draw(const Pipeline &pipeline);
+
+   void draw(const VertexBuffer &vertices, const IndexBuffer &indices);
+
+   void end_draw();
 
    inline void wait_idle() const {
       vkDeviceWaitIdle(device_);
@@ -89,6 +93,7 @@ private:
    Shader vertex_shader_;
    Shader fragment_shader_;
    std::vector<VkFramebuffer> framebuffers_;
+   uint32_t current_framebuffer_;
    CommandPool command_pool_;
    VkCommandBuffer command_buffer_;
    VkSemaphore sem_img_avail;

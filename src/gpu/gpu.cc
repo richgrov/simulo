@@ -328,14 +328,13 @@ void Gpu::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    vkQueueWaitIdle(graphics_queue_);
 }
 
-void Gpu::draw(const Pipeline &pipeline, const VertexBuffer &vertices, const IndexBuffer &indices) {
+void Gpu::begin_draw(const Pipeline &pipeline) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
    vkResetFences(device_, 1, &draw_cycle_complete);
 
-   uint32_t framebuffer_index;
    if (vkAcquireNextImageKHR(
            device_, swapchain_.handle(), UINT64_MAX, sem_img_avail, VK_NULL_HANDLE,
-           &framebuffer_index
+           &current_framebuffer_
        ) != VK_SUCCESS) {
       throw std::runtime_error("failed to acquire next swapchain image");
    }
@@ -354,7 +353,7 @@ void Gpu::draw(const Pipeline &pipeline, const VertexBuffer &vertices, const Ind
    VkRenderPassBeginInfo render_begin = {
        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
        .renderPass = render_pass_,
-       .framebuffer = framebuffers_[framebuffer_index],
+       .framebuffer = framebuffers_[current_framebuffer_],
        .renderArea =
            {
                .extent = swapchain_.extent(),
@@ -377,14 +376,18 @@ void Gpu::draw(const Pipeline &pipeline, const VertexBuffer &vertices, const Ind
        .extent = swapchain_.extent(),
    };
    vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
+}
 
+void Gpu::draw(const VertexBuffer &vertices, const IndexBuffer &indices) {
    VkBuffer buffers[] = {vertices.buffer()};
    VkDeviceSize offsets[] = {0};
    vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
    vkCmdBindIndexBuffer(command_buffer_, indices.buffer(), 0, VK_INDEX_TYPE_UINT16);
 
    vkCmdDrawIndexed(command_buffer_, indices.num_indices(), 1, 0, 0, 0);
+}
 
+void Gpu::end_draw() {
    vkCmdEndRenderPass(command_buffer_);
 
    if (vkEndCommandBuffer(command_buffer_) != VK_SUCCESS) {
@@ -414,7 +417,7 @@ void Gpu::draw(const Pipeline &pipeline, const VertexBuffer &vertices, const Ind
        .pWaitSemaphores = &sem_render_complete,
        .swapchainCount = VILLA_ARRAY_LEN(swap_chains),
        .pSwapchains = swap_chains,
-       .pImageIndices = &framebuffer_index,
+       .pImageIndices = &current_framebuffer_,
    };
 
    vkQueuePresentKHR(present_queue_, &present_info);

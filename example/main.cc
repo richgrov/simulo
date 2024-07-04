@@ -85,7 +85,10 @@ int main(int argc, char **argv) {
             index_buffer = std::move(new_index_buf);
          }
 
-         gpu.draw(pipeline, vertex_buffer, index_buffer);
+         gpu.begin_draw(pipeline);
+         gpu.draw(vertex_buffer, index_buffer);
+         gpu.end_draw();
+
          gpu.wait_idle();
       }
    } catch (const std::exception &e) {
