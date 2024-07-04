@@ -18,10 +18,8 @@ struct QueueFamilies;
 
 class Gpu {
 public:
-   explicit Gpu();
+   explicit Gpu(const std::vector<const char *> &extensions);
    ~Gpu();
-
-   void init(const std::vector<const char *> &extensions);
 
    inline VkInstance instance() const {
       return vk_instance_;

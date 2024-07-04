@@ -25,9 +25,7 @@ struct Vertex {
 int main(int argc, char **argv) {
    try {
       Window window("villa");
-      Gpu gpu;
-
-      gpu.init(window.vulkan_extensions());
+      Gpu gpu(window.vulkan_extensions());
 
       auto surface = window.create_surface(gpu.instance());
       int width = window.width();

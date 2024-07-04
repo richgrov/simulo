@@ -128,11 +128,10 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
 
 } // namespace
 
-Gpu::Gpu()
+Gpu::Gpu(const std::vector<const char *> &extensions)
     : vk_instance_(VK_NULL_HANDLE), physical_device_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE),
-      surface_(VK_NULL_HANDLE), render_pass_(VK_NULL_HANDLE) {}
+      surface_(VK_NULL_HANDLE), render_pass_(VK_NULL_HANDLE) {
 
-void Gpu::init(const std::vector<const char *> &extensions) {
    VkApplicationInfo app_info = {
        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
