@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
           1,
           2,
       };
-      auto vertex_buffer = gpu.allocate_vertex_buffer<Vertex>(3);
+      auto vertex_buffer = gpu.create_vertex_buffer<Vertex>(3);
       auto index_buffer = gpu.create_index_buffer(3);
 
       staging_buffer.upload_memory(vertices.data(), sizeof(Vertex) * vertices.size());
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
             indices.push_back(index + 2);
 
             staging_buffer.upload_memory(vertices.data(), sizeof(Vertex) * vertices.size());
-            auto new_vertex_buf = gpu.allocate_vertex_buffer<Vertex>(vertices.size());
+            auto new_vertex_buf = gpu.create_vertex_buffer<Vertex>(vertices.size());
             gpu.buffer_copy(staging_buffer, new_vertex_buf);
             vertex_buffer = std::move(new_vertex_buf);
 

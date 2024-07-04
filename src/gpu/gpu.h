@@ -52,7 +52,7 @@ public:
       return Pipeline(device_, binding, attrs, {vertex_shader_, fragment_shader_}, render_pass_);
    }
 
-   template <class T> inline VertexBuffer allocate_vertex_buffer(size_t num_vertices) {
+   template <class T> inline VertexBuffer create_vertex_buffer(size_t num_vertices) {
       return VertexBuffer(num_vertices, sizeof(T), device_, physical_device_);
    }
 
