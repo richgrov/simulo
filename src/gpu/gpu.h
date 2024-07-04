@@ -74,7 +74,7 @@ public:
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
-   void begin_draw(const Pipeline &pipeline);
+   void begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set);
 
    void draw(const VertexBuffer &vertices, const IndexBuffer &indices);
 

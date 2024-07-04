@@ -328,7 +328,7 @@ void Gpu::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    vkQueueWaitIdle(graphics_queue_);
 }
 
-void Gpu::begin_draw(const Pipeline &pipeline) {
+void Gpu::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
    vkResetFences(device_, 1, &draw_cycle_complete);
 
@@ -376,6 +376,11 @@ void Gpu::begin_draw(const Pipeline &pipeline) {
        .extent = swapchain_.extent(),
    };
    vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
+
+   vkCmdBindDescriptorSets(
+       command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout(), 0, 1, &descriptor_set,
+       0, nullptr
+   );
 }
 
 void Gpu::draw(const VertexBuffer &vertices, const IndexBuffer &indices) {

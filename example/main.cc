@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
             index_buffer = std::move(new_index_buf);
          }
 
-         gpu.begin_draw(pipeline);
+         gpu.begin_draw(pipeline, descriptor_set);
          gpu.draw(vertex_buffer, index_buffer);
          gpu.end_draw();
 
