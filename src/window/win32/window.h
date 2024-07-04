@@ -14,20 +14,11 @@ public:
 
    bool poll();
 
-   inline void close__internal() {
-      open_ = false;
-   }
-
    inline std::vector<const char *> vulkan_extensions() const {
       return {"VK_KHR_surface", "VK_KHR_win32_surface"};
    }
 
    VkSurfaceKHR create_surface(VkInstance instance);
-
-   inline void set_size__internal(WORD width, WORD height) {
-      width_ = width;
-      height_ = height;
-   }
 
    int width() const {
       return width_;
@@ -37,21 +28,12 @@ public:
       return height_;
    }
 
-   inline void set_mouse__internal(int mouse_x, int mouse_y) {
-      mouse_x_ = mouse_x;
-      mouse_y_ = mouse_y;
-   }
-
    int mouse_x() const {
       return mouse_x_;
    }
 
    int mouse_y() const {
       return mouse_y_;
-   }
-
-   inline void set_left_clicking__internal(bool left_click) {
-      left_clicking_ = left_click;
    }
 
    bool left_clicking() const {
@@ -67,6 +49,8 @@ private:
    int mouse_x_;
    int mouse_y_;
    bool left_clicking_;
+
+   friend LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 };
 
 }; // namespace villa

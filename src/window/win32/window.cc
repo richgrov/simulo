@@ -24,10 +24,12 @@ static Window *get_window_class(HWND window) {
    return reinterpret_cast<Window *>(user_ptr);
 }
 
-LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param) {
+} // namespace
+
+LRESULT CALLBACK villa::window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param) {
    switch (msg) {
    case WM_DESTROY:
-      get_window_class(window)->close__internal();
+      get_window_class(window)->open_ = false;
       PostQuitMessage(0);
       return 0;
 
@@ -35,30 +37,31 @@ LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_par
       WORD height = HIWORD(l_param);
       WORD width = LOWORD(l_param);
       auto window_class = get_window_class(window);
-      window_class->set_size__internal(width, height);
+      window_class->width_ = width;
+      window_class->height_ = height;
       return 0;
    }
 
    case WM_MOUSEMOVE: {
       int x = GET_X_LPARAM(l_param);
       int y = GET_Y_LPARAM(l_param);
-      get_window_class(window)->set_mouse__internal(x, y);
+      Window *window_class = get_window_class(window);
+      window_class->mouse_x_ = x;
+      window_class->mouse_y_ = y;
       return 0;
    }
 
    case WM_LBUTTONDOWN:
-      get_window_class(window)->set_left_clicking__internal(true);
+      get_window_class(window)->left_clicking_ = true;
       return 0;
 
    case WM_LBUTTONUP:
-      get_window_class(window)->set_left_clicking__internal(false);
+      get_window_class(window)->left_clicking_ = false;
       return 0;
    }
 
    return DefWindowProc(window, msg, w_param, l_param);
 }
-
-} // namespace
 
 Window::Window(const char *title) : open_(false), mouse_x_(0), mouse_y_(0), left_clicking_(false) {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
