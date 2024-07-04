@@ -7,6 +7,7 @@
 
 #include "buffer.h"
 #include "command_pool.h"
+#include "gpu/descriptor_pool.h"
 #include "pipeline.h"
 #include "shader.h"
 #include "swapchain.h"
@@ -65,6 +66,10 @@ public:
 
    template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
       return UniformBuffer(sizeof(T) * num_elements, device_, physical_device_);
+   }
+
+   DescriptorPool create_descriptor_pool(const Pipeline &pipeline) {
+      return DescriptorPool(device_, pipeline);
    }
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);

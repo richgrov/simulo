@@ -8,6 +8,8 @@ endif()
 add_library(villa 
    "gpu/command_pool.cc"
    "gpu/command_pool.h"
+   "gpu/descriptor_pool.cc"
+   "gpu/descriptor_pool.h"
    "gpu/gpu.cc"
    "gpu/gpu.h"
    "gpu/pipeline.cc"

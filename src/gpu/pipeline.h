@@ -24,6 +24,10 @@ public:
       return pipeline_;
    }
 
+   inline VkDescriptorSetLayout descriptor_set_layout() const {
+      return descriptor_layout_;
+   }
+
 private:
    VkPipelineLayout layout_;
    VkDescriptorSetLayout descriptor_layout_;
