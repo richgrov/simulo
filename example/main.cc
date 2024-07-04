@@ -37,6 +37,10 @@ int main(int argc, char **argv) {
       auto pipeline = gpu.create_pipeline<Vertex>();
       auto staging_buffer = gpu.create_staging_buffer(64 * 1024);
 
+      auto uniform_buffer = gpu.create_uniform_buffer<Vec2>(1);
+      auto descriptor_pool = gpu.create_descriptor_pool(pipeline);
+      auto descriptor_set = descriptor_pool.allocate(uniform_buffer);
+
       std::vector<Vertex> vertices{
           {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
           {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
