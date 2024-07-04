@@ -27,8 +27,6 @@ public:
 
    Buffer &operator=(Buffer &&other);
 
-   virtual void upload_memory(void *data, size_t size);
-
    inline VkBuffer buffer() const {
       return buffer_;
    }
@@ -97,7 +95,7 @@ public:
          ),
          capacity_(capacity), size_(0) {}
 
-   virtual void upload_memory(void *data, size_t size) override;
+   void upload_memory(void *data, size_t size);
 
    inline VkDeviceSize capacity() const {
       return capacity_;
@@ -120,7 +118,7 @@ public:
       vkUnmapMemory(device_, allocation_);
    }
 
-   inline virtual void upload_memory(void *data, size_t size) override {
+   inline void upload_memory(void *data, size_t size) {
       std::memcpy(mem_map_, data, size);
    }
 

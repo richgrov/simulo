@@ -79,16 +79,12 @@ Buffer &Buffer::operator=(Buffer &&other) {
    return *this;
 }
 
-void Buffer::upload_memory(void *data, size_t size) {
+void StagingBuffer::upload_memory(void *data, size_t size) {
+   size_ = size;
    void *cpy_dst;
    vkMapMemory(device_, allocation_, 0, size, 0, &cpy_dst);
    memcpy(cpy_dst, data, size);
    vkUnmapMemory(device_, allocation_);
-}
-
-void StagingBuffer::upload_memory(void *data, size_t size) {
-   size_ = size;
-   Buffer::upload_memory(data, size);
 }
 
 UniformBuffer::UniformBuffer(
