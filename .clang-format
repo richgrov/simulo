@@ -3,4 +3,5 @@ IndentWidth: 3
 AccessModifierOffset: -3
 AllowShortFunctionsOnASingleLine: Empty
 AlignAfterOpenBracket: BlockIndent
+InsertBraces: true
 
