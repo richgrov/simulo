@@ -1,25 +1,18 @@
 #ifndef VILLA_GPU_SWAPCHAIN_H_
 #define VILLA_GPU_SWAPCHAIN_H_
 
-#include <optional>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace villa {
-
-struct SwapchainCreationInfo {
-   uint32_t num_surface_formats;
-   uint32_t num_present_modes;
-};
 
 class Swapchain {
 public:
    Swapchain();
 
    void init(
-       SwapchainCreationInfo swapchain_info, const std::vector<uint32_t> &queue_families,
-       VkPhysicalDevice physical_device, VkDevice device, VkSurfaceKHR surface, uint32_t width,
-       uint32_t height
+       const std::vector<uint32_t> &queue_families, VkPhysicalDevice physical_device,
+       VkDevice device, VkSurfaceKHR surface, uint32_t width, uint32_t height
    );
 
    void deinit();
@@ -44,8 +37,7 @@ public:
       return extent_;
    }
 
-   static std::optional<SwapchainCreationInfo>
-   get_creation_info(VkPhysicalDevice device, VkSurfaceKHR surface);
+   static bool is_supported_on(VkPhysicalDevice device, VkSurfaceKHR surface);
 
 private:
    VkDevice device_;

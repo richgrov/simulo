@@ -82,9 +82,10 @@ int main(int argc, char **argv) {
             index_buffer = std::move(new_index_buf);
          }*/
 
-         game.begin_draw(pipeline, descriptor_set);
-         game.draw(mesh_buffer);
-         game.end_draw();
+         if (game.begin_draw(pipeline, descriptor_set)) {
+            game.draw(mesh_buffer);
+            game.end_draw();
+         }
 
          game.wait_idle();
       }

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <optional>
 #include <stdexcept>
 
 #include <vulkan/vulkan_core.h>
@@ -24,25 +23,16 @@ bool has_swapchain_support(VkPhysicalDevice device) {
    return false;
 }
 
-std::optional<SwapchainCreationInfo>
-Swapchain::get_creation_info(VkPhysicalDevice device, VkSurfaceKHR surface) {
+bool Swapchain::is_supported_on(VkPhysicalDevice device, VkSurfaceKHR surface) {
    if (!has_swapchain_support(device)) {
-      return std::nullopt;
+      return false;
    }
 
    uint32_t num_formats;
    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, nullptr);
    uint32_t num_present_modes;
    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &num_present_modes, nullptr);
-
-   if (num_formats < 1 || num_present_modes < 1) {
-      return std::nullopt;
-   }
-
-   return std::make_optional(SwapchainCreationInfo{
-       .num_surface_formats = num_formats,
-       .num_present_modes = num_present_modes,
-   });
+   return num_formats > 1 && num_present_modes > 1;
 }
 
 VkSurfaceFormatKHR best_surface_format(const std::vector<VkSurfaceFormatKHR> &formats) {
@@ -81,18 +71,21 @@ create_swap_extent(const VkSurfaceCapabilitiesKHR &capa, uint32_t width, uint32_
 Swapchain::Swapchain() : device_(VK_NULL_HANDLE), swapchain_(VK_NULL_HANDLE) {}
 
 void Swapchain::init(
-    SwapchainCreationInfo swapchain_info, const std::vector<uint32_t> &queue_families,
-    VkPhysicalDevice physical_device, VkDevice device, VkSurfaceKHR surface, uint32_t width,
-    uint32_t height
+    const std::vector<uint32_t> &queue_families, VkPhysicalDevice physical_device, VkDevice device,
+    VkSurfaceKHR surface, uint32_t width, uint32_t height
 ) {
-   std::vector<VkSurfaceFormatKHR> surface_formats(swapchain_info.num_surface_formats);
+   uint32_t num_formats;
+   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &num_formats, nullptr);
+   std::vector<VkSurfaceFormatKHR> surface_formats(num_formats);
    vkGetPhysicalDeviceSurfaceFormatsKHR(
-       physical_device, surface, &swapchain_info.num_surface_formats, surface_formats.data()
+       physical_device, surface, &num_formats, surface_formats.data()
    );
 
-   std::vector<VkPresentModeKHR> present_modes(swapchain_info.num_present_modes);
+   uint32_t num_present_modes;
+   vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &num_present_modes, nullptr);
+   std::vector<VkPresentModeKHR> present_modes(num_present_modes);
    vkGetPhysicalDeviceSurfacePresentModesKHR(
-       physical_device, surface, &swapchain_info.num_present_modes, present_modes.data()
+       physical_device, surface, &num_present_modes, present_modes.data()
    );
 
    VkSurfaceCapabilitiesKHR capabilities;

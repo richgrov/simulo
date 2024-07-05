@@ -165,18 +165,20 @@ Game::Game(const char *title)
    surface_ = surface;
 
    QueueFamilies queue_familes;
-   SwapchainCreationInfo swapchain_info;
-   if (!init_physical_device(&queue_familes, &swapchain_info)) {
+   if (!init_physical_device(&queue_familes)) {
       throw std::runtime_error("no suitable physical device");
    }
 
    device_ = create_logical_device(physical_device_, queue_familes);
 
-   vkGetDeviceQueue(device_, queue_familes.graphics, 0, &graphics_queue_);
-   vkGetDeviceQueue(device_, queue_familes.presentation, 0, &present_queue_);
+   graphics_queue_index_ = queue_familes.graphics;
+   present_queue_index_ = queue_familes.presentation;
+   vkGetDeviceQueue(device_, graphics_queue_index_, 0, &graphics_queue_);
+   vkGetDeviceQueue(device_, present_queue_index_, 0, &present_queue_);
 
-   handle_resize(
-       surface, width, height, swapchain_info, {queue_familes.graphics, queue_familes.presentation}
+   swapchain_.init(
+       {graphics_queue_index_, present_queue_index_}, physical_device_, device_, surface_, width,
+       height
    );
 
    VkAttachmentDescription color_attachment = {
@@ -227,25 +229,7 @@ Game::Game(const char *title)
    vertex_shader_.init(device_, "shader-vert.spv", ShaderType::kVertex);
    fragment_shader_.init(device_, "shader-frag.spv", ShaderType::kFragment);
 
-   framebuffers_.resize(swapchain_.num_images());
-   for (int i = 0; i < swapchain_.num_images(); ++i) {
-      VkImageView attachments[] = {swapchain_.image_view(i)};
-
-      VkExtent2D extent = swapchain_.extent();
-      VkFramebufferCreateInfo create_info = {
-          .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-          .renderPass = render_pass_,
-          .attachmentCount = VILLA_ARRAY_LEN(attachments),
-          .pAttachments = attachments,
-          .width = extent.width,
-          .height = extent.height,
-          .layers = 1,
-      };
-
-      if (vkCreateFramebuffer(device_, &create_info, nullptr, &framebuffers_[i]) != VK_SUCCESS) {
-         throw std::runtime_error(std::format("failed to create framebuffer {}", i));
-      }
-   }
+   create_framebuffers();
 
    command_pool_.init(device_, queue_familes.graphics);
    command_buffer_ = command_pool_.allocate();
@@ -297,13 +281,18 @@ Game::~Game() {
    }
 }
 
-void Game::handle_resize(
-    VkSurfaceKHR surface, uint32_t width, uint32_t height,
-    const SwapchainCreationInfo &swapchain_info, const std::vector<uint32_t> queue_families
-) {
+void Game::handle_resize(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
+   swapchain_.deinit();
    swapchain_.init(
-       swapchain_info, queue_families, physical_device_, device_, surface_, width, height
+       {graphics_queue_index_, present_queue_index_}, physical_device_, device_, surface_, width,
+       height
    );
+
+   for (const VkFramebuffer framebuffer : framebuffers_) {
+      vkDestroyFramebuffer(device_, framebuffer, nullptr);
+   }
+
+   create_framebuffers();
 }
 
 void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
@@ -335,17 +324,22 @@ void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    vkQueueWaitIdle(graphics_queue_);
 }
 
-void Game::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) {
+bool Game::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
-   vkResetFences(device_, 1, &draw_cycle_complete);
 
-   if (vkAcquireNextImageKHR(
-           device_, swapchain_.handle(), UINT64_MAX, sem_img_avail, VK_NULL_HANDLE,
-           &current_framebuffer_
-       ) != VK_SUCCESS) {
+   VkResult next_image_res = vkAcquireNextImageKHR(
+       device_, swapchain_.handle(), UINT64_MAX, sem_img_avail, VK_NULL_HANDLE,
+       &current_framebuffer_
+   );
+   if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR) {
+      // TODO: Detect with window size change as well
+      handle_resize(surface_, width(), height());
+      return false;
+   } else if (next_image_res != VK_SUCCESS) {
       throw std::runtime_error("failed to acquire next swapchain image");
    }
 
+   vkResetFences(device_, 1, &draw_cycle_complete);
    vkResetCommandBuffer(command_buffer_, 0);
 
    VkCommandBufferBeginInfo cmd_begin = {
@@ -388,6 +382,7 @@ void Game::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) 
        command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout(), 0, 1, &descriptor_set,
        0, nullptr
    );
+   return true;
 }
 
 void Game::draw(const VertexIndexBuffer &buffer) {
@@ -437,9 +432,29 @@ void Game::end_draw() {
    vkQueuePresentKHR(present_queue_, &present_info);
 }
 
-bool Game::init_physical_device(
-    QueueFamilies *out_families, SwapchainCreationInfo *out_swapchain_info
-) {
+void Game::create_framebuffers() {
+   framebuffers_.resize(swapchain_.num_images());
+   for (int i = 0; i < swapchain_.num_images(); ++i) {
+      VkImageView attachments[] = {swapchain_.image_view(i)};
+
+      VkExtent2D extent = swapchain_.extent();
+      VkFramebufferCreateInfo create_info = {
+          .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+          .renderPass = render_pass_,
+          .attachmentCount = VILLA_ARRAY_LEN(attachments),
+          .pAttachments = attachments,
+          .width = extent.width,
+          .height = extent.height,
+          .layers = 1,
+      };
+
+      if (vkCreateFramebuffer(device_, &create_info, nullptr, &framebuffers_[i]) != VK_SUCCESS) {
+         throw std::runtime_error(std::format("failed to create framebuffer {}", i));
+      }
+   }
+}
+
+bool Game::init_physical_device(QueueFamilies *out_families) {
    uint32_t num_devices;
    vkEnumeratePhysicalDevices(vk_instance_, &num_devices, nullptr);
    if (num_devices == 0) {
@@ -450,8 +465,7 @@ bool Game::init_physical_device(
    vkEnumeratePhysicalDevices(vk_instance_, &num_devices, devices.data());
 
    for (const auto &device : devices) {
-      auto swapchain_info = Swapchain::get_creation_info(device, surface_);
-      if (!swapchain_info.has_value()) {
+      if (!Swapchain::is_supported_on(device, surface_)) {
          continue;
       }
 
@@ -462,7 +476,6 @@ bool Game::init_physical_device(
 
       physical_device_ = device;
       *out_families = queue_familes.value();
-      *out_swapchain_info = swapchain_info.value();
       return true;
    }
 

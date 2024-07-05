@@ -89,7 +89,7 @@ public:
       return window_.left_clicking();
    }
 
-   void begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set);
+   bool begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set);
 
    void draw(const VertexIndexBuffer &buffer);
 
@@ -100,19 +100,19 @@ public:
    }
 
 private:
-   void handle_resize(
-       VkSurfaceKHR surface, uint32_t width, uint32_t height,
-       const SwapchainCreationInfo &swapchain_info, const std::vector<uint32_t> queue_families
-   );
+   void create_framebuffers();
+   void handle_resize(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 
-   bool init_physical_device(QueueFamilies *families, SwapchainCreationInfo *info);
+   bool init_physical_device(QueueFamilies *families);
 
    Window window_;
    VkInstance vk_instance_;
    VkPhysicalDevice physical_device_;
    VkDevice device_;
    VkSurfaceKHR surface_;
+   uint32_t graphics_queue_index_;
    VkQueue graphics_queue_;
+   uint32_t present_queue_index_;
    VkQueue present_queue_;
    Swapchain swapchain_;
    VkRenderPass render_pass_;
