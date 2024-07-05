@@ -39,47 +39,37 @@ private:
    VkBuffer buffer_;
 };
 
-class VertexBuffer : public Buffer {
+class VertexIndexBuffer : public Buffer {
 public:
-   explicit inline VertexBuffer(
-       size_t num_vertices, size_t vertex_size, VkDevice device, VkPhysicalDevice physical_device
+   using IndexType = uint16_t;
+
+   explicit inline VertexIndexBuffer(
+       size_t num_vertices, size_t vertex_size, IndexType num_indices, VkDevice device,
+       VkPhysicalDevice physical_device
    )
        : Buffer(
-             num_vertices * vertex_size,
-             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+             num_vertices * vertex_size + num_indices * sizeof(IndexType),
+             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
              static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), device,
              physical_device
          ),
-         num_vertices_(num_vertices) {}
+         num_vertices_(num_vertices * vertex_size), num_indices_(num_indices) {}
 
    inline size_t num_vertices() const {
       return num_vertices_;
    }
 
-private:
-   size_t num_vertices_;
-};
-
-class IndexBuffer : public Buffer {
-public:
-   using IndexType = uint16_t;
-
-   explicit inline IndexBuffer(
-       IndexType num_indices, VkDevice device, VkPhysicalDevice physical_device
-   )
-       : Buffer(
-             sizeof(IndexType) * num_indices,
-             VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-             static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), device,
-             physical_device
-         ),
-         num_indices_(num_indices) {}
-
    inline IndexType num_indices() const {
       return num_indices_;
    }
 
+   inline VkDeviceSize index_offset() const {
+      return num_vertices_;
+   }
+
 private:
+   size_t num_vertices_;
    IndexType num_indices_;
 };
 
@@ -93,21 +83,16 @@ public:
              ),
              device, physical_device
          ),
-         capacity_(capacity), size_(0) {}
+         capacity_(capacity) {}
 
-   void upload_memory(void *data, size_t size);
+   void upload_memory(void *data, size_t size, size_t offset = 0);
 
    inline VkDeviceSize capacity() const {
       return capacity_;
    }
 
-   inline VkDeviceSize size() const {
-      return size_;
-   }
-
 private:
    VkDeviceSize capacity_;
-   VkDeviceSize size_;
 };
 
 class UniformBuffer : public Buffer {

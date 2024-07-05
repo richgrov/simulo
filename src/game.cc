@@ -304,7 +304,7 @@ void Game::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t hei
    }
 }
 
-void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
+void Game::buffer_copy(const StagingBuffer &src, Buffer &dst, size_t size) {
    VkCommandBuffer cmd_buf = command_pool_.allocate();
 
    VkCommandBufferBeginInfo begin_info = {
@@ -319,7 +319,7 @@ void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    VkBufferCopy copy_region = {
        .srcOffset = 0,
        .dstOffset = 0,
-       .size = src.size(),
+       .size = size,
    };
    vkCmdCopyBuffer(cmd_buf, src.buffer(), dst.buffer(), 1, &copy_region);
    vkEndCommandBuffer(cmd_buf);
@@ -388,13 +388,15 @@ void Game::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) 
    );
 }
 
-void Game::draw(const VertexBuffer &vertices, const IndexBuffer &indices) {
-   VkBuffer buffers[] = {vertices.buffer()};
+void Game::draw(const VertexIndexBuffer &buffer) {
+   VkBuffer buffers[] = {buffer.buffer()};
    VkDeviceSize offsets[] = {0};
    vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
-   vkCmdBindIndexBuffer(command_buffer_, indices.buffer(), 0, VK_INDEX_TYPE_UINT16);
+   vkCmdBindIndexBuffer(
+       command_buffer_, buffer.buffer(), buffer.index_offset(), VK_INDEX_TYPE_UINT16
+   );
 
-   vkCmdDrawIndexed(command_buffer_, indices.num_indices(), 1, 0, 0, 0);
+   vkCmdDrawIndexed(command_buffer_, buffer.num_indices(), 1, 0, 0, 0);
 }
 
 void Game::end_draw() {

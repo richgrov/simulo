@@ -47,12 +47,10 @@ public:
       return Pipeline(device_, binding, attrs, {vertex_shader_, fragment_shader_}, render_pass_);
    }
 
-   template <class T> inline VertexBuffer create_vertex_buffer(size_t num_vertices) {
-      return VertexBuffer(num_vertices, sizeof(T), device_, physical_device_);
-   }
-
-   inline IndexBuffer create_index_buffer(IndexBuffer::IndexType num_indices) {
-      return IndexBuffer(num_indices, device_, physical_device_);
+   template <class T>
+   inline VertexIndexBuffer
+   create_vertex_index_buffer(size_t num_vertices, VertexIndexBuffer::IndexType num_indices) {
+      return VertexIndexBuffer(num_vertices, sizeof(T), num_indices, device_, physical_device_);
    }
 
    StagingBuffer create_staging_buffer(size_t capacity) {
@@ -67,7 +65,7 @@ public:
       return DescriptorPool(device_, pipeline);
    }
 
-   void buffer_copy(const StagingBuffer &src, Buffer &dst);
+   void buffer_copy(const StagingBuffer &src, Buffer &dst, size_t size);
 
    inline bool poll() {
       return window_.poll();
@@ -95,7 +93,7 @@ public:
 
    void begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set);
 
-   void draw(const VertexBuffer &vertices, const IndexBuffer &indices);
+   void draw(const VertexIndexBuffer &buffer);
 
    void end_draw();
 

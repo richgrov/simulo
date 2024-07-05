@@ -40,21 +40,25 @@ int main(int argc, char **argv) {
           {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
           {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
       };
-      std::vector<IndexBuffer::IndexType> indices{
+      std::vector<VertexIndexBuffer::IndexType> indices{
           0,
           1,
           2,
       };
-      auto vertex_buffer = game.create_vertex_buffer<Vertex>(3);
-      auto index_buffer = game.create_index_buffer(3);
+      auto mesh_buffer = game.create_vertex_index_buffer<Vertex>(3, 3);
 
-      staging_buffer.upload_memory(vertices.data(), sizeof(Vertex) * vertices.size());
-      game.buffer_copy(staging_buffer, vertex_buffer);
-      staging_buffer.upload_memory(indices.data(), sizeof(IndexBuffer::IndexType) * indices.size());
-      game.buffer_copy(staging_buffer, index_buffer);
+      size_t vertex_size = vertices.size() * sizeof(Vertex);
+      staging_buffer.upload_memory(vertices.data(), vertex_size);
+      staging_buffer.upload_memory(
+          indices.data(), indices.size() * sizeof(VertexIndexBuffer::IndexType), vertex_size
+      );
+      game.buffer_copy(
+          staging_buffer, mesh_buffer,
+          vertex_size + indices.size() * sizeof(VertexIndexBuffer::IndexType)
+      );
 
       while (game.poll()) {
-         if (game.left_clicking()) {
+         /*if (game.left_clicking()) {
             float mouse_x = static_cast<float>(game.mouse_x());
             float mouse_y = static_cast<float>(game.mouse_y());
 
@@ -81,10 +85,10 @@ int main(int argc, char **argv) {
             auto new_index_buf = game.create_index_buffer(indices.size());
             game.buffer_copy(staging_buffer, new_index_buf);
             index_buffer = std::move(new_index_buf);
-         }
+         }*/
 
          game.begin_draw(pipeline, descriptor_set);
-         game.draw(vertex_buffer, index_buffer);
+         game.draw(mesh_buffer);
          game.end_draw();
 
          game.wait_idle();
