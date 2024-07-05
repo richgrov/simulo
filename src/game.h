@@ -22,8 +22,6 @@ public:
    explicit Game(const char *title);
    ~Game();
 
-   void connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height);
-
    template <class T> Pipeline create_pipeline() {
       VkVertexInputBindingDescription binding = {
           .binding = 0,
@@ -102,6 +100,11 @@ public:
    }
 
 private:
+   void handle_resize(
+       VkSurfaceKHR surface, uint32_t width, uint32_t height,
+       const SwapchainCreationInfo &swapchain_info, const std::vector<uint32_t> queue_families
+   );
+
    bool init_physical_device(QueueFamilies *families, SwapchainCreationInfo *info);
 
    Window window_;

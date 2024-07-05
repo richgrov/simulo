@@ -8,9 +8,8 @@
 namespace villa {
 
 struct SwapchainCreationInfo {
-   std::vector<VkSurfaceFormatKHR> surface_formats;
-   std::vector<VkPresentModeKHR> present_modes;
-   VkSurfaceCapabilitiesKHR surface_capabilities;
+   uint32_t num_surface_formats;
+   uint32_t num_present_modes;
 };
 
 class Swapchain {

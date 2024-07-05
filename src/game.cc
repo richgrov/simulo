@@ -11,6 +11,7 @@
 #include "gpu/buffer.h"
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
+#include "gpu/swapchain.h"
 #include "util/array.h"
 
 using namespace villa;
@@ -160,48 +161,6 @@ Game::Game(const char *title)
    auto surface = window_.create_surface(vk_instance_);
    int width = window_.width();
    int height = window_.height();
-   connect_to_surface(surface, width, height);
-}
-
-Game::~Game() {
-   vkDeviceWaitIdle(device_);
-
-   vkDestroySemaphore(device_, sem_img_avail, nullptr);
-   vkDestroySemaphore(device_, sem_render_complete, nullptr);
-   vkDestroyFence(device_, draw_cycle_complete, nullptr);
-
-   for (const VkFramebuffer framebuffer : framebuffers_) {
-      vkDestroyFramebuffer(device_, framebuffer, nullptr);
-   }
-
-   command_pool_.deinit();
-
-   vertex_shader_.deinit();
-   fragment_shader_.deinit();
-
-   if (render_pass_ != VK_NULL_HANDLE) {
-      vkDestroyRenderPass(device_, render_pass_, nullptr);
-   }
-
-   swapchain_.deinit();
-
-   if (device_ != VK_NULL_HANDLE) {
-      vkDestroyDevice(device_, nullptr);
-   }
-
-   if (surface_ != VK_NULL_HANDLE) {
-      vkDestroySurfaceKHR(vk_instance_, surface_, nullptr);
-   }
-
-   if (vk_instance_ != VK_NULL_HANDLE) {
-      vkDestroyInstance(vk_instance_, nullptr);
-   }
-}
-
-void Game::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
-   if (surface_ != VK_NULL_HANDLE) {
-      throw std::runtime_error("surface already set");
-   }
 
    surface_ = surface;
 
@@ -216,9 +175,8 @@ void Game::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t hei
    vkGetDeviceQueue(device_, queue_familes.graphics, 0, &graphics_queue_);
    vkGetDeviceQueue(device_, queue_familes.presentation, 0, &present_queue_);
 
-   swapchain_.init(
-       swapchain_info, {queue_familes.graphics, queue_familes.presentation}, physical_device_,
-       device_, surface_, width, height
+   handle_resize(
+       surface, width, height, swapchain_info, {queue_familes.graphics, queue_familes.presentation}
    );
 
    VkAttachmentDescription color_attachment = {
@@ -302,6 +260,50 @@ void Game::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t hei
        vkCreateFence(device_, &fence_create, nullptr, &draw_cycle_complete) != VK_SUCCESS) {
       throw std::runtime_error("failed to create semaphore(s)");
    }
+}
+
+Game::~Game() {
+   vkDeviceWaitIdle(device_);
+
+   vkDestroySemaphore(device_, sem_img_avail, nullptr);
+   vkDestroySemaphore(device_, sem_render_complete, nullptr);
+   vkDestroyFence(device_, draw_cycle_complete, nullptr);
+
+   for (const VkFramebuffer framebuffer : framebuffers_) {
+      vkDestroyFramebuffer(device_, framebuffer, nullptr);
+   }
+
+   command_pool_.deinit();
+
+   vertex_shader_.deinit();
+   fragment_shader_.deinit();
+
+   if (render_pass_ != VK_NULL_HANDLE) {
+      vkDestroyRenderPass(device_, render_pass_, nullptr);
+   }
+
+   swapchain_.deinit();
+
+   if (device_ != VK_NULL_HANDLE) {
+      vkDestroyDevice(device_, nullptr);
+   }
+
+   if (surface_ != VK_NULL_HANDLE) {
+      vkDestroySurfaceKHR(vk_instance_, surface_, nullptr);
+   }
+
+   if (vk_instance_ != VK_NULL_HANDLE) {
+      vkDestroyInstance(vk_instance_, nullptr);
+   }
+}
+
+void Game::handle_resize(
+    VkSurfaceKHR surface, uint32_t width, uint32_t height,
+    const SwapchainCreationInfo &swapchain_info, const std::vector<uint32_t> queue_families
+) {
+   swapchain_.init(
+       swapchain_info, queue_families, physical_device_, device_, surface_, width, height
+   );
 }
 
 void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {

@@ -39,23 +39,9 @@ Swapchain::get_creation_info(VkPhysicalDevice device, VkSurfaceKHR surface) {
       return std::nullopt;
    }
 
-   std::vector<VkSurfaceFormatKHR> formats(num_formats);
-   vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &num_formats, formats.data());
-
-   std::vector<VkPresentModeKHR> present_modes(num_present_modes);
-   vkGetPhysicalDeviceSurfacePresentModesKHR(
-       device, surface, &num_present_modes, present_modes.data()
-   );
-
-   VkSurfaceCapabilitiesKHR capabilities;
-   if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &capabilities) != VK_SUCCESS) {
-      throw std::runtime_error("couldn't get surface capabilities");
-   }
-
    return std::make_optional(SwapchainCreationInfo{
-       .surface_formats = std::move(formats),
-       .present_modes = std::move(present_modes),
-       .surface_capabilities = std::move(capabilities),
+       .num_surface_formats = num_formats,
+       .num_present_modes = num_present_modes,
    });
 }
 
@@ -99,18 +85,33 @@ void Swapchain::init(
     VkPhysicalDevice physical_device, VkDevice device, VkSurfaceKHR surface, uint32_t width,
     uint32_t height
 ) {
-   device_ = device;
+   std::vector<VkSurfaceFormatKHR> surface_formats(swapchain_info.num_surface_formats);
+   vkGetPhysicalDeviceSurfaceFormatsKHR(
+       physical_device, surface, &swapchain_info.num_surface_formats, surface_formats.data()
+   );
 
-   uint32_t image_count = swapchain_info.surface_capabilities.minImageCount + 1;
-   if (swapchain_info.surface_capabilities.maxImageCount != 0 &&
-       image_count > swapchain_info.surface_capabilities.maxImageCount) {
-      image_count = swapchain_info.surface_capabilities.maxImageCount;
+   std::vector<VkPresentModeKHR> present_modes(swapchain_info.num_present_modes);
+   vkGetPhysicalDeviceSurfacePresentModesKHR(
+       physical_device, surface, &swapchain_info.num_present_modes, present_modes.data()
+   );
+
+   VkSurfaceCapabilitiesKHR capabilities;
+   if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &capabilities) !=
+       VK_SUCCESS) {
+      throw std::runtime_error("couldn't get surface capabilities");
    }
 
-   VkSurfaceFormatKHR format = best_surface_format(swapchain_info.surface_formats);
+   device_ = device;
+
+   uint32_t image_count = capabilities.minImageCount + 1;
+   if (capabilities.maxImageCount != 0 && image_count > capabilities.maxImageCount) {
+      image_count = capabilities.maxImageCount;
+   }
+
+   VkSurfaceFormatKHR format = best_surface_format(surface_formats);
    img_format_ = format.format;
 
-   extent_ = create_swap_extent(swapchain_info.surface_capabilities, width, height);
+   extent_ = create_swap_extent(capabilities, width, height);
 
    VkSwapchainCreateInfoKHR create_info = {
        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -121,9 +122,9 @@ void Swapchain::init(
        .imageExtent = extent_,
        .imageArrayLayers = 1,
        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-       .preTransform = swapchain_info.surface_capabilities.currentTransform,
+       .preTransform = capabilities.currentTransform,
        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-       .presentMode = best_present_mode(swapchain_info.present_modes),
+       .presentMode = best_present_mode(present_modes),
        .clipped = VK_TRUE,
    };
 
