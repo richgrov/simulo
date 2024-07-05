@@ -8,6 +8,7 @@
 #include "gpu/buffer.h"
 #include "gpu/command_pool.h"
 #include "gpu/descriptor_pool.h"
+#include "gpu/instance.h"
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
 #include "gpu/swapchain.h"
@@ -106,7 +107,7 @@ private:
    bool init_physical_device(QueueFamilies *families);
 
    Window window_;
-   VkInstance vk_instance_;
+   Instance vk_instance_;
    VkPhysicalDevice physical_device_;
    VkDevice device_;
    VkSurfaceKHR surface_;

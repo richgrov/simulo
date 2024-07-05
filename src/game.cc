@@ -9,6 +9,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/buffer.h"
+#include "gpu/instance.h"
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
 #include "gpu/swapchain.h"
@@ -22,34 +23,6 @@ struct villa::QueueFamilies {
 };
 
 namespace {
-
-#ifdef VILLA_DEBUG
-
-const std::vector<const char *> validation_layers = {"VK_LAYER_KHRONOS_validation"};
-
-void ensure_validation_layers_supported() {
-   uint32_t total_layers;
-   vkEnumerateInstanceLayerProperties(&total_layers, nullptr);
-
-   std::vector<VkLayerProperties> all_layers(total_layers);
-   vkEnumerateInstanceLayerProperties(&total_layers, all_layers.data());
-
-   for (const char *const layer_name : validation_layers) {
-      bool match = false;
-
-      for (const auto &layer : all_layers) {
-         if (strcmp(layer_name, layer.layerName) == 0) {
-            match = true;
-            break;
-         }
-      }
-
-      if (!match) {
-         throw std::runtime_error(std::format("validation layer {} not supported", layer_name));
-      }
-   }
-}
-#endif
 
 std::optional<QueueFamilies> get_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface) {
    uint32_t num_queue_families;
@@ -111,8 +84,8 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
        .queueCreateInfoCount = static_cast<uint32_t>(create_queues.size()),
        .pQueueCreateInfos = create_queues.data(),
 #ifdef VILLA_DEBUG
-       .enabledLayerCount = static_cast<uint32_t>(validation_layers.size()),
-       .ppEnabledLayerNames = validation_layers.data(),
+       .enabledLayerCount = VILLA_ARRAY_LEN(validation_layers),
+       .ppEnabledLayerNames = validation_layers,
 #endif
        .enabledExtensionCount = 1,
        .ppEnabledExtensionNames = &swapchain_extension,
@@ -130,35 +103,10 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
 } // namespace
 
 Game::Game(const char *title)
-    : window_(title), vk_instance_(VK_NULL_HANDLE), physical_device_(VK_NULL_HANDLE),
+    : window_(title), vk_instance_(window_.vulkan_extensions()), physical_device_(VK_NULL_HANDLE),
       device_(VK_NULL_HANDLE), surface_(VK_NULL_HANDLE), render_pass_(VK_NULL_HANDLE) {
 
-   VkApplicationInfo app_info = {
-       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-       .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-       .apiVersion = VK_API_VERSION_1_0,
-   };
-
-   std::vector<const char *> extensions = window_.vulkan_extensions();
-   VkInstanceCreateInfo create_info = {
-       .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-       .pApplicationInfo = &app_info,
-       .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
-       .ppEnabledExtensionNames = extensions.data(),
-   };
-
-#ifdef VILLA_DEBUG
-   ensure_validation_layers_supported();
-   create_info.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
-   create_info.ppEnabledLayerNames = validation_layers.data();
-#endif
-
-   if (vkCreateInstance(&create_info, nullptr, &vk_instance_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create vulkan instance");
-   }
-
-   auto surface = window_.create_surface(vk_instance_);
+   auto surface = window_.create_surface(vk_instance_.handle());
    int width = window_.width();
    int height = window_.height();
 
@@ -273,11 +221,7 @@ Game::~Game() {
    }
 
    if (surface_ != VK_NULL_HANDLE) {
-      vkDestroySurfaceKHR(vk_instance_, surface_, nullptr);
-   }
-
-   if (vk_instance_ != VK_NULL_HANDLE) {
-      vkDestroyInstance(vk_instance_, nullptr);
+      vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
    }
 }
 
@@ -456,13 +400,13 @@ void Game::create_framebuffers() {
 
 bool Game::init_physical_device(QueueFamilies *out_families) {
    uint32_t num_devices;
-   vkEnumeratePhysicalDevices(vk_instance_, &num_devices, nullptr);
+   vkEnumeratePhysicalDevices(vk_instance_.handle(), &num_devices, nullptr);
    if (num_devices == 0) {
       throw std::runtime_error("no physical devices");
    }
 
    std::vector<VkPhysicalDevice> devices(num_devices);
-   vkEnumeratePhysicalDevices(vk_instance_, &num_devices, devices.data());
+   vkEnumeratePhysicalDevices(vk_instance_.handle(), &num_devices, devices.data());
 
    for (const auto &device : devices) {
       if (!Swapchain::is_supported_on(device, surface_)) {
