@@ -83,16 +83,24 @@ public:
              ),
              device, physical_device
          ),
-         capacity_(capacity) {}
+         capacity_(capacity), size_(0) {}
 
-   void upload_memory(void *data, size_t size, size_t offset = 0);
+   void upload_mesh(
+       void *vertices, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
+       VertexIndexBuffer::IndexType num_indices
+   );
 
    inline VkDeviceSize capacity() const {
       return capacity_;
    }
 
+   inline VkDeviceSize size() const {
+      return size_;
+   }
+
 private:
    VkDeviceSize capacity_;
+   VkDeviceSize size_;
 };
 
 class UniformBuffer : public Buffer {

@@ -65,7 +65,7 @@ public:
       return DescriptorPool(device_, pipeline);
    }
 
-   void buffer_copy(const StagingBuffer &src, Buffer &dst, size_t size);
+   void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
    inline bool poll() {
       return window_.poll();

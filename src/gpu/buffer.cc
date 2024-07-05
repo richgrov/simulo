@@ -1,6 +1,7 @@
 #include "buffer.h"
 #include "vulkan/vulkan_core.h"
 
+#include <cstring>
 #include <format>
 #include <stdexcept>
 #include <vulkan/vulkan.h>
@@ -79,10 +80,18 @@ Buffer &Buffer::operator=(Buffer &&other) {
    return *this;
 }
 
-void StagingBuffer::upload_memory(void *data, size_t size, size_t offset) {
+void StagingBuffer::upload_mesh(
+    void *vertices, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
+    VertexIndexBuffer::IndexType num_indices
+) {
+   VkDeviceSize indices_size = num_indices * sizeof(VertexIndexBuffer::IndexType);
+   VkDeviceSize total_size = vertices_size + indices_size;
+   size_ = total_size;
+
    void *cpy_dst;
-   vkMapMemory(device_, allocation_, 0, size, 0, &cpy_dst);
-   memcpy(reinterpret_cast<uint8_t *>(cpy_dst) + offset, data, size);
+   vkMapMemory(device_, allocation_, 0, total_size, 0, &cpy_dst);
+   std::memcpy(cpy_dst, vertices, vertices_size);
+   std::memcpy(reinterpret_cast<uint8_t *>(cpy_dst) + vertices_size, indices, indices_size);
    vkUnmapMemory(device_, allocation_);
 }
 

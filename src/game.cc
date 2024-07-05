@@ -304,7 +304,7 @@ void Game::connect_to_surface(VkSurfaceKHR surface, uint32_t width, uint32_t hei
    }
 }
 
-void Game::buffer_copy(const StagingBuffer &src, Buffer &dst, size_t size) {
+void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    VkCommandBuffer cmd_buf = command_pool_.allocate();
 
    VkCommandBufferBeginInfo begin_info = {
@@ -319,7 +319,7 @@ void Game::buffer_copy(const StagingBuffer &src, Buffer &dst, size_t size) {
    VkBufferCopy copy_region = {
        .srcOffset = 0,
        .dstOffset = 0,
-       .size = size,
+       .size = src.size(),
    };
    vkCmdCopyBuffer(cmd_buf, src.buffer(), dst.buffer(), 1, &copy_region);
    vkEndCommandBuffer(cmd_buf);

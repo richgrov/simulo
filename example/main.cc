@@ -47,15 +47,10 @@ int main(int argc, char **argv) {
       };
       auto mesh_buffer = game.create_vertex_index_buffer<Vertex>(3, 3);
 
-      size_t vertex_size = vertices.size() * sizeof(Vertex);
-      staging_buffer.upload_memory(vertices.data(), vertex_size);
-      staging_buffer.upload_memory(
-          indices.data(), indices.size() * sizeof(VertexIndexBuffer::IndexType), vertex_size
+      staging_buffer.upload_mesh(
+          vertices.data(), vertices.size() * sizeof(Vertex), indices.data(), indices.size()
       );
-      game.buffer_copy(
-          staging_buffer, mesh_buffer,
-          vertex_size + indices.size() * sizeof(VertexIndexBuffer::IndexType)
-      );
+      game.buffer_copy(staging_buffer, mesh_buffer);
 
       while (game.poll()) {
          /*if (game.left_clicking()) {
