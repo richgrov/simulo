@@ -68,7 +68,7 @@ Game::Game(const char *title)
       surface_(window_.create_surface(vk_instance_.handle())),
       physical_device_(vk_instance_, surface_), device_(VK_NULL_HANDLE),
       render_pass_(VK_NULL_HANDLE), was_left_clicking_(false), last_frame_time_(Clock::now()),
-      delta_(0) {
+      delta_(0), last_width_(window_.width()), last_height_(window_.height()) {
 
    int width = window_.width();
    int height = window_.height();
@@ -228,19 +228,29 @@ bool Game::poll() {
    last_frame_time_ = now;
 
    was_left_clicking_ = window_.left_clicking();
+   last_width_ = window_.width();
+   last_height_ = window_.height();
    return window_.poll();
 }
 
 bool Game::begin_draw(const Pipeline &pipeline) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
 
+   int width = window_.width();
+   int height = window_.height();
+   bool window_resized = last_width_ != width || last_height_ != height;
+   if (window_resized) {
+      handle_resize(surface_, width, height);
+      return false;
+   }
+
    VkResult next_image_res = vkAcquireNextImageKHR(
        device_, swapchain_.handle(), UINT64_MAX, sem_img_avail, VK_NULL_HANDLE,
        &current_framebuffer_
    );
+
    if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR) {
-      // TODO: Detect with window size change as well
-      handle_resize(surface_, width(), height());
+      handle_resize(surface_, width, height);
       return false;
    } else if (next_image_res != VK_SUCCESS) {
       throw std::runtime_error("failed to acquire next swapchain image");

@@ -136,6 +136,8 @@ private:
    Clock::time_point last_frame_time_;
    std::chrono::duration<float> delta_;
    bool was_left_clicking_;
+   int last_width_;
+   int last_height_;
 };
 
 }; // namespace villa
