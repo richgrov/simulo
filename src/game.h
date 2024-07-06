@@ -66,6 +66,7 @@ public:
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
    inline bool poll() {
+      was_left_clicking_ = window_.left_clicking();
       return window_.poll();
    }
 
@@ -87,6 +88,10 @@ public:
 
    inline bool left_clicking() const {
       return window_.left_clicking();
+   }
+
+   inline bool left_clicked_now() const {
+      return !was_left_clicking_ && left_clicking();
    }
 
    bool begin_draw(const Pipeline &pipeline);
@@ -123,6 +128,8 @@ private:
    VkSemaphore sem_img_avail;
    VkSemaphore sem_render_complete;
    VkFence draw_cycle_complete;
+
+   bool was_left_clicking_;
 };
 
 }; // namespace villa

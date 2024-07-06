@@ -67,7 +67,7 @@ Game::Game(const char *title)
     : window_(title), vk_instance_(window_.vulkan_extensions()),
       surface_(window_.create_surface(vk_instance_.handle())),
       physical_device_(vk_instance_, surface_), device_(VK_NULL_HANDLE),
-      render_pass_(VK_NULL_HANDLE) {
+      render_pass_(VK_NULL_HANDLE), was_left_clicking_(false) {
 
    int width = window_.width();
    int height = window_.height();
