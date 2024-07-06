@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
       Game game("villa");
 
       auto pipeline = game.create_pipeline<Vertex>();
-      auto staging_buffer = game.create_staging_buffer(64 * 1024);
+      auto staging_buffer = game.create_staging_buffer(1024);
 
       auto uniform_buffer = game.create_uniform_buffer<Vec2>(1);
       auto descriptor_pool = game.create_descriptor_pool(pipeline);
