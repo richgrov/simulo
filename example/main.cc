@@ -35,21 +35,15 @@ int main(int argc, char **argv) {
       Vec2 offset = {0.1, 0.1};
       uniform_buffer.upload_memory(&offset, sizeof(Vec2));
 
-      std::vector<Vertex> vertices{
+      Vertex vertices[] = {
           {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
           {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
           {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
       };
-      std::vector<VertexIndexBuffer::IndexType> indices{
-          0,
-          1,
-          2,
-      };
-      auto mesh_buffer = game.create_vertex_index_buffer<Vertex>(3, 3);
+      VertexIndexBuffer::IndexType indices[] = {0, 1, 2};
 
-      staging_buffer.upload_mesh(
-          vertices.data(), vertices.size() * sizeof(Vertex), indices.data(), indices.size()
-      );
+      auto mesh_buffer = game.create_vertex_index_buffer<Vertex>(3, 3);
+      staging_buffer.upload_mesh(vertices, sizeof(vertices), indices, VILLA_ARRAY_LEN(indices));
       game.buffer_copy(staging_buffer, mesh_buffer);
 
       while (game.poll()) {
