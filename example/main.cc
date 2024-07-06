@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
       auto descriptor_set = descriptor_pool.allocate(uniform_buffer);
 
       Vec2 offset = {0.1, 0.1};
-      uniform_buffer.upload_memory(&offset, sizeof(Vec2));
+      uniform_buffer.upload_memory(&offset, sizeof(Vec2), 0);
 
       Vertex vertices[] = {
           {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},

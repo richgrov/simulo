@@ -25,6 +25,7 @@ add_library(villa
    "math/vec2.h"
    "math/vec3.h"
    "util/array.h"
+   "util/alignment.h"
    "util/rand.h"
    "window/window.h"
    "game.cc"

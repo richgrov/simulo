@@ -11,7 +11,7 @@ using namespace villa;
 DescriptorPool::DescriptorPool(VkDevice device, const Pipeline &pipeline)
     : device_(device), descriptor_layout_(pipeline.descriptor_set_layout()) {
    VkDescriptorPoolSize size = {
-       .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+       .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
        .descriptorCount = 1,
    };
 
@@ -43,7 +43,7 @@ VkDescriptorSet DescriptorPool::allocate(const UniformBuffer &buffer) {
    VkDescriptorBufferInfo buf_info = {
        .buffer = buffer.buffer(),
        .offset = 0,
-       .range = 2 * sizeof(float),
+       .range = buffer.element_size(),
    };
 
    VkWriteDescriptorSet desc_write = {
@@ -51,7 +51,7 @@ VkDescriptorSet DescriptorPool::allocate(const UniformBuffer &buffer) {
        .dstSet = descriptor_set,
        .dstBinding = 0,
        .descriptorCount = 1,
-       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
        .pBufferInfo = &buf_info,
    };
 

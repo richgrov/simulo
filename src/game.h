@@ -56,7 +56,7 @@ public:
    }
 
    template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
-      return UniformBuffer(sizeof(T) * num_elements, device_, physical_device_);
+      return UniformBuffer(sizeof(T), num_elements, device_, physical_device_);
    }
 
    DescriptorPool create_descriptor_pool(const Pipeline &pipeline) {

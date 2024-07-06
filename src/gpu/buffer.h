@@ -107,18 +107,25 @@ private:
 class UniformBuffer : public Buffer {
 public:
    explicit UniformBuffer(
-       VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
+       VkDeviceSize element_size, VkDeviceSize num_elements, VkDevice device,
+       const PhysicalDevice &physical_device
    );
 
    inline ~UniformBuffer() {
       vkUnmapMemory(device_, allocation_);
    }
 
-   inline void upload_memory(void *data, size_t size) {
-      std::memcpy(mem_map_, data, size);
+   inline void upload_memory(void *data, size_t size, size_t element_index) {
+      uint8_t *start = reinterpret_cast<uint8_t *>(mem_map_) + element_index * element_size_;
+      std::memcpy(start, data, size);
+   }
+
+   inline VkDeviceSize element_size() const {
+      return element_size_;
    }
 
 private:
+   VkDeviceSize element_size_;
    void *mem_map_;
 };
 

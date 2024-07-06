@@ -1,5 +1,6 @@
 #include "buffer.h"
 #include "gpu/physical_device.h"
+#include "util/alignment.h"
 #include "vulkan/vulkan_core.h"
 
 #include <cstring>
@@ -97,13 +98,16 @@ void StagingBuffer::upload_mesh(
 }
 
 UniformBuffer::UniformBuffer(
-    VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
+    VkDeviceSize element_size, VkDeviceSize num_elements, VkDevice device,
+    const PhysicalDevice &physical_device
 )
     : Buffer(
-          capacity, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+          align_to(element_size, physical_device.min_uniform_alignment()) * num_elements,
+          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
           static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT), device,
           physical_device
-      ) {
+      ),
+      element_size_(align_to(element_size, physical_device.min_uniform_alignment())) {
 
-   vkMapMemory(device, allocation_, 0, capacity, 0, &mem_map_);
+   vkMapMemory(device, allocation_, 0, element_size_ * num_elements, 0, &mem_map_);
 }
