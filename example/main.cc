@@ -10,7 +10,7 @@
 #include "math/attributes.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
-#include "util/array.h"
+#include "util/memory.h"
 #include "util/rand.h"
 
 using namespace villa;

@@ -13,7 +13,7 @@
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
 #include "gpu/swapchain.h"
-#include "util/array.h"
+#include "util/memory.h"
 
 using namespace villa;
 

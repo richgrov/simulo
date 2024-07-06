@@ -1,6 +1,6 @@
 #include "buffer.h"
 #include "gpu/physical_device.h"
-#include "util/alignment.h"
+#include "util/memory.h"
 #include "vulkan/vulkan_core.h"
 
 #include <cstring>

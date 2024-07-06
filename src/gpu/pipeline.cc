@@ -5,7 +5,7 @@
 
 #include "vulkan/vulkan_core.h"
 
-#include "util/array.h"
+#include "util/memory.h"
 
 using namespace villa;
 

@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "util/array.h"
+#include "util/memory.h"
 
 using namespace villa;
 
