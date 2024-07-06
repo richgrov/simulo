@@ -1,6 +1,7 @@
 #ifndef VILLA_GPU_VK_GPU_H_
 #define VILLA_GPU_VK_GPU_H_
 
+#include <chrono>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -18,6 +19,8 @@
 namespace villa {
 
 class Game {
+   using Clock = std::chrono::high_resolution_clock;
+
 public:
    explicit Game(const char *title);
    ~Game();
@@ -65,10 +68,7 @@ public:
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
-   inline bool poll() {
-      was_left_clicking_ = window_.left_clicking();
-      return window_.poll();
-   }
+   bool poll();
 
    inline int width() const {
       return window_.width();
@@ -92,6 +92,10 @@ public:
 
    inline bool left_clicked_now() const {
       return !was_left_clicking_ && left_clicking();
+   }
+
+   inline float delta() const {
+      return delta_.count();
    }
 
    bool begin_draw(const Pipeline &pipeline);
@@ -129,6 +133,8 @@ private:
    VkSemaphore sem_render_complete;
    VkFence draw_cycle_complete;
 
+   Clock::time_point last_frame_time_;
+   std::chrono::duration<float> delta_;
    bool was_left_clicking_;
 };
 

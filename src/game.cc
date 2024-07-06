@@ -67,7 +67,8 @@ Game::Game(const char *title)
     : window_(title), vk_instance_(window_.vulkan_extensions()),
       surface_(window_.create_surface(vk_instance_.handle())),
       physical_device_(vk_instance_, surface_), device_(VK_NULL_HANDLE),
-      render_pass_(VK_NULL_HANDLE), was_left_clicking_(false) {
+      render_pass_(VK_NULL_HANDLE), was_left_clicking_(false), last_frame_time_(Clock::now()),
+      delta_(0) {
 
    int width = window_.width();
    int height = window_.height();
@@ -219,6 +220,15 @@ void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    };
    vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
    vkQueueWaitIdle(graphics_queue_);
+}
+
+bool Game::poll() {
+   Clock::time_point now = Clock::now();
+   delta_ = now - last_frame_time_;
+   last_frame_time_ = now;
+
+   was_left_clicking_ = window_.left_clicking();
+   return window_.poll();
 }
 
 bool Game::begin_draw(const Pipeline &pipeline) {
