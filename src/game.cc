@@ -221,7 +221,7 @@ void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    vkQueueWaitIdle(graphics_queue_);
 }
 
-bool Game::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) {
+bool Game::begin_draw(const Pipeline &pipeline) {
    vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
 
    VkResult next_image_res = vkAcquireNextImageKHR(
@@ -274,12 +274,15 @@ bool Game::begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set) 
        .extent = swapchain_.extent(),
    };
    vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
+   return true;
+}
 
+void Game::set_uniform(const Pipeline &pipeline, VkDescriptorSet descriptor_set, uint32_t offset) {
+   uint32_t offsets[] = {offset};
    vkCmdBindDescriptorSets(
        command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout(), 0, 1, &descriptor_set,
-       0, nullptr
+       1, offsets
    );
-   return true;
 }
 
 void Game::draw(const VertexIndexBuffer &buffer) {

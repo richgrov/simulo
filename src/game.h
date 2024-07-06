@@ -89,7 +89,9 @@ public:
       return window_.left_clicking();
    }
 
-   bool begin_draw(const Pipeline &pipeline, VkDescriptorSet descriptor_set);
+   bool begin_draw(const Pipeline &pipeline);
+
+   void set_uniform(const Pipeline &pipeline, VkDescriptorSet descriptor_set, uint32_t offset);
 
    void draw(const VertexIndexBuffer &buffer);
 

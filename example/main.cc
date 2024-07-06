@@ -29,12 +29,14 @@ int main(int argc, char **argv) {
       auto pipeline = game.create_pipeline<Vertex>();
       auto staging_buffer = game.create_staging_buffer(1024);
 
-      auto uniform_buffer = game.create_uniform_buffer<Vec2>(1);
+      auto uniform_buffer = game.create_uniform_buffer<Vec2>(2);
       auto descriptor_pool = game.create_descriptor_pool(pipeline);
       auto descriptor_set = descriptor_pool.allocate(uniform_buffer);
 
       Vec2 offset = {0.1, 0.1};
       uniform_buffer.upload_memory(&offset, sizeof(Vec2), 0);
+      offset = {-0.1, -0.1};
+      uniform_buffer.upload_memory(&offset, sizeof(Vec2), 1);
 
       Vertex vertices[] = {
           {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
@@ -77,7 +79,10 @@ int main(int argc, char **argv) {
             index_buffer = std::move(new_index_buf);
          }*/
 
-         if (game.begin_draw(pipeline, descriptor_set)) {
+         if (game.begin_draw(pipeline)) {
+            game.set_uniform(pipeline, descriptor_set, 0);
+            game.draw(mesh_buffer);
+            game.set_uniform(pipeline, descriptor_set, uniform_buffer.element_size());
             game.draw(mesh_buffer);
             game.end_draw();
          }
