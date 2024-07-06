@@ -1,12 +1,12 @@
 #include "buffer.h"
-#include "gpu/physical_device.h"
-#include "util/memory.h"
-#include "vulkan/vulkan_core.h"
 
 #include <cstring>
 #include <format>
 #include <stdexcept>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
+
+#include "gpu/physical_device.h"
+#include "util/memory.h"
 
 using namespace villa;
 
