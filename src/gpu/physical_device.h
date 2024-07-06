@@ -14,7 +14,7 @@ public:
       return physical_device_;
    }
 
-   inline uint32_t min_uniform_alignment() const {
+   inline VkDeviceSize min_uniform_alignment() const {
       return min_uniform_alignment_;
    }
 
