@@ -1,4 +1,5 @@
 #include "buffer.h"
+#include "gpu/physical_device.h"
 #include "vulkan/vulkan_core.h"
 
 #include <cstring>
@@ -11,10 +12,10 @@ using namespace villa;
 namespace {
 
 uint32_t find_memory_type_index(
-    VkPhysicalDevice physical_device, uint32_t supported_bits, VkMemoryPropertyFlagBits extra
+    const PhysicalDevice &physical_device, uint32_t supported_bits, VkMemoryPropertyFlagBits extra
 ) {
    VkPhysicalDeviceMemoryProperties properties;
-   vkGetPhysicalDeviceMemoryProperties(physical_device, &properties);
+   vkGetPhysicalDeviceMemoryProperties(physical_device.handle(), &properties);
 
    VkMemoryType mem_type;
    for (int i = 0; i < properties.memoryTypeCount; ++i) {
@@ -34,7 +35,7 @@ uint32_t find_memory_type_index(
 
 Buffer::Buffer(
     size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memory_properties,
-    VkDevice device, VkPhysicalDevice physical_device
+    VkDevice device, const PhysicalDevice &physical_device
 )
     : buffer_(VK_NULL_HANDLE), device_(device) {
    VkBufferCreateInfo create_info = {
@@ -96,7 +97,7 @@ void StagingBuffer::upload_mesh(
 }
 
 UniformBuffer::UniformBuffer(
-    VkDeviceSize capacity, VkDevice device, VkPhysicalDevice physical_device
+    VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
 )
     : Buffer(
           capacity, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,

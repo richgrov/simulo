@@ -9,14 +9,13 @@
 #include "gpu/command_pool.h"
 #include "gpu/descriptor_pool.h"
 #include "gpu/instance.h"
+#include "gpu/physical_device.h"
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
 #include "gpu/swapchain.h"
 #include "window/window.h" // IWYU pragma: export
 
 namespace villa {
-
-struct QueueFamilies;
 
 class Game {
 public:
@@ -104,16 +103,12 @@ private:
    void create_framebuffers();
    void handle_resize(VkSurfaceKHR surface, uint32_t width, uint32_t height);
 
-   bool init_physical_device(QueueFamilies *families);
-
    Window window_;
    Instance vk_instance_;
-   VkPhysicalDevice physical_device_;
-   VkDevice device_;
    VkSurfaceKHR surface_;
-   uint32_t graphics_queue_index_;
+   PhysicalDevice physical_device_;
+   VkDevice device_;
    VkQueue graphics_queue_;
-   uint32_t present_queue_index_;
    VkQueue present_queue_;
    Swapchain swapchain_;
    VkRenderPass render_pass_;

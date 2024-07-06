@@ -1,6 +1,7 @@
 #ifndef VILLA_GPU_BUFFER_H_
 #define VILLA_GPU_BUFFER_H_
 
+#include "gpu/physical_device.h"
 #include "vulkan/vulkan_core.h"
 #include <cstring>
 
@@ -10,7 +11,7 @@ class Buffer {
 public:
    explicit Buffer(
        size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memory_properties,
-       VkDevice device, VkPhysicalDevice physical_device
+       VkDevice device, const PhysicalDevice &physical_device
    );
 
    inline ~Buffer() {
@@ -45,7 +46,7 @@ public:
 
    explicit inline VertexIndexBuffer(
        size_t num_vertices, size_t vertex_size, IndexType num_indices, VkDevice device,
-       VkPhysicalDevice physical_device
+       const PhysicalDevice &physical_device
    )
        : Buffer(
              num_vertices * vertex_size + num_indices * sizeof(IndexType),
@@ -75,7 +76,7 @@ private:
 
 class StagingBuffer : public Buffer {
 public:
-   StagingBuffer(VkDeviceSize capacity, VkDevice device, VkPhysicalDevice physical_device)
+   StagingBuffer(VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device)
        : Buffer(
              capacity, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
              static_cast<VkMemoryPropertyFlagBits>(
@@ -105,7 +106,9 @@ private:
 
 class UniformBuffer : public Buffer {
 public:
-   explicit UniformBuffer(VkDeviceSize capacity, VkDevice device, VkPhysicalDevice physical_device);
+   explicit UniformBuffer(
+       VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
+   );
 
    inline ~UniformBuffer() {
       vkUnmapMemory(device_, allocation_);

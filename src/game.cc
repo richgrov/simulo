@@ -1,7 +1,6 @@
 #include "game.h"
 
 #include <format>
-#include <optional>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -10,6 +9,7 @@
 
 #include "gpu/buffer.h"
 #include "gpu/instance.h"
+#include "gpu/physical_device.h"
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
 #include "gpu/swapchain.h"
@@ -17,50 +17,11 @@
 
 using namespace villa;
 
-struct villa::QueueFamilies {
-   uint32_t graphics;
-   uint32_t presentation;
-};
-
 namespace {
 
-std::optional<QueueFamilies> get_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface) {
-   uint32_t num_queue_families;
-   vkGetPhysicalDeviceQueueFamilyProperties(device, &num_queue_families, nullptr);
-
-   std::vector<VkQueueFamilyProperties> queue_families(num_queue_families);
-   vkGetPhysicalDeviceQueueFamilyProperties(device, &num_queue_families, queue_families.data());
-
-   QueueFamilies result;
-   bool graphics_found = false;
-   bool presentation_found = false;
-
-   for (int i = 0; i < queue_families.size(); ++i) {
-      if (!graphics_found && (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 1) {
-         result.graphics = i;
-         graphics_found = true;
-      }
-
-      if (!presentation_found) {
-         VkBool32 supported = false;
-         vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &supported);
-         if (supported) {
-            result.presentation = i;
-            presentation_found = true;
-         }
-      }
-   }
-
-   if (!graphics_found || !presentation_found) {
-      return std::nullopt;
-   }
-
-   return std::make_optional(result);
-}
-
-VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies &queue_families) {
+VkDevice create_logical_device(const PhysicalDevice &physical_device) {
    std::set<uint32_t> unique_queue_families = {
-       queue_families.graphics, queue_families.presentation
+       physical_device.graphics_queue(), physical_device.present_queue()
    };
 
    std::vector<VkDeviceQueueCreateInfo> create_queues;
@@ -93,7 +54,7 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
    };
 
    VkDevice device;
-   if (vkCreateDevice(phys_device, &create_info, nullptr, &device) != VK_SUCCESS) {
+   if (vkCreateDevice(physical_device.handle(), &create_info, nullptr, &device) != VK_SUCCESS) {
       throw std::runtime_error("failed to create logical device");
    }
 
@@ -103,30 +64,22 @@ VkDevice create_logical_device(VkPhysicalDevice phys_device, const QueueFamilies
 } // namespace
 
 Game::Game(const char *title)
-    : window_(title), vk_instance_(window_.vulkan_extensions()), physical_device_(VK_NULL_HANDLE),
-      device_(VK_NULL_HANDLE), surface_(VK_NULL_HANDLE), render_pass_(VK_NULL_HANDLE) {
+    : window_(title), vk_instance_(window_.vulkan_extensions()),
+      surface_(window_.create_surface(vk_instance_.handle())),
+      physical_device_(vk_instance_, surface_), device_(VK_NULL_HANDLE),
+      render_pass_(VK_NULL_HANDLE) {
 
-   auto surface = window_.create_surface(vk_instance_.handle());
    int width = window_.width();
    int height = window_.height();
 
-   surface_ = surface;
+   device_ = create_logical_device(physical_device_);
 
-   QueueFamilies queue_familes;
-   if (!init_physical_device(&queue_familes)) {
-      throw std::runtime_error("no suitable physical device");
-   }
-
-   device_ = create_logical_device(physical_device_, queue_familes);
-
-   graphics_queue_index_ = queue_familes.graphics;
-   present_queue_index_ = queue_familes.presentation;
-   vkGetDeviceQueue(device_, graphics_queue_index_, 0, &graphics_queue_);
-   vkGetDeviceQueue(device_, present_queue_index_, 0, &present_queue_);
+   vkGetDeviceQueue(device_, physical_device_.graphics_queue(), 0, &graphics_queue_);
+   vkGetDeviceQueue(device_, physical_device_.present_queue(), 0, &present_queue_);
 
    swapchain_.init(
-       {graphics_queue_index_, present_queue_index_}, physical_device_, device_, surface_, width,
-       height
+       {physical_device_.graphics_queue(), physical_device_.present_queue()},
+       physical_device_.handle(), device_, surface_, width, height
    );
 
    VkAttachmentDescription color_attachment = {
@@ -179,7 +132,7 @@ Game::Game(const char *title)
 
    create_framebuffers();
 
-   command_pool_.init(device_, queue_familes.graphics);
+   command_pool_.init(device_, physical_device_.graphics_queue());
    command_buffer_ = command_pool_.allocate();
 
    VkSemaphoreCreateInfo semaphore_create = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
@@ -228,8 +181,8 @@ Game::~Game() {
 void Game::handle_resize(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
    swapchain_.deinit();
    swapchain_.init(
-       {graphics_queue_index_, present_queue_index_}, physical_device_, device_, surface_, width,
-       height
+       {physical_device_.graphics_queue(), physical_device_.present_queue()},
+       physical_device_.handle(), device_, surface_, width, height
    );
 
    for (const VkFramebuffer framebuffer : framebuffers_) {
@@ -396,32 +349,4 @@ void Game::create_framebuffers() {
          throw std::runtime_error(std::format("failed to create framebuffer {}", i));
       }
    }
-}
-
-bool Game::init_physical_device(QueueFamilies *out_families) {
-   uint32_t num_devices;
-   vkEnumeratePhysicalDevices(vk_instance_.handle(), &num_devices, nullptr);
-   if (num_devices == 0) {
-      throw std::runtime_error("no physical devices");
-   }
-
-   std::vector<VkPhysicalDevice> devices(num_devices);
-   vkEnumeratePhysicalDevices(vk_instance_.handle(), &num_devices, devices.data());
-
-   for (const auto &device : devices) {
-      if (!Swapchain::is_supported_on(device, surface_)) {
-         continue;
-      }
-
-      std::optional<QueueFamilies> queue_familes = get_queue_families(device, surface_);
-      if (!queue_familes.has_value()) {
-         continue;
-      }
-
-      physical_device_ = device;
-      *out_families = queue_familes.value();
-      return true;
-   }
-
-   return false;
 }
