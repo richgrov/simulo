@@ -34,10 +34,7 @@ public:
    Particle(float x, float y, Vec3 color) : pos_(x, y), color_(color), lifespan_(randf() * 4) {
       float angle = randf() * std::numbers::pi_v<float> * 2;
       float magnitude = randf();
-      velocity_ = {
-          std::cosf(angle) * magnitude,
-          std::sinf(angle) * magnitude,
-      };
+      velocity_ = {cosf(angle) * magnitude, sinf(angle) * magnitude};
    }
 
    void update(float delta) {
