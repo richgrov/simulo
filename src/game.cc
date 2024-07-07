@@ -1,7 +1,6 @@
 #include "game.h"
 
 #include <format>
-#include <set>
 #include <stdexcept>
 #include <vector>
 
@@ -17,70 +16,19 @@
 
 using namespace villa;
 
-namespace {
-
-VkDevice create_logical_device(const PhysicalDevice &physical_device) {
-   std::set<uint32_t> unique_queue_families = {
-       physical_device.graphics_queue(), physical_device.present_queue()
-   };
-
-   std::vector<VkDeviceQueueCreateInfo> create_queues;
-   create_queues.reserve(2);
-
-   const float queue_priority = 1.0f;
-   for (const uint32_t queue_family : unique_queue_families) {
-      create_queues.push_back({
-          .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-          .queueFamilyIndex = queue_family,
-          .queueCount = 1,
-          .pQueuePriorities = &queue_priority,
-      });
-   }
-
-   VkPhysicalDeviceFeatures physical_device_features = {};
-
-   static const char *swapchain_extension = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-   VkDeviceCreateInfo create_info = {
-       .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-       .queueCreateInfoCount = static_cast<uint32_t>(create_queues.size()),
-       .pQueueCreateInfos = create_queues.data(),
-#ifdef VILLA_DEBUG
-       .enabledLayerCount = VILLA_ARRAY_LEN(validation_layers),
-       .ppEnabledLayerNames = validation_layers,
-#endif
-       .enabledExtensionCount = 1,
-       .ppEnabledExtensionNames = &swapchain_extension,
-       .pEnabledFeatures = &physical_device_features,
-   };
-
-   VkDevice device;
-   if (vkCreateDevice(physical_device.handle(), &create_info, nullptr, &device) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create logical device");
-   }
-
-   return device;
-}
-
-} // namespace
-
 Game::Game(const char *title)
     : window_(title), vk_instance_(window_.vulkan_extensions()),
       surface_(window_.create_surface(vk_instance_.handle())),
-      physical_device_(vk_instance_, surface_), device_(VK_NULL_HANDLE),
+      physical_device_(vk_instance_, surface_), device_(physical_device_),
       render_pass_(VK_NULL_HANDLE), was_left_clicking_(false), last_frame_time_(Clock::now()),
       delta_(0), last_width_(window_.width()), last_height_(window_.height()) {
 
    int width = window_.width();
    int height = window_.height();
 
-   device_ = create_logical_device(physical_device_);
-
-   vkGetDeviceQueue(device_, physical_device_.graphics_queue(), 0, &graphics_queue_);
-   vkGetDeviceQueue(device_, physical_device_.present_queue(), 0, &present_queue_);
-
    swapchain_.init(
        {physical_device_.graphics_queue(), physical_device_.present_queue()},
-       physical_device_.handle(), device_, surface_, width, height
+       physical_device_.handle(), device_.handle(), surface_, width, height
    );
 
    VkAttachmentDescription color_attachment = {
@@ -124,16 +72,16 @@ Game::Game(const char *title)
        .pDependencies = &subpass_dependency,
    };
 
-   if (vkCreateRenderPass(device_, &render_create, nullptr, &render_pass_) != VK_SUCCESS) {
+   if (vkCreateRenderPass(device_.handle(), &render_create, nullptr, &render_pass_) != VK_SUCCESS) {
       throw std::runtime_error("failed to create render pass");
    }
 
-   vertex_shader_.init(device_, "shader-vert.spv", ShaderType::kVertex);
-   fragment_shader_.init(device_, "shader-frag.spv", ShaderType::kFragment);
+   vertex_shader_.init(device_.handle(), "shader-vert.spv", ShaderType::kVertex);
+   fragment_shader_.init(device_.handle(), "shader-frag.spv", ShaderType::kFragment);
 
    create_framebuffers();
 
-   command_pool_.init(device_, physical_device_.graphics_queue());
+   command_pool_.init(device_.handle(), physical_device_.graphics_queue());
    command_buffer_ = command_pool_.allocate();
 
    VkSemaphoreCreateInfo semaphore_create = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
@@ -141,22 +89,25 @@ Game::Game(const char *title)
        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .flags = VK_FENCE_CREATE_SIGNALED_BIT
    };
 
-   if (vkCreateSemaphore(device_, &semaphore_create, nullptr, &sem_img_avail) != VK_SUCCESS ||
-       vkCreateSemaphore(device_, &semaphore_create, nullptr, &sem_render_complete) != VK_SUCCESS ||
-       vkCreateFence(device_, &fence_create, nullptr, &draw_cycle_complete) != VK_SUCCESS) {
+   if (vkCreateSemaphore(device_.handle(), &semaphore_create, nullptr, &sem_img_avail) !=
+           VK_SUCCESS ||
+       vkCreateSemaphore(device_.handle(), &semaphore_create, nullptr, &sem_render_complete) !=
+           VK_SUCCESS ||
+       vkCreateFence(device_.handle(), &fence_create, nullptr, &draw_cycle_complete) !=
+           VK_SUCCESS) {
       throw std::runtime_error("failed to create semaphore(s)");
    }
 }
 
 Game::~Game() {
-   vkDeviceWaitIdle(device_);
+   device_.wait_idle();
 
-   vkDestroySemaphore(device_, sem_img_avail, nullptr);
-   vkDestroySemaphore(device_, sem_render_complete, nullptr);
-   vkDestroyFence(device_, draw_cycle_complete, nullptr);
+   vkDestroySemaphore(device_.handle(), sem_img_avail, nullptr);
+   vkDestroySemaphore(device_.handle(), sem_render_complete, nullptr);
+   vkDestroyFence(device_.handle(), draw_cycle_complete, nullptr);
 
    for (const VkFramebuffer framebuffer : framebuffers_) {
-      vkDestroyFramebuffer(device_, framebuffer, nullptr);
+      vkDestroyFramebuffer(device_.handle(), framebuffer, nullptr);
    }
 
    command_pool_.deinit();
@@ -165,14 +116,10 @@ Game::~Game() {
    fragment_shader_.deinit();
 
    if (render_pass_ != VK_NULL_HANDLE) {
-      vkDestroyRenderPass(device_, render_pass_, nullptr);
+      vkDestroyRenderPass(device_.handle(), render_pass_, nullptr);
    }
 
    swapchain_.deinit();
-
-   if (device_ != VK_NULL_HANDLE) {
-      vkDestroyDevice(device_, nullptr);
-   }
 
    if (surface_ != VK_NULL_HANDLE) {
       vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
@@ -183,11 +130,11 @@ void Game::handle_resize(VkSurfaceKHR surface, uint32_t width, uint32_t height) 
    swapchain_.deinit();
    swapchain_.init(
        {physical_device_.graphics_queue(), physical_device_.present_queue()},
-       physical_device_.handle(), device_, surface_, width, height
+       physical_device_.handle(), device_.handle(), surface_, width, height
    );
 
    for (const VkFramebuffer framebuffer : framebuffers_) {
-      vkDestroyFramebuffer(device_, framebuffer, nullptr);
+      vkDestroyFramebuffer(device_.handle(), framebuffer, nullptr);
    }
 
    create_framebuffers();
@@ -218,8 +165,8 @@ void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
        .commandBufferCount = 1,
        .pCommandBuffers = &cmd_buf,
    };
-   vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
-   vkQueueWaitIdle(graphics_queue_);
+   vkQueueSubmit(device_.graphics_queue(), 1, &submit_info, VK_NULL_HANDLE);
+   vkQueueWaitIdle(device_.graphics_queue());
 }
 
 bool Game::poll() {
@@ -234,7 +181,7 @@ bool Game::poll() {
 }
 
 bool Game::begin_draw(const Pipeline &pipeline) {
-   vkWaitForFences(device_, 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
+   vkWaitForFences(device_.handle(), 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
 
    int width = window_.width();
    int height = window_.height();
@@ -245,7 +192,7 @@ bool Game::begin_draw(const Pipeline &pipeline) {
    }
 
    VkResult next_image_res = vkAcquireNextImageKHR(
-       device_, swapchain_.handle(), UINT64_MAX, sem_img_avail, VK_NULL_HANDLE,
+       device_.handle(), swapchain_.handle(), UINT64_MAX, sem_img_avail, VK_NULL_HANDLE,
        &current_framebuffer_
    );
 
@@ -256,7 +203,7 @@ bool Game::begin_draw(const Pipeline &pipeline) {
       throw std::runtime_error("failed to acquire next swapchain image");
    }
 
-   vkResetFences(device_, 1, &draw_cycle_complete);
+   vkResetFences(device_.handle(), 1, &draw_cycle_complete);
    vkResetCommandBuffer(command_buffer_, 0);
 
    VkCommandBufferBeginInfo cmd_begin = {
@@ -335,7 +282,8 @@ void Game::end_draw() {
        .pSignalSemaphores = &sem_render_complete,
    };
 
-   if (vkQueueSubmit(graphics_queue_, 1, &submit_info, draw_cycle_complete) != VK_SUCCESS) {
+   if (vkQueueSubmit(device_.graphics_queue(), 1, &submit_info, draw_cycle_complete) !=
+       VK_SUCCESS) {
       throw std::runtime_error("failed to submit command buffer");
    }
 
@@ -349,7 +297,7 @@ void Game::end_draw() {
        .pImageIndices = &current_framebuffer_,
    };
 
-   vkQueuePresentKHR(present_queue_, &present_info);
+   vkQueuePresentKHR(device_.present_queue(), &present_info);
 }
 
 void Game::create_framebuffers() {
@@ -368,7 +316,8 @@ void Game::create_framebuffers() {
           .layers = 1,
       };
 
-      if (vkCreateFramebuffer(device_, &create_info, nullptr, &framebuffers_[i]) != VK_SUCCESS) {
+      if (vkCreateFramebuffer(device_.handle(), &create_info, nullptr, &framebuffers_[i]) !=
+          VK_SUCCESS) {
          throw std::runtime_error(std::format("failed to create framebuffer {}", i));
       }
    }

@@ -10,6 +10,8 @@ add_library(villa
    "gpu/command_pool.h"
    "gpu/descriptor_pool.cc"
    "gpu/descriptor_pool.h"
+   "gpu/device.cc"
+   "gpu/device.h"
    "gpu/instance.cc"
    "gpu/instance.h"
    "gpu/pipeline.cc"

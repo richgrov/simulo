@@ -9,6 +9,7 @@
 #include "gpu/buffer.h"
 #include "gpu/command_pool.h"
 #include "gpu/descriptor_pool.h"
+#include "gpu/device.h"
 #include "gpu/instance.h"
 #include "gpu/physical_device.h"
 #include "gpu/pipeline.h"
@@ -45,25 +46,29 @@ public:
          offset += attr.size;
       }
 
-      return Pipeline(device_, binding, attrs, {vertex_shader_, fragment_shader_}, render_pass_);
+      return Pipeline(
+          device_.handle(), binding, attrs, {vertex_shader_, fragment_shader_}, render_pass_
+      );
    }
 
    template <class T>
    inline VertexIndexBuffer
    create_vertex_index_buffer(size_t num_vertices, VertexIndexBuffer::IndexType num_indices) {
-      return VertexIndexBuffer(num_vertices, sizeof(T), num_indices, device_, physical_device_);
+      return VertexIndexBuffer(
+          num_vertices, sizeof(T), num_indices, device_.handle(), physical_device_
+      );
    }
 
    StagingBuffer create_staging_buffer(size_t capacity) {
-      return StagingBuffer(capacity, device_, physical_device_);
+      return StagingBuffer(capacity, device_.handle(), physical_device_);
    }
 
    template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
-      return UniformBuffer(sizeof(T), num_elements, device_, physical_device_);
+      return UniformBuffer(sizeof(T), num_elements, device_.handle(), physical_device_);
    }
 
    DescriptorPool create_descriptor_pool(const Pipeline &pipeline) {
-      return DescriptorPool(device_, pipeline);
+      return DescriptorPool(device_.handle(), pipeline);
    }
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
@@ -107,7 +112,7 @@ public:
    void end_draw();
 
    inline void wait_idle() const {
-      vkDeviceWaitIdle(device_);
+      device_.wait_idle();
    }
 
 private:
@@ -118,9 +123,7 @@ private:
    Instance vk_instance_;
    VkSurfaceKHR surface_;
    PhysicalDevice physical_device_;
-   VkDevice device_;
-   VkQueue graphics_queue_;
-   VkQueue present_queue_;
+   Device device_;
    Swapchain swapchain_;
    VkRenderPass render_pass_;
    Shader vertex_shader_;
