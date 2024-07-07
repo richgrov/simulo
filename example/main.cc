@@ -8,6 +8,7 @@
 #include "game.h"
 #include "gpu/buffer.h"
 #include "math/attributes.h"
+#include "math/mat3.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
 #include "util/memory.h"
@@ -24,14 +25,13 @@ struct Vertex {
 };
 
 struct ParticleUniform {
-   Vec2 pos;
+   Mat3 mvp;
    Vec3 color;
 };
 
 class Particle {
 public:
-   Particle(float x, float y, Vec3 color)
-       : uniform_({.pos{x, y}, .color = color}), lifespan_(randf() * 4) {
+   Particle(float x, float y, Vec3 color) : pos_(x, y), color_(color), lifespan_(randf() * 4) {
       float angle = randf() * std::numbers::pi_v<float> * 2;
       float magnitude = randf();
       velocity_ = {
@@ -42,12 +42,20 @@ public:
 
    void update(float delta) {
       velocity_.y += 0.5 * delta;
-      uniform_.pos += velocity_ * delta;
+      pos_ += velocity_ * delta;
       lifespan_ -= 0.01;
 
       if (lifespan_ < 0.05) {
-         uniform_.color = {1.0, 1.0, 1.0};
+         color_ = {1.0, 1.0, 1.0};
       }
+   }
+
+   Vec2 pos() const {
+      return pos_;
+   }
+
+   Vec3 color() const {
+      return color_;
    }
 
    float lifespan() const {
@@ -55,7 +63,8 @@ public:
    }
 
 private:
-   ParticleUniform uniform_;
+   Vec2 pos_;
+   Vec3 color_;
    Vec2 velocity_;
    float lifespan_;
 };
@@ -108,7 +117,8 @@ int main(int argc, char **argv) {
          for (int i = 0; i < particles.size(); ++i) {
             Particle &particle = particles[i];
             particle.update(delta);
-            uniform_buffer.upload_memory(&particles[i], sizeof(ParticleUniform), i);
+            ParticleUniform uniform = {Mat3::translate(particle.pos()), particle.color()};
+            uniform_buffer.upload_memory(&uniform, sizeof(ParticleUniform), i);
          }
 
          if (game.begin_draw(pipeline)) {
