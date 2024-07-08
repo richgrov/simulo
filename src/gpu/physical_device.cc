@@ -1,5 +1,6 @@
 #include "physical_device.h"
 
+#include <format>
 #include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -67,4 +68,24 @@ bool PhysicalDevice::find_queue_families(VkPhysicalDevice candidate_device, VkSu
    }
 
    return graphics_found && presentation_found;
+}
+
+uint32_t PhysicalDevice::find_memory_type_index(
+    uint32_t supported_bits, VkMemoryPropertyFlagBits extra
+) const {
+   VkPhysicalDeviceMemoryProperties properties;
+   vkGetPhysicalDeviceMemoryProperties(physical_device_, &properties);
+
+   VkMemoryType mem_type;
+   for (int i = 0; i < properties.memoryTypeCount; ++i) {
+      bool supports_mem_type = (supported_bits & (1 << i)) != 0;
+      bool supports_extra = (properties.memoryTypes[i].propertyFlags & extra) == extra;
+      if (supports_mem_type && supports_extra) {
+         return i;
+      }
+   }
+
+   throw std::runtime_error(std::format(
+       "no suitable memory type for bits {} and extra flags {}", supported_bits, (int)extra
+   ));
 }

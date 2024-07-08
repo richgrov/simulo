@@ -26,6 +26,8 @@ public:
       return graphics_queue_;
    }
 
+   uint32_t find_memory_type_index(uint32_t supported_bits, VkMemoryPropertyFlagBits extra) const;
+
 private:
    bool find_queue_families(VkPhysicalDevice candidate_device, VkSurfaceKHR surface);
 

@@ -10,30 +10,6 @@
 
 using namespace villa;
 
-namespace {
-
-uint32_t find_memory_type_index(
-    const PhysicalDevice &physical_device, uint32_t supported_bits, VkMemoryPropertyFlagBits extra
-) {
-   VkPhysicalDeviceMemoryProperties properties;
-   vkGetPhysicalDeviceMemoryProperties(physical_device.handle(), &properties);
-
-   VkMemoryType mem_type;
-   for (int i = 0; i < properties.memoryTypeCount; ++i) {
-      bool supports_mem_type = (supported_bits & (1 << i)) != 0;
-      bool supports_extra = (properties.memoryTypes[i].propertyFlags & extra) == extra;
-      if (supports_mem_type && supports_extra) {
-         return i;
-      }
-   }
-
-   throw std::runtime_error(std::format(
-       "no suitable memory type for bits {} and extra flags {}", supported_bits, (int)extra
-   ));
-}
-
-} // namespace
-
 Buffer::Buffer(
     size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memory_properties,
     VkDevice device, const PhysicalDevice &physical_device
@@ -57,7 +33,7 @@ Buffer::Buffer(
        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
        .allocationSize = requirements.size,
        .memoryTypeIndex =
-           find_memory_type_index(physical_device, requirements.memoryTypeBits, memory_properties),
+           physical_device.find_memory_type_index(requirements.memoryTypeBits, memory_properties),
    };
 
    if (vkAllocateMemory(device, &alloc_info, nullptr, &allocation_) != VK_SUCCESS) {
