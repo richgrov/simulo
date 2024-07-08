@@ -10,6 +10,7 @@
 #include "gpu/command_pool.h"
 #include "gpu/descriptor_pool.h"
 #include "gpu/device.h"
+#include "gpu/image.h"
 #include "gpu/instance.h"
 #include "gpu/physical_device.h"
 #include "gpu/pipeline.h"
@@ -69,6 +70,12 @@ public:
 
    DescriptorPool create_descriptor_pool(const Pipeline &pipeline) {
       return DescriptorPool(device_.handle(), pipeline);
+   }
+
+   Image create_image(uint32_t width, uint32_t height) const {
+      return Image(
+          physical_device_, device_.handle(), VK_IMAGE_USAGE_TRANSFER_DST_BIT, width, height
+      );
    }
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);

@@ -77,6 +77,8 @@ int main(int argc, char **argv) {
       auto descriptor_pool = game.create_descriptor_pool(pipeline);
       auto descriptor_set = descriptor_pool.allocate(uniform_buffer);
 
+      auto image = game.create_image(512, 512);
+
       Vertex vertices[] = {
           {{-0.01f, -0.01f}},
           {{0.01f, -0.01f}},

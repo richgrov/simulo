@@ -12,6 +12,8 @@ add_library(villa
    "gpu/descriptor_pool.h"
    "gpu/device.cc"
    "gpu/device.h"
+   "gpu/image.cc"
+   "gpu/image.h"
    "gpu/instance.cc"
    "gpu/instance.h"
    "gpu/pipeline.cc"
