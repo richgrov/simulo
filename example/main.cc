@@ -91,7 +91,10 @@ int main(int argc, char **argv) {
 
       auto mesh_buffer = game.create_vertex_index_buffer<Vertex>(4, 6);
       staging_buffer.upload_mesh(vertices, sizeof(vertices), indices, VILLA_ARRAY_LEN(indices));
+
+      game.begin_preframe();
       game.buffer_copy(staging_buffer, mesh_buffer);
+      game.end_preframe();
 
       while (game.poll()) {
          float delta = game.delta();

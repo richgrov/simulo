@@ -78,7 +78,11 @@ public:
       );
    }
 
+   void begin_preframe();
+
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
+
+   void end_preframe();
 
    bool poll();
 

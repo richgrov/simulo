@@ -140,30 +140,35 @@ void Game::handle_resize(VkSurfaceKHR surface, uint32_t width, uint32_t height) 
    create_framebuffers();
 }
 
-void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
-   VkCommandBuffer cmd_buf = command_pool_.allocate();
+void Game::begin_preframe() {
+   preframe_cmd_buf_ = command_pool_.allocate();
 
    VkCommandBufferBeginInfo begin_info = {
        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
    };
 
-   if (vkBeginCommandBuffer(cmd_buf, &begin_info) != VK_SUCCESS) {
-      throw std::runtime_error("command buffer for buffer copy couldn't begin recording");
+   if (vkBeginCommandBuffer(preframe_cmd_buf_, &begin_info) != VK_SUCCESS) {
+      throw std::runtime_error("preframe command buffer couldn't begin recording");
    }
+}
 
+void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    VkBufferCopy copy_region = {
        .srcOffset = 0,
        .dstOffset = 0,
        .size = src.size(),
    };
-   vkCmdCopyBuffer(cmd_buf, src.buffer(), dst.buffer(), 1, &copy_region);
-   vkEndCommandBuffer(cmd_buf);
+   vkCmdCopyBuffer(preframe_cmd_buf_, src.buffer(), dst.buffer(), 1, &copy_region);
+}
+
+void Game::end_preframe() {
+   vkEndCommandBuffer(preframe_cmd_buf_);
 
    VkSubmitInfo submit_info = {
        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
        .commandBufferCount = 1,
-       .pCommandBuffers = &cmd_buf,
+       .pCommandBuffers = &preframe_cmd_buf_,
    };
    vkQueueSubmit(device_.graphics_queue(), 1, &submit_info, VK_NULL_HANDLE);
    vkQueueWaitIdle(device_.graphics_queue());
