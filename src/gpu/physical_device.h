@@ -23,7 +23,7 @@ public:
    }
 
    inline uint32_t present_queue() const {
-      return graphics_queue_;
+      return present_queue_;
    }
 
    uint32_t find_memory_type_index(uint32_t supported_bits, VkMemoryPropertyFlagBits extra) const;
