@@ -9,7 +9,7 @@ Image::Image(
     const PhysicalDevice &physical_device, VkDevice device, VkImageUsageFlags usage, uint32_t width,
     uint32_t height
 )
-    : device_(device) {
+    : device_(device), layout_(VK_IMAGE_LAYOUT_UNDEFINED), width_(width), height_(height) {
    VkImageCreateInfo image_create = {
        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
        .imageType = VK_IMAGE_TYPE_2D,

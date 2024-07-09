@@ -15,10 +15,29 @@ public:
 
    ~Image();
 
+   inline VkImage handle() const {
+      return image_;
+   }
+
+   inline VkImageLayout layout() const {
+      return layout_;
+   }
+
+   inline uint32_t width() const {
+      return width_;
+   }
+
+   inline uint32_t height() const {
+      return height_;
+   }
+
 private:
    VkImage image_;
    VkDeviceMemory allocation_;
+   uint32_t width_;
+   uint32_t height_;
    VkDevice device_;
+   VkImageLayout layout_;
 };
 
 } // namespace villa
