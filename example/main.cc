@@ -103,6 +103,7 @@ int main(int argc, char **argv) {
       game.buffer_copy(staging_buffer, mesh_buffer);
       game.end_preframe();
 
+      staging_buffer.upload_raw(img_data, width * height * channels);
       while (game.poll()) {
          float delta = game.delta();
 

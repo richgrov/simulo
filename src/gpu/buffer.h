@@ -80,6 +80,10 @@ public:
        VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
    );
 
+   inline void upload_raw(void *data, size_t size) const {
+      std::memcpy(mem_map_, data, size);
+   }
+
    void upload_mesh(
        void *vertices, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
        VertexIndexBuffer::IndexType num_indices
