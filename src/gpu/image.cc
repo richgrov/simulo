@@ -13,7 +13,8 @@ Image::Image(
     const PhysicalDevice &physical_device, VkDevice device, VkImageUsageFlags usage, uint32_t width,
     uint32_t height
 )
-    : device_(device), layout_(VK_IMAGE_LAYOUT_UNDEFINED), width_(width), height_(height) {
+    : view_(VK_NULL_HANDLE), device_(device), layout_(VK_IMAGE_LAYOUT_UNDEFINED), width_(width),
+      height_(height) {
    VkImageCreateInfo image_create = {
        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
        .imageType = VK_IMAGE_TYPE_2D,
@@ -53,8 +54,33 @@ Image::Image(
 }
 
 Image::~Image() {
+   if (view_ != VK_NULL_HANDLE) {
+      vkDestroyImageView(device_, view_, nullptr);
+   }
+
    vkDestroyImage(device_, image_, nullptr);
    vkFreeMemory(device_, allocation_, nullptr);
+}
+
+void Image::init_view() {
+   VkImageViewCreateInfo view_create = {
+       .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+       .image = image_,
+       .viewType = VK_IMAGE_VIEW_TYPE_2D,
+       .format = VK_FORMAT_R8G8B8A8_SRGB,
+       .subresourceRange =
+           {
+               .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+               .baseMipLevel = 0,
+               .levelCount = 1,
+               .baseArrayLayer = 0,
+               .layerCount = 1,
+           },
+   };
+
+   if (vkCreateImageView(device_, &view_create, nullptr, &view_) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create image view");
+   }
 }
 
 void Image::queue_transfer_layout(VkImageLayout layout, VkCommandBuffer cmd_buf) {

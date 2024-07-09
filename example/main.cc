@@ -111,6 +111,8 @@ int main(int argc, char **argv) {
       game.upload_texture(staging_buffer, image);
       game.end_preframe();
 
+      image.init_view();
+
       while (game.poll()) {
          float delta = game.delta();
 

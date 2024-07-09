@@ -15,6 +15,8 @@ public:
 
    ~Image();
 
+   void init_view();
+
    void queue_transfer_layout(VkImageLayout layout, VkCommandBuffer cmd_buf);
 
    inline VkImage handle() const {
@@ -35,6 +37,7 @@ public:
 
 private:
    VkImage image_;
+   VkImageView view_;
    VkDeviceMemory allocation_;
    uint32_t width_;
    uint32_t height_;
