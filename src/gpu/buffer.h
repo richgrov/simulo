@@ -76,7 +76,9 @@ private:
 
 class StagingBuffer : public Buffer {
 public:
-   StagingBuffer(VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device);
+   explicit StagingBuffer(
+       VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
+   );
 
    void upload_mesh(
        void *vertices, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
