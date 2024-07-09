@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <format>
+#include <iostream>
 #include <stdexcept>
 #include <vector>
 
@@ -58,6 +59,7 @@ Instance::Instance(const std::vector<const char *> extensions) {
    ensure_validation_layers_supported();
    create_info.enabledLayerCount = VILLA_ARRAY_LEN(validation_layers);
    create_info.ppEnabledLayerNames = validation_layers;
+   std::cout << "Validation layers enabled\n";
 #endif
 
    if (vkCreateInstance(&create_info, nullptr, &instance_) != VK_SUCCESS) {
