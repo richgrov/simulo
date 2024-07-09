@@ -5,6 +5,8 @@
 #include <numbers>
 #include <vector>
 
+#include <vulkan/vulkan_core.h>
+
 #include "game.h"
 #include "gpu/buffer.h"
 #include "math/attributes.h"
@@ -104,6 +106,9 @@ int main(int argc, char **argv) {
       game.end_preframe();
 
       staging_buffer.upload_raw(img_data, width * height * channels);
+      game.begin_preframe();
+      game.transfer_image_layout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      game.end_preframe();
       while (game.poll()) {
          float delta = game.delta();
 

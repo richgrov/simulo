@@ -56,3 +56,45 @@ Image::~Image() {
    vkDestroyImage(device_, image_, nullptr);
    vkFreeMemory(device_, allocation_, nullptr);
 }
+
+void Image::queue_transfer_layout(VkImageLayout layout, VkCommandBuffer cmd_buf) {
+   VkImageMemoryBarrier barrier = {
+       .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+       .oldLayout = layout_,
+       .newLayout = layout,
+       .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+       .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+       .image = image_,
+       .subresourceRange =
+           {
+               .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+               .baseMipLevel = 0,
+               .levelCount = 1,
+               .baseArrayLayer = 0,
+               .layerCount = 1,
+           },
+   };
+
+   VkPipelineStageFlags src_stage;
+   switch (layout_) {
+   case VK_IMAGE_LAYOUT_UNDEFINED:
+      src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      break;
+
+   case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      break;
+
+   default:
+      break;
+   }
+
+   VkPipelineStageFlags dst_stage;
+   barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+   if (layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+      dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+   }
+
+   vkCmdPipelineBarrier(cmd_buf, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+}

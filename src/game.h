@@ -82,6 +82,10 @@ public:
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
+   inline void transfer_image_layout(Image &image, VkImageLayout layout) const {
+      image.queue_transfer_layout(layout, preframe_cmd_buf_);
+   }
+
    void end_preframe();
 
    bool poll();

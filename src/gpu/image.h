@@ -15,6 +15,8 @@ public:
 
    ~Image();
 
+   void queue_transfer_layout(VkImageLayout layout, VkCommandBuffer cmd_buf);
+
    inline VkImage handle() const {
       return image_;
    }
