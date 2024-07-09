@@ -1,5 +1,6 @@
 #include "instance.h"
 
+#include <cstring>
 #include <format>
 #include <stdexcept>
 #include <vector>
