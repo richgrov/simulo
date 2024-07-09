@@ -148,6 +148,7 @@ private:
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;
    CommandPool command_pool_;
+   VkCommandBuffer preframe_cmd_buf_;
    VkCommandBuffer command_buffer_;
    VkSemaphore sem_img_avail;
    VkSemaphore sem_render_complete;
