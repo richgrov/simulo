@@ -4,6 +4,9 @@
 
 #include <vulkan/vulkan_core.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "vendor/stb_image.h"
+
 using namespace villa;
 
 Image::Image(

@@ -13,6 +13,7 @@
 #include "math/vec3.h"
 #include "util/memory.h"
 #include "util/rand.h"
+#include "vendor/stb_image.h"
 
 using namespace villa;
 
@@ -68,16 +69,22 @@ private:
 
 int main(int argc, char **argv) {
    try {
+      int width, height, channels;
+      stbi_uc *img_data = stbi_load("res/background.png", &width, &height, &channels, 1);
+      if (img_data == nullptr) {
+         throw std::runtime_error("failed to open image");
+      }
+
       Game game("villa");
 
       auto pipeline = game.create_pipeline<Vertex>();
-      auto staging_buffer = game.create_staging_buffer(1024);
+      auto staging_buffer = game.create_staging_buffer(width * height * channels);
 
       auto uniform_buffer = game.create_uniform_buffer<ParticleUniform>(512);
       auto descriptor_pool = game.create_descriptor_pool(pipeline);
       auto descriptor_set = descriptor_pool.allocate(uniform_buffer);
 
-      auto image = game.create_image(512, 512);
+      auto image = game.create_image(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 
       Vertex vertices[] = {
           {{-0.01f, -0.01f}},

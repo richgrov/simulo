@@ -30,6 +30,7 @@ add_library(villa
    "math/vec3.h"
    "util/memory.h"
    "util/rand.h"
+   "vendor/stb_image.h"
    "window/window.h"
    "game.cc"
    "game.h"
