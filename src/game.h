@@ -74,7 +74,8 @@ public:
 
    Image create_image(uint32_t width, uint32_t height) const {
       return Image(
-          physical_device_, device_.handle(), VK_IMAGE_USAGE_TRANSFER_DST_BIT, width, height
+          physical_device_, device_.handle(),
+          VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, width, height
       );
    }
 
