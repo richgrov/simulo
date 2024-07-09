@@ -76,15 +76,7 @@ private:
 
 class StagingBuffer : public Buffer {
 public:
-   StagingBuffer(VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device)
-       : Buffer(
-             capacity, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-             static_cast<VkMemoryPropertyFlagBits>(
-                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-             ),
-             device, physical_device
-         ),
-         capacity_(capacity), size_(0) {}
+   StagingBuffer(VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device);
 
    void upload_mesh(
        void *vertices, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
@@ -102,6 +94,7 @@ public:
 private:
    VkDeviceSize capacity_;
    VkDeviceSize size_;
+   void *mem_map_;
 };
 
 class UniformBuffer : public Buffer {

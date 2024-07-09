@@ -58,6 +58,20 @@ Buffer &Buffer::operator=(Buffer &&other) {
    return *this;
 }
 
+StagingBuffer::StagingBuffer(
+    VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
+)
+    : Buffer(
+          capacity, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+          static_cast<VkMemoryPropertyFlagBits>(
+              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+          ),
+          device, physical_device
+      ),
+      capacity_(capacity), size_(0) {
+   vkMapMemory(device, allocation_, 0, capacity, 0, &mem_map_);
+}
+
 void StagingBuffer::upload_mesh(
     void *vertices, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
     VertexIndexBuffer::IndexType num_indices
@@ -66,11 +80,8 @@ void StagingBuffer::upload_mesh(
    VkDeviceSize total_size = vertices_size + indices_size;
    size_ = total_size;
 
-   void *cpy_dst;
-   vkMapMemory(device_, allocation_, 0, total_size, 0, &cpy_dst);
-   std::memcpy(cpy_dst, vertices, vertices_size);
-   std::memcpy(reinterpret_cast<uint8_t *>(cpy_dst) + vertices_size, indices, indices_size);
-   vkUnmapMemory(device_, allocation_);
+   std::memcpy(mem_map_, vertices, vertices_size);
+   std::memcpy(reinterpret_cast<uint8_t *>(mem_map_) + vertices_size, indices, indices_size);
 }
 
 UniformBuffer::UniformBuffer(
