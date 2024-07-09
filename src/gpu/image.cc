@@ -1,7 +1,8 @@
+#include "image.h"
+
 #include <stdexcept>
 
-#include "image.h"
-#include "vulkan/vulkan_core.h"
+#include <vulkan/vulkan_core.h>
 
 using namespace villa;
 
