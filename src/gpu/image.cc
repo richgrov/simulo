@@ -17,7 +17,7 @@ Image::Image(
    VkImageCreateInfo image_create = {
        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
        .imageType = VK_IMAGE_TYPE_2D,
-       .format = VK_FORMAT_R8G8B8A8_UNORM,
+       .format = VK_FORMAT_R8G8B8A8_SRGB,
        .extent = {width, height, 1},
        .mipLevels = 1,
        .arrayLayers = 1,
