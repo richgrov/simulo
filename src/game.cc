@@ -162,6 +162,29 @@ void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    vkCmdCopyBuffer(preframe_cmd_buf_, src.buffer(), dst.buffer(), 1, &copy_region);
 }
 
+void Game::upload_texture(const StagingBuffer &src, Image &image) {
+   VkBufferImageCopy region = {
+       .imageSubresource =
+           {
+               .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+               .mipLevel = 0,
+               .baseArrayLayer = 0,
+               .layerCount = 1,
+           },
+       .imageExtent =
+           {
+               .width = static_cast<uint32_t>(image.width()),
+               .height = static_cast<uint32_t>(image.height()),
+               .depth = 1,
+           },
+   };
+
+   vkCmdCopyBufferToImage(
+       preframe_cmd_buf_, src.buffer(), image.handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+       &region
+   );
+}
+
 void Game::end_preframe() {
    vkEndCommandBuffer(preframe_cmd_buf_);
 

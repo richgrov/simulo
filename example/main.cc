@@ -108,7 +108,9 @@ int main(int argc, char **argv) {
       staging_buffer.upload_raw(img_data, width * height * channels);
       game.begin_preframe();
       game.transfer_image_layout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      game.upload_texture(staging_buffer, image);
       game.end_preframe();
+
       while (game.poll()) {
          float delta = game.delta();
 

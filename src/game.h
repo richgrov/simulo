@@ -82,6 +82,8 @@ public:
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
 
+   void upload_texture(const StagingBuffer &src, Image &image);
+
    inline void transfer_image_layout(Image &image, VkImageLayout layout) const {
       image.queue_transfer_layout(layout, preframe_cmd_buf_);
    }
