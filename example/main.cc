@@ -72,7 +72,7 @@ private:
 int main(int argc, char **argv) {
    try {
       int width, height, channels;
-      stbi_uc *img_data = stbi_load("res/background.png", &width, &height, &channels, 1);
+      stbi_uc *img_data = stbi_load("res/background.png", &width, &height, &channels, 4);
       if (img_data == nullptr) {
          throw std::runtime_error("failed to open image");
       }
