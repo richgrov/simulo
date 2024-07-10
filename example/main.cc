@@ -21,8 +21,10 @@ using namespace villa;
 
 struct Vertex {
    Vec2 pos;
+   Vec2 tex_coord;
 
-   static constexpr std::array<VertexAttribute, 1> attributes{
+   static constexpr std::array<VertexAttribute, 2> attributes{
+       VertexAttribute::vec2(),
        VertexAttribute::vec2(),
    };
 };
@@ -84,15 +86,24 @@ int main(int argc, char **argv) {
 
       auto uniform_buffer = game.create_uniform_buffer<ParticleUniform>(512);
       auto descriptor_pool = game.create_descriptor_pool(pipeline);
-      auto descriptor_set = descriptor_pool.allocate(uniform_buffer);
 
       auto image = game.create_image(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 
+      staging_buffer.upload_raw(img_data, width * height * channels);
+      game.begin_preframe();
+      game.transfer_image_layout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      game.upload_texture(staging_buffer, image);
+      game.transfer_image_layout(image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      game.end_preframe();
+
+      image.init_view();
+      auto descriptor_set = descriptor_pool.allocate(uniform_buffer, image, game.image_sampler());
+
       Vertex vertices[] = {
-          {{-0.01f, -0.01f}},
-          {{0.01f, -0.01f}},
-          {{0.01f, 0.01f}},
-          {{-0.01f, 0.01f}},
+          {{-0.05f, -0.05f}, {1.0, 0.0}},
+          {{0.05f, -0.05f}, {0.0, 0.0}},
+          {{0.05f, 0.05f}, {0.0, 1.0}},
+          {{-0.05f, 0.05f}, {1.0, 1.0}},
       };
       VertexIndexBuffer::IndexType indices[] = {0, 1, 2, 0, 2, 3};
 
@@ -104,14 +115,6 @@ int main(int argc, char **argv) {
       game.begin_preframe();
       game.buffer_copy(staging_buffer, mesh_buffer);
       game.end_preframe();
-
-      staging_buffer.upload_raw(img_data, width * height * channels);
-      game.begin_preframe();
-      game.transfer_image_layout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-      game.upload_texture(staging_buffer, image);
-      game.end_preframe();
-
-      image.init_view();
 
       while (game.poll()) {
          float delta = game.delta();

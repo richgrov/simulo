@@ -89,6 +89,13 @@ Pipeline::Pipeline(
        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
    });
 
+   descriptor_bindings.push_back({
+       .binding = 1,
+       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+       .descriptorCount = 1,
+       .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+   });
+
    VkDescriptorSetLayoutCreateInfo descriptor_layout_create = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
        .bindingCount = static_cast<uint32_t>(descriptor_bindings.size()),

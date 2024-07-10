@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/buffer.h"
+#include "gpu/image.h"
 #include "gpu/pipeline.h"
 
 namespace villa {
@@ -16,7 +17,7 @@ public:
       vkDestroyDescriptorPool(device_, descriptor_pool_, nullptr);
    }
 
-   VkDescriptorSet allocate(const UniformBuffer &buffer);
+   VkDescriptorSet allocate(const UniformBuffer &buffer, const Image &image, VkSampler sampler);
 
 private:
    VkDevice device_;
