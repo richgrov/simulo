@@ -5,19 +5,25 @@
 
 #include "gpu/buffer.h"
 #include "gpu/image.h"
-#include "gpu/pipeline.h"
 
 namespace villa {
 
 class DescriptorPool {
 public:
-   DescriptorPool(VkDevice device, const Pipeline &pipeline);
+   DescriptorPool(
+       VkDevice device, const std::vector<VkDescriptorSetLayoutBinding> &layouts, uint32_t num_sets
+   );
 
    inline ~DescriptorPool() {
+      vkDestroyDescriptorSetLayout(device_, descriptor_layout_, nullptr);
       vkDestroyDescriptorPool(device_, descriptor_pool_, nullptr);
    }
 
    VkDescriptorSet allocate(const UniformBuffer &buffer, const Image &image, VkSampler sampler);
+
+   inline VkDescriptorSetLayout layout() const {
+      return descriptor_layout_;
+   }
 
 private:
    VkDevice device_;

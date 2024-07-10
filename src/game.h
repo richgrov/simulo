@@ -27,7 +27,7 @@ public:
    explicit Game(const char *title);
    ~Game();
 
-   template <class T> Pipeline create_pipeline() {
+   template <class T> Pipeline create_pipeline(const DescriptorPool &descriptor_pool) {
       VkVertexInputBindingDescription binding = {
           .binding = 0,
           .stride = sizeof(T),
@@ -48,7 +48,8 @@ public:
       }
 
       return Pipeline(
-          device_.handle(), binding, attrs, {vertex_shader_, fragment_shader_}, render_pass_
+          device_.handle(), binding, attrs, {vertex_shader_, fragment_shader_},
+          descriptor_pool.layout(), render_pass_
       );
    }
 
@@ -68,8 +69,26 @@ public:
       return UniformBuffer(sizeof(T), num_elements, device_.handle(), physical_device_);
    }
 
-   DescriptorPool create_descriptor_pool(const Pipeline &pipeline) {
-      return DescriptorPool(device_.handle(), pipeline);
+   DescriptorPool create_descriptor_pool() {
+      return DescriptorPool(
+          device_.handle(),
+          {
+              {
+                  .binding = 0,
+                  .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                  .descriptorCount = 1,
+                  .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+              },
+
+              {
+                  .binding = 1,
+                  .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                  .descriptorCount = 1,
+                  .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+              },
+          },
+          1
+      );
    }
 
    Image create_image(uint32_t width, uint32_t height) const {

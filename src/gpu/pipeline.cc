@@ -12,10 +12,10 @@ using namespace villa;
 Pipeline::Pipeline(
     VkDevice device, VkVertexInputBindingDescription vertex_binding,
     const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
-    const std::vector<std::reference_wrapper<Shader>> &shaders, VkRenderPass render_pass
+    const std::vector<std::reference_wrapper<Shader>> &shaders,
+    VkDescriptorSetLayout descriptor_layout, VkRenderPass render_pass
 )
-    : layout_(VK_NULL_HANDLE), descriptor_layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE),
-      device_(VK_NULL_HANDLE) {
+    : layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE) {
 
    device_ = device;
 
@@ -81,37 +81,10 @@ Pipeline::Pipeline(
        .pDynamicStates = dynamic_states,
    };
 
-   std::vector<VkDescriptorSetLayoutBinding> descriptor_bindings;
-   descriptor_bindings.push_back({
-       .binding = 0,
-       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-       .descriptorCount = 1,
-       .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-   });
-
-   descriptor_bindings.push_back({
-       .binding = 1,
-       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-       .descriptorCount = 1,
-       .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-   });
-
-   VkDescriptorSetLayoutCreateInfo descriptor_layout_create = {
-       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-       .bindingCount = static_cast<uint32_t>(descriptor_bindings.size()),
-       .pBindings = descriptor_bindings.data(),
-   };
-
-   if (vkCreateDescriptorSetLayout(
-           device, &descriptor_layout_create, nullptr, &descriptor_layout_
-       ) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create descriptor set");
-   }
-
    VkPipelineLayoutCreateInfo layout_create = {
        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
        .setLayoutCount = 1,
-       .pSetLayouts = &descriptor_layout_,
+       .pSetLayouts = &descriptor_layout,
    };
 
    if (vkCreatePipelineLayout(device, &layout_create, nullptr, &layout_) != VK_SUCCESS) {
@@ -142,10 +115,6 @@ Pipeline::Pipeline(
 }
 
 Pipeline::~Pipeline() {
-   if (descriptor_layout_ != VK_NULL_HANDLE) {
-      vkDestroyDescriptorSetLayout(device_, descriptor_layout_, nullptr);
-   }
-
    if (pipeline_ != VK_NULL_HANDLE) {
       vkDestroyPipeline(device_, pipeline_, nullptr);
    }

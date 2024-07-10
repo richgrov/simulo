@@ -81,11 +81,10 @@ int main(int argc, char **argv) {
 
       Game game("villa");
 
-      auto pipeline = game.create_pipeline<Vertex>();
       auto staging_buffer = game.create_staging_buffer(width * height * channels);
 
       auto uniform_buffer = game.create_uniform_buffer<ParticleUniform>(512);
-      auto descriptor_pool = game.create_descriptor_pool(pipeline);
+      auto descriptor_pool = game.create_descriptor_pool();
 
       auto image = game.create_image(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 
@@ -98,6 +97,7 @@ int main(int argc, char **argv) {
 
       image.init_view();
       auto descriptor_set = descriptor_pool.allocate(uniform_buffer, image, game.image_sampler());
+      auto pipeline = game.create_pipeline<Vertex>(descriptor_pool);
 
       Vertex vertices[] = {
           {{-0.05f, -0.05f}, {1.0, 0.0}},

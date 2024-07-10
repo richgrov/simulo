@@ -15,7 +15,8 @@ public:
    Pipeline(
        VkDevice device, VkVertexInputBindingDescription vertex_binding,
        const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
-       const std::vector<std::reference_wrapper<Shader>> &shaders, VkRenderPass render_pass
+       const std::vector<std::reference_wrapper<Shader>> &shaders,
+       VkDescriptorSetLayout descriptor_layout, VkRenderPass render_pass
    );
 
    ~Pipeline();
@@ -28,13 +29,8 @@ public:
       return layout_;
    }
 
-   inline VkDescriptorSetLayout descriptor_set_layout() const {
-      return descriptor_layout_;
-   }
-
 private:
    VkPipelineLayout layout_;
-   VkDescriptorSetLayout descriptor_layout_;
    VkPipeline pipeline_;
    VkDevice device_;
 };

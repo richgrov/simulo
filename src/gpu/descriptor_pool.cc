@@ -4,35 +4,39 @@
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/buffer.h"
-#include "gpu/pipeline.h"
 #include "gpu/status.h"
 #include "util/memory.h"
 
 using namespace villa;
 
-DescriptorPool::DescriptorPool(VkDevice device, const Pipeline &pipeline)
-    : device_(device), descriptor_layout_(pipeline.descriptor_set_layout()) {
-   VkDescriptorPoolSize sizes[] = {
-       {
-           .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-           .descriptorCount = 1,
-       },
-       {
-           .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-           .descriptorCount = 1,
-       },
+DescriptorPool::DescriptorPool(
+    VkDevice device, const std::vector<VkDescriptorSetLayoutBinding> &layouts, uint32_t num_sets
+)
+    : device_(device) {
+
+   VkDescriptorSetLayoutCreateInfo layout_create = {
+       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+       .bindingCount = static_cast<uint32_t>(layouts.size()),
+       .pBindings = layouts.data(),
    };
+   VILLA_VK(vkCreateDescriptorSetLayout(device, &layout_create, nullptr, &descriptor_layout_));
+
+   std::vector<VkDescriptorPoolSize> sizes;
+   sizes.reserve(layouts.size());
+   for (const auto &layout : layouts) {
+      sizes.push_back({
+          .type = layout.descriptorType,
+          .descriptorCount = layout.descriptorCount,
+      });
+   }
 
    VkDescriptorPoolCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-       .maxSets = 1,
-       .poolSizeCount = VILLA_ARRAY_LEN(sizes),
-       .pPoolSizes = sizes,
+       .maxSets = num_sets,
+       .poolSizeCount = static_cast<uint32_t>(sizes.size()),
+       .pPoolSizes = sizes.data(),
    };
-
-   if (vkCreateDescriptorPool(device, &create_info, nullptr, &descriptor_pool_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create descriptor pool");
-   }
+   VILLA_VK(vkCreateDescriptorPool(device, &create_info, nullptr, &descriptor_pool_));
 }
 
 VkDescriptorSet
