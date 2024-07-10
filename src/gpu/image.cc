@@ -122,5 +122,6 @@ void Image::queue_transfer_layout(VkImageLayout layout, VkCommandBuffer cmd_buf)
       dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
    }
 
+   layout_ = layout;
    vkCmdPipelineBarrier(cmd_buf, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
