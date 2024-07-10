@@ -10,7 +10,7 @@
 #include "game.h"
 #include "gpu/buffer.h"
 #include "math/attributes.h"
-#include "math/mat3.h"
+#include "math/mat4.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
 #include "util/memory.h"
@@ -30,7 +30,7 @@ struct Vertex {
 };
 
 struct ParticleUniform {
-   Mat3 mvp;
+   Mat4 mvp;
    Vec3 color;
 };
 
@@ -139,7 +139,8 @@ int main(int argc, char **argv) {
          for (int i = 0; i < particles.size(); ++i) {
             Particle &particle = particles[i];
             particle.update(delta);
-            ParticleUniform uniform = {Mat3::translate(particle.pos()), particle.color()};
+            Vec2 pos = particle.pos();
+            ParticleUniform uniform = {Mat4::translate(Vec3(pos.x, pos.y, 0.0f)), particle.color()};
             uniform_buffer.upload_memory(&uniform, sizeof(ParticleUniform), i);
          }
 
