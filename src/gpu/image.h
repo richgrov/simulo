@@ -23,6 +23,10 @@ public:
       return image_;
    }
 
+   inline VkImageView view() const {
+      return view_;
+   }
+
    inline VkImageLayout layout() const {
       return layout_;
    }
