@@ -79,6 +79,10 @@ public:
       );
    }
 
+   inline VkSampler image_sampler() const {
+      return sampler_;
+   }
+
    void begin_preframe();
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
@@ -148,6 +152,7 @@ private:
    Shader fragment_shader_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;
+   VkSampler sampler_;
    CommandPool command_pool_;
    VkCommandBuffer preframe_cmd_buf_;
    VkCommandBuffer command_buffer_;

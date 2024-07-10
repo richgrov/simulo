@@ -81,6 +81,20 @@ Game::Game(const char *title)
 
    create_framebuffers();
 
+   VkSamplerCreateInfo sampler_create = {
+       .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+       .magFilter = VK_FILTER_NEAREST,
+       .minFilter = VK_FILTER_NEAREST,
+       .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+       .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+       .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+       .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+   };
+
+   if (vkCreateSampler(device_.handle(), &sampler_create, nullptr, &sampler_) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create sampler");
+   }
+
    command_pool_.init(device_.handle(), physical_device_.graphics_queue());
    command_buffer_ = command_pool_.allocate();
 
@@ -105,6 +119,8 @@ Game::~Game() {
    vkDestroySemaphore(device_.handle(), sem_img_avail, nullptr);
    vkDestroySemaphore(device_.handle(), sem_render_complete, nullptr);
    vkDestroyFence(device_.handle(), draw_cycle_complete, nullptr);
+
+   vkDestroySampler(device_.handle(), sampler_, nullptr);
 
    for (const VkFramebuffer framebuffer : framebuffers_) {
       vkDestroyFramebuffer(device_.handle(), framebuffer, nullptr);
