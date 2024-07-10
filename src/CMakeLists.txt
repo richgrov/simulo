@@ -22,6 +22,7 @@ add_library(villa
    "gpu/physical_device.h"
    "gpu/shader.cc"
    "gpu/shader.h"
+   "gpu/status.h"
    "gpu/swapchain.cc"
    "gpu/swapchain.h"
    "gpu/buffer.cc"
