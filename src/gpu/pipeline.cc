@@ -81,17 +81,18 @@ Pipeline::Pipeline(
        .pDynamicStates = dynamic_states,
    };
 
-   VkDescriptorSetLayoutBinding layout_binding = {
+   std::vector<VkDescriptorSetLayoutBinding> descriptor_bindings;
+   descriptor_bindings.push_back({
        .binding = 0,
        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
        .descriptorCount = 1,
        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-   };
+   });
 
    VkDescriptorSetLayoutCreateInfo descriptor_layout_create = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-       .bindingCount = 1,
-       .pBindings = &layout_binding,
+       .bindingCount = static_cast<uint32_t>(descriptor_bindings.size()),
+       .pBindings = descriptor_bindings.data(),
    };
 
    if (vkCreateDescriptorSetLayout(
