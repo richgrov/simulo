@@ -6,7 +6,10 @@
 
 namespace villa {
 
-constexpr const char *validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
+constexpr const char *validation_layers[] = {
+    "VK_LAYER_KHRONOS_validation",
+    //"VK_LAYER_LUNARG_api_dump",
+};
 
 class Instance {
 public:
