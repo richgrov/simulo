@@ -1,5 +1,6 @@
 #include "sound.h"
 
+#include <format>
 #include <stdexcept>
 
 #include <fmod.h>
@@ -7,9 +8,8 @@
 using namespace villa;
 
 Sound::Sound(FMOD_SYSTEM *system, const char *path) : sound_system_(system) {
-   if (FMOD_System_CreateSound(system, "res/sfx/bass.wav", FMOD_DEFAULT, nullptr, &sound_) !=
-       FMOD_OK) {
-      throw std::runtime_error("failed to load sound");
+   if (FMOD_System_CreateSound(system, path, FMOD_DEFAULT, nullptr, &sound_) != FMOD_OK) {
+      throw std::runtime_error(std::format("failed to load {}", path));
    }
 }
 
