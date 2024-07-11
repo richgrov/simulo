@@ -30,6 +30,7 @@ add_library(villa
    "math/mat4.h"
    "math/vec2.h"
    "math/vec3.h"
+   "util/assert.h"
    "util/memory.h"
    "util/rand.h"
    "vendor/stb_image.h"
