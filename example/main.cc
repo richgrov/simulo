@@ -100,12 +100,12 @@ int main(int argc, char **argv) {
       auto pipeline = game.create_pipeline<Vertex>(descriptor_pool);
 
       Vertex vertices[] = {
-          {{-0.05f, -0.05f}, {1.0, 0.0}},
-          {{0.05f, -0.05f}, {0.0, 0.0}},
-          {{0.05f, 0.05f}, {0.0, 1.0}},
-          {{-0.05f, 0.05f}, {1.0, 1.0}},
+          {{0.0f, 0.0f}, {0.0, 0.0}},
+          {{50.0f, 0.0f}, {1.0, 0.0}},
+          {{50.0f, 50.0f}, {1.0, 1.0}},
+          {{0.0f, 50.0f}, {0.0, 1.0}},
       };
-      VertexIndexBuffer::IndexType indices[] = {0, 1, 2, 0, 2, 3};
+      VertexIndexBuffer::IndexType indices[] = {0, 2, 1, 0, 3, 2};
 
       std::vector<Particle> particles;
 
@@ -123,12 +123,9 @@ int main(int argc, char **argv) {
             float mouse_x = static_cast<float>(game.mouse_x());
             float mouse_y = static_cast<float>(game.mouse_y());
 
-            float norm_x = mouse_x / game.width() * 2.f - 1.f;
-            float norm_y = mouse_y / game.height() * 2.f - 1.f;
-
             Vec3 color = {randf(), randf(), randf()};
             for (int i = 0; i < 92; ++i) {
-               particles.emplace_back(Particle(norm_x, norm_y, color));
+               particles.emplace_back(Particle(mouse_x, game.height() - mouse_y, color));
             }
          }
 
@@ -139,8 +136,13 @@ int main(int argc, char **argv) {
          for (int i = 0; i < particles.size(); ++i) {
             Particle &particle = particles[i];
             particle.update(delta);
+
             Vec2 pos = particle.pos();
-            ParticleUniform uniform = {Mat4::translate(Vec3(pos.x, pos.y, 0.0f)), particle.color()};
+            Mat4 model = Mat4::translate(Vec3(pos.x, pos.y, 0));
+            Mat4 proj = Mat4::ortho(0, (float)game.width(), (float)game.height(), 0, -1, 1);
+            Mat4 mvp = proj * model;
+
+            ParticleUniform uniform = {mvp, particle.color()};
             uniform_buffer.upload_memory(&uniform, sizeof(ParticleUniform), i);
          }
 
