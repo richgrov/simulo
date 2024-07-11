@@ -27,6 +27,7 @@ add_library(villa
    "gpu/swapchain.h"
    "gpu/buffer.cc"
    "gpu/buffer.h"
+   "math/mat4.h"
    "math/vec2.h"
    "math/vec3.h"
    "util/memory.h"
