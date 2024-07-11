@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include <fmod.h>
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/buffer.h"
@@ -111,10 +112,20 @@ Game::Game(const char *title)
            VK_SUCCESS) {
       throw std::runtime_error("failed to create semaphore(s)");
    }
+
+   if (FMOD_System_Create(&sound_system_, FMOD_VERSION) != FMOD_OK) {
+      throw std::runtime_error("failed to create sound system");
+   }
+
+   if (FMOD_System_Init(sound_system_, 32, FMOD_INIT_NORMAL, nullptr) != FMOD_OK) {
+      throw std::runtime_error("failed to initialize sound system");
+   }
 }
 
 Game::~Game() {
    device_.wait_idle();
+
+   FMOD_System_Release(sound_system_);
 
    vkDestroySemaphore(device_.handle(), sem_img_avail, nullptr);
    vkDestroySemaphore(device_.handle(), sem_render_complete, nullptr);
@@ -221,6 +232,11 @@ bool Game::poll() {
    was_left_clicking_ = window_.left_clicking();
    last_width_ = window_.width();
    last_height_ = window_.height();
+
+   if (FMOD_System_Update(sound_system_) != FMOD_OK) {
+      throw std::runtime_error("failed to poll fmod system");
+   }
+
    return window_.poll();
 }
 

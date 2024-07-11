@@ -4,6 +4,7 @@
 #include <chrono>
 #include <vector>
 
+#include <fmod.h>
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/buffer.h"
@@ -16,6 +17,7 @@
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
 #include "gpu/swapchain.h"
+#include "sound.h"
 #include "window/window.h" // IWYU pragma: export
 
 namespace villa {
@@ -96,6 +98,10 @@ public:
           physical_device_, device_.handle(),
           VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, width, height
       );
+   }
+
+   Sound create_sound(const char *path) {
+      return Sound(sound_system_, path);
    }
 
    inline VkSampler image_sampler() const {
@@ -182,6 +188,8 @@ private:
    VkSemaphore sem_img_avail;
    VkSemaphore sem_render_complete;
    VkFence draw_cycle_complete;
+
+   FMOD_SYSTEM *sound_system_;
 
    Clock::time_point last_frame_time_;
    std::chrono::duration<float> delta_;

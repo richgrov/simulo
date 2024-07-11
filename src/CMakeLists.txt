@@ -39,6 +39,8 @@ set(SOURCE_FILES
    "window/window.h"
    "game.cc"
    "game.h"
+   "sound.cc"
+   "sound.h"
    ${OS_SPECIFIC_FILES}
 )
 
@@ -47,10 +49,16 @@ add_library(villa ${SOURCE_FILES})
 function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
 
+    # Vulkan
     target_link_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Lib")
     target_link_libraries(${subject} "vulkan-1.lib")
     target_include_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Include")
     
+    # FMOD
+    target_link_directories(${subject} PUBLIC "$ENV{FMOD_HOME}/lib/x64")
+    target_link_libraries(${subject} fmod.dll)
+    target_include_directories(${subject} PUBLIC "$ENV{FMOD_HOME}/inc")
+
     set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)
 endfunction()
 
