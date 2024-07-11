@@ -58,12 +58,21 @@ LRESULT CALLBACK villa::window_proc(HWND window, UINT msg, WPARAM w_param, LPARA
    case WM_LBUTTONUP:
       get_window_class(window)->left_clicking_ = false;
       return 0;
+
+   case WM_KEYDOWN:
+      get_window_class(window)->pressed_keys_[static_cast<uint8_t>(w_param)] = true;
+      return 0;
+
+   case WM_KEYUP:
+      get_window_class(window)->pressed_keys_[static_cast<uint8_t>(w_param)] = false;
+      return 0;
    }
 
    return DefWindowProc(window, msg, w_param, l_param);
 }
 
-Window::Window(const char *title) : open_(false), mouse_x_(0), mouse_y_(0), left_clicking_(false) {
+Window::Window(const char *title)
+    : open_(false), mouse_x_(0), mouse_y_(0), left_clicking_(false), pressed_keys_{0} {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
    WNDCLASS clazz = {

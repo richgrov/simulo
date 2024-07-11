@@ -1,5 +1,6 @@
 if (WIN32)
     set(OS_SPECIFIC_FILES
+        "window/win32/keys.h"
         "window/win32/window.cc"
         "window/win32/window.h"
     )
@@ -34,6 +35,7 @@ set(SOURCE_FILES
    "util/memory.h"
    "util/rand.h"
    "vendor/stb_image.h"
+   "window/keys.h"
    "window/window.h"
    "game.cc"
    "game.h"

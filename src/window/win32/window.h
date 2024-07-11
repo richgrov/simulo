@@ -40,6 +40,10 @@ public:
       return left_clicking_;
    }
 
+   inline bool is_key_down(uint8_t key_code) const {
+      return pressed_keys_[key_code];
+   }
+
 private:
    HWND window_;
    bool open_;
@@ -49,6 +53,8 @@ private:
    int mouse_x_;
    int mouse_y_;
    bool left_clicking_;
+
+   bool pressed_keys_[256];
 
    friend LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 };

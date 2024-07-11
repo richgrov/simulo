@@ -140,6 +140,10 @@ public:
       return !was_left_clicking_ && left_clicking();
    }
 
+   inline bool is_key_down(uint8_t key_code) const {
+      return window_.is_key_down(key_code);
+   }
+
    inline float delta() const {
       return delta_.count();
    }
