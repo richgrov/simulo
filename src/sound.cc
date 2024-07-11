@@ -1,7 +1,8 @@
 #include "sound.h"
-#include "fmod.h"
 
 #include <stdexcept>
+
+#include <fmod.h>
 
 using namespace villa;
 
