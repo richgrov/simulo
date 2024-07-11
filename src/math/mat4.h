@@ -7,8 +7,8 @@
 namespace villa {
 
 struct Mat4 {
-   Mat4() : cells{} {}
-   Mat4(Vec4 col1, Vec4 col2, Vec4 col3, Vec4 col4) : cells{col1, col2, col3, col4} {}
+   Mat4() : cols{} {}
+   Mat4(Vec4 col1, Vec4 col2, Vec4 col3, Vec4 col4) : cols{col1, col2, col3, col4} {}
 
    static Mat4 identity() {
       return Mat4{
@@ -28,7 +28,7 @@ struct Mat4 {
       };
    }
 
-   Vec4 cells[4];
+   Vec4 cols[4];
 };
 
 } // namespace villa
