@@ -43,6 +43,22 @@ struct Mat4 {
       };
    }
 
+   inline Mat4 operator*(Mat4 other) const {
+      Mat4 result;
+
+      for (int x = 0; x < 4; ++x) {
+         for (int y = 0; y < 4; ++y) {
+            result.cols[y][x] = row(x).dot(other.cols[y]);
+         }
+      }
+
+      return result;
+   }
+
+   inline Vec4 row(int index) const {
+      return Vec4(cols[0][index], cols[1][index], cols[2][index], cols[3][index]);
+   }
+
    Vec4 cols[4];
 };
 
