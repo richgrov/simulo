@@ -55,7 +55,7 @@ public:
    }
 
    ParticleUniform uniform(Game &game) {
-      Mat4 model = Mat4::translate(Vec3(pos_.x, pos_.y, 0));
+      Mat4 model = Mat4::translate(Vec3(pos_.x, pos_.y, 0)) * Mat4::scale(Vec3(250, 250, 1));
       Mat4 proj = Mat4::ortho(0, (float)game.width(), (float)game.height(), 0, -1, 1);
       Mat4 mvp = proj * model;
 
@@ -107,9 +107,9 @@ int main(int argc, char **argv) {
 
       Vertex vertices[] = {
           {{0.0f, 0.0f}, {0.0, 0.0}},
-          {{50.0f, 0.0f}, {1.0, 0.0}},
-          {{50.0f, 50.0f}, {1.0, 1.0}},
-          {{0.0f, 50.0f}, {0.0, 1.0}},
+          {{1.0f, 0.0f}, {1.0, 0.0}},
+          {{1.0f, 1.0f}, {1.0, 1.0}},
+          {{0.0f, 1.0f}, {0.0, 1.0}},
       };
       VertexIndexBuffer::IndexType indices[] = {0, 2, 1, 0, 3, 2};
 

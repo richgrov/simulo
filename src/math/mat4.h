@@ -43,6 +43,15 @@ struct Mat4 {
       };
    }
 
+   static Mat4 scale(Vec3 v) {
+      return Mat4{
+          {v.x, 0, 0, 0},
+          {0, v.y, 0, 0},
+          {0, 0, v.z, 0},
+          {0, 0, 0, 1},
+      };
+   }
+
    inline Mat4 operator*(Mat4 other) const {
       Mat4 result;
 
