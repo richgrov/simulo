@@ -5,7 +5,7 @@ if (WIN32)
     )
 endif()
 
-add_library(villa 
+set(SOURCE_FILES
    "gpu/command_pool.cc"
    "gpu/command_pool.h"
    "gpu/descriptor_pool.cc"
@@ -40,12 +40,18 @@ add_library(villa
    ${OS_SPECIFIC_FILES}
 )
 
-target_include_directories(villa PUBLIC "${PROJECT_SOURCE_DIR}/src")
+add_library(villa ${SOURCE_FILES})
 
-target_link_directories(villa PUBLIC "$ENV{VULKAN_SDK}/Lib")
-target_link_libraries(villa "vulkan-1.lib")
-target_include_directories(villa PUBLIC "$ENV{VULKAN_SDK}/Include")
+function(setup_targets subject)
+    target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
 
-set_property(TARGET villa PROPERTY CXX_STANDARD 20)
+    target_link_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Lib")
+    target_link_libraries(${subject} "vulkan-1.lib")
+    target_include_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Include")
+    
+    set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)
+endfunction()
+
+setup_targets(villa)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVILLA_DEBUG")
