@@ -1,8 +1,7 @@
 #include <array>
-#include <cmath>
 #include <exception>
 #include <iostream>
-#include <numbers>
+#include <stdexcept>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -13,9 +12,10 @@
 #include "math/mat4.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
+#include "sound.h"
 #include "util/memory.h"
-#include "util/rand.h"
 #include "vendor/stb_image.h"
+#include "window/keys.h" // IWYU pragma: export
 
 using namespace villa;
 
@@ -34,47 +34,53 @@ struct ParticleUniform {
    Vec3 color;
 };
 
-class Particle {
+class Instrument {
 public:
-   Particle(float x, float y, Vec3 color) : pos_(x, y), color_(color), lifespan_(randf() * 4) {
-      float angle = randf() * std::numbers::pi_v<float> * 2;
-      float magnitude = randf();
-      velocity_ = {cosf(angle) * magnitude, sinf(angle) * magnitude};
-   }
+   Instrument(int index, Game &game, uint8_t key_code, Sound &sound)
+       : pos_(pos_in_row_of_3(index, game.width(), game.height())), key_code_(key_code),
+         prev_key_state_(game.is_key_down(key_code)), sound_(sound) {}
 
-   void update(float delta) {
-      velocity_.y += 0.5 * delta;
-      pos_ += velocity_ * delta;
-      lifespan_ -= 0.01;
-
-      if (lifespan_ < 0.05) {
-         color_ = {1.0, 1.0, 1.0};
+   bool update(Game &game) {
+      bool pressed = game.is_key_down(key_code_);
+      if (pressed == prev_key_state_) {
+         return false;
       }
+
+      if (pressed) {
+         sound_.play();
+      }
+
+      prev_key_state_ = pressed;
+      return true;
    }
 
-   Vec2 pos() const {
-      return pos_;
+   ParticleUniform uniform(Game &game) {
+      Mat4 model = Mat4::translate(Vec3(pos_.x, pos_.y, 0));
+      Mat4 proj = Mat4::ortho(0, (float)game.width(), (float)game.height(), 0, -1, 1);
+      Mat4 mvp = proj * model;
+
+      return {
+          .mvp = mvp,
+          .color = prev_key_state_ ? Vec3(0.5, 0.5, 0.5) : Vec3(1.0, 1.0, 1.0),
+      };
    }
 
-   Vec3 color() const {
-      return color_;
-   }
-
-   float lifespan() const {
-      return lifespan_;
+   static Vec2 pos_in_row_of_3(int index, float width, float height) {
+      return {width / 4.0f * (index + 1), height / 2.0f};
    }
 
 private:
    Vec2 pos_;
-   Vec3 color_;
-   Vec2 velocity_;
-   float lifespan_;
+   float scale_;
+   uint8_t key_code_;
+   bool prev_key_state_;
+   Sound &sound_;
 };
 
 int main(int argc, char **argv) {
    try {
       int width, height, channels;
-      stbi_uc *img_data = stbi_load("res/background.png", &width, &height, &channels, 4);
+      stbi_uc *img_data = stbi_load("res/snare.png", &width, &height, &channels, 4);
       if (img_data == nullptr) {
          throw std::runtime_error("failed to open image");
       }
@@ -83,7 +89,7 @@ int main(int argc, char **argv) {
 
       auto staging_buffer = game.create_staging_buffer(width * height * channels);
 
-      auto uniform_buffer = game.create_uniform_buffer<ParticleUniform>(512);
+      auto uniform_buffer = game.create_uniform_buffer<ParticleUniform>(3);
       auto descriptor_pool = game.create_descriptor_pool();
 
       auto image = game.create_image(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
@@ -107,7 +113,20 @@ int main(int argc, char **argv) {
       };
       VertexIndexBuffer::IndexType indices[] = {0, 2, 1, 0, 3, 2};
 
-      std::vector<Particle> particles;
+      std::vector<Instrument> instruments;
+
+      Sound bass = game.create_sound("res/sfx/bass.wav");
+      Sound snare = game.create_sound("res/sfx/snare.wav");
+      Sound hat = game.create_sound("res/sfx/open-hat.wav");
+
+      instruments.emplace_back(0, game, VILLA_KEY_Q, bass);
+      instruments.emplace_back(1, game, VILLA_KEY_W, snare);
+      instruments.emplace_back(2, game, VILLA_KEY_E, hat);
+
+      for (int i = 0; i < instruments.size(); ++i) {
+         ParticleUniform uniform = instruments[i].uniform(game);
+         uniform_buffer.upload_memory(&uniform, sizeof(ParticleUniform), i);
+      }
 
       auto mesh_buffer = game.create_vertex_index_buffer<Vertex>(4, 6);
       staging_buffer.upload_mesh(vertices, sizeof(vertices), indices, VILLA_ARRAY_LEN(indices));
@@ -119,35 +138,18 @@ int main(int argc, char **argv) {
       while (game.poll()) {
          float delta = game.delta();
 
-         if (game.left_clicked_now()) {
-            float mouse_x = static_cast<float>(game.mouse_x());
-            float mouse_y = static_cast<float>(game.mouse_y());
+         for (int i = 0; i < instruments.size(); ++i) {
+            Instrument &instr = instruments[i];
+            bool needs_uniform_update = instr.update(game);
 
-            Vec3 color = {randf(), randf(), randf()};
-            for (int i = 0; i < 92; ++i) {
-               particles.emplace_back(Particle(mouse_x, game.height() - mouse_y, color));
+            if (needs_uniform_update) {
+               ParticleUniform uniform = instr.uniform(game);
+               uniform_buffer.upload_memory(&uniform, sizeof(ParticleUniform), i);
             }
          }
 
-         std::erase_if(particles, [](const Particle &particle) {
-            return particle.lifespan() <= 0.0;
-         });
-
-         for (int i = 0; i < particles.size(); ++i) {
-            Particle &particle = particles[i];
-            particle.update(delta);
-
-            Vec2 pos = particle.pos();
-            Mat4 model = Mat4::translate(Vec3(pos.x, pos.y, 0));
-            Mat4 proj = Mat4::ortho(0, (float)game.width(), (float)game.height(), 0, -1, 1);
-            Mat4 mvp = proj * model;
-
-            ParticleUniform uniform = {mvp, particle.color()};
-            uniform_buffer.upload_memory(&uniform, sizeof(ParticleUniform), i);
-         }
-
          if (game.begin_draw(pipeline)) {
-            for (int i = 0; i < particles.size(); ++i) {
+            for (int i = 0; i < instruments.size(); ++i) {
                game.set_uniform(pipeline, descriptor_set, i * uniform_buffer.element_size());
                game.draw(mesh_buffer);
             }
