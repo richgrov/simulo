@@ -19,6 +19,21 @@ struct Mat4 {
       };
    }
 
+// Needed on win32
+#undef near
+#undef far
+
+   static Mat4 ortho(float left, float right, float top, float bottom, float near, float far) {
+      // clang-format off
+      return Mat4{
+          {2.0f / (right - left),        0,                            0,                      0},
+          {0,                            2.0f / (bottom - top),        0,                      0},
+          {0,                            0,                            1.0f / (near - far),    0},
+          {-(right+left) / (right-left), -(bottom+top) / (bottom-top), near/(near-far),        1},
+      };
+      // clang-format on
+   }
+
    static Mat4 translate(Vec3 v) {
       return Mat4{
           {1, 0, 0, 0},
