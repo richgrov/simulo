@@ -3,7 +3,7 @@
 #include <cstring>
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/physical_device.h"
+#include "physical_device.h"
 #include "status.h"
 #include "util/memory.h"
 

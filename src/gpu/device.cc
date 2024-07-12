@@ -2,7 +2,7 @@
 
 #include <set>
 
-#include "gpu/instance.h"
+#include "instance.h"
 #include "status.h"
 #include "util/memory.h"
 #include "vulkan/vulkan_core.h"

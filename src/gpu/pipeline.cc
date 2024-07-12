@@ -2,7 +2,7 @@
 
 #include <functional>
 
-#include "vulkan/vulkan_core.h"
+#include <vulkan/vulkan_core.h>
 
 #include "status.h"
 #include "util/memory.h"
