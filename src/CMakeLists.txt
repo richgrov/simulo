@@ -66,3 +66,13 @@ endfunction()
 setup_targets(villa)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVILLA_DEBUG")
+
+if (BUILD_TESTING)
+    add_executable(villa_test
+        "test_main.cc"
+        "math/angle_test.cc"
+        ${SOURCE_FILES}
+    )
+
+    setup_targets(villa_test)
+endif()
