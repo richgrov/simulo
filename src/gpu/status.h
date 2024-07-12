@@ -7,10 +7,10 @@
 
 #define VILLA_VK(x)                                                                                \
    {                                                                                               \
-      VkResult result = (x);                                                                       \
-      if (result != VK_SUCCESS) {                                                                  \
+      VkResult result__ = (x);                                                                     \
+      if (result__ != VK_SUCCESS) {                                                                \
          throw std::runtime_error(                                                                 \
-             std::format("Error {} at {}:{}", string_VkResult(result), __FILE__, __LINE__)         \
+             std::format("Error {} at {}:{}", string_VkResult(result__), __FILE__, __LINE__)       \
          );                                                                                        \
       }                                                                                            \
    }
