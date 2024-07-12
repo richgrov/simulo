@@ -52,7 +52,7 @@ bool PhysicalDevice::find_queue_families(VkPhysicalDevice candidate_device, VkSu
    bool graphics_found = false;
    bool presentation_found = false;
    for (int i = 0; i < queue_families.size(); ++i) {
-      if (!graphics_found && (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 1) {
+      if (!graphics_found && (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
          graphics_queue_ = i;
          graphics_found = true;
       }
