@@ -28,6 +28,7 @@ set(SOURCE_FILES
    "gpu/swapchain.h"
    "gpu/buffer.cc"
    "gpu/buffer.h"
+   "math/angle.h"
    "math/mat4.h"
    "math/vec2.h"
    "math/vec3.h"
