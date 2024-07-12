@@ -1,11 +1,10 @@
 #include "buffer.h"
 
 #include <cstring>
-#include <format>
-#include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/physical_device.h"
+#include "status.h"
 #include "util/memory.h"
 
 using namespace villa;
@@ -21,10 +20,7 @@ Buffer::Buffer(
        .usage = usage,
        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
    };
-
-   if (vkCreateBuffer(device, &create_info, nullptr, &buffer_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create buffer");
-   }
+   VILLA_VK(vkCreateBuffer(device, &create_info, nullptr, &buffer_));
 
    VkMemoryRequirements requirements;
    vkGetBufferMemoryRequirements(device, buffer_, &requirements);
@@ -36,13 +32,8 @@ Buffer::Buffer(
            physical_device.find_memory_type_index(requirements.memoryTypeBits, memory_properties),
    };
 
-   if (vkAllocateMemory(device, &alloc_info, nullptr, &allocation_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to allocate memory");
-   }
-
-   if (vkBindBufferMemory(device, buffer_, allocation_, 0) != VK_SUCCESS) {
-      throw std::runtime_error("failed to bind memory buffer");
-   }
+   VILLA_VK(vkAllocateMemory(device, &alloc_info, nullptr, &allocation_));
+   VILLA_VK(vkBindBufferMemory(device, buffer_, allocation_, 0));
 }
 
 Buffer &Buffer::operator=(Buffer &&other) {

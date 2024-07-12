@@ -1,8 +1,8 @@
 #include "command_pool.h"
 
-#include <stdexcept>
-
 #include <vulkan/vulkan_core.h>
+
+#include "status.h"
 
 using namespace villa;
 
@@ -14,10 +14,7 @@ void CommandPool::init(VkDevice device, uint32_t graphics_queue_family) {
        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
        .queueFamilyIndex = graphics_queue_family,
    };
-
-   if (vkCreateCommandPool(device, &create_info, nullptr, &command_pool_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create command pool");
-   }
+   VILLA_VK(vkCreateCommandPool(device, &create_info, nullptr, &command_pool_));
 }
 
 void CommandPool::deinit() {
@@ -35,9 +32,7 @@ VkCommandBuffer CommandPool::allocate() {
    };
 
    VkCommandBuffer result;
-   if (vkAllocateCommandBuffers(device_, &alloc_info, &result) != VK_SUCCESS) {
-      throw std::runtime_error("failed to allocate command buffer");
-   }
+   VILLA_VK(vkAllocateCommandBuffers(device_, &alloc_info, &result));
 
    return result;
 }

@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "status.h"
 #include "util/memory.h"
 
 using namespace villa;
@@ -62,7 +63,5 @@ Instance::Instance(const std::vector<const char *> extensions) {
    std::cout << "Validation layers enabled\n";
 #endif
 
-   if (vkCreateInstance(&create_info, nullptr, &instance_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create vulkan instance");
-   }
+   VILLA_VK(vkCreateInstance(&create_info, nullptr, &instance_));
 }

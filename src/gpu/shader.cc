@@ -7,6 +7,8 @@
 
 #include "vulkan/vulkan_core.h"
 
+#include "status.h"
+
 using namespace villa;
 
 void Shader::init(VkDevice device, const char *file_path, ShaderType type) {
@@ -31,10 +33,7 @@ void Shader::init(VkDevice device, const char *file_path, ShaderType type) {
        .codeSize = data.size(),
        .pCode = reinterpret_cast<uint32_t *>(data.data()),
    };
-
-   if (vkCreateShaderModule(device, &create_info, nullptr, &module_) != VK_SUCCESS) {
-      throw std::runtime_error(std::format("couldn't compile shader type {}", 0));
-   }
+   VILLA_VK(vkCreateShaderModule(device, &create_info, nullptr, &module_));
 }
 
 void Shader::deinit() {

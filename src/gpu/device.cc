@@ -1,9 +1,9 @@
 #include "device.h"
 
 #include <set>
-#include <stdexcept>
 
 #include "gpu/instance.h"
+#include "status.h"
 #include "util/memory.h"
 #include "vulkan/vulkan_core.h"
 
@@ -42,10 +42,7 @@ Device::Device(const PhysicalDevice &physical_device) {
        .ppEnabledExtensionNames = &swapchain_extension,
        .pEnabledFeatures = &physical_device_features,
    };
-
-   if (vkCreateDevice(physical_device.handle(), &create_info, nullptr, &device_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create logical device");
-   }
+   VILLA_VK(vkCreateDevice(physical_device.handle(), &create_info, nullptr, &device_));
 
    vkGetDeviceQueue(device_, physical_device.graphics_queue(), 0, &graphics_queue_);
    vkGetDeviceQueue(device_, physical_device.present_queue(), 0, &present_queue_);

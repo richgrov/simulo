@@ -1,11 +1,11 @@
 #include "image.h"
 
-#include <stdexcept>
-
 #include <vulkan/vulkan_core.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "vendor/stb_image.h"
+
+#include "status.h"
 
 using namespace villa;
 
@@ -28,10 +28,7 @@ Image::Image(
        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
    };
-
-   if (vkCreateImage(device, &image_create, nullptr, &image_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create path tracing image");
-   }
+   VILLA_VK(vkCreateImage(device, &image_create, nullptr, &image_));
 
    VkMemoryRequirements img_mem;
    vkGetImageMemoryRequirements(device, image_, &img_mem);
@@ -44,13 +41,8 @@ Image::Image(
        ),
    };
 
-   if (vkAllocateMemory(device, &alloc, nullptr, &allocation_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to allocate image memory");
-   }
-
-   if (vkBindImageMemory(device, image_, allocation_, 0) != VK_SUCCESS) {
-      throw std::runtime_error("failed to bind image memory");
-   }
+   VILLA_VK(vkAllocateMemory(device, &alloc, nullptr, &allocation_));
+   VILLA_VK(vkBindImageMemory(device, image_, allocation_, 0));
 }
 
 Image::~Image() {
@@ -77,10 +69,7 @@ void Image::init_view() {
                .layerCount = 1,
            },
    };
-
-   if (vkCreateImageView(device_, &view_create, nullptr, &view_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create image view");
-   }
+   VILLA_VK(vkCreateImageView(device_, &view_create, nullptr, &view_));
 }
 
 void Image::queue_transfer_layout(VkImageLayout layout, VkCommandBuffer cmd_buf) {

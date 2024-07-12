@@ -9,6 +9,8 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan_win32.h>
 
+#include "gpu/status.h"
+
 using namespace villa;
 
 namespace {
@@ -119,9 +121,7 @@ VkSurfaceKHR Window::create_surface(VkInstance instance) {
    };
 
    VkSurfaceKHR surface;
-   if (vkCreateWin32SurfaceKHR(instance, &surface_create, nullptr, &surface) != VK_SUCCESS) {
-      throw std::runtime_error("couldn't create win32 surface");
-   }
+   VILLA_VK(vkCreateWin32SurfaceKHR(instance, &surface_create, nullptr, &surface));
 
    return surface;
 }

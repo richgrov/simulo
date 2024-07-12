@@ -1,6 +1,5 @@
 #include "game.h"
 
-#include <format>
 #include <stdexcept>
 #include <vector>
 
@@ -12,6 +11,7 @@
 #include "gpu/physical_device.h"
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
+#include "gpu/status.h"
 #include "gpu/swapchain.h"
 #include "util/memory.h"
 
@@ -73,9 +73,7 @@ Game::Game(const char *title)
        .pDependencies = &subpass_dependency,
    };
 
-   if (vkCreateRenderPass(device_.handle(), &render_create, nullptr, &render_pass_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create render pass");
-   }
+   VILLA_VK(vkCreateRenderPass(device_.handle(), &render_create, nullptr, &render_pass_));
 
    vertex_shader_.init(device_.handle(), "shader-vert.spv", ShaderType::kVertex);
    fragment_shader_.init(device_.handle(), "shader-frag.spv", ShaderType::kFragment);
@@ -91,10 +89,7 @@ Game::Game(const char *title)
        .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
        .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
    };
-
-   if (vkCreateSampler(device_.handle(), &sampler_create, nullptr, &sampler_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create sampler");
-   }
+   VILLA_VK(vkCreateSampler(device_.handle(), &sampler_create, nullptr, &sampler_));
 
    command_pool_.init(device_.handle(), physical_device_.graphics_queue());
    command_buffer_ = command_pool_.allocate();
@@ -174,10 +169,7 @@ void Game::begin_preframe() {
        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
    };
-
-   if (vkBeginCommandBuffer(preframe_cmd_buf_, &begin_info) != VK_SUCCESS) {
-      throw std::runtime_error("preframe command buffer couldn't begin recording");
-   }
+   VILLA_VK(vkBeginCommandBuffer(preframe_cmd_buf_, &begin_info));
 }
 
 void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
@@ -259,9 +251,9 @@ bool Game::begin_draw(const Pipeline &pipeline) {
    if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR) {
       handle_resize(surface_, width, height);
       return false;
-   } else if (next_image_res != VK_SUCCESS) {
-      throw std::runtime_error("failed to acquire next swapchain image");
    }
+
+   VILLA_VK(next_image_res);
 
    vkResetFences(device_.handle(), 1, &draw_cycle_complete);
    vkResetCommandBuffer(command_buffer_, 0);
@@ -269,10 +261,7 @@ bool Game::begin_draw(const Pipeline &pipeline) {
    VkCommandBufferBeginInfo cmd_begin = {
        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
    };
-
-   if (vkBeginCommandBuffer(command_buffer_, &cmd_begin) != VK_SUCCESS) {
-      throw std::runtime_error("the command buffer could not begin recording");
-   }
+   VILLA_VK(vkBeginCommandBuffer(command_buffer_, &cmd_begin));
 
    VkClearValue clear_color = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
    VkRenderPassBeginInfo render_begin = {
@@ -325,10 +314,7 @@ void Game::draw(const VertexIndexBuffer &buffer) {
 
 void Game::end_draw() {
    vkCmdEndRenderPass(command_buffer_);
-
-   if (vkEndCommandBuffer(command_buffer_) != VK_SUCCESS) {
-      throw std::runtime_error("command buffer couldn't stop recording");
-   }
+   VILLA_VK(vkEndCommandBuffer(command_buffer_));
 
    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
    VkSubmitInfo submit_info = {
@@ -341,11 +327,7 @@ void Game::end_draw() {
        .signalSemaphoreCount = 1,
        .pSignalSemaphores = &sem_render_complete,
    };
-
-   if (vkQueueSubmit(device_.graphics_queue(), 1, &submit_info, draw_cycle_complete) !=
-       VK_SUCCESS) {
-      throw std::runtime_error("failed to submit command buffer");
-   }
+   VILLA_VK(vkQueueSubmit(device_.graphics_queue(), 1, &submit_info, draw_cycle_complete));
 
    VkSwapchainKHR swap_chains[] = {swapchain_.handle()};
    VkPresentInfoKHR present_info = {
@@ -356,7 +338,6 @@ void Game::end_draw() {
        .pSwapchains = swap_chains,
        .pImageIndices = &current_framebuffer_,
    };
-
    vkQueuePresentKHR(device_.present_queue(), &present_info);
 }
 
@@ -375,10 +356,6 @@ void Game::create_framebuffers() {
           .height = extent.height,
           .layers = 1,
       };
-
-      if (vkCreateFramebuffer(device_.handle(), &create_info, nullptr, &framebuffers_[i]) !=
-          VK_SUCCESS) {
-         throw std::runtime_error(std::format("failed to create framebuffer {}", i));
-      }
+      VILLA_VK(vkCreateFramebuffer(device_.handle(), &create_info, nullptr, &framebuffers_[i]));
    }
 }

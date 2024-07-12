@@ -1,8 +1,8 @@
 #include "swapchain.h"
+#include "status.h"
 
 #include <algorithm>
 #include <cstring>
-#include <stdexcept>
 
 #include <vulkan/vulkan_core.h>
 
@@ -89,10 +89,7 @@ void Swapchain::init(
    );
 
    VkSurfaceCapabilitiesKHR capabilities;
-   if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &capabilities) !=
-       VK_SUCCESS) {
-      throw std::runtime_error("couldn't get surface capabilities");
-   }
+   VILLA_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &capabilities));
 
    device_ = device;
 
@@ -127,9 +124,7 @@ void Swapchain::init(
       create_info.pQueueFamilyIndices = queue_families.data();
    }
 
-   if (vkCreateSwapchainKHR(device_, &create_info, nullptr, &swapchain_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create swapchain");
-   }
+   VILLA_VK(vkCreateSwapchainKHR(device_, &create_info, nullptr, &swapchain_));
 
    uint32_t num_images;
    vkGetSwapchainImagesKHR(device, swapchain_, &num_images, nullptr);
@@ -150,10 +145,7 @@ void Swapchain::init(
                   .layerCount = 1,
               },
       };
-
-      if (vkCreateImageView(device_, &create_info, nullptr, &image_views_[i]) != VK_SUCCESS) {
-         throw std::runtime_error("failed to create image view");
-      }
+      VILLA_VK(vkCreateImageView(device_, &create_info, nullptr, &image_views_[i]));
    }
 }
 

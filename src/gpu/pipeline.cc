@@ -1,10 +1,10 @@
 #include "pipeline.h"
 
 #include <functional>
-#include <stdexcept>
 
 #include "vulkan/vulkan_core.h"
 
+#include "status.h"
 #include "util/memory.h"
 
 using namespace villa;
@@ -86,10 +86,7 @@ Pipeline::Pipeline(
        .setLayoutCount = 1,
        .pSetLayouts = &descriptor_layout,
    };
-
-   if (vkCreatePipelineLayout(device, &layout_create, nullptr, &layout_) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create pipeline layout");
-   }
+   VILLA_VK(vkCreatePipelineLayout(device, &layout_create, nullptr, &layout_));
 
    VkGraphicsPipelineCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -107,11 +104,8 @@ Pipeline::Pipeline(
        .renderPass = render_pass,
        .subpass = 0,
    };
-
-   if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline_) !=
-       VK_SUCCESS) {
-      throw std::runtime_error("failed to create pipeline");
-   }
+   VILLA_VK(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline_)
+   );
 }
 
 Pipeline::~Pipeline() {
