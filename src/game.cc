@@ -117,6 +117,8 @@ Game::Game(const char *title)
    if (FMOD_System_Init(sound_system_, 32, FMOD_INIT_NORMAL, nullptr) != FMOD_OK) {
       throw std::runtime_error("failed to initialize sound system");
    }
+
+   window_.set_capture_mouse(true);
 }
 
 Game::~Game() {

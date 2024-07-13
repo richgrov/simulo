@@ -44,6 +44,13 @@ LRESULT CALLBACK villa::window_proc(HWND window, UINT msg, WPARAM w_param, LPARA
       return 0;
    }
 
+   case WM_MOVE: {
+      Window *window_cls = get_window_class(window);
+      window_cls->window_x_ = LOWORD(l_param);
+      window_cls->window_y_ = HIWORD(l_param);
+      return 0;
+   }
+
    case WM_MOUSEMOVE: {
       int x = GET_X_LPARAM(l_param);
       int y = GET_Y_LPARAM(l_param);
@@ -74,8 +81,8 @@ LRESULT CALLBACK villa::window_proc(HWND window, UINT msg, WPARAM w_param, LPARA
 }
 
 Window::Window(const char *title)
-    : open_(false), closing_(false), mouse_x_(0), mouse_y_(0), left_clicking_(false),
-      pressed_keys_{0} {
+    : open_(false), closing_(false), cursor_captured_(false), window_x_(0), window_y_(0), width_(0),
+      height_(0), mouse_x_(0), mouse_y_(0), left_clicking_(false), pressed_keys_{0} {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
    WNDCLASS clazz = {
@@ -104,6 +111,10 @@ Window::Window(const char *title)
 }
 
 bool Window::poll() {
+   if (cursor_captured_ && width_ != 0 && height_ != 0) {
+      SetCursorPos(window_x_ + width_ / 2, window_y_ + height_ / 2);
+   }
+
    MSG msg;
    if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) == 0) {
       return open_;
@@ -125,6 +136,17 @@ VkSurfaceKHR Window::create_surface(VkInstance instance) {
    VILLA_VK(vkCreateWin32SurfaceKHR(instance, &surface_create, nullptr, &surface));
 
    return surface;
+}
+
+void Window::set_capture_mouse(bool capture) {
+   cursor_captured_ = capture;
+
+   if (capture) {
+      SetCapture(window_);
+   } else {
+      ReleaseCapture();
+   }
+   ShowCursor(!capture);
 }
 
 void Window::request_close() {

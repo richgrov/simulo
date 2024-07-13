@@ -20,6 +20,8 @@ public:
 
    VkSurfaceKHR create_surface(VkInstance instance);
 
+   void set_capture_mouse(bool capture);
+
    void request_close();
 
    int width() const {
@@ -50,6 +52,9 @@ private:
    HWND window_;
    bool open_;
    bool closing_;
+   bool cursor_captured_;
+   WORD window_x_;
+   WORD window_y_;
    WORD width_;
    WORD height_;
 
