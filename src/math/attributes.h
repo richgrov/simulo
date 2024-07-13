@@ -12,7 +12,8 @@ struct VertexAttribute {
    }
 
    static constexpr VertexAttribute vec3() {
-      return VertexAttribute{sizeof(float) * 3, VK_FORMAT_R32G32B32_SFLOAT};
+      // TODO: Determine size properly through alignment
+      return VertexAttribute{sizeof(float) * 4, VK_FORMAT_R32G32B32_SFLOAT};
    }
 };
 

@@ -20,11 +20,11 @@
 using namespace villa;
 
 struct Vertex {
-   Vec2 pos;
+   Vec3 pos;
    Vec2 tex_coord;
 
    static constexpr std::array<VertexAttribute, 2> attributes{
-       VertexAttribute::vec2(),
+       VertexAttribute::vec3(),
        VertexAttribute::vec2(),
    };
 };
@@ -106,10 +106,10 @@ int main(int argc, char **argv) {
       auto pipeline = game.create_pipeline<Vertex>(descriptor_pool);
 
       Vertex vertices[] = {
-          {{0.0f, 0.0f}, {0.0, 0.0}},
-          {{1.0f, 0.0f}, {1.0, 0.0}},
-          {{1.0f, 1.0f}, {1.0, 1.0}},
-          {{0.0f, 1.0f}, {0.0, 1.0}},
+          {{0.0f, 0.0f, 0}, {0.0, 0.0}},
+          {{1.0f, 0.0f, 0}, {1.0, 0.0}},
+          {{1.0f, 1.0f, 0}, {1.0, 1.0}},
+          {{0.0f, 1.0f, 0}, {0.0, 1.0}},
       };
       VertexIndexBuffer::IndexType indices[] = {0, 2, 1, 0, 3, 2};
 
