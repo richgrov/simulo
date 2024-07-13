@@ -116,12 +116,11 @@ bool Window::poll() {
    }
 
    MSG msg;
-   if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) == 0) {
-      return open_;
+   while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
    }
 
-   TranslateMessage(&msg);
-   DispatchMessage(&msg);
    return open_;
 }
 
