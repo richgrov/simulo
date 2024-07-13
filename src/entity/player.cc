@@ -29,13 +29,11 @@ void Player::update(float delta) {
       input.y -= 1;
    }
 
-   if (game_.is_key_down(VILLA_KEY_Q)) {
-      yaw_ += delta;
-   }
+   float delta_yaw = game_.delta_mouse_x() / 2.0f;
+   yaw_ -= delta_yaw * delta;
 
-   if (game_.is_key_down(VILLA_KEY_E)) {
-      yaw_ -= delta;
-   }
+   float delta_pitch = game_.delta_mouse_y() / 2.0f;
+   pitch_ -= delta_pitch * delta;
 
    if (input == Vec2(0, 0)) {
       return;

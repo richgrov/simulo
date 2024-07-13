@@ -25,7 +25,7 @@ public:
    }
 
    inline Mat4 view_matrix() const {
-      return Mat4::rotate_y(-yaw_) * Mat4::translate(-pos_);
+      return Mat4::rotate_x(-pitch_) * Mat4::rotate_y(-yaw_) * Mat4::translate(-pos_);
    }
 
    void update(float delta);
