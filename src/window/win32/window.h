@@ -20,6 +20,8 @@ public:
 
    VkSurfaceKHR create_surface(VkInstance instance);
 
+   void request_close();
+
    int width() const {
       return width_;
    }
@@ -47,6 +49,7 @@ public:
 private:
    HWND window_;
    bool open_;
+   bool closing_;
    WORD width_;
    WORD height_;
 

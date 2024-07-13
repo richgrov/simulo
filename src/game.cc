@@ -15,6 +15,7 @@
 #include "gpu/status.h"
 #include "gpu/swapchain.h"
 #include "util/memory.h"
+#include "window/win32/keys.h"
 
 using namespace villa;
 
@@ -218,6 +219,10 @@ void Game::end_preframe() {
 }
 
 bool Game::poll() {
+   if (window_.is_key_down(VILLA_KEY_ESC)) {
+      window_.request_close();
+   }
+
    Clock::time_point now = Clock::now();
    delta_ = now - last_frame_time_;
    last_frame_time_ = now;

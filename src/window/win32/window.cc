@@ -74,7 +74,8 @@ LRESULT CALLBACK villa::window_proc(HWND window, UINT msg, WPARAM w_param, LPARA
 }
 
 Window::Window(const char *title)
-    : open_(false), mouse_x_(0), mouse_y_(0), left_clicking_(false), pressed_keys_{0} {
+    : open_(false), closing_(false), mouse_x_(0), mouse_y_(0), left_clicking_(false),
+      pressed_keys_{0} {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
    WNDCLASS clazz = {
@@ -124,4 +125,11 @@ VkSurfaceKHR Window::create_surface(VkInstance instance) {
    VILLA_VK(vkCreateWin32SurfaceKHR(instance, &surface_create, nullptr, &surface));
 
    return surface;
+}
+
+void Window::request_close() {
+   if (open_ && !closing_) {
+      PostMessage(window_, WM_CLOSE, 0, 0);
+      closing_ = true;
+   }
 }

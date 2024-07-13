@@ -7,5 +7,6 @@
 #define VILLA_KEY_S 0x53
 #define VILLA_KEY_Q 0x51
 #define VILLA_KEY_W 0x57
+#define VILLA_KEY_ESC 0x1B
 
 #endif // !VIlLA_WINDOW_WIN32_KEYS_H_
