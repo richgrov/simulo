@@ -1,8 +1,10 @@
 #ifndef VILLA_MATH_MAT4_H_
 #define VILLA_MATH_MAT4_H_
 
-#include "math/vec3.h"
-#include "math/vec4.h"
+#include <cmath>
+
+#include "vec3.h"
+#include "vec4.h"
 
 namespace villa {
 
@@ -32,6 +34,19 @@ struct Mat4 {
           {-(right+left) / (right-left), -(bottom+top) / (bottom-top), near/(near-far),        1},
       };
       // clang-format on
+   }
+
+   static Mat4 perspective(float aspect, float fov, float near, float far) {
+      float tan_fov = tanf(fov / 2);
+      float neg_depth = near - far;
+      return Mat4{
+          // clang-format off
+          {1 / tan_fov * aspect, 0,            0,                      0},
+          {0,                    -1 / tan_fov, 0,                      0},
+          {0,                    0,            (far) / neg_depth,     -1},
+          {0,                    0,            (near*far) / neg_depth, 0},
+          // clang-format on
+      };
    }
 
    static Mat4 translate(Vec3 v) {
