@@ -58,6 +58,15 @@ struct Mat4 {
       };
    }
 
+   static Mat4 rotate_y(float v) {
+      return Mat4{
+          {cosf(v), 0, -sinf(v), 0},
+          {0, 1, 0, 0},
+          {sinf(v), 0, cosf(v), 0},
+          {0, 0, 0, 1},
+      };
+   }
+
    static Mat4 scale(Vec3 v) {
       return Mat4{
           {v.x, 0, 0, 0},
