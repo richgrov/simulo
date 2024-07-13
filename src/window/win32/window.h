@@ -40,6 +40,14 @@ public:
       return mouse_y_;
    }
 
+   int delta_mouse_x() const {
+      return delta_mouse_x_;
+   }
+
+   int delta_mouse_y() const {
+      return delta_mouse_y_;
+   }
+
    bool left_clicking() const {
       return left_clicking_;
    }
@@ -60,6 +68,8 @@ private:
 
    int mouse_x_;
    int mouse_y_;
+   int delta_mouse_x_;
+   int delta_mouse_y_;
    bool left_clicking_;
 
    bool pressed_keys_[256];

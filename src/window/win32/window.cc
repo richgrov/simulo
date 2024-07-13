@@ -1,12 +1,13 @@
 #include "window.h"
 
-#include <Windows.h>
 #include <format>
 #include <stdexcept>
 #include <windowsx.h>
 
+#include <hidusage.h>
 #include <vulkan/vulkan_core.h>
 #define VK_USE_PLATFORM_WIN32_KHR
+#include <Windows.h> // IWYU pragma: export
 #include <vulkan/vulkan_win32.h>
 
 #include "gpu/status.h"
@@ -24,6 +25,19 @@ static Window *get_window_class(HWND window) {
    }
 
    return reinterpret_cast<Window *>(user_ptr);
+}
+
+void register_raw_mouse_input(HWND window) {
+   RAWINPUTDEVICE device = {
+       .usUsagePage = HID_USAGE_PAGE_GENERIC,
+       .usUsage = HID_USAGE_GENERIC_MOUSE,
+       .dwFlags = RIDEV_INPUTSINK,
+       .hwndTarget = window,
+   };
+
+   if (!RegisterRawInputDevices(&device, 1, sizeof(device))) {
+      throw std::runtime_error(std::format("failed to record mouse input: {}", GetLastError()));
+   }
 }
 
 } // namespace
@@ -48,6 +62,22 @@ LRESULT CALLBACK villa::window_proc(HWND window, UINT msg, WPARAM w_param, LPARA
       Window *window_cls = get_window_class(window);
       window_cls->window_x_ = LOWORD(l_param);
       window_cls->window_y_ = HIWORD(l_param);
+      return 0;
+   }
+
+   case WM_INPUT: {
+      RAWINPUT input;
+      UINT size = sizeof(input);
+      GetRawInputData(
+          reinterpret_cast<HRAWINPUT>(l_param), RID_INPUT, &input, &size, sizeof(RAWINPUTHEADER)
+      );
+
+      if (input.header.dwType == RIM_TYPEMOUSE) {
+         Window *window_cls = get_window_class(window);
+         window_cls->delta_mouse_x_ = input.data.mouse.lLastX;
+         window_cls->delta_mouse_y_ = -input.data.mouse.lLastY; // Negate so positive is up
+         USHORT flags = input.data.mouse.usFlags;
+      }
       return 0;
    }
 
@@ -82,7 +112,8 @@ LRESULT CALLBACK villa::window_proc(HWND window, UINT msg, WPARAM w_param, LPARA
 
 Window::Window(const char *title)
     : open_(false), closing_(false), cursor_captured_(false), window_x_(0), window_y_(0), width_(0),
-      height_(0), mouse_x_(0), mouse_y_(0), left_clicking_(false), pressed_keys_{0} {
+      height_(0), mouse_x_(0), mouse_y_(0), delta_mouse_x_(0), delta_mouse_y_(0),
+      left_clicking_(false), pressed_keys_{0} {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
    WNDCLASS clazz = {
@@ -108,9 +139,15 @@ Window::Window(const char *title)
 
    ShowWindow(window_, SW_SHOW);
    open_ = true;
+
+   register_raw_mouse_input(window_);
 }
 
 bool Window::poll() {
+   // Reset mouse deltas as WM_INPUT is not guaranteed to be received every frame
+   delta_mouse_x_ = 0;
+   delta_mouse_y_ = 0;
+
    if (cursor_captured_ && width_ != 0 && height_ != 0) {
       SetCursorPos(window_x_ + width_ / 2, window_y_ + height_ / 2);
    }

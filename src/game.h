@@ -141,6 +141,14 @@ public:
       return window_.mouse_y();
    }
 
+   inline int delta_mouse_x() const {
+      return window_.delta_mouse_x();
+   }
+
+   inline int delta_mouse_y() const {
+      return window_.delta_mouse_y();
+   }
+
    inline bool left_clicking() const {
       return window_.left_clicking();
    }
