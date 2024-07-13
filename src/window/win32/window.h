@@ -8,6 +8,8 @@
 
 namespace villa {
 
+LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
+
 class Window {
 public:
    explicit Window(const char *title);
