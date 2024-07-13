@@ -1,7 +1,10 @@
 #ifndef VIlLA_WINDOW_WIN32_KEYS_H_
 #define VIlLA_WINDOW_WIN32_KEYS_H_
 
+#define VILLA_KEY_A 0x41
+#define VILLA_KEY_D 0x44
 #define VILLA_KEY_E 0x45
+#define VILLA_KEY_S 0x53
 #define VILLA_KEY_Q 0x51
 #define VILLA_KEY_W 0x57
 
