@@ -58,6 +58,17 @@ struct Mat4 {
       };
    }
 
+   static Mat4 rotate_x(float v) {
+      return Mat4{
+          // clang-format off
+          {1, 0,        0,       0},
+          {0, cosf(v), -sinf(v), 0},
+          {0, sinf(v), cosf(v),  0},
+          {0, 0,        0,       1},
+          // clang-format on
+      };
+   }
+
    static Mat4 rotate_y(float v) {
       return Mat4{
           {cosf(v), 0, -sinf(v), 0},
