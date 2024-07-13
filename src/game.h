@@ -7,6 +7,7 @@
 #include <fmod.h>
 #include <vulkan/vulkan_core.h>
 
+#include "entity/player.h"
 #include "gpu/buffer.h"
 #include "gpu/command_pool.h"
 #include "gpu/descriptor_pool.h"
@@ -17,6 +18,8 @@
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
 #include "gpu/swapchain.h"
+#include "math/angle.h"
+#include "math/mat4.h"
 #include "sound.h"
 #include "window/window.h" // IWYU pragma: export
 
@@ -154,6 +157,15 @@ public:
       return delta_.count();
    }
 
+   inline Mat4 perspective_matrix() const {
+      float aspect = static_cast<float>(window_.width()) / static_cast<float>(window_.height());
+      return Mat4::perspective(aspect, deg_to_rad(70), 0.01, 100);
+   }
+
+   inline Player &player() {
+      return player_;
+   }
+
    bool begin_draw(const Pipeline &pipeline);
 
    void set_uniform(const Pipeline &pipeline, VkDescriptorSet descriptor_set, uint32_t offset);
@@ -196,6 +208,8 @@ private:
    bool was_left_clicking_;
    int last_width_;
    int last_height_;
+
+   Player player_;
 };
 
 }; // namespace villa

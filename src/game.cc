@@ -6,6 +6,7 @@
 #include <fmod.h>
 #include <vulkan/vulkan_core.h>
 
+#include "entity/player.h"
 #include "gpu/buffer.h"
 #include "gpu/instance.h"
 #include "gpu/physical_device.h"
@@ -22,7 +23,7 @@ Game::Game(const char *title)
       surface_(window_.create_surface(vk_instance_.handle())),
       physical_device_(vk_instance_, surface_), device_(physical_device_),
       render_pass_(VK_NULL_HANDLE), was_left_clicking_(false), last_frame_time_(Clock::now()),
-      delta_(0), last_width_(window_.width()), last_height_(window_.height()) {
+      delta_(0), last_width_(window_.width()), last_height_(window_.height()), player_(*this) {
 
    int width = window_.width();
    int height = window_.height();
@@ -228,6 +229,8 @@ bool Game::poll() {
    if (FMOD_System_Update(sound_system_) != FMOD_OK) {
       throw std::runtime_error("failed to poll fmod system");
    }
+
+   player_.update(delta_.count());
 
    return window_.poll();
 }
