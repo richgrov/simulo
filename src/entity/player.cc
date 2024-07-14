@@ -29,6 +29,14 @@ void Player::update(float delta) {
       input.y -= 1;
    }
 
+   if (game_.is_key_down(VILLA_KEY_SPACE)) {
+      pos_.y += delta;
+   }
+
+   if (game_.is_key_down(VILLA_KEY_SHIFT)) {
+      pos_.y -= delta;
+   }
+
    float delta_yaw = game_.delta_mouse_x() / 2.0f;
    yaw_ -= delta_yaw * delta;
 

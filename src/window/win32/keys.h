@@ -1,6 +1,8 @@
 #ifndef VIlLA_WINDOW_WIN32_KEYS_H_
 #define VIlLA_WINDOW_WIN32_KEYS_H_
 
+#define VILLA_KEY_SHIFT 0x10
+#define VILLA_KEY_SPACE 0x20
 #define VILLA_KEY_A 0x41
 #define VILLA_KEY_D 0x44
 #define VILLA_KEY_E 0x45
