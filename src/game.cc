@@ -20,11 +20,18 @@
 using namespace vkad;
 
 Game::Game(const char *title)
-    : window_(title), vk_instance_(window_.vulkan_extensions()),
+    : window_(title),
+      vk_instance_(window_.vulkan_extensions()),
       surface_(window_.create_surface(vk_instance_.handle())),
-      physical_device_(vk_instance_, surface_), device_(physical_device_),
-      render_pass_(VK_NULL_HANDLE), was_left_clicking_(false), last_frame_time_(Clock::now()),
-      delta_(0), last_width_(window_.width()), last_height_(window_.height()), player_(*this) {
+      physical_device_(vk_instance_, surface_),
+      device_(physical_device_),
+      render_pass_(VK_NULL_HANDLE),
+      was_left_clicking_(false),
+      last_frame_time_(Clock::now()),
+      delta_(0),
+      last_width_(window_.width()),
+      last_height_(window_.height()),
+      player_(*this) {
 
    int width = window_.width();
    int height = window_.height();
