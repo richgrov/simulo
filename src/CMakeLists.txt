@@ -44,6 +44,8 @@ set(SOURCE_FILES
    "game.h"
    "sound.cc"
    "sound.h"
+   "stl.cc"
+   "stl.h"
    ${OS_SPECIFIC_FILES}
 )
 
