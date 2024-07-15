@@ -8,14 +8,16 @@ namespace vkad {
 
 class Swapchain {
 public:
-   Swapchain();
-
-   void init(
+   Swapchain(
        const std::vector<uint32_t> &queue_families, VkPhysicalDevice physical_device,
        VkDevice device, VkSurfaceKHR surface, uint32_t width, uint32_t height
    );
 
-   void deinit();
+   Swapchain &operator=(const Swapchain &other) = delete;
+
+   Swapchain &operator=(Swapchain &&other);
+
+   ~Swapchain();
 
    inline VkSwapchainKHR handle() const {
       return swapchain_;

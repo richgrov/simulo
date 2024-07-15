@@ -25,6 +25,10 @@ Game::Game(const char *title)
       surface_(window_.create_surface(vk_instance_.handle())),
       physical_device_(vk_instance_, surface_),
       device_(physical_device_),
+      swapchain_(
+          {physical_device_.graphics_queue(), physical_device_.present_queue()},
+          physical_device_.handle(), device_.handle(), surface_, window_.width(), window_.height()
+      ),
       render_pass_(VK_NULL_HANDLE),
       was_left_clicking_(false),
       font_("res/arial.ttf", physical_device_, device_.handle()),
@@ -33,14 +37,6 @@ Game::Game(const char *title)
       last_width_(window_.width()),
       last_height_(window_.height()),
       player_(*this) {
-
-   int width = window_.width();
-   int height = window_.height();
-
-   swapchain_.init(
-       {physical_device_.graphics_queue(), physical_device_.present_queue()},
-       physical_device_.handle(), device_.handle(), surface_, width, height
-   );
 
    VkAttachmentDescription color_attachment = {
        .format = swapchain_.img_format(),
@@ -153,19 +149,14 @@ Game::~Game() {
       vkDestroyRenderPass(device_.handle(), render_pass_, nullptr);
    }
 
-   swapchain_.deinit();
-
-   if (surface_ != VK_NULL_HANDLE) {
-      vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
-   }
+   vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
 }
 
 void Game::handle_resize(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
-   swapchain_.deinit();
-   swapchain_.init(
+   swapchain_ = std::move(Swapchain(
        {physical_device_.graphics_queue(), physical_device_.present_queue()},
        physical_device_.handle(), device_.handle(), surface_, width, height
-   );
+   ));
 
    for (const VkFramebuffer framebuffer : framebuffers_) {
       vkDestroyFramebuffer(device_.handle(), framebuffer, nullptr);

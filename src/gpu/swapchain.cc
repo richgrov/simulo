@@ -68,12 +68,12 @@ create_swap_extent(const VkSurfaceCapabilitiesKHR &capa, uint32_t width, uint32_
    return result;
 }
 
-Swapchain::Swapchain() : device_(VK_NULL_HANDLE), swapchain_(VK_NULL_HANDLE) {}
-
-void Swapchain::init(
+Swapchain::Swapchain(
     const std::vector<uint32_t> &queue_families, VkPhysicalDevice physical_device, VkDevice device,
     VkSurfaceKHR surface, uint32_t width, uint32_t height
-) {
+)
+    : device_(device), swapchain_(VK_NULL_HANDLE) {
+
    uint32_t num_formats;
    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &num_formats, nullptr);
    std::vector<VkSurfaceFormatKHR> surface_formats(num_formats);
@@ -90,8 +90,6 @@ void Swapchain::init(
 
    VkSurfaceCapabilitiesKHR capabilities;
    VKAD_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &capabilities));
-
-   device_ = device;
 
    uint32_t image_count = capabilities.minImageCount + 1;
    if (capabilities.maxImageCount != 0 && image_count > capabilities.maxImageCount) {
@@ -149,7 +147,27 @@ void Swapchain::init(
    }
 }
 
-void Swapchain::deinit() {
+Swapchain &Swapchain::operator=(Swapchain &&other) {
+   for (const VkImageView img_view : image_views_) {
+      vkDestroyImageView(device_, img_view, nullptr);
+   }
+
+   if (swapchain_ != VK_NULL_HANDLE) {
+      vkDestroySwapchainKHR(device_, swapchain_, nullptr);
+   }
+
+   images_ = other.images_;
+   image_views_ = other.image_views_;
+   swapchain_ = other.swapchain_;
+   img_format_ = other.img_format_;
+   extent_ = other.extent_;
+
+   other.image_views_.clear();
+   other.swapchain_ = VK_NULL_HANDLE;
+   return *this;
+}
+
+Swapchain::~Swapchain() {
    for (const VkImageView img_view : image_views_) {
       vkDestroyImageView(device_, img_view, nullptr);
    }
