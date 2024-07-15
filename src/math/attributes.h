@@ -3,6 +3,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+namespace vkad {
+
 struct VertexAttribute {
    uint32_t size;
    VkFormat format;
@@ -16,5 +18,7 @@ struct VertexAttribute {
       return VertexAttribute{sizeof(float) * 4, VK_FORMAT_R32G32B32_SFLOAT};
    }
 };
+
+} // namespace vkad
 
 #endif // !VKAD_MATH_SIZES_H_
