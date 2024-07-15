@@ -10,7 +10,7 @@ class Image {
 public:
    Image(
        const PhysicalDevice &physical_device, VkDevice device, VkImageUsageFlags usage,
-       uint32_t width, uint32_t height
+       VkFormat format, uint32_t width, uint32_t height
    );
 
    ~Image();
@@ -42,6 +42,7 @@ public:
 private:
    VkImage image_;
    VkImageView view_;
+   VkFormat format_;
    VkDeviceMemory allocation_;
    uint32_t width_;
    uint32_t height_;
