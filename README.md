@@ -8,10 +8,7 @@ Download the [Vulkan SDK](https://vulkan.lunarg.com/)
 
 Compile shaders:
 
-```
-glslc src/shader/shader.vert -o shader-vert.spv
-glslc src/shader/shader.frag -o shader-frag.spv
-```
+Windows: `./recompile_shaders.ps1`
 
 Build & run:
 ```
