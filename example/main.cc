@@ -16,7 +16,7 @@
 #include "vendor/stb_image.h"
 #include "window/keys.h" // IWYU pragma: export
 
-using namespace villa;
+using namespace vkad;
 
 struct Vertex {
    Vec3 pos;
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
       }
       channels = 4;
 
-      Game game("villa");
+      Game game("vkad");
 
       auto staging_buffer = game.create_staging_buffer(width * height * channels);
 
@@ -79,9 +79,9 @@ int main(int argc, char **argv) {
       uniform_buffer.upload_memory(&u, sizeof(Uniform), 0);
 
       auto mesh_buffer = game.create_vertex_index_buffer<Vertex>(
-          VILLA_ARRAY_LEN(vertices), VILLA_ARRAY_LEN(indices)
+          VKAD_ARRAY_LEN(vertices), VKAD_ARRAY_LEN(indices)
       );
-      staging_buffer.upload_mesh(vertices, sizeof(vertices), indices, VILLA_ARRAY_LEN(indices));
+      staging_buffer.upload_mesh(vertices, sizeof(vertices), indices, VKAD_ARRAY_LEN(indices));
 
       game.begin_preframe();
       game.buffer_copy(staging_buffer, mesh_buffer);

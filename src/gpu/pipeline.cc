@@ -7,7 +7,7 @@
 #include "status.h"
 #include "util/memory.h"
 
-using namespace villa;
+using namespace vkad;
 
 Pipeline::Pipeline(
     VkDevice device, VkVertexInputBindingDescription vertex_binding,
@@ -77,7 +77,7 @@ Pipeline::Pipeline(
    VkDynamicState dynamic_states[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
    VkPipelineDynamicStateCreateInfo dynamic_create = {
        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-       .dynamicStateCount = VILLA_ARRAY_LEN(dynamic_states),
+       .dynamicStateCount = VKAD_ARRAY_LEN(dynamic_states),
        .pDynamicStates = dynamic_states,
    };
 
@@ -86,7 +86,7 @@ Pipeline::Pipeline(
        .setLayoutCount = 1,
        .pSetLayouts = &descriptor_layout,
    };
-   VILLA_VK(vkCreatePipelineLayout(device, &layout_create, nullptr, &layout_));
+   VKAD_VK(vkCreatePipelineLayout(device, &layout_create, nullptr, &layout_));
 
    VkGraphicsPipelineCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -104,7 +104,7 @@ Pipeline::Pipeline(
        .renderPass = render_pass,
        .subpass = 0,
    };
-   VILLA_VK(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline_)
+   VKAD_VK(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline_)
    );
 }
 

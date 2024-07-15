@@ -7,7 +7,7 @@
 
 #include "status.h"
 
-using namespace villa;
+using namespace vkad;
 
 Image::Image(
     const PhysicalDevice &physical_device, VkDevice device, VkImageUsageFlags usage, uint32_t width,
@@ -28,7 +28,7 @@ Image::Image(
        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
    };
-   VILLA_VK(vkCreateImage(device, &image_create, nullptr, &image_));
+   VKAD_VK(vkCreateImage(device, &image_create, nullptr, &image_));
 
    VkMemoryRequirements img_mem;
    vkGetImageMemoryRequirements(device, image_, &img_mem);
@@ -41,8 +41,8 @@ Image::Image(
        ),
    };
 
-   VILLA_VK(vkAllocateMemory(device, &alloc, nullptr, &allocation_));
-   VILLA_VK(vkBindImageMemory(device, image_, allocation_, 0));
+   VKAD_VK(vkAllocateMemory(device, &alloc, nullptr, &allocation_));
+   VKAD_VK(vkBindImageMemory(device, image_, allocation_, 0));
 }
 
 Image::~Image() {
@@ -69,7 +69,7 @@ void Image::init_view() {
                .layerCount = 1,
            },
    };
-   VILLA_VK(vkCreateImageView(device_, &view_create, nullptr, &view_));
+   VKAD_VK(vkCreateImageView(device_, &view_create, nullptr, &view_));
 }
 
 void Image::queue_transfer_layout(VkImageLayout layout, VkCommandBuffer cmd_buf) {

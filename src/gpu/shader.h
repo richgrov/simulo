@@ -1,9 +1,9 @@
-#ifndef VILLA_GPU_SHADER_H_
-#define VILLA_GPU_SHADER_H_
+#ifndef VKAD_GPU_SHADER_H_
+#define VKAD_GPU_SHADER_H_
 
 #include "vulkan/vulkan_core.h"
 
-namespace villa {
+namespace vkad {
 
 enum class ShaderType {
    kVertex,
@@ -25,6 +25,6 @@ private:
    ShaderType type_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_GPU_SHADER_H_
+#endif // !VKAD_GPU_SHADER_H_

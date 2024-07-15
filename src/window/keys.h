@@ -1,5 +1,5 @@
-#ifndef VILLA_WINDOW_KEYS_H_
-#define VILLA_WINDOW_KEYS_H_
+#ifndef VKAD_WINDOW_KEYS_H_
+#define VKAD_WINDOW_KEYS_H_
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #include "win32/keys.h"
@@ -7,4 +7,4 @@
 #error "platform not supported"
 #endif
 
-#endif // !VILLA_WINDOW_KEYS_H_
+#endif // !VKAD_WINDOW_KEYS_H_

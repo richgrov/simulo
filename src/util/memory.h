@@ -1,14 +1,14 @@
-#ifndef VILLA_UTIL_MEMORY_H_
-#define VILLA_UTIL_MEMORY_H_
+#ifndef VKAD_UTIL_MEMORY_H_
+#define VKAD_UTIL_MEMORY_H_
 
-namespace villa {
+namespace vkad {
 
-#define VILLA_ARRAY_LEN(x) sizeof(x) / sizeof(0 [x])
+#define VKAD_ARRAY_LEN(x) sizeof(x) / sizeof(0 [x])
 
 template <class T> T align_to(T size, T min_alignment) {
    return (size + min_alignment - 1) & ~(min_alignment - 1);
 }
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_UTIL_MEMORY_H_
+#endif // !VKAD_UTIL_MEMORY_H_

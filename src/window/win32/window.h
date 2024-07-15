@@ -1,12 +1,12 @@
-#ifndef VILLA_WINDOW_WIN32_WINDOW_H_
-#define VILLA_WINDOW_WIN32_WINDOW_H_
+#ifndef VKAD_WINDOW_WIN32_WINDOW_H_
+#define VKAD_WINDOW_WIN32_WINDOW_H_
 
 #include <vector>
 
 #include <Windows.h>
 #include <vulkan/vulkan_core.h>
 
-namespace villa {
+namespace vkad {
 
 LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 
@@ -79,6 +79,6 @@ private:
    friend LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 };
 
-}; // namespace villa
+}; // namespace vkad
 
-#endif // !VILLA_WINDOW_WIN32_WINDOW_H_
+#endif // !VKAD_WINDOW_WIN32_WINDOW_H_

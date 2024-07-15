@@ -1,5 +1,5 @@
-#ifndef VILLA_GPU_PIPELINE_H_
-#define VILLA_GPU_PIPELINE_H_
+#ifndef VKAD_GPU_PIPELINE_H_
+#define VKAD_GPU_PIPELINE_H_
 
 #include <functional>
 #include <vector>
@@ -8,7 +8,7 @@
 
 #include "shader.h"
 
-namespace villa {
+namespace vkad {
 
 class Pipeline {
 public:
@@ -35,6 +35,6 @@ private:
    VkDevice device_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_GPU_PIPELINE_H_
+#endif // !VKAD_GPU_PIPELINE_H_

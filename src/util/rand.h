@@ -1,14 +1,14 @@
-#ifndef VILLA_UTIL_RAND_H_
-#define VILLA_UTIL_RAND_H_
+#ifndef VKAD_UTIL_RAND_H_
+#define VKAD_UTIL_RAND_H_
 
 #include <random>
 
-namespace villa {
+namespace vkad {
 
 static inline float randf() {
    return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
 }
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_UTIL_RAND_H_
+#endif // !VKAD_UTIL_RAND_H_

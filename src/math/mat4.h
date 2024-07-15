@@ -1,12 +1,12 @@
-#ifndef VILLA_MATH_MAT4_H_
-#define VILLA_MATH_MAT4_H_
+#ifndef VKAD_MATH_MAT4_H_
+#define VKAD_MATH_MAT4_H_
 
 #include <cmath>
 
 #include "vec3.h"
 #include "vec4.h"
 
-namespace villa {
+namespace vkad {
 
 struct Mat4 {
    Mat4() : cols{} {}
@@ -106,6 +106,6 @@ struct Mat4 {
    Vec4 cols[4];
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_MATH_MAT4_H_
+#endif // !VKAD_MATH_MAT4_H_

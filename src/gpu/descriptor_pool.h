@@ -1,12 +1,12 @@
-#ifndef VILLA_GPU_DESCRIPTOR_POOL_H_
-#define VILLA_GPU_DESCRIPTOR_POOL_H_
+#ifndef VKAD_GPU_DESCRIPTOR_POOL_H_
+#define VKAD_GPU_DESCRIPTOR_POOL_H_
 
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/buffer.h"
 #include "gpu/image.h"
 
-namespace villa {
+namespace vkad {
 
 class DescriptorPool {
 public:
@@ -31,6 +31,6 @@ private:
    VkDescriptorPool descriptor_pool_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_GPU_DESCRIPTOR_POOL_H_
+#endif // !VKAD_GPU_DESCRIPTOR_POOL_H_

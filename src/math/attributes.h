@@ -1,5 +1,5 @@
-#ifndef VILLA_MATH_SIZES_H_
-#define VILLA_MATH_SIZES_H_
+#ifndef VKAD_MATH_SIZES_H_
+#define VKAD_MATH_SIZES_H_
 
 #include <vulkan/vulkan_core.h>
 
@@ -17,4 +17,4 @@ struct VertexAttribute {
    }
 };
 
-#endif // !VILLA_MATH_SIZES_H_
+#endif // !VKAD_MATH_SIZES_H_

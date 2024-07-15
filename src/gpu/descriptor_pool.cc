@@ -7,7 +7,7 @@
 #include "gpu/status.h"
 #include "util/memory.h"
 
-using namespace villa;
+using namespace vkad;
 
 DescriptorPool::DescriptorPool(
     VkDevice device, const std::vector<VkDescriptorSetLayoutBinding> &layouts, uint32_t num_sets
@@ -19,7 +19,7 @@ DescriptorPool::DescriptorPool(
        .bindingCount = static_cast<uint32_t>(layouts.size()),
        .pBindings = layouts.data(),
    };
-   VILLA_VK(vkCreateDescriptorSetLayout(device, &layout_create, nullptr, &descriptor_layout_));
+   VKAD_VK(vkCreateDescriptorSetLayout(device, &layout_create, nullptr, &descriptor_layout_));
 
    std::vector<VkDescriptorPoolSize> sizes;
    sizes.reserve(layouts.size());
@@ -36,7 +36,7 @@ DescriptorPool::DescriptorPool(
        .poolSizeCount = static_cast<uint32_t>(sizes.size()),
        .pPoolSizes = sizes.data(),
    };
-   VILLA_VK(vkCreateDescriptorPool(device, &create_info, nullptr, &descriptor_pool_));
+   VKAD_VK(vkCreateDescriptorPool(device, &create_info, nullptr, &descriptor_pool_));
 }
 
 VkDescriptorSet
@@ -49,7 +49,7 @@ DescriptorPool::allocate(const UniformBuffer &buffer, const Image &image, VkSamp
    };
 
    VkDescriptorSet descriptor_set;
-   VILLA_VK(vkAllocateDescriptorSets(device_, &alloc_info, &descriptor_set));
+   VKAD_VK(vkAllocateDescriptorSets(device_, &alloc_info, &descriptor_set));
 
    VkDescriptorBufferInfo buf_info = {
        .buffer = buffer.buffer(),

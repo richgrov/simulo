@@ -9,11 +9,11 @@
 #include "status.h"
 #include "util/memory.h"
 
-using namespace villa;
+using namespace vkad;
 
 namespace {
 
-#ifdef VILLA_DEBUG
+#ifdef VKAD_DEBUG
 
 void ensure_validation_layers_supported() {
    uint32_t total_layers;
@@ -56,12 +56,12 @@ Instance::Instance(const std::vector<const char *> extensions) {
        .ppEnabledExtensionNames = extensions.data(),
    };
 
-#ifdef VILLA_DEBUG
+#ifdef VKAD_DEBUG
    ensure_validation_layers_supported();
-   create_info.enabledLayerCount = VILLA_ARRAY_LEN(validation_layers);
+   create_info.enabledLayerCount = VKAD_ARRAY_LEN(validation_layers);
    create_info.ppEnabledLayerNames = validation_layers;
    std::cout << "Validation layers enabled\n";
 #endif
 
-   VILLA_VK(vkCreateInstance(&create_info, nullptr, &instance_));
+   VKAD_VK(vkCreateInstance(&create_info, nullptr, &instance_));
 }

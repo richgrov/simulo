@@ -1,11 +1,11 @@
-#ifndef VILLA_GPU_COMMAND_POOL_H_
-#define VILLA_GPU_COMMAND_POOL_H_
+#ifndef VKAD_GPU_COMMAND_POOL_H_
+#define VKAD_GPU_COMMAND_POOL_H_
 
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
 
-namespace villa {
+namespace vkad {
 
 class CommandPool {
 public:
@@ -22,6 +22,6 @@ private:
    VkCommandPool command_pool_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_GPU_COMMAND_POOL_H_
+#endif // !VKAD_GPU_COMMAND_POOL_H_

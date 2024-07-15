@@ -6,34 +6,34 @@
 #include "math/vec2.h"
 #include "window/keys.h" // IWYU pragma: export
 
-using namespace villa;
+using namespace vkad;
 
 Player::Player(Game &game) : game_(game), pos_(0, 0, 1), pitch_(0), yaw_(0) {}
 
 void Player::update(float delta) {
    Vec2 input;
 
-   if (game_.is_key_down(VILLA_KEY_D)) {
+   if (game_.is_key_down(VKAD_KEY_D)) {
       input.x += 1;
    }
 
-   if (game_.is_key_down(VILLA_KEY_A)) {
+   if (game_.is_key_down(VKAD_KEY_A)) {
       input.x -= 1;
    }
 
-   if (game_.is_key_down(VILLA_KEY_W)) {
+   if (game_.is_key_down(VKAD_KEY_W)) {
       input.y += 1;
    }
 
-   if (game_.is_key_down(VILLA_KEY_S)) {
+   if (game_.is_key_down(VKAD_KEY_S)) {
       input.y -= 1;
    }
 
-   if (game_.is_key_down(VILLA_KEY_SPACE)) {
+   if (game_.is_key_down(VKAD_KEY_SPACE)) {
       pos_.y += delta;
    }
 
-   if (game_.is_key_down(VILLA_KEY_SHIFT)) {
+   if (game_.is_key_down(VKAD_KEY_SHIFT)) {
       pos_.y -= delta;
    }
 

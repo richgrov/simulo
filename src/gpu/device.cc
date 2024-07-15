@@ -7,7 +7,7 @@
 #include "util/memory.h"
 #include "vulkan/vulkan_core.h"
 
-using namespace villa;
+using namespace vkad;
 
 Device::Device(const PhysicalDevice &physical_device) {
    std::set<uint32_t> unique_queue_families = {
@@ -34,15 +34,15 @@ Device::Device(const PhysicalDevice &physical_device) {
        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
        .queueCreateInfoCount = static_cast<uint32_t>(create_queues.size()),
        .pQueueCreateInfos = create_queues.data(),
-#ifdef VILLA_DEBUG
-       .enabledLayerCount = VILLA_ARRAY_LEN(validation_layers),
+#ifdef VKAD_DEBUG
+       .enabledLayerCount = VKAD_ARRAY_LEN(validation_layers),
        .ppEnabledLayerNames = validation_layers,
 #endif
        .enabledExtensionCount = 1,
        .ppEnabledExtensionNames = &swapchain_extension,
        .pEnabledFeatures = &physical_device_features,
    };
-   VILLA_VK(vkCreateDevice(physical_device.handle(), &create_info, nullptr, &device_));
+   VKAD_VK(vkCreateDevice(physical_device.handle(), &create_info, nullptr, &device_));
 
    vkGetDeviceQueue(device_, physical_device.graphics_queue(), 0, &graphics_queue_);
    vkGetDeviceQueue(device_, physical_device.present_queue(), 0, &present_queue_);

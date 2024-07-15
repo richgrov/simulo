@@ -1,14 +1,14 @@
-#ifndef VIlLA_WINDOW_WIN32_KEYS_H_
-#define VIlLA_WINDOW_WIN32_KEYS_H_
+#ifndef VKAD_WINDOW_WIN32_KEYS_H_
+#define VKAD_WINDOW_WIN32_KEYS_H_
 
-#define VILLA_KEY_SHIFT 0x10
-#define VILLA_KEY_SPACE 0x20
-#define VILLA_KEY_A 0x41
-#define VILLA_KEY_D 0x44
-#define VILLA_KEY_E 0x45
-#define VILLA_KEY_S 0x53
-#define VILLA_KEY_Q 0x51
-#define VILLA_KEY_W 0x57
-#define VILLA_KEY_ESC 0x1B
+#define VKAD_KEY_SHIFT 0x10
+#define VKAD_KEY_SPACE 0x20
+#define VKAD_KEY_A 0x41
+#define VKAD_KEY_D 0x44
+#define VKAD_KEY_E 0x45
+#define VKAD_KEY_S 0x53
+#define VKAD_KEY_Q 0x51
+#define VKAD_KEY_W 0x57
+#define VKAD_KEY_ESC 0x1B
 
-#endif // !VIlLA_WINDOW_WIN32_KEYS_H_
+#endif // !VKAD_WINDOW_WIN32_KEYS_H_

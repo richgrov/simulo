@@ -8,7 +8,7 @@
 #include "gpu/instance.h"
 #include "gpu/swapchain.h"
 
-using namespace villa;
+using namespace vkad;
 
 PhysicalDevice::PhysicalDevice(const Instance &instance, VkSurfaceKHR surface) {
    uint32_t num_devices;

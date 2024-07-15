@@ -1,10 +1,10 @@
-#ifndef VILLA_GPU_SWAPCHAIN_H_
-#define VILLA_GPU_SWAPCHAIN_H_
+#ifndef VKAD_GPU_SWAPCHAIN_H_
+#define VKAD_GPU_SWAPCHAIN_H_
 
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-namespace villa {
+namespace vkad {
 
 class Swapchain {
 public:
@@ -48,6 +48,6 @@ private:
    VkExtent2D extent_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_GPU_SWAPCHAIN_H_
+#endif // !VKAD_GPU_SWAPCHAIN_H_

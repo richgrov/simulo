@@ -1,11 +1,11 @@
-#ifndef VILLA_GPU_DEVICE_H_
-#define VILLA_GPU_DEVICE_H_
+#ifndef VKAD_GPU_DEVICE_H_
+#define VKAD_GPU_DEVICE_H_
 
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/physical_device.h"
 
-namespace villa {
+namespace vkad {
 
 class Device {
 public:
@@ -34,6 +34,6 @@ private:
    VkQueue present_queue_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_GPU_DEVICE_H_
+#endif // !VKAD_GPU_DEVICE_H_

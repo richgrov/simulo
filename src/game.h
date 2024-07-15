@@ -1,5 +1,5 @@
-#ifndef VILLA_GPU_VK_GPU_H_
-#define VILLA_GPU_VK_GPU_H_
+#ifndef VKAD_GPU_VK_GPU_H_
+#define VKAD_GPU_VK_GPU_H_
 
 #include <chrono>
 #include <vector>
@@ -23,7 +23,7 @@
 #include "sound.h"
 #include "window/window.h" // IWYU pragma: export
 
-namespace villa {
+namespace vkad {
 
 class Game {
    using Clock = std::chrono::high_resolution_clock;
@@ -220,6 +220,6 @@ private:
    Player player_;
 };
 
-}; // namespace villa
+}; // namespace vkad
 
-#endif // !VILLA_GPU_VK_GPU_H_
+#endif // !VKAD_GPU_VK_GPU_H_

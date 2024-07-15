@@ -1,10 +1,10 @@
-#ifndef VILLA_ENTITY_PLAYER_H_
-#define VILLA_ENTITY_PLAYER_H_
+#ifndef VKAD_ENTITY_PLAYER_H_
+#define VKAD_ENTITY_PLAYER_H_
 
 #include "math/mat4.h"
 #include "math/vec3.h"
 
-namespace villa {
+namespace vkad {
 
 class Game;
 
@@ -38,6 +38,6 @@ private:
    float pitch_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_ENTITY_PLAYER_H_
+#endif // !VKAD_ENTITY_PLAYER_H_

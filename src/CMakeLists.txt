@@ -47,7 +47,7 @@ set(SOURCE_FILES
    ${OS_SPECIFIC_FILES}
 )
 
-add_library(villa ${SOURCE_FILES})
+add_library(vkad ${SOURCE_FILES})
 
 function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
@@ -65,16 +65,16 @@ function(setup_targets subject)
     set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)
 endfunction()
 
-setup_targets(villa)
+setup_targets(vkad)
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVILLA_DEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVKAD_DEBUG")
 
 if (BUILD_TESTING)
-    add_executable(villa_test
+    add_executable(vkad_test
         "test_main.cc"
         "math/angle_test.cc"
         ${SOURCE_FILES}
     )
 
-    setup_targets(villa_test)
+    setup_targets(vkad_test)
 endif()

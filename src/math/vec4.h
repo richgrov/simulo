@@ -1,9 +1,9 @@
-#ifndef VILLA_MATH_VEC4_H_
-#define VILLA_MATH_VEC4_H_
+#ifndef VKAD_MATH_VEC4_H_
+#define VKAD_MATH_VEC4_H_
 
 #include "util/assert.h"
 
-namespace villa {
+namespace vkad {
 
 struct alignas(16) Vec4 {
    Vec4() : x(0), y(0), z(0), w(0) {}
@@ -20,7 +20,7 @@ struct alignas(16) Vec4 {
       case 3:
          return w;
       default:
-         VILLA_PANIC("invalid index {}", index);
+         VKAD_PANIC("invalid index {}", index);
       }
    }
 
@@ -35,7 +35,7 @@ struct alignas(16) Vec4 {
       case 3:
          return w;
       default:
-         VILLA_PANIC("invalid index {}", index);
+         VKAD_PANIC("invalid index {}", index);
       }
    }
 
@@ -49,6 +49,6 @@ struct alignas(16) Vec4 {
    float w;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_MATH_VEC4_H_
+#endif // !VKAD_MATH_VEC4_H_

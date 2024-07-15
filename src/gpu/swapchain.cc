@@ -6,7 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-using namespace villa;
+using namespace vkad;
 
 bool has_swapchain_support(VkPhysicalDevice device) {
    uint32_t num_extensions;
@@ -89,7 +89,7 @@ void Swapchain::init(
    );
 
    VkSurfaceCapabilitiesKHR capabilities;
-   VILLA_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &capabilities));
+   VKAD_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &capabilities));
 
    device_ = device;
 
@@ -124,7 +124,7 @@ void Swapchain::init(
       create_info.pQueueFamilyIndices = queue_families.data();
    }
 
-   VILLA_VK(vkCreateSwapchainKHR(device_, &create_info, nullptr, &swapchain_));
+   VKAD_VK(vkCreateSwapchainKHR(device_, &create_info, nullptr, &swapchain_));
 
    uint32_t num_images;
    vkGetSwapchainImagesKHR(device, swapchain_, &num_images, nullptr);
@@ -145,7 +145,7 @@ void Swapchain::init(
                   .layerCount = 1,
               },
       };
-      VILLA_VK(vkCreateImageView(device_, &create_info, nullptr, &image_views_[i]));
+      VKAD_VK(vkCreateImageView(device_, &create_info, nullptr, &image_views_[i]));
    }
 }
 

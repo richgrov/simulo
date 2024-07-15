@@ -1,14 +1,14 @@
-#ifndef VILLA_MATH_ANGLE_H_
-#define VILLA_MATH_ANGLE_H_
+#ifndef VKAD_MATH_ANGLE_H_
+#define VKAD_MATH_ANGLE_H_
 
 #include <numbers>
 
-namespace villa {
+namespace vkad {
 
 inline float deg_to_rad(float deg) {
    return deg / 180.0 * std::numbers::pi;
 }
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_MATH_ANGLE_H_
+#endif // !VKAD_MATH_ANGLE_H_

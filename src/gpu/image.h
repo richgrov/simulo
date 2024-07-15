@@ -1,10 +1,10 @@
-#ifndef VILLA_GPU_IMAGE_H_
-#define VILLA_GPU_IMAGE_H_
+#ifndef VKAD_GPU_IMAGE_H_
+#define VKAD_GPU_IMAGE_H_
 
 #include "gpu/physical_device.h"
 #include <vulkan/vulkan_core.h>
 
-namespace villa {
+namespace vkad {
 
 class Image {
 public:
@@ -49,6 +49,6 @@ private:
    VkImageLayout layout_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_GPU_IMAGE_H_
+#endif // !VKAD_GPU_IMAGE_H_

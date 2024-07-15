@@ -1,10 +1,10 @@
-#ifndef VILLA_GPU_INSTANCE_H_
-#define VILLA_GPU_INSTANCE_H_
+#ifndef VKAD_GPU_INSTANCE_H_
+#define VKAD_GPU_INSTANCE_H_
 
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-namespace villa {
+namespace vkad {
 
 constexpr const char *validation_layers[] = {
     "VK_LAYER_KHRONOS_validation",
@@ -27,6 +27,6 @@ private:
    VkInstance instance_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_GPU_INSTANCE_H_
+#endif // !VKAD_GPU_INSTANCE_H_

@@ -1,9 +1,9 @@
-#ifndef VILLA_SOUND_H_
-#define VILLA_SOUND_H_
+#ifndef VKAD_SOUND_H_
+#define VKAD_SOUND_H_
 
 #include <fmod.h>
 
-namespace villa {
+namespace vkad {
 
 class Sound {
 public:
@@ -17,6 +17,6 @@ private:
    FMOD_SYSTEM *sound_system_;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_SOUND_H_
+#endif // !VKAD_SOUND_H_

@@ -12,11 +12,11 @@
 
 #include "gpu/status.h"
 
-using namespace villa;
+using namespace vkad;
 
 namespace {
 
-const char *WIN32_CLASS_NAME = "villa";
+const char *WIN32_CLASS_NAME = "vkad";
 
 static Window *get_window_class(HWND window) {
    LONG_PTR user_ptr = GetWindowLongPtr(window, GWLP_USERDATA);
@@ -42,7 +42,7 @@ void register_raw_mouse_input(HWND window) {
 
 } // namespace
 
-LRESULT CALLBACK villa::window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param) {
+LRESULT CALLBACK vkad::window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param) {
    switch (msg) {
    case WM_DESTROY:
       get_window_class(window)->open_ = false;
@@ -169,7 +169,7 @@ VkSurfaceKHR Window::create_surface(VkInstance instance) {
    };
 
    VkSurfaceKHR surface;
-   VILLA_VK(vkCreateWin32SurfaceKHR(instance, &surface_create, nullptr, &surface));
+   VKAD_VK(vkCreateWin32SurfaceKHR(instance, &surface_create, nullptr, &surface));
 
    return surface;
 }

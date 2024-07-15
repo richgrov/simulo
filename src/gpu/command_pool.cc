@@ -4,7 +4,7 @@
 
 #include "status.h"
 
-using namespace villa;
+using namespace vkad;
 
 void CommandPool::init(VkDevice device, uint32_t graphics_queue_family) {
    device_ = device;
@@ -14,7 +14,7 @@ void CommandPool::init(VkDevice device, uint32_t graphics_queue_family) {
        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
        .queueFamilyIndex = graphics_queue_family,
    };
-   VILLA_VK(vkCreateCommandPool(device, &create_info, nullptr, &command_pool_));
+   VKAD_VK(vkCreateCommandPool(device, &create_info, nullptr, &command_pool_));
 }
 
 void CommandPool::deinit() {
@@ -32,7 +32,7 @@ VkCommandBuffer CommandPool::allocate() {
    };
 
    VkCommandBuffer result;
-   VILLA_VK(vkAllocateCommandBuffers(device_, &alloc_info, &result));
+   VKAD_VK(vkAllocateCommandBuffers(device_, &alloc_info, &result));
 
    return result;
 }

@@ -1,7 +1,7 @@
-#ifndef VILLA_MATH_VEC2_H_
-#define VILLA_MATH_VEC2_H_
+#ifndef VKAD_MATH_VEC2_H_
+#define VKAD_MATH_VEC2_H_
 
-namespace villa {
+namespace vkad {
 
 struct Vec2 {
    Vec2() : x(0), y(0) {}
@@ -24,6 +24,6 @@ struct Vec2 {
    float y;
 };
 
-} // namespace villa
+} // namespace vkad
 
-#endif // !VILLA_MATH_VEC2_H_
+#endif // !VKAD_MATH_VEC2_H_

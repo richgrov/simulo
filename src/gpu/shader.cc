@@ -9,7 +9,7 @@
 
 #include "status.h"
 
-using namespace villa;
+using namespace vkad;
 
 void Shader::init(VkDevice device, const char *file_path, ShaderType type) {
    device_ = device;
@@ -33,7 +33,7 @@ void Shader::init(VkDevice device, const char *file_path, ShaderType type) {
        .codeSize = data.size(),
        .pCode = reinterpret_cast<uint32_t *>(data.data()),
    };
-   VILLA_VK(vkCreateShaderModule(device, &create_info, nullptr, &module_));
+   VKAD_VK(vkCreateShaderModule(device, &create_info, nullptr, &module_));
 }
 
 void Shader::deinit() {

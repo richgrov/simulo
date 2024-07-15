@@ -7,7 +7,7 @@
 #include "status.h"
 #include "util/memory.h"
 
-using namespace villa;
+using namespace vkad;
 
 Buffer::Buffer(
     size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memory_properties,
@@ -20,7 +20,7 @@ Buffer::Buffer(
        .usage = usage,
        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
    };
-   VILLA_VK(vkCreateBuffer(device, &create_info, nullptr, &buffer_));
+   VKAD_VK(vkCreateBuffer(device, &create_info, nullptr, &buffer_));
 
    VkMemoryRequirements requirements;
    vkGetBufferMemoryRequirements(device, buffer_, &requirements);
@@ -32,8 +32,8 @@ Buffer::Buffer(
            physical_device.find_memory_type_index(requirements.memoryTypeBits, memory_properties),
    };
 
-   VILLA_VK(vkAllocateMemory(device, &alloc_info, nullptr, &allocation_));
-   VILLA_VK(vkBindBufferMemory(device, buffer_, allocation_, 0));
+   VKAD_VK(vkAllocateMemory(device, &alloc_info, nullptr, &allocation_));
+   VKAD_VK(vkBindBufferMemory(device, buffer_, allocation_, 0));
 }
 
 Buffer &Buffer::operator=(Buffer &&other) {
