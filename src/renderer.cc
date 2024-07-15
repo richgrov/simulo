@@ -1,4 +1,4 @@
-#include "game.h"
+#include "renderer.h"
 
 #include <stdexcept>
 #include <vector>
@@ -19,7 +19,7 @@
 
 using namespace vkad;
 
-Game::Game(const char *title)
+Renderer::Renderer(const char *title)
     : vk_instance_(Window::vulkan_extensions()),
       window_(vk_instance_, title),
       physical_device_(vk_instance_, window_.surface()),
@@ -125,7 +125,7 @@ Game::Game(const char *title)
    window_.set_capture_mouse(true);
 }
 
-Game::~Game() {
+Renderer::~Renderer() {
    device_.wait_idle();
 
    FMOD_System_Release(sound_system_);
@@ -150,7 +150,7 @@ Game::~Game() {
    }
 }
 
-void Game::handle_resize(uint32_t width, uint32_t height) {
+void Renderer::handle_resize(uint32_t width, uint32_t height) {
    swapchain_ = std::move(Swapchain(
        {physical_device_.graphics_queue(), physical_device_.present_queue()},
        physical_device_.handle(), device_.handle(), window_.surface(), width, height
@@ -163,7 +163,7 @@ void Game::handle_resize(uint32_t width, uint32_t height) {
    create_framebuffers();
 }
 
-void Game::begin_preframe() {
+void Renderer::begin_preframe() {
    preframe_cmd_buf_ = command_pool_.allocate();
 
    VkCommandBufferBeginInfo begin_info = {
@@ -173,7 +173,7 @@ void Game::begin_preframe() {
    VKAD_VK(vkBeginCommandBuffer(preframe_cmd_buf_, &begin_info));
 }
 
-void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
+void Renderer::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    VkBufferCopy copy_region = {
        .srcOffset = 0,
        .dstOffset = 0,
@@ -182,7 +182,7 @@ void Game::buffer_copy(const StagingBuffer &src, Buffer &dst) {
    vkCmdCopyBuffer(preframe_cmd_buf_, src.buffer(), dst.buffer(), 1, &copy_region);
 }
 
-void Game::upload_texture(const StagingBuffer &src, Image &image) {
+void Renderer::upload_texture(const StagingBuffer &src, Image &image) {
    VkBufferImageCopy region = {
        .imageSubresource =
            {
@@ -205,7 +205,7 @@ void Game::upload_texture(const StagingBuffer &src, Image &image) {
    );
 }
 
-void Game::end_preframe() {
+void Renderer::end_preframe() {
    vkEndCommandBuffer(preframe_cmd_buf_);
 
    VkSubmitInfo submit_info = {
@@ -217,7 +217,7 @@ void Game::end_preframe() {
    vkQueueWaitIdle(device_.graphics_queue());
 }
 
-bool Game::poll() {
+bool Renderer::poll() {
    if (window_.is_key_down(VKAD_KEY_ESC)) {
       window_.request_close();
    }
@@ -239,7 +239,7 @@ bool Game::poll() {
    return window_.poll();
 }
 
-bool Game::begin_draw(const Pipeline &pipeline) {
+bool Renderer::begin_draw(const Pipeline &pipeline) {
    vkWaitForFences(device_.handle(), 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
 
    int width = window_.width();
@@ -300,7 +300,9 @@ bool Game::begin_draw(const Pipeline &pipeline) {
    return true;
 }
 
-void Game::set_uniform(const Pipeline &pipeline, VkDescriptorSet descriptor_set, uint32_t offset) {
+void Renderer::set_uniform(
+    const Pipeline &pipeline, VkDescriptorSet descriptor_set, uint32_t offset
+) {
    uint32_t offsets[] = {offset};
    vkCmdBindDescriptorSets(
        command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout(), 0, 1, &descriptor_set,
@@ -308,7 +310,7 @@ void Game::set_uniform(const Pipeline &pipeline, VkDescriptorSet descriptor_set,
    );
 }
 
-void Game::draw(const VertexIndexBuffer &buffer) {
+void Renderer::draw(const VertexIndexBuffer &buffer) {
    VkBuffer buffers[] = {buffer.buffer()};
    VkDeviceSize offsets[] = {0};
    vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
@@ -319,7 +321,7 @@ void Game::draw(const VertexIndexBuffer &buffer) {
    vkCmdDrawIndexed(command_buffer_, buffer.num_indices(), 1, 0, 0, 0);
 }
 
-void Game::end_draw() {
+void Renderer::end_draw() {
    vkCmdEndRenderPass(command_buffer_);
    VKAD_VK(vkEndCommandBuffer(command_buffer_));
 
@@ -348,7 +350,7 @@ void Game::end_draw() {
    vkQueuePresentKHR(device_.present_queue(), &present_info);
 }
 
-void Game::create_framebuffers() {
+void Renderer::create_framebuffers() {
    framebuffers_.resize(swapchain_.num_images());
    for (int i = 0; i < swapchain_.num_images(); ++i) {
       VkImageView attachments[] = {swapchain_.image_view(i)};

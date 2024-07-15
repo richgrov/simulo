@@ -5,12 +5,12 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "game.h"
 #include "gpu/buffer.h"
 #include "math/attributes.h"
 #include "math/mat4.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
+#include "renderer.h"
 #include "sound.h"
 #include "util/memory.h"
 #include "vendor/stb_image.h"
@@ -33,8 +33,8 @@ struct Uniform {
    Vec3 color;
 };
 
-Uniform uniform(Game &game) {
-   Mat4 mvp = game.perspective_matrix() * game.player().view_matrix();
+Uniform uniform(Renderer &renderer) {
+   Mat4 mvp = renderer.perspective_matrix() * renderer.player().view_matrix();
    return {mvp, Vec3(1.0, 1.0, 1.0)};
 }
 
@@ -47,25 +47,27 @@ int main(int argc, char **argv) {
       }
       channels = 4;
 
-      Game game("vkad");
+      Renderer renderer("vkad");
 
-      auto staging_buffer = game.create_staging_buffer(width * height * channels);
+      auto staging_buffer = renderer.create_staging_buffer(width * height * channels);
 
-      auto uniform_buffer = game.create_uniform_buffer<Uniform>(3);
-      auto descriptor_pool = game.create_descriptor_pool();
+      auto uniform_buffer = renderer.create_uniform_buffer<Uniform>(3);
+      auto descriptor_pool = renderer.create_descriptor_pool();
 
-      auto image = game.create_image(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+      auto image =
+          renderer.create_image(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 
       staging_buffer.upload_raw(img_data, width * height * channels);
-      game.begin_preframe();
-      game.transfer_image_layout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-      game.upload_texture(staging_buffer, image);
-      game.transfer_image_layout(image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-      game.end_preframe();
+      renderer.begin_preframe();
+      renderer.transfer_image_layout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      renderer.upload_texture(staging_buffer, image);
+      renderer.transfer_image_layout(image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      renderer.end_preframe();
 
       image.init_view();
-      auto descriptor_set = descriptor_pool.allocate(uniform_buffer, image, game.image_sampler());
-      auto pipeline = game.create_pipeline<Vertex>(descriptor_pool);
+      auto descriptor_set =
+          descriptor_pool.allocate(uniform_buffer, image, renderer.image_sampler());
+      auto pipeline = renderer.create_pipeline<Vertex>(descriptor_pool);
 
       Vertex vertices[] = {
           {{0.0f, 0.0f, 0}, {0.0, 0.0}},
@@ -75,34 +77,34 @@ int main(int argc, char **argv) {
       };
       VertexIndexBuffer::IndexType indices[] = {0, 2, 1, 0, 3, 2};
 
-      Uniform u = uniform(game);
+      Uniform u = uniform(renderer);
       uniform_buffer.upload_memory(&u, sizeof(Uniform), 0);
 
-      auto mesh_buffer = game.create_vertex_index_buffer<Vertex>(
+      auto mesh_buffer = renderer.create_vertex_index_buffer<Vertex>(
           VKAD_ARRAY_LEN(vertices), VKAD_ARRAY_LEN(indices)
       );
       staging_buffer.upload_mesh(vertices, sizeof(vertices), indices, VKAD_ARRAY_LEN(indices));
 
-      game.begin_preframe();
-      game.buffer_copy(staging_buffer, mesh_buffer);
-      game.end_preframe();
+      renderer.begin_preframe();
+      renderer.buffer_copy(staging_buffer, mesh_buffer);
+      renderer.end_preframe();
 
-      int mouse_x = game.mouse_x();
-      int mouse_y = game.mouse_y();
+      int mouse_x = renderer.mouse_x();
+      int mouse_y = renderer.mouse_y();
 
-      while (game.poll()) {
-         float delta = game.delta();
+      while (renderer.poll()) {
+         float delta = renderer.delta();
 
-         Uniform u = uniform(game);
+         Uniform u = uniform(renderer);
          uniform_buffer.upload_memory(&u, sizeof(Uniform), 0);
 
-         if (game.begin_draw(pipeline)) {
-            game.set_uniform(pipeline, descriptor_set, 0 * uniform_buffer.element_size());
-            game.draw(mesh_buffer);
-            game.end_draw();
+         if (renderer.begin_draw(pipeline)) {
+            renderer.set_uniform(pipeline, descriptor_set, 0 * uniform_buffer.element_size());
+            renderer.draw(mesh_buffer);
+            renderer.end_draw();
          }
 
-         game.wait_idle();
+         renderer.wait_idle();
       }
    } catch (const std::exception &e) {
       std::cerr << "Unhandled exception: " << e.what() << "\n";

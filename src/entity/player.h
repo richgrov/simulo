@@ -6,11 +6,11 @@
 
 namespace vkad {
 
-class Game;
+class Renderer;
 
 class Player {
 public:
-   explicit Player(Game &game);
+   explicit Player(Renderer &renderer);
 
    inline Vec3 pos() const {
       return pos_;
@@ -31,7 +31,7 @@ public:
    void update(float delta);
 
 private:
-   Game &game_;
+   Renderer &renderer_;
 
    Vec3 pos_;
    float yaw_;

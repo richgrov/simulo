@@ -26,12 +26,12 @@
 
 namespace vkad {
 
-class Game {
+class Renderer {
    using Clock = std::chrono::high_resolution_clock;
 
 public:
-   explicit Game(const char *title);
-   ~Game();
+   explicit Renderer(const char *title);
+   ~Renderer();
 
    template <class T> Pipeline create_pipeline(const DescriptorPool &descriptor_pool) {
       VkVertexInputBindingDescription binding = {
