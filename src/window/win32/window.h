@@ -6,25 +6,30 @@
 #include <Windows.h>
 #include <vulkan/vulkan_core.h>
 
+#include "gpu/instance.h"
+
 namespace vkad {
 
 LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 
 class Window {
 public:
-   explicit Window(const char *title);
-
-   bool poll();
-
-   inline std::vector<const char *> vulkan_extensions() const {
+   static inline std::vector<const char *> vulkan_extensions() {
       return {"VK_KHR_surface", "VK_KHR_win32_surface"};
    }
 
-   VkSurfaceKHR create_surface(VkInstance instance);
+   explicit Window(const Instance &vk_instance_, const char *title);
+   ~Window();
+
+   bool poll();
 
    void set_capture_mouse(bool capture);
 
    void request_close();
+
+   inline VkSurfaceKHR surface() const {
+      return surface_;
+   }
 
    int width() const {
       return width_;
@@ -59,6 +64,7 @@ public:
    }
 
 private:
+   const Instance &vk_instance_;
    HWND window_;
    bool open_;
    bool closing_;
@@ -67,6 +73,7 @@ private:
    WORD window_y_;
    WORD width_;
    WORD height_;
+   VkSurfaceKHR surface_;
 
    int mouse_x_;
    int mouse_y_;

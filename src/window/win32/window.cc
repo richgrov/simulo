@@ -40,6 +40,18 @@ void register_raw_mouse_input(HWND window) {
    }
 }
 
+VkSurfaceKHR create_surface(HWND window, VkInstance instance) {
+   VkWin32SurfaceCreateInfoKHR surface_create = {
+       .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+       .hinstance = GetModuleHandle(nullptr),
+       .hwnd = window,
+   };
+
+   VkSurfaceKHR surface;
+   VKAD_VK(vkCreateWin32SurfaceKHR(instance, &surface_create, nullptr, &surface));
+   return surface;
+}
+
 } // namespace
 
 LRESULT CALLBACK vkad::window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param) {
@@ -110,10 +122,21 @@ LRESULT CALLBACK vkad::window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM
    return DefWindowProc(window, msg, w_param, l_param);
 }
 
-Window::Window(const char *title)
-    : open_(false), closing_(false), cursor_captured_(false), window_x_(0), window_y_(0), width_(0),
-      height_(0), mouse_x_(0), mouse_y_(0), delta_mouse_x_(0), delta_mouse_y_(0),
-      left_clicking_(false), pressed_keys_{0} {
+Window::Window(const Instance &vk_instance, const char *title)
+    : vk_instance_(vk_instance),
+      open_(false),
+      closing_(false),
+      cursor_captured_(false),
+      window_x_(0),
+      window_y_(0),
+      width_(0),
+      height_(0),
+      mouse_x_(0),
+      mouse_y_(0),
+      delta_mouse_x_(0),
+      delta_mouse_y_(0),
+      left_clicking_(false),
+      pressed_keys_{0} {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
    WNDCLASS clazz = {
@@ -141,6 +164,11 @@ Window::Window(const char *title)
    open_ = true;
 
    register_raw_mouse_input(window_);
+   surface_ = create_surface(window_, vk_instance.handle());
+}
+
+Window::~Window() {
+   vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
 }
 
 bool Window::poll() {
@@ -159,19 +187,6 @@ bool Window::poll() {
    }
 
    return open_;
-}
-
-VkSurfaceKHR Window::create_surface(VkInstance instance) {
-   VkWin32SurfaceCreateInfoKHR surface_create = {
-       .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-       .hinstance = GetModuleHandle(nullptr),
-       .hwnd = window_,
-   };
-
-   VkSurfaceKHR surface;
-   VKAD_VK(vkCreateWin32SurfaceKHR(instance, &surface_create, nullptr, &surface));
-
-   return surface;
 }
 
 void Window::set_capture_mouse(bool capture) {

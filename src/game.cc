@@ -20,14 +20,14 @@
 using namespace vkad;
 
 Game::Game(const char *title)
-    : window_(title),
-      vk_instance_(window_.vulkan_extensions()),
-      surface_(window_.create_surface(vk_instance_.handle())),
-      physical_device_(vk_instance_, surface_),
+    : vk_instance_(Window::vulkan_extensions()),
+      window_(vk_instance_, title),
+      physical_device_(vk_instance_, window_.surface()),
       device_(physical_device_),
       swapchain_(
           {physical_device_.graphics_queue(), physical_device_.present_queue()},
-          physical_device_.handle(), device_.handle(), surface_, window_.width(), window_.height()
+          physical_device_.handle(), device_.handle(), window_.surface(), window_.width(),
+          window_.height()
       ),
       render_pass_(VK_NULL_HANDLE),
       was_left_clicking_(false),
@@ -148,14 +148,12 @@ Game::~Game() {
    if (render_pass_ != VK_NULL_HANDLE) {
       vkDestroyRenderPass(device_.handle(), render_pass_, nullptr);
    }
-
-   vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
 }
 
-void Game::handle_resize(VkSurfaceKHR surface, uint32_t width, uint32_t height) {
+void Game::handle_resize(uint32_t width, uint32_t height) {
    swapchain_ = std::move(Swapchain(
        {physical_device_.graphics_queue(), physical_device_.present_queue()},
-       physical_device_.handle(), device_.handle(), surface_, width, height
+       physical_device_.handle(), device_.handle(), window_.surface(), width, height
    ));
 
    for (const VkFramebuffer framebuffer : framebuffers_) {
@@ -248,7 +246,7 @@ bool Game::begin_draw(const Pipeline &pipeline) {
    int height = window_.height();
    bool window_resized = last_width_ != width || last_height_ != height;
    if (window_resized) {
-      handle_resize(surface_, width, height);
+      handle_resize(width, height);
       return false;
    }
 
@@ -258,7 +256,7 @@ bool Game::begin_draw(const Pipeline &pipeline) {
    );
 
    if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR) {
-      handle_resize(surface_, width, height);
+      handle_resize(width, height);
       return false;
    }
 

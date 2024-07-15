@@ -190,11 +190,10 @@ public:
 
 private:
    void create_framebuffers();
-   void handle_resize(VkSurfaceKHR surface, uint32_t width, uint32_t height);
+   void handle_resize(uint32_t width, uint32_t height);
 
-   Window window_;
    Instance vk_instance_;
-   VkSurfaceKHR surface_;
+   Window window_;
    PhysicalDevice physical_device_;
    Device device_;
    Swapchain swapchain_;
