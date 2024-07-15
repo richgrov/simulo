@@ -21,6 +21,7 @@
 #include "math/angle.h"
 #include "math/mat4.h"
 #include "sound.h"
+#include "ui/font.h"
 #include "window/window.h" // IWYU pragma: export
 
 namespace vkad {
@@ -210,6 +211,7 @@ private:
    VkSemaphore sem_render_complete;
    VkFence draw_cycle_complete;
 
+   Font font_;
    FMOD_SYSTEM *sound_system_;
 
    Clock::time_point last_frame_time_;

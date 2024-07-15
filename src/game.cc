@@ -27,6 +27,7 @@ Game::Game(const char *title)
       device_(physical_device_),
       render_pass_(VK_NULL_HANDLE),
       was_left_clicking_(false),
+      font_("res/arial.ttf", physical_device_, device_.handle()),
       last_frame_time_(Clock::now()),
       delta_(0),
       last_width_(window_.width()),
