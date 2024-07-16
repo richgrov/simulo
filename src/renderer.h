@@ -20,15 +20,13 @@
 #include "gpu/swapchain.h"
 #include "math/angle.h"
 #include "math/mat4.h"
-#include "sound.h"
 #include "ui/font.h"
+#include "window/win32/window.h"
 #include "window/window.h" // IWYU pragma: export
 
 namespace vkad {
 
 class Renderer {
-   using Clock = std::chrono::high_resolution_clock;
-
 public:
    explicit Renderer(const char *title);
    ~Renderer();
@@ -105,8 +103,8 @@ public:
       );
    }
 
-   Sound create_sound(const char *path) {
-      return Sound(sound_system_, path);
+   Font create_font(const std::string &path) {
+      return Font(path, physical_device_, device_.handle());
    }
 
    inline VkSampler image_sampler() const {
@@ -125,55 +123,23 @@ public:
 
    void end_preframe();
 
-   bool poll();
-
-   inline int width() const {
-      return window_.width();
+   inline bool poll() {
+      last_width_ = window_.width();
+      last_height_ = window_.height();
+      return window_.poll();
    }
 
-   inline int height() const {
-      return window_.height();
+   inline Window &window() {
+      return window_;
    }
 
-   inline int mouse_x() const {
-      return window_.mouse_x();
-   }
-
-   inline int mouse_y() const {
-      return window_.mouse_y();
-   }
-
-   inline int delta_mouse_x() const {
-      return window_.delta_mouse_x();
-   }
-
-   inline int delta_mouse_y() const {
-      return window_.delta_mouse_y();
-   }
-
-   inline bool left_clicking() const {
-      return window_.left_clicking();
-   }
-
-   inline bool left_clicked_now() const {
-      return !was_left_clicking_ && left_clicking();
-   }
-
-   inline bool is_key_down(uint8_t key_code) const {
-      return window_.is_key_down(key_code);
-   }
-
-   inline float delta() const {
-      return delta_.count();
+   inline const Window &window() const {
+      return window_;
    }
 
    inline Mat4 perspective_matrix() const {
       float aspect = static_cast<float>(window_.width()) / static_cast<float>(window_.height());
       return Mat4::perspective(aspect, deg_to_rad(70), 0.01, 100);
-   }
-
-   inline Player &player() {
-      return player_;
    }
 
    bool begin_draw(const Pipeline &pipeline);
@@ -210,16 +176,8 @@ private:
    VkSemaphore sem_render_complete;
    VkFence draw_cycle_complete;
 
-   Font font_;
-   FMOD_SYSTEM *sound_system_;
-
-   Clock::time_point last_frame_time_;
-   std::chrono::duration<float> delta_;
-   bool was_left_clicking_;
    int last_width_;
    int last_height_;
-
-   Player player_;
 };
 
 }; // namespace vkad

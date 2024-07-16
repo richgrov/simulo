@@ -43,6 +43,8 @@ set(SOURCE_FILES
    "vendor/stb_truetype.h"
    "window/keys.h"
    "window/window.h"
+   "app.cc"
+   "app.h"
    "renderer.cc"
    "renderer.h"
    "sound.cc"

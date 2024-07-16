@@ -15,7 +15,6 @@
 #include "gpu/status.h"
 #include "gpu/swapchain.h"
 #include "util/memory.h"
-#include "window/win32/keys.h"
 
 using namespace vkad;
 
@@ -30,13 +29,8 @@ Renderer::Renderer(const char *title)
           window_.height()
       ),
       render_pass_(VK_NULL_HANDLE),
-      was_left_clicking_(false),
-      font_("res/arial.ttf", physical_device_, device_.handle()),
-      last_frame_time_(Clock::now()),
-      delta_(0),
       last_width_(window_.width()),
-      last_height_(window_.height()),
-      player_(*this) {
+      last_height_(window_.height()) {
 
    VkAttachmentDescription color_attachment = {
        .format = swapchain_.img_format(),
@@ -113,22 +107,10 @@ Renderer::Renderer(const char *title)
            VK_SUCCESS) {
       throw std::runtime_error("failed to create semaphore(s)");
    }
-
-   if (FMOD_System_Create(&sound_system_, FMOD_VERSION) != FMOD_OK) {
-      throw std::runtime_error("failed to create sound system");
-   }
-
-   if (FMOD_System_Init(sound_system_, 32, FMOD_INIT_NORMAL, nullptr) != FMOD_OK) {
-      throw std::runtime_error("failed to initialize sound system");
-   }
-
-   window_.set_capture_mouse(true);
 }
 
 Renderer::~Renderer() {
    device_.wait_idle();
-
-   FMOD_System_Release(sound_system_);
 
    vkDestroySemaphore(device_.handle(), sem_img_avail, nullptr);
    vkDestroySemaphore(device_.handle(), sem_render_complete, nullptr);
@@ -215,28 +197,6 @@ void Renderer::end_preframe() {
    };
    vkQueueSubmit(device_.graphics_queue(), 1, &submit_info, VK_NULL_HANDLE);
    vkQueueWaitIdle(device_.graphics_queue());
-}
-
-bool Renderer::poll() {
-   if (window_.is_key_down(VKAD_KEY_ESC)) {
-      window_.request_close();
-   }
-
-   Clock::time_point now = Clock::now();
-   delta_ = now - last_frame_time_;
-   last_frame_time_ = now;
-
-   was_left_clicking_ = window_.left_clicking();
-   last_width_ = window_.width();
-   last_height_ = window_.height();
-
-   if (FMOD_System_Update(sound_system_) != FMOD_OK) {
-      throw std::runtime_error("failed to poll fmod system");
-   }
-
-   player_.update(delta_.count());
-
-   return window_.poll();
 }
 
 bool Renderer::begin_draw(const Pipeline &pipeline) {

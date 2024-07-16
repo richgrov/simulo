@@ -6,11 +6,11 @@
 
 namespace vkad {
 
-class Renderer;
+class App;
 
 class Player {
 public:
-   explicit Player(Renderer &renderer);
+   explicit Player(App &app);
 
    inline Vec3 pos() const {
       return pos_;
@@ -31,7 +31,7 @@ public:
    void update(float delta);
 
 private:
-   Renderer &renderer_;
+   App &app_;
 
    Vec3 pos_;
    float yaw_;
