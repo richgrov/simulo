@@ -4,9 +4,14 @@
 #include <chrono>
 
 #include "entity/player.h"
+#include "gpu/instance.h"
+#include "gpu/pipeline.h"
+#include "math/angle.h"
+#include "math/mat4.h"
 #include "renderer.h"
 #include "sound.h"
 #include "ui/font.h"
+#include "window/window.h" // IWYU pragma: export
 
 namespace vkad {
 
@@ -20,36 +25,38 @@ public:
 
    bool poll();
 
+   void begin_draw(Pipeline &pipeline);
+
    inline Renderer &renderer() {
       return renderer_;
    }
 
    inline int width() const {
-      return renderer_.window().width();
+      return window_.width();
    }
 
    inline int height() const {
-      return renderer_.window().height();
+      return window_.height();
    }
 
    inline int mouse_x() const {
-      return renderer_.window().mouse_x();
+      return window_.mouse_x();
    }
 
    inline int mouse_y() const {
-      return renderer_.window().mouse_y();
+      return window_.mouse_y();
    }
 
    inline int delta_mouse_x() const {
-      return renderer_.window().delta_mouse_x();
+      return window_.delta_mouse_x();
    }
 
    inline int delta_mouse_y() const {
-      return renderer_.window().delta_mouse_y();
+      return window_.delta_mouse_y();
    }
 
    inline bool left_clicking() const {
-      return renderer_.window().left_clicking();
+      return window_.left_clicking();
    }
 
    inline bool left_clicked_now() const {
@@ -57,7 +64,7 @@ public:
    }
 
    inline bool is_key_down(uint8_t key_code) const {
-      return renderer_.window().is_key_down(key_code);
+      return window_.is_key_down(key_code);
    }
 
    inline float delta() const {
@@ -72,8 +79,18 @@ public:
       return Sound(sound_system_, path);
    }
 
+   inline Mat4 perspective_matrix() const {
+      float aspect = static_cast<float>(window_.width()) / static_cast<float>(window_.height());
+      return Mat4::perspective(aspect, deg_to_rad(70), 0.01, 100);
+   }
+
 private:
+   Instance vk_instance_;
+   Window window_;
    Renderer renderer_;
+
+   int last_width_;
+   int last_height_;
 
    Font font_;
    FMOD_SYSTEM *sound_system_;

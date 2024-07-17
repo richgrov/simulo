@@ -34,7 +34,7 @@ struct Uniform {
 };
 
 Uniform uniform(App &app) {
-   Mat4 mvp = app.renderer().perspective_matrix() * app.player().view_matrix();
+   Mat4 mvp = app.perspective_matrix() * app.player().view_matrix();
    return {mvp, Vec3(1.0, 1.0, 1.0)};
 }
 
@@ -98,11 +98,10 @@ int main(int argc, char **argv) {
          Uniform u = uniform(app);
          uniform_buffer.upload_memory(&u, sizeof(Uniform), 0);
 
-         if (app.renderer().begin_draw(pipeline)) {
-            app.renderer().set_uniform(pipeline, descriptor_set, 0 * uniform_buffer.element_size());
-            app.renderer().draw(mesh_buffer);
-            app.renderer().end_draw();
-         }
+         app.begin_draw(pipeline);
+         app.renderer().set_uniform(pipeline, descriptor_set, 0 * uniform_buffer.element_size());
+         app.renderer().draw(mesh_buffer);
+         app.renderer().end_draw();
 
          app.renderer().wait_idle();
       }

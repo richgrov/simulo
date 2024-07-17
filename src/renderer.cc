@@ -6,7 +6,6 @@
 #include <fmod.h>
 #include <vulkan/vulkan_core.h>
 
-#include "entity/player.h"
 #include "gpu/buffer.h"
 #include "gpu/instance.h"
 #include "gpu/physical_device.h"
@@ -18,19 +17,17 @@
 
 using namespace vkad;
 
-Renderer::Renderer(const char *title)
-    : vk_instance_(Window::vulkan_extensions()),
-      window_(vk_instance_, title),
-      physical_device_(vk_instance_, window_.surface()),
+Renderer::Renderer(
+    Instance &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
+)
+    : vk_instance_(vk_instance),
+      physical_device_(vk_instance_, surface),
       device_(physical_device_),
       swapchain_(
           {physical_device_.graphics_queue(), physical_device_.present_queue()},
-          physical_device_.handle(), device_.handle(), window_.surface(), window_.width(),
-          window_.height()
+          physical_device_.handle(), device_.handle(), surface, initial_width, initial_height
       ),
-      render_pass_(VK_NULL_HANDLE),
-      last_width_(window_.width()),
-      last_height_(window_.height()) {
+      render_pass_(VK_NULL_HANDLE) {
 
    VkAttachmentDescription color_attachment = {
        .format = swapchain_.img_format(),
@@ -132,10 +129,10 @@ Renderer::~Renderer() {
    }
 }
 
-void Renderer::handle_resize(uint32_t width, uint32_t height) {
+void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {
    swapchain_ = std::move(Swapchain(
        {physical_device_.graphics_queue(), physical_device_.present_queue()},
-       physical_device_.handle(), device_.handle(), window_.surface(), width, height
+       physical_device_.handle(), device_.handle(), surface, width, height
    ));
 
    for (const VkFramebuffer framebuffer : framebuffers_) {
@@ -202,21 +199,12 @@ void Renderer::end_preframe() {
 bool Renderer::begin_draw(const Pipeline &pipeline) {
    vkWaitForFences(device_.handle(), 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
 
-   int width = window_.width();
-   int height = window_.height();
-   bool window_resized = last_width_ != width || last_height_ != height;
-   if (window_resized) {
-      handle_resize(width, height);
-      return false;
-   }
-
    VkResult next_image_res = vkAcquireNextImageKHR(
        device_.handle(), swapchain_.handle(), UINT64_MAX, sem_img_avail, VK_NULL_HANDLE,
        &current_framebuffer_
    );
 
    if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR) {
-      handle_resize(width, height);
       return false;
    }
 

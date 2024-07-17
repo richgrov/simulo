@@ -16,17 +16,15 @@
 #include "gpu/pipeline.h"
 #include "gpu/shader.h"
 #include "gpu/swapchain.h"
-#include "math/angle.h"
-#include "math/mat4.h"
 #include "ui/font.h"
-#include "window/win32/window.h"
-#include "window/window.h" // IWYU pragma: export
 
 namespace vkad {
 
 class Renderer {
 public:
-   explicit Renderer(const char *title);
+   explicit Renderer(
+       Instance &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
+   );
    ~Renderer();
 
    template <class T> Pipeline create_pipeline(const DescriptorPool &descriptor_pool) {
@@ -109,6 +107,8 @@ public:
       return sampler_;
    }
 
+   void recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface);
+
    void begin_preframe();
 
    void buffer_copy(const StagingBuffer &src, Buffer &dst);
@@ -120,25 +120,6 @@ public:
    }
 
    void end_preframe();
-
-   inline bool poll() {
-      last_width_ = window_.width();
-      last_height_ = window_.height();
-      return window_.poll();
-   }
-
-   inline Window &window() {
-      return window_;
-   }
-
-   inline const Window &window() const {
-      return window_;
-   }
-
-   inline Mat4 perspective_matrix() const {
-      float aspect = static_cast<float>(window_.width()) / static_cast<float>(window_.height());
-      return Mat4::perspective(aspect, deg_to_rad(70), 0.01, 100);
-   }
 
    bool begin_draw(const Pipeline &pipeline);
 
@@ -154,10 +135,8 @@ public:
 
 private:
    void create_framebuffers();
-   void handle_resize(uint32_t width, uint32_t height);
 
-   Instance vk_instance_;
-   Window window_;
+   Instance &vk_instance_;
    PhysicalDevice physical_device_;
    Device device_;
    Swapchain swapchain_;
@@ -173,9 +152,6 @@ private:
    VkSemaphore sem_img_avail;
    VkSemaphore sem_render_complete;
    VkFence draw_cycle_complete;
-
-   int last_width_;
-   int last_height_;
 };
 
 }; // namespace vkad

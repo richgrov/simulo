@@ -1,11 +1,17 @@
 #include "app.h"
+#include "gpu/pipeline.h"
 #include "renderer.h"
+#include "util/assert.h"
 #include "window/keys.h" // IWYU pragma: export
 
 using namespace vkad;
 
 App::App()
-    : renderer_("vkad"),
+    : vk_instance_(Window::vulkan_extensions()),
+      window_(vk_instance_, "vkad"),
+      renderer_(vk_instance_, window_.surface(), window_.width(), window_.height()),
+      last_width_(window_.width()),
+      last_height_(window_.height()),
       was_left_clicking_(false),
       font_(renderer_.create_font("res/arial.ttf")),
       last_frame_time_(Clock::now()),
@@ -20,7 +26,7 @@ App::App()
       throw std::runtime_error("failed to initialize sound system");
    }
 
-   renderer_.window().set_capture_mouse(true);
+   window_.set_capture_mouse(true);
 }
 
 App::~App() {
@@ -28,8 +34,22 @@ App::~App() {
 }
 
 bool App::poll() {
-   if (renderer_.window().is_key_down(VKAD_KEY_ESC)) {
-      renderer_.window().request_close();
+   last_width_ = window_.width();
+   last_height_ = window_.height();
+
+   if (!window_.poll()) {
+      return false;
+   }
+
+   int width = window_.width();
+   int height = window_.height();
+   bool window_resized = last_width_ != width || last_height_ != height;
+   if (window_resized) {
+      renderer_.recreate_swapchain(width, height, window_.surface());
+   }
+
+   if (window_.is_key_down(VKAD_KEY_ESC)) {
+      window_.request_close();
    }
 
    Clock::time_point now = Clock::now();
@@ -44,5 +64,17 @@ bool App::poll() {
 
    player_.update(delta_.count());
 
-   return renderer_.poll();
+   return true;
+}
+
+void App::begin_draw(Pipeline &pipeline) {
+   bool did_begin = renderer_.begin_draw(pipeline);
+
+   if (!did_begin) {
+      renderer_.recreate_swapchain(window_.width(), window_.height(), window_.surface());
+
+      VKAD_ASSERT(
+          renderer_.begin_draw(pipeline), "failed to acquire next image after recreating swapchain"
+      );
+   }
 }
