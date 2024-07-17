@@ -1,13 +1,11 @@
 #ifndef VKAD_GPU_VK_GPU_H_
 #define VKAD_GPU_VK_GPU_H_
 
-#include <chrono>
 #include <vector>
 
 #include <fmod.h>
 #include <vulkan/vulkan_core.h>
 
-#include "entity/player.h"
 #include "gpu/buffer.h"
 #include "gpu/command_pool.h"
 #include "gpu/descriptor_pool.h"

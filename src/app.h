@@ -1,6 +1,9 @@
 #ifndef VKAD_APP_H_
 #define VKAD_APP_H_
 
+#include <chrono>
+
+#include "entity/player.h"
 #include "renderer.h"
 #include "sound.h"
 #include "ui/font.h"
