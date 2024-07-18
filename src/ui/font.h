@@ -14,6 +14,14 @@ class Font {
 public:
    Font(const std::string &path, const PhysicalDevice &physical_device, VkDevice device);
 
+   Image &image() {
+      return image_;
+   }
+
+   unsigned char *image_data() {
+      return bitmap_.data();
+   }
+
 private:
    static constexpr int BITMAP_WIDTH = 512;
    static constexpr int NUM_CHARS = 96;

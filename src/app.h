@@ -4,6 +4,8 @@
 #include <chrono>
 
 #include "entity/player.h"
+#include "gpu/buffer.h"
+#include "gpu/descriptor_pool.h"
 #include "gpu/instance.h"
 #include "gpu/pipeline.h"
 #include "math/angle.h"
@@ -25,7 +27,7 @@ public:
 
    bool poll();
 
-   void begin_draw(Pipeline &pipeline);
+   void draw();
 
    inline Renderer &renderer() {
       return renderer_;
@@ -84,15 +86,25 @@ public:
       return Mat4::perspective(aspect, deg_to_rad(70), 0.01, 100);
    }
 
+   inline Font &font() {
+      return font_;
+   }
+
 private:
    Instance vk_instance_;
    Window window_;
    Renderer renderer_;
 
+   Font font_;
+   UniformBuffer ui_uniforms_;
+   DescriptorPool ui_descriptor_pool_;
+   VkDescriptorSet ui_descriptor_set_;
+   VertexIndexBuffer ui_rect_;
+   Pipeline ui_pipeline_;
+
    int last_width_;
    int last_height_;
 
-   Font font_;
    FMOD_SYSTEM *sound_system_;
 
    Clock::time_point last_frame_time_;

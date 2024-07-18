@@ -61,10 +61,6 @@ public:
       );
    }
 
-   StagingBuffer create_staging_buffer(size_t capacity) {
-      return StagingBuffer(capacity, device_.handle(), physical_device_);
-   }
-
    template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
       return UniformBuffer(sizeof(T), num_elements, device_.handle(), physical_device_);
    }
@@ -100,7 +96,28 @@ public:
    }
 
    Font create_font(const std::string &path) {
-      return Font(path, physical_device_, device_.handle());
+      Font font(path, physical_device_, device_.handle());
+      Image &image = font.image();
+
+      staging_buffer_.upload_raw(font.image_data(), 512 * 512);
+      begin_preframe();
+      transfer_image_layout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      upload_texture(staging_buffer_, image);
+      transfer_image_layout(image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      end_preframe();
+
+      image.init_view();
+      return font;
+   }
+
+   void upload_mesh(
+       void *vertex_data, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
+       VertexIndexBuffer::IndexType num_indices, VertexIndexBuffer &buf
+   ) {
+      staging_buffer_.upload_mesh(vertex_data, vertices_size, indices, num_indices);
+      begin_preframe();
+      buffer_copy(staging_buffer_, buf);
+      end_preframe();
    }
 
    inline VkSampler image_sampler() const {
@@ -152,6 +169,8 @@ private:
    VkSemaphore sem_img_avail;
    VkSemaphore sem_render_complete;
    VkFence draw_cycle_complete;
+
+   StagingBuffer staging_buffer_;
 };
 
 }; // namespace vkad
