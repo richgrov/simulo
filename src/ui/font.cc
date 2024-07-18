@@ -17,7 +17,7 @@ using namespace vkad;
 Font::Font(const std::string &path, const PhysicalDevice &physical_device, VkDevice device)
     : image_(
           physical_device, device, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-          VK_FORMAT_R8G8B8A8_SRGB, BITMAP_WIDTH, BITMAP_WIDTH
+          VK_FORMAT_R8_UNORM, BITMAP_WIDTH, BITMAP_WIDTH
       ) {
 
    std::ifstream file(path, std::ios::ate | std::ios::binary);
