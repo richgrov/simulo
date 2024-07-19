@@ -4,8 +4,10 @@
 #include <array>
 #include <string>
 
+#include "gpu/buffer.h"
 #include "gpu/image.h"
 #include "gpu/physical_device.h"
+#include "ui/ui.h"
 #include "vendor/stb_truetype.h"
 
 namespace vkad {
@@ -13,6 +15,11 @@ namespace vkad {
 class Font {
 public:
    Font(const std::string &path, const PhysicalDevice &physical_device, VkDevice device);
+
+   void create_text(
+       const std::string &text, std::vector<UiVertex> &out_vertices,
+       std::vector<VertexIndexBuffer::IndexType> &out_indices
+   );
 
    Image &image() {
       return image_;

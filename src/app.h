@@ -99,8 +99,8 @@ private:
    UniformBuffer ui_uniforms_;
    DescriptorPool ui_descriptor_pool_;
    VkDescriptorSet ui_descriptor_set_;
-   VertexIndexBuffer ui_rect_;
    Pipeline ui_pipeline_;
+   std::vector<VertexIndexBuffer> text_meshes_;
 
    int last_width_;
    int last_height_;

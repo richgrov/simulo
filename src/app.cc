@@ -1,29 +1,15 @@
 #include "app.h"
-#include "gpu/pipeline.h"
+#include "gpu/buffer.h"
 #include "math/attributes.h"
 #include "math/mat4.h"
 #include "math/vec2.h"
 #include "renderer.h"
+#include "ui/ui.h"
 #include "util/assert.h"
 #include "util/memory.h"
 #include "window/keys.h" // IWYU pragma: export
 
 using namespace vkad;
-
-struct UiVertex {
-   Vec3 pos;
-   Vec2 tex_coord;
-
-   static constexpr std::array<VertexAttribute, 2> attributes{
-       VertexAttribute::vec3(),
-       VertexAttribute::vec2(),
-   };
-};
-
-struct UiUniform {
-   Mat4 mvp;
-   Vec3 color;
-};
 
 App::App()
     : vk_instance_(Window::vulkan_extensions()),
@@ -42,7 +28,6 @@ App::App()
       ui_descriptor_set_(
           ui_descriptor_pool_.allocate(ui_uniforms_, font_.image(), renderer_.image_sampler())
       ),
-      ui_rect_(renderer_.create_vertex_index_buffer<UiVertex>(4, 6)),
       ui_pipeline_(renderer_.create_pipeline<UiVertex>(ui_descriptor_pool_)) {
 
    if (FMOD_System_Create(&sound_system_, FMOD_VERSION) != FMOD_OK) {
@@ -55,23 +40,11 @@ App::App()
 
    window_.set_capture_mouse(true);
 
-   UiVertex vertices[] = {
-       {{0.0f, 0.0f, 0}, {0.0, 0.0}},
-       {{1.0f, 0.0f, 0}, {1.0, 0.0}},
-       {{1.0f, 1.0f, 0}, {1.0, 1.0}},
-       {{0.0f, 1.0f, 0}, {0.0, 1.0}},
-   };
-   VertexIndexBuffer::IndexType indices[] = {0, 2, 1, 0, 3, 2};
-
    Mat4 mvp = perspective_matrix() * player_.view_matrix();
    UiUniform u = {mvp, Vec3(1.0, 1.0, 1.0)};
    ui_uniforms_.upload_memory(&u, sizeof(UiUniform), 0);
 
-   auto mesh_buffer = renderer_.create_vertex_index_buffer<UiVertex>(
-       VKAD_ARRAY_LEN(vertices), VKAD_ARRAY_LEN(indices)
-   );
-
-   renderer_.upload_mesh(vertices, sizeof(vertices), indices, VKAD_ARRAY_LEN(indices), ui_rect_);
+   text_meshes_.emplace_back(std::move(renderer_.create_text(font_, "test")));
 }
 
 App::~App() {
@@ -129,6 +102,9 @@ void App::draw() {
    }
 
    renderer_.set_uniform(ui_pipeline_, ui_descriptor_set_, 0 * ui_uniforms_.element_size());
-   renderer_.draw(ui_rect_);
+
+   for (const VertexIndexBuffer &buf : text_meshes_) {
+      renderer_.draw(buf);
+   }
    renderer_.end_draw();
 }

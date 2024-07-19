@@ -13,6 +13,7 @@
 #include "gpu/shader.h"
 #include "gpu/status.h"
 #include "gpu/swapchain.h"
+#include "ui/ui.h"
 #include "util/memory.h"
 
 using namespace vkad;
@@ -128,6 +129,18 @@ Renderer::~Renderer() {
    if (render_pass_ != VK_NULL_HANDLE) {
       vkDestroyRenderPass(device_.handle(), render_pass_, nullptr);
    }
+}
+
+VertexIndexBuffer Renderer::create_text(Font &font, const std::string &text) {
+   std::vector<UiVertex> vertices;
+   std::vector<VertexIndexBuffer::IndexType> indices;
+   font.create_text(text, vertices, indices);
+
+   VertexIndexBuffer mesh = create_vertex_index_buffer<UiVertex>(vertices.size(), indices.size());
+   upload_mesh(
+       vertices.data(), sizeof(UiVertex) * vertices.size(), indices.data(), indices.size(), mesh
+   );
+   return mesh;
 }
 
 void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {

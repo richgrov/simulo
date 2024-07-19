@@ -17,6 +17,7 @@
 #include "gpu/shader.h"
 #include "gpu/swapchain.h"
 #include "ui/font.h"
+#include "ui/ui.h"
 
 namespace vkad {
 
@@ -109,6 +110,8 @@ public:
       image.init_view();
       return font;
    }
+
+   VertexIndexBuffer create_text(Font &font, const std::string &text);
 
    void upload_mesh(
        void *vertex_data, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
