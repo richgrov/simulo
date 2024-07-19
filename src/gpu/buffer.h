@@ -14,6 +14,13 @@ public:
        VkDevice device, const PhysicalDevice &physical_device
    );
 
+   explicit Buffer(Buffer &&other)
+       : allocation_(other.allocation_), device_(other.device_), buffer_(other.buffer_) {
+
+      other.allocation_ = VK_NULL_HANDLE;
+      other.buffer_ = VK_NULL_HANDLE;
+   }
+
    inline ~Buffer() {
       if (buffer_ != VK_NULL_HANDLE) {
          vkDestroyBuffer(device_, buffer_, nullptr);
