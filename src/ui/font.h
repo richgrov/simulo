@@ -30,7 +30,7 @@ public:
    }
 
 private:
-   static constexpr int BITMAP_WIDTH = 512;
+   static constexpr int BITMAP_WIDTH = 1024;
    static constexpr int NUM_CHARS = 96;
 
    std::array<unsigned char, BITMAP_WIDTH * BITMAP_WIDTH> bitmap_;

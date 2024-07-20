@@ -36,7 +36,7 @@ Font::Font(const std::string &path, const PhysicalDevice &physical_device, VkDev
    }
 
    stbtt_BakeFontBitmap(
-       reinterpret_cast<unsigned char *>(data.data()), 0, 32, bitmap_.data(), BITMAP_WIDTH,
+       reinterpret_cast<unsigned char *>(data.data()), 0, 64, bitmap_.data(), BITMAP_WIDTH,
        BITMAP_WIDTH, 32, NUM_CHARS, chars_.data()
    );
 }
@@ -51,7 +51,7 @@ void Font::create_text(
       float x = 0;
       float y = 0;
       stbtt_aligned_quad q;
-      stbtt_GetBakedQuad(chars_.data(), 512, 512, index, &x, &y, &q, 1);
+      stbtt_GetBakedQuad(chars_.data(), BITMAP_WIDTH, BITMAP_WIDTH, index, &x, &y, &q, 1);
 
       int ind = out_vertices.size();
       out_vertices.push_back({{(q.x0 + x_off) / 32, -q.y0 / 32, 0}, {q.s0, q.t0}});
