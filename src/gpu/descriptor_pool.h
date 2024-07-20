@@ -25,6 +25,24 @@ public:
       return descriptor_layout_;
    }
 
+   inline static VkDescriptorSetLayoutBinding uniform_buffer_dynamic(uint32_t binding) {
+      return VkDescriptorSetLayoutBinding{
+          .binding = binding,
+          .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+          .descriptorCount = 1,
+          .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+      };
+   }
+
+   inline static VkDescriptorSetLayoutBinding combined_image_sampler(uint32_t binding) {
+      return VkDescriptorSetLayoutBinding{
+          .binding = binding,
+          .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          .descriptorCount = 1,
+          .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+      };
+   }
+
 private:
    VkDevice device_;
    VkDescriptorSetLayout descriptor_layout_;

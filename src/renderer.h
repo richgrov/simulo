@@ -76,26 +76,9 @@ public:
       return UniformBuffer(sizeof(T), num_elements, device_.handle(), physical_device_);
    }
 
-   DescriptorPool create_descriptor_pool() {
-      return DescriptorPool(
-          device_.handle(),
-          {
-              {
-                  .binding = 0,
-                  .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                  .descriptorCount = 1,
-                  .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-              },
-
-              {
-                  .binding = 1,
-                  .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                  .descriptorCount = 1,
-                  .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-              },
-          },
-          1
-      );
+   DescriptorPool create_descriptor_pool(const std::vector<VkDescriptorSetLayoutBinding> &bindings
+   ) {
+      return DescriptorPool(device_.handle(), bindings, 1);
    }
 
    Image create_image(uint32_t width, uint32_t height) const {

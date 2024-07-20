@@ -1,5 +1,6 @@
 #include "app.h"
 #include "gpu/buffer.h"
+#include "gpu/descriptor_pool.h"
 #include "math/attributes.h"
 #include "math/mat4.h"
 #include "math/vec2.h"
@@ -24,7 +25,10 @@ App::App()
 
       font_(renderer_.create_font("res/arial.ttf")),
       ui_uniforms_(renderer_.create_uniform_buffer<UiVertex>(3)),
-      ui_descriptor_pool_(renderer_.create_descriptor_pool()),
+      ui_descriptor_pool_(renderer_.create_descriptor_pool({
+          DescriptorPool::uniform_buffer_dynamic(0),
+          DescriptorPool::combined_image_sampler(1),
+      })),
       ui_descriptor_set_(
           ui_descriptor_pool_.allocate(ui_uniforms_, font_.image(), renderer_.image_sampler())
       ),
