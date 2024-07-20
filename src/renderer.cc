@@ -1,5 +1,6 @@
 #include "renderer.h"
 
+#include <fstream>
 #include <stdexcept>
 #include <vector>
 
@@ -10,7 +11,6 @@
 #include "gpu/instance.h"
 #include "gpu/physical_device.h"
 #include "gpu/pipeline.h"
-#include "gpu/shader.h"
 #include "gpu/status.h"
 #include "gpu/swapchain.h"
 #include "ui/ui.h"
@@ -74,9 +74,6 @@ Renderer::Renderer(
 
    VKAD_VK(vkCreateRenderPass(device_.handle(), &render_create, nullptr, &render_pass_));
 
-   vertex_shader_.init(device_.handle(), "shader-vert.spv", ShaderType::kVertex);
-   fragment_shader_.init(device_.handle(), "shader-frag.spv", ShaderType::kFragment);
-
    create_framebuffers();
 
    VkSamplerCreateInfo sampler_create = {
@@ -111,6 +108,10 @@ Renderer::Renderer(
 Renderer::~Renderer() {
    device_.wait_idle();
 
+   for (const auto &kv : shaders_) {
+      vkDestroyShaderModule(device_.handle(), kv.second.module, nullptr);
+   }
+
    vkDestroySemaphore(device_.handle(), sem_img_avail, nullptr);
    vkDestroySemaphore(device_.handle(), sem_render_complete, nullptr);
    vkDestroyFence(device_.handle(), draw_cycle_complete, nullptr);
@@ -123,12 +124,45 @@ Renderer::~Renderer() {
 
    command_pool_.deinit();
 
-   vertex_shader_.deinit();
-   fragment_shader_.deinit();
-
    if (render_pass_ != VK_NULL_HANDLE) {
       vkDestroyRenderPass(device_.handle(), render_pass_, nullptr);
    }
+}
+
+void Renderer::ensure_shader_loaded(const std::string &path) {
+   if (shaders_.contains(path)) {
+      return;
+   }
+
+   Shader shader;
+   if (path.find("vert") != std::string::npos) {
+      shader.type = VK_SHADER_STAGE_VERTEX_BIT;
+   } else if (path.find("frag") != std::string::npos) {
+      shader.type = VK_SHADER_STAGE_FRAGMENT_BIT;
+   } else {
+      VKAD_PANIC("couldn't determine shader type of {}", path);
+   }
+
+   std::ifstream file(path, std::ios::ate | std::ios::binary);
+   file.unsetf(std::ios::skipws);
+
+   if (!file.is_open()) {
+      throw std::runtime_error(std::format("couldn't open {}", path));
+   }
+
+   std::vector<char> data(file.tellg());
+
+   file.seekg(0, std::ios::beg);
+   file.read(data.data(), data.size());
+
+   VkShaderModuleCreateInfo create_info = {
+       .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+       .codeSize = data.size(),
+       .pCode = reinterpret_cast<uint32_t *>(data.data()),
+   };
+   VKAD_VK(vkCreateShaderModule(device_.handle(), &create_info, nullptr, &shader.module));
+
+   shaders_.insert({path, shader});
 }
 
 VertexIndexBuffer Renderer::create_text(Font &font, const std::string &text) {

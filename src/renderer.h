@@ -1,6 +1,7 @@
 #ifndef VKAD_GPU_VK_GPU_H_
 #define VKAD_GPU_VK_GPU_H_
 
+#include <unordered_map>
 #include <vector>
 
 #include <fmod.h>
@@ -14,7 +15,6 @@
 #include "gpu/instance.h"
 #include "gpu/physical_device.h"
 #include "gpu/pipeline.h"
-#include "gpu/shader.h"
 #include "gpu/swapchain.h"
 #include "ui/font.h"
 #include "ui/ui.h"
@@ -28,7 +28,10 @@ public:
    );
    ~Renderer();
 
-   template <class T> Pipeline create_pipeline(const DescriptorPool &descriptor_pool) {
+   template <class T>
+   Pipeline create_pipeline(
+       const std::vector<std::string> &shader_paths, const DescriptorPool &descriptor_pool
+   ) {
       VkVertexInputBindingDescription binding = {
           .binding = 0,
           .stride = sizeof(T),
@@ -48,11 +51,18 @@ public:
          offset += attr.size;
       }
 
+      std::vector<Shader> shaders;
+      for (const std::string &path : shader_paths) {
+         ensure_shader_loaded(path);
+         shaders.push_back(shaders_[path]);
+      }
+
       return Pipeline(
-          device_.handle(), binding, attrs, {vertex_shader_, fragment_shader_},
-          descriptor_pool.layout(), render_pass_
+          device_.handle(), binding, attrs, shaders, descriptor_pool.layout(), render_pass_
       );
    }
+
+   void ensure_shader_loaded(const std::string &path);
 
    template <class T>
    inline VertexIndexBuffer
@@ -161,8 +171,7 @@ private:
    Device device_;
    Swapchain swapchain_;
    VkRenderPass render_pass_;
-   Shader vertex_shader_;
-   Shader fragment_shader_;
+   std::unordered_map<std::string, Shader> shaders_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;
    VkSampler sampler_;

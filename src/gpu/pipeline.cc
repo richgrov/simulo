@@ -1,7 +1,5 @@
 #include "pipeline.h"
 
-#include <functional>
-
 #include <vulkan/vulkan_core.h>
 
 #include "status.h"
@@ -12,8 +10,8 @@ using namespace vkad;
 Pipeline::Pipeline(
     VkDevice device, VkVertexInputBindingDescription vertex_binding,
     const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
-    const std::vector<std::reference_wrapper<Shader>> &shaders,
-    VkDescriptorSetLayout descriptor_layout, VkRenderPass render_pass
+    const std::vector<Shader> &shaders, VkDescriptorSetLayout descriptor_layout,
+    VkRenderPass render_pass
 )
     : layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE) {
 
@@ -21,7 +19,12 @@ Pipeline::Pipeline(
 
    std::vector<VkPipelineShaderStageCreateInfo> shader_stages(shaders.size());
    for (int i = 0; i < shader_stages.size(); ++i) {
-      shader_stages[i] = shaders[i].get().pipeline_stage();
+      shader_stages[i] = {
+          .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+          .stage = shaders[i].type,
+          .module = shaders[i].module,
+          .pName = "main",
+      };
    }
 
    VkPipelineVertexInputStateCreateInfo vertex_input_create = {
@@ -104,8 +107,7 @@ Pipeline::Pipeline(
        .renderPass = render_pass,
        .subpass = 0,
    };
-   VKAD_VK(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline_)
-   );
+   VKAD_VK(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline_));
 }
 
 Pipeline::~Pipeline() {

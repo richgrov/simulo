@@ -23,8 +23,6 @@ set(SOURCE_FILES
    "gpu/pipeline.h"
    "gpu/physical_device.cc"
    "gpu/physical_device.h"
-   "gpu/shader.cc"
-   "gpu/shader.h"
    "gpu/status.h"
    "gpu/swapchain.cc"
    "gpu/swapchain.h"

@@ -28,7 +28,9 @@ App::App()
       ui_descriptor_set_(
           ui_descriptor_pool_.allocate(ui_uniforms_, font_.image(), renderer_.image_sampler())
       ),
-      ui_pipeline_(renderer_.create_pipeline<UiVertex>(ui_descriptor_pool_)) {
+      ui_pipeline_(renderer_.create_pipeline<UiVertex>(
+          {"shader-vert.spv", "shader-frag.spv"}, ui_descriptor_pool_
+      )) {
 
    if (FMOD_System_Create(&sound_system_, FMOD_VERSION) != FMOD_OK) {
       throw std::runtime_error("failed to create sound system");
