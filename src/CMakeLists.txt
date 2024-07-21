@@ -9,6 +9,7 @@ endif()
 set(SOURCE_FILES
    "entity/player.cc"
    "entity/player.h"
+   "geometry/geometry.h"
    "gpu/command_pool.cc"
    "gpu/command_pool.h"
    "gpu/descriptor_pool.cc"

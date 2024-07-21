@@ -1,4 +1,5 @@
 #include "app.h"
+#include "geometry/geometry.h"
 #include "gpu/buffer.h"
 #include "gpu/descriptor_pool.h"
 #include "math/attributes.h"
@@ -32,6 +33,15 @@ App::App()
       ui_descriptor_set_(ui_descriptor_pool_.allocate()),
       ui_pipeline_(renderer_.create_pipeline<UiVertex>(
           {"shader-vert.spv", "shader-frag.spv"}, ui_descriptor_pool_
+      )),
+
+      model_uniforms_(renderer_.create_uniform_buffer<ModelVertex>(1)),
+      model_descriptor_pool_(
+          renderer_.create_descriptor_pool({DescriptorPool::uniform_buffer_dynamic(0)})
+      ),
+      model_descriptor_set_(model_descriptor_pool_.allocate()),
+      model_pipeline_(renderer_.create_pipeline<ModelVertex>(
+          {"model-vert.spv", "model-frag.spv"}, model_descriptor_pool_
       )) {
 
    ui_descriptor_pool_.write(
@@ -40,6 +50,10 @@ App::App()
            DescriptorPool::write_uniform_buffer_dynamic(ui_uniforms_),
            DescriptorPool::write_combined_image_sampler(renderer_.image_sampler(), font_.image()),
        }
+   );
+
+   model_descriptor_pool_.write(
+       model_descriptor_set_, {DescriptorPool::write_uniform_buffer_dynamic(model_uniforms_)}
    );
 
    if (FMOD_System_Create(&sound_system_, FMOD_VERSION) != FMOD_OK) {
