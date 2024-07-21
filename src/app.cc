@@ -1,4 +1,5 @@
 #include "app.h"
+#include "geometry/circle.h"
 #include "geometry/geometry.h"
 #include "gpu/buffer.h"
 #include "gpu/descriptor_pool.h"
@@ -71,6 +72,17 @@ App::App()
    ui_uniforms_.upload_memory(&u, sizeof(UiUniform), 0);
 
    text_meshes_.emplace_back(std::move(renderer_.create_text(font_, "test")));
+
+   Circle circle(2.0, 20);
+   std::vector<ModelVertex> vertices;
+   std::vector<VertexIndexBuffer::IndexType> indices;
+   circle.to_mesh(vertices, indices);
+   VertexIndexBuffer buf =
+       renderer_.create_vertex_index_buffer<ModelVertex>(vertices.size(), indices.size());
+   renderer_.upload_mesh(
+       vertices.data(), sizeof(ModelVertex) * vertices.size(), indices.data(), indices.size(), buf
+   );
+   models_.push_back(std::move(buf));
 }
 
 App::~App() {
@@ -109,6 +121,9 @@ bool App::poll() {
    Mat4 mvp = perspective_matrix() * player_.view_matrix();
    UiUniform u = {mvp, Vec3(1.0, 1.0, 1.0)};
    ui_uniforms_.upload_memory(&u, sizeof(UiUniform), 0);
+
+   ModelUniform u2 = {mvp, Vec3(1.0, 1.0, 1.0)};
+   model_uniforms_.upload_memory(&u2, sizeof(u2), 0);
 
    player_.update(delta_.count());
 
