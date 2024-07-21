@@ -102,6 +102,12 @@ private:
    Pipeline ui_pipeline_;
    std::vector<VertexIndexBuffer> text_meshes_;
 
+   UniformBuffer model_uniforms_;
+   DescriptorPool model_descriptor_pool_;
+   VkDescriptorSet model_descriptor_set_;
+   Pipeline model_pipeline_;
+   std::vector<VertexIndexBuffer> models_;
+
    int last_width_;
    int last_height_;
 
