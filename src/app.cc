@@ -116,17 +116,17 @@ bool App::poll() {
 }
 
 void App::draw() {
-   bool did_begin = renderer_.begin_draw(ui_pipeline_);
+   bool did_begin = renderer_.begin_draw();
 
    if (!did_begin) {
       renderer_.recreate_swapchain(window_.width(), window_.height(), window_.surface());
 
       VKAD_ASSERT(
-          renderer_.begin_draw(ui_pipeline_),
-          "failed to acquire next image after recreating swapchain"
+          renderer_.begin_draw(), "failed to acquire next image after recreating swapchain"
       );
    }
 
+   renderer_.set_pipeline(ui_pipeline_);
    renderer_.set_uniform(ui_pipeline_, ui_descriptor_set_, 0 * ui_uniforms_.element_size());
 
    for (const VertexIndexBuffer &buf : text_meshes_) {

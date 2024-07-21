@@ -244,7 +244,7 @@ void Renderer::end_preframe() {
    vkQueueWaitIdle(device_.graphics_queue());
 }
 
-bool Renderer::begin_draw(const Pipeline &pipeline) {
+bool Renderer::begin_draw() {
    vkWaitForFences(device_.handle(), 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
 
    VkResult next_image_res = vkAcquireNextImageKHR(
@@ -280,6 +280,10 @@ bool Renderer::begin_draw(const Pipeline &pipeline) {
    };
 
    vkCmdBeginRenderPass(command_buffer_, &render_begin, VK_SUBPASS_CONTENTS_INLINE);
+   return true;
+}
+
+void Renderer::set_pipeline(const Pipeline &pipeline) {
    vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle());
 
    VkViewport viewport = {
@@ -293,7 +297,6 @@ bool Renderer::begin_draw(const Pipeline &pipeline) {
        .extent = swapchain_.extent(),
    };
    vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
-   return true;
 }
 
 void Renderer::set_uniform(

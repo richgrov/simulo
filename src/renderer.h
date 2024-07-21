@@ -134,7 +134,9 @@ public:
 
    void end_preframe();
 
-   bool begin_draw(const Pipeline &pipeline);
+   bool begin_draw();
+
+   void set_pipeline(const Pipeline &pipeline);
 
    void set_uniform(const Pipeline &pipeline, VkDescriptorSet descriptor_set, uint32_t offset);
 
