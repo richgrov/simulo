@@ -118,6 +118,13 @@ bool App::poll() {
 void App::draw() {
    bool did_begin = renderer_.begin_draw();
 
+   renderer_.set_pipeline(model_pipeline_);
+   renderer_.set_uniform(model_pipeline_, model_descriptor_set_, 0);
+
+   for (const VertexIndexBuffer &buf : models_) {
+      renderer_.draw(buf);
+   }
+
    if (!did_begin) {
       renderer_.recreate_swapchain(window_.width(), window_.height(), window_.surface());
 
@@ -132,5 +139,6 @@ void App::draw() {
    for (const VertexIndexBuffer &buf : text_meshes_) {
       renderer_.draw(buf);
    }
+
    renderer_.end_draw();
 }
