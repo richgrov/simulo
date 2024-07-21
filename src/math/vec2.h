@@ -1,6 +1,8 @@
 #ifndef VKAD_MATH_VEC2_H_
 #define VKAD_MATH_VEC2_H_
 
+#include <cmath>
+
 namespace vkad {
 
 struct Vec2 {
