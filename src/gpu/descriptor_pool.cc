@@ -39,8 +39,7 @@ DescriptorPool::DescriptorPool(
    VKAD_VK(vkCreateDescriptorPool(device, &create_info, nullptr, &descriptor_pool_));
 }
 
-VkDescriptorSet
-DescriptorPool::allocate(const UniformBuffer &buffer, const Image &image, VkSampler sampler) {
+VkDescriptorSet DescriptorPool::allocate() {
    VkDescriptorSetAllocateInfo alloc_info = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
        .descriptorPool = descriptor_pool_,
@@ -50,37 +49,17 @@ DescriptorPool::allocate(const UniformBuffer &buffer, const Image &image, VkSamp
 
    VkDescriptorSet descriptor_set;
    VKAD_VK(vkAllocateDescriptorSets(device_, &alloc_info, &descriptor_set));
-
-   VkDescriptorBufferInfo buf_info = {
-       .buffer = buffer.buffer(),
-       .offset = 0,
-       .range = buffer.element_size(),
-   };
-
-   VkDescriptorImageInfo img_info = {
-       .sampler = sampler,
-       .imageView = image.view(),
-       .imageLayout = image.layout(),
-   };
-
-   std::vector<VkWriteDescriptorSet> writes;
-   writes.push_back({
-       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-       .dstSet = descriptor_set,
-       .dstBinding = 0,
-       .descriptorCount = 1,
-       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-       .pBufferInfo = &buf_info,
-   });
-   writes.push_back({
-       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-       .dstSet = descriptor_set,
-       .dstBinding = 1,
-       .descriptorCount = 1,
-       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-       .pImageInfo = &img_info,
-   });
-
-   vkUpdateDescriptorSets(device_, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
    return descriptor_set;
+}
+
+void DescriptorPool::write(VkDescriptorSet set, const std::vector<DescriptorWrite> &writes) {
+   std::vector<VkWriteDescriptorSet> write_commands(writes.size());
+   for (int i = 0; i < writes.size(); ++i) {
+      write_commands[i] = writes[i].write;
+      write_commands[i].dstSet = set;
+   }
+
+   vkUpdateDescriptorSets(
+       device_, static_cast<uint32_t>(write_commands.size()), write_commands.data(), 0, nullptr
+   );
 }

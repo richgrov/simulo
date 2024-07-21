@@ -29,12 +29,18 @@ App::App()
           DescriptorPool::uniform_buffer_dynamic(0),
           DescriptorPool::combined_image_sampler(1),
       })),
-      ui_descriptor_set_(
-          ui_descriptor_pool_.allocate(ui_uniforms_, font_.image(), renderer_.image_sampler())
-      ),
+      ui_descriptor_set_(ui_descriptor_pool_.allocate()),
       ui_pipeline_(renderer_.create_pipeline<UiVertex>(
           {"shader-vert.spv", "shader-frag.spv"}, ui_descriptor_pool_
       )) {
+
+   ui_descriptor_pool_.write(
+       ui_descriptor_set_,
+       {
+           DescriptorPool::write_uniform_buffer_dynamic(ui_uniforms_),
+           DescriptorPool::write_combined_image_sampler(renderer_.image_sampler(), font_.image()),
+       }
+   );
 
    if (FMOD_System_Create(&sound_system_, FMOD_VERSION) != FMOD_OK) {
       throw std::runtime_error("failed to create sound system");

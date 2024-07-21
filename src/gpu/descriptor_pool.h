@@ -8,6 +8,14 @@
 
 namespace vkad {
 
+struct DescriptorWrite {
+   union {
+      VkDescriptorImageInfo image_info;
+      VkDescriptorBufferInfo buffer_info;
+   };
+   VkWriteDescriptorSet write;
+};
+
 class DescriptorPool {
 public:
    DescriptorPool(
@@ -19,7 +27,9 @@ public:
       vkDestroyDescriptorPool(device_, descriptor_pool_, nullptr);
    }
 
-   VkDescriptorSet allocate(const UniformBuffer &buffer, const Image &image, VkSampler sampler);
+   VkDescriptorSet allocate();
+
+   void write(VkDescriptorSet set, const std::vector<DescriptorWrite> &writes);
 
    inline VkDescriptorSetLayout layout() const {
       return descriptor_layout_;
@@ -41,6 +51,47 @@ public:
           .descriptorCount = 1,
           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
       };
+   }
+
+   inline static DescriptorWrite write_uniform_buffer_dynamic(UniformBuffer &buf) {
+      DescriptorWrite write = {
+          .buffer_info =
+              {
+                  .buffer = buf.buffer(),
+                  .offset = 0,
+                  .range = buf.element_size(),
+              },
+          .write =
+              {
+                  .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                  .dstBinding = 0,
+                  .descriptorCount = 1,
+                  .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                  .pBufferInfo = &write.buffer_info,
+              },
+      };
+      return write;
+   }
+
+   inline static DescriptorWrite
+   write_combined_image_sampler(VkSampler sampler, const Image &image) {
+      DescriptorWrite write = {
+          .image_info =
+              {
+                  .sampler = sampler,
+                  .imageView = image.view(),
+                  .imageLayout = image.layout(),
+              },
+          .write =
+              {
+                  .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                  .dstBinding = 1,
+                  .descriptorCount = 1,
+                  .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                  .pImageInfo = &write.image_info,
+              },
+      };
+      return write;
    }
 
 private:
