@@ -32,6 +32,7 @@ private:
    bool find_queue_families(VkPhysicalDevice candidate_device, VkSurfaceKHR surface);
 
    VkPhysicalDevice physical_device_;
+   VkPhysicalDeviceMemoryProperties mem_properties_;
    VkDeviceSize min_uniform_alignment_;
    uint32_t graphics_queue_;
    uint32_t present_queue_;

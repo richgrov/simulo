@@ -34,6 +34,8 @@ PhysicalDevice::PhysicalDevice(const Instance &instance, VkSurfaceKHR surface) {
       VkPhysicalDeviceProperties properties;
       vkGetPhysicalDeviceProperties(physical_device_, &properties);
       min_uniform_alignment_ = properties.limits.minUniformBufferOffsetAlignment;
+
+      vkGetPhysicalDeviceMemoryProperties(device, &mem_properties_);
       return;
    }
 
@@ -73,13 +75,10 @@ bool PhysicalDevice::find_queue_families(VkPhysicalDevice candidate_device, VkSu
 uint32_t PhysicalDevice::find_memory_type_index(
     uint32_t supported_bits, VkMemoryPropertyFlagBits extra
 ) const {
-   VkPhysicalDeviceMemoryProperties properties;
-   vkGetPhysicalDeviceMemoryProperties(physical_device_, &properties);
-
    VkMemoryType mem_type;
-   for (int i = 0; i < properties.memoryTypeCount; ++i) {
+   for (int i = 0; i < mem_properties_.memoryTypeCount; ++i) {
       bool supports_mem_type = (supported_bits & (1 << i)) != 0;
-      bool supports_extra = (properties.memoryTypes[i].propertyFlags & extra) == extra;
+      bool supports_extra = (mem_properties_.memoryTypes[i].propertyFlags & extra) == extra;
       if (supports_mem_type && supports_extra) {
          return i;
       }
