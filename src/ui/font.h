@@ -29,8 +29,9 @@ public:
       return bitmap_.data();
    }
 
-private:
    static constexpr int BITMAP_WIDTH = 1024;
+   
+private:
    static constexpr int NUM_CHARS = 96;
 
    std::array<unsigned char, BITMAP_WIDTH * BITMAP_WIDTH> bitmap_;

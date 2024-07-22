@@ -74,19 +74,14 @@ public:
       );
    }
 
-   Font create_font(const std::string &path) {
-      Font font(path, physical_device_, device_.handle());
-      Image &image = font.image();
-
-      staging_buffer_.upload_raw(font.image_data(), 512 * 512);
+   void init_image(Image &image, unsigned char *img_data, size_t size) {
+      staging_buffer_.upload_raw(img_data, size);
       begin_preframe();
       transfer_image_layout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
       upload_texture(staging_buffer_, image);
       transfer_image_layout(image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
       end_preframe();
-
       image.init_view();
-      return font;
    }
 
    VertexIndexBuffer create_text(Font &font, const std::string &text);
@@ -99,6 +94,14 @@ public:
       begin_preframe();
       buffer_copy(staging_buffer_, buf);
       end_preframe();
+   }
+
+   inline Device &device() {
+      return device_;
+   }
+
+   inline PhysicalDevice &physical_device() {
+      return physical_device_;
    }
 
    inline VkSampler image_sampler() const {
