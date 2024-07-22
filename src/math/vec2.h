@@ -1,7 +1,7 @@
 #ifndef VKAD_MATH_VEC2_H_
 #define VKAD_MATH_VEC2_H_
 
-#include <cmath>
+#include <vulkan/vulkan_core.h>
 
 namespace vkad {
 
@@ -24,6 +24,8 @@ struct Vec2 {
 
    float x;
    float y;
+
+   static constexpr VkFormat kFormat = VK_FORMAT_R32G32_SFLOAT;
 };
 
 } // namespace vkad

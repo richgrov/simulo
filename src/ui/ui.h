@@ -3,6 +3,8 @@
 
 #include <array>
 
+#include <vulkan/vulkan_core.h>
+
 #include "math/attributes.h"
 #include "math/mat4.h"
 #include "math/vec2.h"
@@ -14,10 +16,12 @@ struct UiVertex {
    Vec3 pos;
    Vec2 tex_coord;
 
-   static constexpr std::array<VertexAttribute, 2> attributes{
-       VertexAttribute::vec3(),
-       VertexAttribute::vec2(),
-   };
+   static const std::array<VkVertexInputAttributeDescription, 2> attributes;
+};
+
+inline constexpr decltype(UiVertex::attributes) UiVertex::attributes = {
+    VKAD_ATTRIBUTE(0, UiVertex, pos),
+    VKAD_ATTRIBUTE(1, UiVertex, tex_coord),
 };
 
 struct UiUniform {

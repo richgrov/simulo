@@ -1,6 +1,8 @@
 #ifndef VKAD_MATH_VEC3_H_
 #define VKAD_MATH_VEC3_H_
 
+#include <vulkan/vulkan_core.h>
+
 namespace vkad {
 
 struct alignas(16) Vec3 {
@@ -14,6 +16,8 @@ struct alignas(16) Vec3 {
    float x;
    float y;
    float z;
+
+   static constexpr VkFormat kFormat = VK_FORMAT_R32G32B32_SFLOAT;
 };
 
 } // namespace vkad

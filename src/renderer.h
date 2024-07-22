@@ -38,18 +38,9 @@ public:
           .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
       };
 
-      std::vector<VkVertexInputAttributeDescription> attrs(T::attributes.size());
-      uint32_t offset = 0;
-      for (uint32_t i = 0; i < T::attributes.size(); ++i) {
-         const auto &attr = T::attributes[i];
-         attrs[i] = {
-             .location = i,
-             .binding = 0,
-             .format = attr.format,
-             .offset = offset,
-         };
-         offset += attr.size;
-      }
+      std::vector<VkVertexInputAttributeDescription> attrs(
+          T::attributes.begin(), T::attributes.end()
+      );
 
       std::vector<Shader> shaders;
       for (const std::string &path : shader_paths) {

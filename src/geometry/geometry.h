@@ -3,6 +3,8 @@
 
 #include <array>
 
+#include <vulkan/vulkan_core.h>
+
 #include "math/attributes.h"
 #include "math/mat4.h"
 #include "math/vec3.h"
@@ -13,10 +15,12 @@ struct ModelVertex {
    Vec3 pos;
    Vec3 norm;
 
-   static constexpr std::array<VertexAttribute, 2> attributes{
-       VertexAttribute::vec3(),
-       VertexAttribute::vec3(),
-   };
+   static const std::array<VkVertexInputAttributeDescription, 2> attributes;
+};
+
+inline constexpr decltype(ModelVertex::attributes) ModelVertex::attributes{
+    VKAD_ATTRIBUTE(0, ModelVertex, pos),
+    VKAD_ATTRIBUTE(1, ModelVertex, norm),
 };
 
 struct ModelUniform {
