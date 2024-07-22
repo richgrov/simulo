@@ -14,14 +14,26 @@ struct Shader {
 
 class Pipeline {
 public:
-   Pipeline(
+   explicit Pipeline(
        VkDevice device, VkVertexInputBindingDescription vertex_binding,
        const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
        const std::vector<Shader> &shaders, VkDescriptorSetLayout descriptor_layout,
        VkRenderPass render_pass
    );
 
+   explicit inline Pipeline(Pipeline &&other) {
+      layout_ = other.layout_;
+      other.layout_ = VK_NULL_HANDLE;
+      pipeline_ = other.pipeline_;
+      other.pipeline_ = VK_NULL_HANDLE;
+      device_ = other.device_;
+   }
+
+   explicit Pipeline(const Pipeline &other) = delete;
+
    ~Pipeline();
+
+   Pipeline &operator=(const Pipeline &other) = delete;
 
    inline VkPipeline handle() const {
       return pipeline_;

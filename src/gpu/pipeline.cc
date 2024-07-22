@@ -13,9 +13,7 @@ Pipeline::Pipeline(
     const std::vector<Shader> &shaders, VkDescriptorSetLayout descriptor_layout,
     VkRenderPass render_pass
 )
-    : layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE), device_(VK_NULL_HANDLE) {
-
-   device_ = device;
+    : layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE), device_(device) {
 
    std::vector<VkPipelineShaderStageCreateInfo> shader_stages(shaders.size());
    for (int i = 0; i < shader_stages.size(); ++i) {
