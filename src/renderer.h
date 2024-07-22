@@ -1,6 +1,7 @@
 #ifndef VKAD_GPU_VK_GPU_H_
 #define VKAD_GPU_VK_GPU_H_
 
+#include <cstdint>
 #include <unordered_map>
 #include <vector>
 
@@ -17,7 +18,6 @@
 #include "gpu/pipeline.h"
 #include "gpu/swapchain.h"
 #include "ui/font.h"
-#include "ui/ui.h"
 
 namespace vkad {
 
@@ -28,29 +28,28 @@ public:
    );
    ~Renderer();
 
-   template <class T>
-   Pipeline create_pipeline(
-       const std::vector<std::string> &shader_paths, const DescriptorPool &descriptor_pool
+   template <class Vertex>
+   int create_material(
+       const std::vector<std::string> &shader_paths,
+       const std::vector<VkDescriptorSetLayoutBinding> &bindings
    ) {
-      VkVertexInputBindingDescription binding = {
-          .binding = 0,
-          .stride = sizeof(T),
-          .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-      };
-
       std::vector<VkVertexInputAttributeDescription> attrs(
-          T::attributes.begin(), T::attributes.end()
+          Vertex::attributes.begin(), Vertex::attributes.end()
       );
 
-      std::vector<Shader> shaders;
-      for (const std::string &path : shader_paths) {
-         ensure_shader_loaded(path);
-         shaders.push_back(shaders_[path]);
-      }
+      return do_create_pipeline(sizeof(Vertex), attrs, shader_paths, bindings);
+   }
 
-      return Pipeline(
-          device_.handle(), binding, attrs, shaders, descriptor_pool.layout(), render_pass_
-      );
+   int do_create_pipeline(
+       uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
+       const std::vector<std::string> &shader_paths,
+       const std::vector<VkDescriptorSetLayoutBinding> &bindings
+   );
+
+   void link_material(int material_id, const std::vector<DescriptorWrite> &writes) {
+      Material &mat = materials_[material_id];
+      mat.descriptor_set = mat.descriptor_pool.allocate(mat.descriptor_set_layout);
+      mat.descriptor_pool.write(mat.descriptor_set, writes);
    }
 
    void ensure_shader_loaded(const std::string &path);
@@ -65,11 +64,6 @@ public:
 
    template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
       return UniformBuffer(sizeof(T), num_elements, device_.handle(), physical_device_);
-   }
-
-   DescriptorPool create_descriptor_pool(const std::vector<VkDescriptorSetLayoutBinding> &bindings
-   ) {
-      return DescriptorPool(device_.handle(), bindings, 1);
    }
 
    Image create_image(uint32_t width, uint32_t height) const {
@@ -127,9 +121,9 @@ public:
 
    bool begin_draw();
 
-   void set_pipeline(const Pipeline &pipeline);
+   void set_material(int material_id);
 
-   void set_uniform(const Pipeline &pipeline, VkDescriptorSet descriptor_set, uint32_t offset);
+   void set_uniform(int material_id, uint32_t offset);
 
    void draw(const VertexIndexBuffer &buffer);
 
@@ -142,11 +136,19 @@ public:
 private:
    void create_framebuffers();
 
+   struct Material {
+      VkDescriptorSetLayout descriptor_set_layout;
+      Pipeline pipeline;
+      DescriptorPool descriptor_pool;
+      VkDescriptorSet descriptor_set;
+   };
+
    Instance &vk_instance_;
    PhysicalDevice physical_device_;
    Device device_;
    Swapchain swapchain_;
    VkRenderPass render_pass_;
+   std::vector<Material> materials_;
    std::unordered_map<std::string, Shader> shaders_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;

@@ -108,6 +108,10 @@ Renderer::Renderer(
 Renderer::~Renderer() {
    device_.wait_idle();
 
+   for (const Material &mat : materials_) {
+      vkDestroyDescriptorSetLayout(device_.handle(), mat.descriptor_set_layout, nullptr);
+   }
+
    for (const auto &kv : shaders_) {
       vkDestroyShaderModule(device_.handle(), kv.second.module, nullptr);
    }
@@ -127,6 +131,49 @@ Renderer::~Renderer() {
    if (render_pass_ != VK_NULL_HANDLE) {
       vkDestroyRenderPass(device_.handle(), render_pass_, nullptr);
    }
+}
+
+int Renderer::do_create_pipeline(
+    uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
+    const std::vector<std::string> &shader_paths,
+    const std::vector<VkDescriptorSetLayoutBinding> &bindings
+) {
+   VkVertexInputBindingDescription binding = {
+       .binding = 0,
+       .stride = vertex_size,
+       .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+   };
+
+   std::vector<Shader> shaders;
+   for (const std::string &path : shader_paths) {
+      ensure_shader_loaded(path);
+      shaders.push_back(shaders_[path]);
+   }
+
+   VkDescriptorSetLayoutCreateInfo layout_create = {
+       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+       .bindingCount = static_cast<uint32_t>(bindings.size()),
+       .pBindings = bindings.data(),
+   };
+   VkDescriptorSetLayout layout;
+   VKAD_VK(vkCreateDescriptorSetLayout(device_.handle(), &layout_create, nullptr, &layout));
+
+   std::vector<VkDescriptorPoolSize> sizes;
+   sizes.reserve(bindings.size());
+   for (const auto &binding : bindings) {
+      sizes.push_back({
+          .type = binding.descriptorType,
+          .descriptorCount = binding.descriptorCount,
+      });
+   }
+
+   materials_.emplace_back(Material{
+       .descriptor_set_layout = layout,
+       .pipeline = Pipeline(device_.handle(), binding, attrs, shaders, layout, render_pass_),
+       .descriptor_pool = DescriptorPool(device_.handle(), layout, sizes, 1),
+       .descriptor_set = VK_NULL_HANDLE,
+   });
+   return materials_.size() - 1;
 }
 
 void Renderer::ensure_shader_loaded(const std::string &path) {
@@ -283,8 +330,9 @@ bool Renderer::begin_draw() {
    return true;
 }
 
-void Renderer::set_pipeline(const Pipeline &pipeline) {
-   vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle());
+void Renderer::set_material(int material_id) {
+   Material &mat = materials_[material_id];
+   vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline.handle());
 
    VkViewport viewport = {
        .width = static_cast<float>(swapchain_.extent().width),
@@ -299,13 +347,13 @@ void Renderer::set_pipeline(const Pipeline &pipeline) {
    vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
 }
 
-void Renderer::set_uniform(
-    const Pipeline &pipeline, VkDescriptorSet descriptor_set, uint32_t offset
-) {
+void Renderer::set_uniform(int material_id, uint32_t offset) {
+   Material &mat = materials_[material_id];
+
    uint32_t offsets[] = {offset};
    vkCmdBindDescriptorSets(
-       command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout(), 0, 1, &descriptor_set,
-       1, offsets
+       command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline.layout(), 0, 1,
+       &mat.descriptor_set, 1, offsets
    );
 }
 

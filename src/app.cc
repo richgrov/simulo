@@ -3,13 +3,10 @@
 #include "geometry/geometry.h"
 #include "gpu/buffer.h"
 #include "gpu/descriptor_pool.h"
-#include "math/attributes.h"
 #include "math/mat4.h"
-#include "math/vec2.h"
 #include "renderer.h"
 #include "ui/ui.h"
 #include "util/assert.h"
-#include "util/memory.h"
 #include "window/keys.h" // IWYU pragma: export
 
 using namespace vkad;
@@ -27,34 +24,32 @@ App::App()
 
       font_(renderer_.create_font("res/arial.ttf")),
       ui_uniforms_(renderer_.create_uniform_buffer<UiVertex>(3)),
-      ui_descriptor_pool_(renderer_.create_descriptor_pool({
-          DescriptorPool::uniform_buffer_dynamic(0),
-          DescriptorPool::combined_image_sampler(1),
-      })),
-      ui_descriptor_set_(ui_descriptor_pool_.allocate()),
-      ui_pipeline_(renderer_.create_pipeline<UiVertex>(
-          {"shader-vert.spv", "shader-frag.spv"}, ui_descriptor_pool_
+      ui_material_(renderer_.create_material<UiVertex>(
+          {"shader-vert.spv", "shader-frag.spv"},
+          {
+              DescriptorPool::uniform_buffer_dynamic(0),
+              DescriptorPool::combined_image_sampler(1),
+          }
       )),
 
       model_uniforms_(renderer_.create_uniform_buffer<ModelVertex>(1)),
-      model_descriptor_pool_(
-          renderer_.create_descriptor_pool({DescriptorPool::uniform_buffer_dynamic(0)})
-      ),
-      model_descriptor_set_(model_descriptor_pool_.allocate()),
-      model_pipeline_(renderer_.create_pipeline<ModelVertex>(
-          {"model-vert.spv", "model-frag.spv"}, model_descriptor_pool_
+      model_material_(renderer_.create_material<ModelVertex>(
+          {"model-vert.spv", "model-frag.spv"}, {DescriptorPool::uniform_buffer_dynamic(0)}
       )) {
 
-   ui_descriptor_pool_.write(
-       ui_descriptor_set_,
+   renderer_.link_material(
+       ui_material_,
        {
            DescriptorPool::write_uniform_buffer_dynamic(ui_uniforms_),
            DescriptorPool::write_combined_image_sampler(renderer_.image_sampler(), font_.image()),
        }
    );
 
-   model_descriptor_pool_.write(
-       model_descriptor_set_, {DescriptorPool::write_uniform_buffer_dynamic(model_uniforms_)}
+   renderer_.link_material(
+       model_material_,
+       {
+           DescriptorPool::write_uniform_buffer_dynamic(model_uniforms_),
+       }
    );
 
    if (FMOD_System_Create(&sound_system_, FMOD_VERSION) != FMOD_OK) {
@@ -71,12 +66,12 @@ App::App()
    UiUniform u = {mvp, Vec3(1.0, 1.0, 1.0)};
    ui_uniforms_.upload_memory(&u, sizeof(UiUniform), 0);
 
-   text_meshes_.emplace_back(std::move(renderer_.create_text(font_, "test")));
+   text_meshes_.emplace_back(std::move(renderer_.create_text(font_, "Export")));
 
    Circle circle(2.0, 20);
    std::vector<ModelVertex> vertices;
    std::vector<VertexIndexBuffer::IndexType> indices;
-   circle.to_mesh(vertices, indices);
+   circle.extrude(-1, vertices, indices);
    VertexIndexBuffer buf =
        renderer_.create_vertex_index_buffer<ModelVertex>(vertices.size(), indices.size());
    renderer_.upload_mesh(
@@ -133,8 +128,8 @@ bool App::poll() {
 void App::draw() {
    bool did_begin = renderer_.begin_draw();
 
-   renderer_.set_pipeline(model_pipeline_);
-   renderer_.set_uniform(model_pipeline_, model_descriptor_set_, 0);
+   renderer_.set_material(model_material_);
+   renderer_.set_uniform(model_material_, 0);
 
    for (const VertexIndexBuffer &buf : models_) {
       renderer_.draw(buf);
@@ -148,8 +143,8 @@ void App::draw() {
       );
    }
 
-   renderer_.set_pipeline(ui_pipeline_);
-   renderer_.set_uniform(ui_pipeline_, ui_descriptor_set_, 0 * ui_uniforms_.element_size());
+   renderer_.set_material(ui_material_);
+   renderer_.set_uniform(ui_material_, 0 * ui_uniforms_.element_size());
 
    for (const VertexIndexBuffer &buf : text_meshes_) {
       renderer_.draw(buf);

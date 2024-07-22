@@ -97,15 +97,11 @@ private:
 
    Font font_;
    UniformBuffer ui_uniforms_;
-   DescriptorPool ui_descriptor_pool_;
-   VkDescriptorSet ui_descriptor_set_;
-   Pipeline ui_pipeline_;
+   int ui_material_;
    std::vector<VertexIndexBuffer> text_meshes_;
 
    UniformBuffer model_uniforms_;
-   DescriptorPool model_descriptor_pool_;
-   VkDescriptorSet model_descriptor_set_;
-   Pipeline model_pipeline_;
+   int model_material_;
    std::vector<VertexIndexBuffer> models_;
 
    int last_width_;

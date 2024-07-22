@@ -18,22 +18,30 @@ struct DescriptorWrite {
 
 class DescriptorPool {
 public:
-   DescriptorPool(
-       VkDevice device, const std::vector<VkDescriptorSetLayoutBinding> &layouts, uint32_t num_sets
+   explicit DescriptorPool(
+       VkDevice device, VkDescriptorSetLayout layout,
+       const std::vector<VkDescriptorPoolSize> &sizes, uint32_t num_sets
    );
 
-   inline ~DescriptorPool() {
-      vkDestroyDescriptorSetLayout(device_, descriptor_layout_, nullptr);
-      vkDestroyDescriptorPool(device_, descriptor_pool_, nullptr);
+   explicit inline DescriptorPool(DescriptorPool &&other) {
+      device_ = other.device_;
+      descriptor_pool_ = other.descriptor_pool_;
+      other.descriptor_pool_ = VK_NULL_HANDLE;
    }
 
-   VkDescriptorSet allocate();
+   explicit DescriptorPool(const DescriptorPool &other) = delete;
+
+   inline ~DescriptorPool() {
+      if (descriptor_pool_ != VK_NULL_HANDLE) {
+         vkDestroyDescriptorPool(device_, descriptor_pool_, nullptr);
+      }
+   }
+
+   DescriptorPool &operator=(const DescriptorPool &other) = delete;
+
+   VkDescriptorSet allocate(VkDescriptorSetLayout layout);
 
    void write(VkDescriptorSet set, const std::vector<DescriptorWrite> &writes);
-
-   inline VkDescriptorSetLayout layout() const {
-      return descriptor_layout_;
-   }
 
    inline static VkDescriptorSetLayoutBinding uniform_buffer_dynamic(uint32_t binding) {
       return VkDescriptorSetLayoutBinding{
@@ -96,7 +104,6 @@ public:
 
 private:
    VkDevice device_;
-   VkDescriptorSetLayout descriptor_layout_;
    VkDescriptorPool descriptor_pool_;
 };
 
