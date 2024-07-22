@@ -98,11 +98,11 @@ private:
    Font font_;
    UniformBuffer ui_uniforms_;
    int ui_material_;
-   std::vector<VertexIndexBuffer> text_meshes_;
+   std::vector<int> text_meshes_;
 
    UniformBuffer model_uniforms_;
    int model_material_;
-   std::vector<VertexIndexBuffer> models_;
+   std::vector<int> models_;
 
    int last_width_;
    int last_height_;

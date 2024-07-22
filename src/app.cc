@@ -74,12 +74,11 @@ App::App()
    std::vector<ModelVertex> vertices;
    std::vector<VertexIndexBuffer::IndexType> indices;
    circle.extrude(-1, vertices, indices);
-   VertexIndexBuffer buf =
-       renderer_.create_vertex_index_buffer<ModelVertex>(vertices.size(), indices.size());
+   int id = renderer_.create_vertex_index_buffer<ModelVertex>(vertices.size(), indices.size());
    renderer_.upload_mesh(
-       vertices.data(), sizeof(ModelVertex) * vertices.size(), indices.data(), indices.size(), buf
+       vertices.data(), sizeof(ModelVertex) * vertices.size(), indices.data(), indices.size(), id
    );
-   models_.push_back(std::move(buf));
+   models_.push_back(id);
 }
 
 App::~App() {
@@ -133,8 +132,8 @@ void App::draw() {
    renderer_.set_material(model_material_);
    renderer_.set_uniform(model_material_, 0);
 
-   for (const VertexIndexBuffer &buf : models_) {
-      renderer_.draw(buf);
+   for (const int id : models_) {
+      renderer_.draw(id);
    }
 
    if (!did_begin) {
@@ -148,8 +147,8 @@ void App::draw() {
    renderer_.set_material(ui_material_);
    renderer_.set_uniform(ui_material_, 0 * ui_uniforms_.element_size());
 
-   for (const VertexIndexBuffer &buf : text_meshes_) {
-      renderer_.draw(buf);
+   for (const int id : text_meshes_) {
+      renderer_.draw(id);
    }
 
    renderer_.end_draw();

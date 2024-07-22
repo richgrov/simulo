@@ -55,11 +55,12 @@ public:
    void ensure_shader_loaded(const std::string &path);
 
    template <class T>
-   inline VertexIndexBuffer
+   inline int
    create_vertex_index_buffer(size_t num_vertices, VertexIndexBuffer::IndexType num_indices) {
-      return VertexIndexBuffer(
+      meshes_.emplace_back(
           num_vertices, sizeof(T), num_indices, device_.handle(), physical_device_
       );
+      return meshes_.size() - 1;
    }
 
    template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
@@ -84,12 +85,13 @@ public:
       image.init_view();
    }
 
-   VertexIndexBuffer create_text(Font &font, const std::string &text);
+   int create_text(Font &font, const std::string &text);
 
    void upload_mesh(
        void *vertex_data, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
-       VertexIndexBuffer::IndexType num_indices, VertexIndexBuffer &buf
+       VertexIndexBuffer::IndexType num_indices, int mesh_id
    ) {
+      VertexIndexBuffer &buf = meshes_[mesh_id];
       staging_buffer_.upload_mesh(vertex_data, vertices_size, indices, num_indices);
       begin_preframe();
       buffer_copy(staging_buffer_, buf);
@@ -128,7 +130,7 @@ public:
 
    void set_uniform(int material_id, uint32_t offset);
 
-   void draw(const VertexIndexBuffer &buffer);
+   void draw(int mesh_id);
 
    void end_draw();
 
@@ -153,6 +155,7 @@ private:
    VkRenderPass render_pass_;
    std::vector<Material> materials_;
    std::unordered_map<std::string, Shader> shaders_;
+   std::vector<VertexIndexBuffer> meshes_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;
    VkSampler sampler_;

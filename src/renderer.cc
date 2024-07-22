@@ -212,16 +212,16 @@ void Renderer::ensure_shader_loaded(const std::string &path) {
    shaders_.insert({path, shader});
 }
 
-VertexIndexBuffer Renderer::create_text(Font &font, const std::string &text) {
+int Renderer::create_text(Font &font, const std::string &text) {
    std::vector<UiVertex> vertices;
    std::vector<VertexIndexBuffer::IndexType> indices;
    font.create_text(text, vertices, indices);
 
-   VertexIndexBuffer mesh = create_vertex_index_buffer<UiVertex>(vertices.size(), indices.size());
+   int mesh_id = create_vertex_index_buffer<UiVertex>(vertices.size(), indices.size());
    upload_mesh(
-       vertices.data(), sizeof(UiVertex) * vertices.size(), indices.data(), indices.size(), mesh
+       vertices.data(), sizeof(UiVertex) * vertices.size(), indices.data(), indices.size(), mesh_id
    );
-   return mesh;
+   return mesh_id;
 }
 
 void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {
@@ -357,7 +357,9 @@ void Renderer::set_uniform(int material_id, uint32_t offset) {
    );
 }
 
-void Renderer::draw(const VertexIndexBuffer &buffer) {
+void Renderer::draw(int mesh_id) {
+   VertexIndexBuffer &buffer = meshes_[mesh_id];
+
    VkBuffer buffers[] = {buffer.buffer()};
    VkDeviceSize offsets[] = {0};
    vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
