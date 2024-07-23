@@ -17,36 +17,10 @@
 #include "gpu/physical_device.h"
 #include "gpu/pipeline.h"
 #include "gpu/swapchain.h"
+#include "mesh.h"
 #include "ui/font.h"
 
 namespace vkad {
-
-class Renderer;
-
-template <class Vertex> class Mesh {
-public:
-   Mesh(std::vector<Vertex> &&vertices, std::vector<VertexIndexBuffer::IndexType> &&indices)
-       : vertices_(vertices), indices_(indices) {}
-
-   inline const std::vector<Vertex> &vertices() const {
-      return vertices_;
-   }
-
-   inline const std::vector<VertexIndexBuffer::IndexType> &indices() const {
-      return indices_;
-   }
-
-   inline int id() const {
-      return id_;
-   }
-
-private:
-   std::vector<Vertex> vertices_;
-   std::vector<VertexIndexBuffer::IndexType> indices_;
-   int id_;
-
-   friend class vkad::Renderer;
-};
 
 class Renderer {
 public:

@@ -4,6 +4,7 @@
 #include "gpu/buffer.h"
 #include "gpu/descriptor_pool.h"
 #include "math/mat4.h"
+#include "mesh.h"
 #include "renderer.h"
 #include "ui/ui.h"
 #include "util/assert.h"

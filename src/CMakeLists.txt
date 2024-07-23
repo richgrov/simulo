@@ -50,6 +50,7 @@ set(SOURCE_FILES
    "app.h"
    "renderer.cc"
    "renderer.h"
+   "mesh.h"
    "sound.cc"
    "sound.h"
    "stl.cc"

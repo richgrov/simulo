@@ -13,6 +13,7 @@
 #include "gpu/pipeline.h"
 #include "gpu/status.h"
 #include "gpu/swapchain.h"
+#include "mesh.h"
 #include "ui/ui.h"
 #include "util/memory.h"
 
