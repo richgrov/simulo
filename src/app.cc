@@ -72,11 +72,8 @@ App::App()
    text_meshes_.emplace_back(std::move(renderer_.create_text(font_, "Export")));
 
    Circle circle(2.0, 20);
-   std::vector<ModelVertex> vertices;
-   std::vector<VertexIndexBuffer::IndexType> indices;
-   circle.to_mesh(vertices, indices);
-   Mesh<ModelVertex> mesh(std::move(vertices), std::move(indices));
-   renderer_.init_mesh<ModelVertex>(mesh);
+   ModelMesh mesh = circle.to_mesh();
+   renderer_.init_mesh(mesh);
    renderer_.upload_mesh(mesh);
    models_.push_back(mesh.id());
 }

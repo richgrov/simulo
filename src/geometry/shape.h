@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "geometry/geometry.h"
-#include "gpu/buffer.h"
 #include "math/vec2.h"
 
 namespace vkad {
@@ -15,10 +14,7 @@ public:
       return vertices_;
    }
 
-   void to_mesh(
-       std::vector<ModelVertex> &out_vertices,
-       std::vector<VertexIndexBuffer::IndexType> &out_indices
-   );
+   ModelMesh to_mesh();
 
 protected:
    std::vector<Vec2> vertices_;

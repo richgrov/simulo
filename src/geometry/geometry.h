@@ -8,6 +8,7 @@
 #include "math/attributes.h"
 #include "math/mat4.h"
 #include "math/vec3.h"
+#include "mesh.h"
 
 namespace vkad {
 
@@ -22,6 +23,8 @@ inline constexpr decltype(ModelVertex::attributes) ModelVertex::attributes{
     VKAD_ATTRIBUTE(0, ModelVertex, pos),
     VKAD_ATTRIBUTE(1, ModelVertex, norm),
 };
+
+using ModelMesh = Mesh<ModelVertex>;
 
 struct ModelUniform {
    Mat4 mvp;
