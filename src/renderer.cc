@@ -14,7 +14,7 @@
 #include "gpu/status.h"
 #include "gpu/swapchain.h"
 #include "mesh.h"
-#include "ui/ui.h"
+#include "util/assert.h"
 #include "util/memory.h"
 
 using namespace vkad;
@@ -211,17 +211,6 @@ void Renderer::ensure_shader_loaded(const std::string &path) {
    VKAD_VK(vkCreateShaderModule(device_.handle(), &create_info, nullptr, &shader.module));
 
    shaders_.insert({path, shader});
-}
-
-int Renderer::create_text(Font &font, const std::string &text) {
-   std::vector<UiVertex> vertices;
-   std::vector<VertexIndexBuffer::IndexType> indices;
-   font.create_text(text, vertices, indices);
-   Mesh<UiVertex> mesh(std::move(vertices), std::move(indices));
-
-   init_mesh<UiVertex>(mesh);
-   upload_mesh(mesh);
-   return mesh.id_;
 }
 
 void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {

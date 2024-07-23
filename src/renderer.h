@@ -2,6 +2,7 @@
 #define VKAD_GPU_VK_GPU_H_
 
 #include <cstdint>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -18,7 +19,6 @@
 #include "gpu/pipeline.h"
 #include "gpu/swapchain.h"
 #include "mesh.h"
-#include "ui/font.h"
 
 namespace vkad {
 
@@ -84,8 +84,6 @@ public:
       end_preframe();
       image.init_view();
    }
-
-   int create_text(Font &font, const std::string &text);
 
    template <class Vertex> void upload_mesh(Mesh<Vertex> &mesh) {
       VertexIndexBuffer &buf = meshes_[mesh.id_];

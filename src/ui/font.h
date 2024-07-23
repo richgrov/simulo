@@ -4,7 +4,6 @@
 #include <array>
 #include <string>
 
-#include "gpu/buffer.h"
 #include "gpu/image.h"
 #include "gpu/physical_device.h"
 #include "ui/ui.h"
@@ -16,10 +15,7 @@ class Font {
 public:
    Font(const std::string &path, const PhysicalDevice &physical_device, VkDevice device);
 
-   void create_text(
-       const std::string &text, std::vector<UiVertex> &out_vertices,
-       std::vector<VertexIndexBuffer::IndexType> &out_indices
-   );
+   UiMesh create_text(const std::string &text);
 
    Image &image() {
       return image_;
@@ -30,7 +26,7 @@ public:
    }
 
    static constexpr int BITMAP_WIDTH = 1024;
-   
+
 private:
    static constexpr int NUM_CHARS = 96;
 
