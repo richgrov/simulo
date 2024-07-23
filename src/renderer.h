@@ -21,6 +21,33 @@
 
 namespace vkad {
 
+class Renderer;
+
+template <class Vertex> class Mesh {
+public:
+   Mesh(std::vector<Vertex> &&vertices, std::vector<VertexIndexBuffer::IndexType> &&indices)
+       : vertices_(vertices), indices_(indices) {}
+
+   inline const std::vector<Vertex> &vertices() const {
+      return vertices_;
+   }
+
+   inline const std::vector<VertexIndexBuffer::IndexType> &indices() const {
+      return indices_;
+   }
+
+   inline int id() const {
+      return id_;
+   }
+
+private:
+   std::vector<Vertex> vertices_;
+   std::vector<VertexIndexBuffer::IndexType> indices_;
+   int id_;
+
+   friend class vkad::Renderer;
+};
+
 class Renderer {
 public:
    explicit Renderer(
@@ -54,13 +81,12 @@ public:
 
    void ensure_shader_loaded(const std::string &path);
 
-   template <class T>
-   inline int
-   create_vertex_index_buffer(size_t num_vertices, VertexIndexBuffer::IndexType num_indices) {
+   template <class Vertex> inline void init_mesh(Mesh<Vertex> &mesh) {
       meshes_.emplace_back(
-          num_vertices, sizeof(T), num_indices, device_.handle(), physical_device_
+          mesh.vertices_.size(), sizeof(Vertex), mesh.indices_.size(), device_.handle(),
+          physical_device_
       );
-      return meshes_.size() - 1;
+      mesh.id_ = meshes_.size() - 1;
    }
 
    template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
@@ -87,12 +113,12 @@ public:
 
    int create_text(Font &font, const std::string &text);
 
-   void upload_mesh(
-       void *vertex_data, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
-       VertexIndexBuffer::IndexType num_indices, int mesh_id
-   ) {
-      VertexIndexBuffer &buf = meshes_[mesh_id];
-      staging_buffer_.upload_mesh(vertex_data, vertices_size, indices, num_indices);
+   template <class Vertex> void upload_mesh(Mesh<Vertex> &mesh) {
+      VertexIndexBuffer &buf = meshes_[mesh.id_];
+      staging_buffer_.upload_mesh(
+          mesh.vertices_.data(), sizeof(Vertex) * mesh.vertices_.size(), mesh.indices_.data(),
+          mesh.indices_.size()
+      );
       begin_preframe();
       buffer_copy(staging_buffer_, buf);
       end_preframe();

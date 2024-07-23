@@ -216,12 +216,11 @@ int Renderer::create_text(Font &font, const std::string &text) {
    std::vector<UiVertex> vertices;
    std::vector<VertexIndexBuffer::IndexType> indices;
    font.create_text(text, vertices, indices);
+   Mesh<UiVertex> mesh(std::move(vertices), std::move(indices));
 
-   int mesh_id = create_vertex_index_buffer<UiVertex>(vertices.size(), indices.size());
-   upload_mesh(
-       vertices.data(), sizeof(UiVertex) * vertices.size(), indices.data(), indices.size(), mesh_id
-   );
-   return mesh_id;
+   init_mesh<UiVertex>(mesh);
+   upload_mesh(mesh);
+   return mesh.id_;
 }
 
 void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {

@@ -5,9 +5,7 @@
 
 #include "entity/player.h"
 #include "gpu/buffer.h"
-#include "gpu/descriptor_pool.h"
 #include "gpu/instance.h"
-#include "gpu/pipeline.h"
 #include "math/angle.h"
 #include "math/mat4.h"
 #include "renderer.h"

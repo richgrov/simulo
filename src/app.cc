@@ -73,12 +73,11 @@ App::App()
    Circle circle(2.0, 20);
    std::vector<ModelVertex> vertices;
    std::vector<VertexIndexBuffer::IndexType> indices;
-   circle.extrude(-1, vertices, indices);
-   int id = renderer_.create_vertex_index_buffer<ModelVertex>(vertices.size(), indices.size());
-   renderer_.upload_mesh(
-       vertices.data(), sizeof(ModelVertex) * vertices.size(), indices.data(), indices.size(), id
-   );
-   models_.push_back(id);
+   circle.to_mesh(vertices, indices);
+   Mesh<ModelVertex> mesh(std::move(vertices), std::move(indices));
+   renderer_.init_mesh<ModelVertex>(mesh);
+   renderer_.upload_mesh(mesh);
+   models_.push_back(mesh.id());
 }
 
 App::~App() {
