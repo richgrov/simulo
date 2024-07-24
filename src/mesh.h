@@ -14,11 +14,11 @@ public:
    Mesh(std::vector<Vertex> &&vertices, std::vector<VertexIndexBuffer::IndexType> &&indices)
        : vertices_(vertices), indices_(indices) {}
 
-   inline const std::vector<Vertex> &vertices() const {
+   inline std::vector<Vertex> &vertices() {
       return vertices_;
    }
 
-   inline const std::vector<VertexIndexBuffer::IndexType> &indices() const {
+   inline std::vector<VertexIndexBuffer::IndexType> &indices() {
       return indices_;
    }
 
