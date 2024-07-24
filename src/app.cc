@@ -136,19 +136,19 @@ bool App::poll() {
 void App::draw() {
    bool did_begin = renderer_.begin_draw();
 
-   renderer_.set_material(model_material_);
-   renderer_.set_uniform(model_material_, 0);
-
-   for (const int id : models_) {
-      renderer_.draw(id);
-   }
-
    if (!did_begin) {
       renderer_.recreate_swapchain(window_.width(), window_.height(), window_.surface());
 
       VKAD_ASSERT(
           renderer_.begin_draw(), "failed to acquire next image after recreating swapchain"
       );
+   }
+
+   renderer_.set_material(model_material_);
+   renderer_.set_uniform(model_material_, 0);
+
+   for (const int id : models_) {
+      renderer_.draw(id);
    }
 
    renderer_.set_material(ui_material_);
