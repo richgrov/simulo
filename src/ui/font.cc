@@ -51,15 +51,22 @@ Widget Font::create_text(const std::string &text) {
    std::vector<VertexIndexBuffer::IndexType> indices;
 
    float x_off = 0;
+   float y_off = 0;
    for (char c : text) {
+      if (c == '\n') {
+         x_off = 0;
+         y_off -= 1 * height_;
+         continue;
+      }
+
       int index = c - 32;
       float x = 0;
       float y = 0;
       stbtt_aligned_quad q;
       stbtt_GetBakedQuad(chars_.data(), BITMAP_WIDTH, BITMAP_WIDTH, index, &x, &y, &q, 1);
 
-      Vec2 pos1 = Vec2(q.x0 + x_off, -q.y0) / height_;
-      Vec2 pos2 = Vec2(q.x1 + x_off, -q.y1) / height_;
+      Vec2 pos1 = Vec2(q.x0 + x_off, -q.y0 + y_off) / height_;
+      Vec2 pos2 = Vec2(q.x1 + x_off, -q.y1 + y_off) / height_;
 
       int ind = vertices.size();
       vertices.push_back({{pos1.x, pos1.y, 0}, {q.s0, q.t0}});
