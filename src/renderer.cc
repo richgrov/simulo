@@ -302,7 +302,7 @@ bool Renderer::begin_draw() {
    };
    VKAD_VK(vkBeginCommandBuffer(command_buffer_, &cmd_begin));
 
-   VkClearValue clear_color = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
+   VkClearValue clear_color = {.color = {0.4f, 0.4f, 0.4f, 1.0f}};
    VkRenderPassBeginInfo render_begin = {
        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
        .renderPass = render_pass_,
