@@ -74,7 +74,7 @@ App::App()
    Widget text = font_.create_text("Export");
    renderer_.init_mesh<UiVertex>(text);
    renderer_.upload_mesh(text);
-   text_meshes_.emplace_back((text.id()));
+   text_meshes_.emplace_back(std::move(text));
 
    Circle circle(2.0, 20);
    Model mesh = circle.extrude(1);
@@ -154,8 +154,8 @@ void App::draw() {
    renderer_.set_material(ui_material_);
    renderer_.set_uniform(ui_material_, 0 * ui_uniforms_.element_size());
 
-   for (const int id : text_meshes_) {
-      renderer_.draw(id);
+   for (const Widget &text : text_meshes_) {
+      renderer_.draw(text.id());
    }
 
    renderer_.end_draw();

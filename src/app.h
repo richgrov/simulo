@@ -100,7 +100,7 @@ private:
    Font font_;
    UniformBuffer ui_uniforms_;
    int ui_material_;
-   std::vector<int> text_meshes_;
+   std::vector<Widget> text_meshes_;
 
    UniformBuffer model_uniforms_;
    int model_material_;
