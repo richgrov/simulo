@@ -1,5 +1,6 @@
 #include "window.h"
 
+#include <cstring>
 #include <format>
 #include <stdexcept>
 #include <windowsx.h>
@@ -172,6 +173,8 @@ Window::~Window() {
 }
 
 bool Window::poll() {
+   std::memcpy(prev_pressed_keys_, pressed_keys_, sizeof(pressed_keys_));
+
    // Reset mouse deltas as WM_INPUT is not guaranteed to be received every frame
    delta_mouse_x_ = 0;
    delta_mouse_y_ = 0;

@@ -63,6 +63,10 @@ public:
       return pressed_keys_[key_code];
    }
 
+   inline bool key_just_pressed(uint8_t key_code) const {
+      return !prev_pressed_keys_[key_code] && pressed_keys_[key_code];
+   }
+
 private:
    const Instance &vk_instance_;
    HWND window_;
@@ -82,6 +86,7 @@ private:
    bool left_clicking_;
 
    bool pressed_keys_[256];
+   bool prev_pressed_keys_[256];
 
    friend LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 };
