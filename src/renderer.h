@@ -61,6 +61,7 @@ public:
           physical_device_
       );
       mesh.id_ = meshes_.size() - 1;
+      update_mesh(mesh);
    }
 
    template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
