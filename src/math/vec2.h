@@ -26,6 +26,10 @@ struct Vec2 {
       return {x * factor, y * factor};
    }
 
+   inline Vec2 operator/(float f) const {
+      return {x / f, y / f};
+   }
+
    float x;
    float y;
 
