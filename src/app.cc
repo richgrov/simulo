@@ -152,10 +152,11 @@ void App::draw() {
    }
 
    renderer_.set_material(ui_material_);
-   renderer_.set_uniform(ui_material_, 0 * ui_uniforms_.element_size());
 
-   for (const Widget &text : text_meshes_) {
-      renderer_.draw(text.id());
+   for (int i = 0; i < text_meshes_.size(); ++i) {
+      Widget &widget = text_meshes_[i];
+      renderer_.set_uniform(ui_material_, i * ui_uniforms_.element_size());
+      renderer_.draw(widget.id());
    }
 
    renderer_.end_draw();
