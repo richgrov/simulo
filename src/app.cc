@@ -71,9 +71,9 @@ App::App()
    UiUniform u = {mvp, Vec3(1.0, 1.0, 1.0)};
    ui_uniforms_.upload_memory(&u, sizeof(UiUniform), 0);
 
-   Widget text = font_.create_text("Export");
-   text.set_position(30, 30);
-   text.set_size(20);
+   Widget text = font_.create_text("C - Create polygon\nE - Extrude\nP - Export");
+   text.set_position(30, 100);
+   text.set_size(35);
    renderer_.init_mesh<UiVertex>(text);
    text_meshes_.emplace_back(std::move(text));
 
