@@ -3,8 +3,8 @@
 
 #include <vector>
 
-#include "geometry/geometry.h"
 #include "math/vec2.h"
+#include "model.h"
 
 namespace vkad {
 
@@ -14,9 +14,9 @@ public:
       return vertices_;
    }
 
-   ModelMesh to_mesh();
+   Model to_model();
 
-   ModelMesh extrude(float amount);
+   Model extrude(float amount);
 
 protected:
    std::vector<Vec2> vertices_;

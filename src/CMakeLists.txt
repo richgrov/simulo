@@ -12,6 +12,7 @@ set(SOURCE_FILES
    "geometry/circle.cc"
    "geometry/circle.h"
    "geometry/geometry.h"
+   "geometry/model.h"
    "geometry/shape.cc"
    "geometry/shape.h"
    "gpu/command_pool.cc"

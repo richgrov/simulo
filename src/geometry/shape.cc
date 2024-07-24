@@ -6,7 +6,7 @@ using namespace vkad;
 
 namespace {
 
-static ModelMesh create_shape(std::vector<Vec2> points, float y, bool up) {
+static Model create_shape(std::vector<Vec2> points, float y, bool up) {
    std::vector<ModelVertex> vertices;
    std::vector<VertexIndexBuffer::IndexType> indices;
 
@@ -35,18 +35,18 @@ static ModelMesh create_shape(std::vector<Vec2> points, float y, bool up) {
       }
    }
 
-   return ModelMesh(std::move(vertices), std::move(indices));
+   return Model(std::move(vertices), std::move(indices));
 }
 
 } // namespace
 
-ModelMesh Shape::to_mesh() {
+Model Shape::to_model() {
    return create_shape(vertices_, 0, 1);
 }
 
-ModelMesh Shape::extrude(float amount) {
-   ModelMesh bottom = create_shape(vertices_, 0, false);
-   ModelMesh top = create_shape(vertices_, amount, true);
+Model Shape::extrude(float amount) {
+   Model bottom = create_shape(vertices_, 0, false);
+   Model top = create_shape(vertices_, amount, true);
    bottom.add_all(top);
 
    int num_verts = bottom.vertices().size();

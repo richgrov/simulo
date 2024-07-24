@@ -1,6 +1,7 @@
 #include "app.h"
 #include "geometry/circle.h"
 #include "geometry/geometry.h"
+#include "geometry/model.h"
 #include "gpu/buffer.h"
 #include "gpu/descriptor_pool.h"
 #include "math/mat4.h"
@@ -75,7 +76,7 @@ App::App()
    text_meshes_.emplace_back((text.id()));
 
    Circle circle(2.0, 20);
-   ModelMesh mesh = circle.extrude(1);
+   Model mesh = circle.extrude(1);
    renderer_.init_mesh(mesh);
    renderer_.upload_mesh(mesh);
    models_.push_back(mesh.id());
