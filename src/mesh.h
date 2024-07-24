@@ -14,6 +14,15 @@ public:
    Mesh(std::vector<Vertex> &&vertices, std::vector<VertexIndexBuffer::IndexType> &&indices)
        : vertices_(vertices), indices_(indices) {}
 
+   void add_all(Mesh &other) {
+      VertexIndexBuffer::IndexType verts = vertices_.size();
+      vertices_.insert(vertices_.end(), other.vertices_.begin(), other.vertices_.end());
+
+      for (auto index : other.indices_) {
+         indices_.push_back(verts + index);
+      }
+   }
+
    inline std::vector<Vertex> &vertices() {
       return vertices_;
    }
