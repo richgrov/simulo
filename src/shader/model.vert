@@ -10,7 +10,11 @@ layout(binding = 0) uniform Uniforms {
 
 layout(location = 0) out vec3 pass_color;
 
+const vec3 sun = vec3(1, 1, 1);
+
 void main() {
     gl_Position = u.mvp * vec4(pos, 1.0);
-    pass_color = u.color;
+    float brightness = dot(sun, normal);
+    float normalized_brightness = (brightness / 4) + 0.75;
+    pass_color = u.color * normalized_brightness;
 }
