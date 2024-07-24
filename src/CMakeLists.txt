@@ -45,6 +45,7 @@ set(SOURCE_FILES
    "util/assert.h"
    "util/memory.h"
    "util/rand.h"
+   "util/slab.h"
    "vendor/stb_image.h"
    "vendor/stb_truetype.h"
    "window/keys.h"

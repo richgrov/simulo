@@ -19,6 +19,7 @@
 #include "gpu/pipeline.h"
 #include "gpu/swapchain.h"
 #include "mesh.h"
+#include "util/slab.h"
 
 namespace vkad {
 
@@ -56,11 +57,10 @@ public:
    void ensure_shader_loaded(const std::string &path);
 
    template <class Vertex> inline void init_mesh(Mesh<Vertex> &mesh) {
-      meshes_.emplace_back(
+      mesh.id_ = meshes_.emplace(
           mesh.vertices_.size(), sizeof(Vertex), mesh.indices_.size(), device_.handle(),
           physical_device_
       );
-      mesh.id_ = meshes_.size() - 1;
       update_mesh(mesh);
    }
 
@@ -87,7 +87,7 @@ public:
    }
 
    template <class Vertex> void update_mesh(Mesh<Vertex> &mesh) {
-      VertexIndexBuffer &buf = meshes_[mesh.id_];
+      VertexIndexBuffer &buf = meshes_.get(mesh.id_);
       staging_buffer_.upload_mesh(
           mesh.vertices_.data(), sizeof(Vertex) * mesh.vertices_.size(), mesh.indices_.data(),
           mesh.indices_.size()
@@ -154,7 +154,7 @@ private:
    VkRenderPass render_pass_;
    std::vector<Material> materials_;
    std::unordered_map<std::string, Shader> shaders_;
-   std::vector<VertexIndexBuffer> meshes_;
+   Slab<VertexIndexBuffer> meshes_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;
    VkSampler sampler_;

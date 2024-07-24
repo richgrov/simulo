@@ -30,6 +30,7 @@ Renderer::Renderer(
           physical_device_.handle(), device_.handle(), surface, initial_width, initial_height
       ),
       render_pass_(VK_NULL_HANDLE),
+      meshes_(16),
       staging_buffer_(1024 * 1024 * 8, device_.handle(), physical_device_) {
 
    VkAttachmentDescription color_attachment = {
@@ -347,7 +348,7 @@ void Renderer::set_uniform(int material_id, uint32_t offset) {
 }
 
 void Renderer::draw(int mesh_id) {
-   VertexIndexBuffer &buffer = meshes_[mesh_id];
+   VertexIndexBuffer &buffer = meshes_.get(mesh_id);
 
    VkBuffer buffers[] = {buffer.buffer()};
    VkDeviceSize offsets[] = {0};
