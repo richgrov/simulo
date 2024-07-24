@@ -35,9 +35,11 @@ public:
       return id_;
    }
 
-private:
+protected:
    std::vector<Vertex> vertices_;
    std::vector<VertexIndexBuffer::IndexType> indices_;
+
+private:
    int id_;
 
    friend class vkad::Renderer;
