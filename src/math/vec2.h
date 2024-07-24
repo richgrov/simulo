@@ -18,6 +18,10 @@ struct Vec2 {
       y += other.y;
    }
 
+   inline Vec2 operator+(const Vec2 other) const {
+      return {x + other.x, y + other.y};
+   }
+
    inline Vec2 operator*(float factor) const {
       return {x * factor, y * factor};
    }
