@@ -73,6 +73,7 @@ App::App()
 
    Widget text = font_.create_text("Export");
    text.set_position(30, 30);
+   text.set_size(20);
    renderer_.init_mesh<UiVertex>(text);
    renderer_.upload_mesh(text);
    text_meshes_.emplace_back(std::move(text));
@@ -119,7 +120,7 @@ bool App::poll() {
 
    for (int i = 0; i < text_meshes_.size(); ++i) {
       UiUniform u = {
-          .mvp = ortho_matrix() * text_meshes_[i].model_matrix() * Mat4::scale(Vec3(20, 20, 1)),
+          .mvp = ortho_matrix() * text_meshes_[i].model_matrix(),
           .color = Vec3(1.0, 1.0, 1.0),
       };
       ui_uniforms_.upload_memory(&u, sizeof(UiUniform), i);

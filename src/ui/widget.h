@@ -16,13 +16,18 @@ public:
       y_ = y;
    }
 
+   void set_size(int size) {
+      scale_ = size;
+   }
+
    Mat4 model_matrix() const {
-      return Mat4::translate(Vec3(x_, y_, 0));
+      return Mat4::translate(Vec3(x_, y_, 0)) * Mat4::scale(Vec3(scale_, scale_, 1));
    }
 
 private:
    int x_;
    int y_;
+   int scale_;
 };
 
 } // namespace vkad
