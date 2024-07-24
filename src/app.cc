@@ -75,13 +75,13 @@ App::App()
    text.set_position(30, 30);
    text.set_size(20);
    renderer_.init_mesh<UiVertex>(text);
-   renderer_.upload_mesh(text);
+   renderer_.update_mesh(text);
    text_meshes_.emplace_back(std::move(text));
 
    Circle circle(2.0, 20);
    Model mesh = circle.extrude(1);
    renderer_.init_mesh(mesh);
-   renderer_.upload_mesh(mesh);
+   renderer_.update_mesh(mesh);
    models_.push_back(mesh.id());
 }
 

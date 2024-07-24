@@ -85,7 +85,7 @@ public:
       image.init_view();
    }
 
-   template <class Vertex> void upload_mesh(Mesh<Vertex> &mesh) {
+   template <class Vertex> void update_mesh(Mesh<Vertex> &mesh) {
       VertexIndexBuffer &buf = meshes_[mesh.id_];
       staging_buffer_.upload_mesh(
           mesh.vertices_.data(), sizeof(Vertex) * mesh.vertices_.size(), mesh.indices_.data(),
