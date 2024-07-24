@@ -79,6 +79,10 @@ public:
       return Sound(sound_system_, path);
    }
 
+   inline Mat4 ortho_matrix() const {
+      return Mat4::ortho(0, window_.width(), window_.height(), 0, -1, 1);
+   }
+
    inline Mat4 perspective_matrix() const {
       float aspect = static_cast<float>(window_.height()) / static_cast<float>(window_.width());
       return Mat4::perspective(aspect, deg_to_rad(70), 0.01, 100);
