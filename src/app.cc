@@ -27,7 +27,7 @@ App::App()
       font_("res/arial.ttf", renderer_.physical_device(), renderer_.device().handle()),
       ui_uniforms_(renderer_.create_uniform_buffer<UiVertex>(3)),
       ui_material_(renderer_.create_material<UiVertex>(
-          {"shader-vert.spv", "shader-frag.spv"},
+          {"text-vert.spv", "text-frag.spv"},
           {
               DescriptorPool::uniform_buffer_dynamic(0),
               DescriptorPool::combined_image_sampler(1),
