@@ -116,11 +116,13 @@ bool App::poll() {
       throw std::runtime_error("failed to poll fmod system");
    }
 
-   UiUniform u = {
-       .mvp = ortho_matrix() * Mat4::translate(Vec3(30, 30, 0)) * Mat4::scale(Vec3(20, 20, 1)),
-       .color = Vec3(1.0, 1.0, 1.0),
-   };
-   ui_uniforms_.upload_memory(&u, sizeof(UiUniform), 0);
+   for (int i = 0; i < text_meshes_.size(); ++i) {
+      UiUniform u = {
+          .mvp = ortho_matrix() * Mat4::translate(Vec3(30, 30, 0)) * Mat4::scale(Vec3(20, 20, 1)),
+          .color = Vec3(1.0, 1.0, 1.0),
+      };
+      ui_uniforms_.upload_memory(&u, sizeof(UiUniform), i);
+   }
 
    ModelUniform u2 = {
        .mvp = perspective_matrix() * player_.view_matrix(),
