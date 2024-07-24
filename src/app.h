@@ -93,6 +93,8 @@ public:
    }
 
 private:
+   void handle_resize();
+
    Instance vk_instance_;
    Window window_;
    Renderer renderer_;

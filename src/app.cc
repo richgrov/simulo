@@ -95,11 +95,9 @@ bool App::poll() {
       return false;
    }
 
-   int width = window_.width();
-   int height = window_.height();
-   bool window_resized = last_width_ != width || last_height_ != height;
+   bool window_resized = last_width_ != window_.width() || last_height_ != window_.height();
    if (window_resized) {
-      renderer_.recreate_swapchain(width, height, window_.surface());
+      handle_resize();
    }
 
    if (window_.is_key_down(VKAD_KEY_ESC)) {
@@ -161,4 +159,10 @@ void App::draw() {
    }
 
    renderer_.end_draw();
+}
+
+void App::handle_resize() {
+   int width = window_.width();
+   int height = window_.height();
+   renderer_.recreate_swapchain(width, height, window_.surface());
 }
