@@ -13,7 +13,9 @@ namespace vkad {
 
 class Font {
 public:
-   Font(const std::string &path, const PhysicalDevice &physical_device, VkDevice device);
+   Font(
+       const std::string &path, float height, const PhysicalDevice &physical_device, VkDevice device
+   );
 
    Widget create_text(const std::string &text);
 
@@ -30,6 +32,7 @@ public:
 private:
    static constexpr int NUM_CHARS = 96;
 
+   float height_;
    std::array<unsigned char, BITMAP_WIDTH * BITMAP_WIDTH> bitmap_;
    std::array<stbtt_bakedchar, 96> chars_;
    Image image_;

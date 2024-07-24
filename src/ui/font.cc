@@ -18,8 +18,11 @@
 
 using namespace vkad;
 
-Font::Font(const std::string &path, const PhysicalDevice &physical_device, VkDevice device)
-    : image_(
+Font::Font(
+    const std::string &path, float height, const PhysicalDevice &physical_device, VkDevice device
+)
+    : height_(height),
+      image_(
           physical_device, device, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
           VK_FORMAT_R8_UNORM, BITMAP_WIDTH, BITMAP_WIDTH
       ) {
@@ -38,7 +41,7 @@ Font::Font(const std::string &path, const PhysicalDevice &physical_device, VkDev
    }
 
    stbtt_BakeFontBitmap(
-       reinterpret_cast<unsigned char *>(data.data()), 0, 64, bitmap_.data(), BITMAP_WIDTH,
+       reinterpret_cast<unsigned char *>(data.data()), 0, height, bitmap_.data(), BITMAP_WIDTH,
        BITMAP_WIDTH, 32, NUM_CHARS, chars_.data()
    );
 }
@@ -55,8 +58,8 @@ Widget Font::create_text(const std::string &text) {
       stbtt_aligned_quad q;
       stbtt_GetBakedQuad(chars_.data(), BITMAP_WIDTH, BITMAP_WIDTH, index, &x, &y, &q, 1);
 
-      Vec2 pos1 = Vec2(q.x0 + x_off, -q.y0) / 32.0f;
-      Vec2 pos2 = Vec2(q.x1 + x_off, -q.y1) / 32.0f;
+      Vec2 pos1 = Vec2(q.x0 + x_off, -q.y0) / height_;
+      Vec2 pos2 = Vec2(q.x1 + x_off, -q.y1) / height_;
 
       int ind = vertices.size();
       vertices.push_back({{pos1.x, pos1.y, 0}, {q.s0, q.t0}});

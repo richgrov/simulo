@@ -25,7 +25,7 @@ App::App()
       delta_(0),
       player_(*this),
 
-      font_("res/arial.ttf", renderer_.physical_device(), renderer_.device().handle()),
+      font_("res/arial.ttf", 64, renderer_.physical_device(), renderer_.device().handle()),
       ui_uniforms_(renderer_.create_uniform_buffer<UiVertex>(3)),
       ui_material_(renderer_.create_material<UiVertex>(
           {"text-vert.spv", "text-frag.spv"},
