@@ -75,7 +75,7 @@ App::App()
    text_meshes_.emplace_back((text.id()));
 
    Circle circle(2.0, 20);
-   ModelMesh mesh = circle.to_mesh();
+   ModelMesh mesh = circle.extrude(1);
    renderer_.init_mesh(mesh);
    renderer_.upload_mesh(mesh);
    models_.push_back(mesh.id());

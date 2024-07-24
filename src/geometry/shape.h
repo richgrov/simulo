@@ -16,6 +16,8 @@ public:
 
    ModelMesh to_mesh();
 
+   ModelMesh extrude(float amount);
+
 protected:
    std::vector<Vec2> vertices_;
 };
