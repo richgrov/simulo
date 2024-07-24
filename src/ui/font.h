@@ -6,7 +6,7 @@
 
 #include "gpu/image.h"
 #include "gpu/physical_device.h"
-#include "ui/ui.h"
+#include "ui/widget.h"
 #include "vendor/stb_truetype.h"
 
 namespace vkad {
@@ -15,7 +15,7 @@ class Font {
 public:
    Font(const std::string &path, const PhysicalDevice &physical_device, VkDevice device);
 
-   UiMesh create_text(const std::string &text);
+   Widget create_text(const std::string &text);
 
    Image &image() {
       return image_;

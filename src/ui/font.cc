@@ -3,6 +3,7 @@
 #include "gpu/image.h"
 #include "gpu/physical_device.h"
 #include "ui/ui.h"
+#include "ui/widget.h"
 #include "vulkan/vulkan_core.h"
 #include <format>
 #include <fstream>
@@ -41,7 +42,7 @@ Font::Font(const std::string &path, const PhysicalDevice &physical_device, VkDev
    );
 }
 
-UiMesh Font::create_text(const std::string &text) {
+Widget Font::create_text(const std::string &text) {
    std::vector<UiVertex> vertices;
    std::vector<VertexIndexBuffer::IndexType> indices;
 
@@ -67,5 +68,5 @@ UiMesh Font::create_text(const std::string &text) {
       x_off += x;
    }
 
-   return UiMesh(std::move(vertices), std::move(indices));
+   return Widget(std::move(vertices), std::move(indices));
 }

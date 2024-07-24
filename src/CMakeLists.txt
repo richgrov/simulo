@@ -41,6 +41,7 @@ set(SOURCE_FILES
    "math/vec3.h"
    "ui/font.cc"
    "ui/font.h"
+   "ui/widget.h"
    "util/assert.h"
    "util/memory.h"
    "util/rand.h"

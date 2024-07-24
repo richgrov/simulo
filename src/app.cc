@@ -8,6 +8,7 @@
 #include "mesh.h"
 #include "renderer.h"
 #include "ui/ui.h"
+#include "ui/widget.h"
 #include "util/assert.h"
 #include "window/keys.h" // IWYU pragma: export
 
@@ -70,7 +71,7 @@ App::App()
    UiUniform u = {mvp, Vec3(1.0, 1.0, 1.0)};
    ui_uniforms_.upload_memory(&u, sizeof(UiUniform), 0);
 
-   UiMesh text = font_.create_text("Export");
+   Widget text = font_.create_text("Export");
    renderer_.init_mesh<UiVertex>(text);
    renderer_.upload_mesh(text);
    text_meshes_.emplace_back((text.id()));

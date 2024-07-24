@@ -9,7 +9,6 @@
 #include "math/mat4.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
-#include "mesh.h"
 
 namespace vkad {
 
@@ -24,8 +23,6 @@ inline constexpr decltype(UiVertex::attributes) UiVertex::attributes = {
     VKAD_ATTRIBUTE(0, UiVertex, pos),
     VKAD_ATTRIBUTE(1, UiVertex, tex_coord),
 };
-
-using UiMesh = Mesh<UiVertex>;
 
 struct UiUniform {
    Mat4 mvp;
