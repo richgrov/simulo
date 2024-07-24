@@ -43,6 +43,7 @@ set(SOURCE_FILES
    "ui/font.h"
    "ui/widget.h"
    "util/assert.h"
+   "util/bitfield.h"
    "util/memory.h"
    "util/rand.h"
    "util/slab.h"

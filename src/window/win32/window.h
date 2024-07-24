@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/instance.h"
+#include "util/bitfield.h"
 
 namespace vkad {
 
@@ -85,8 +86,8 @@ private:
    int delta_mouse_y_;
    bool left_clicking_;
 
-   bool pressed_keys_[256];
-   bool prev_pressed_keys_[256];
+   Bitfield<256> pressed_keys_;
+   Bitfield<256> prev_pressed_keys_;
 
    friend LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 };

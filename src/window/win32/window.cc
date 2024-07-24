@@ -112,11 +112,11 @@ LRESULT CALLBACK vkad::window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM
       return 0;
 
    case WM_KEYDOWN:
-      get_window_class(window)->pressed_keys_[static_cast<uint8_t>(w_param)] = true;
+      get_window_class(window)->pressed_keys_.set(static_cast<uint8_t>(w_param));
       return 0;
 
    case WM_KEYUP:
-      get_window_class(window)->pressed_keys_[static_cast<uint8_t>(w_param)] = false;
+      get_window_class(window)->pressed_keys_.unset(static_cast<uint8_t>(w_param));
       return 0;
    }
 
@@ -136,8 +136,7 @@ Window::Window(const Instance &vk_instance, const char *title)
       mouse_y_(0),
       delta_mouse_x_(0),
       delta_mouse_y_(0),
-      left_clicking_(false),
-      pressed_keys_{0} {
+      left_clicking_(false) {
    HINSTANCE h_instance = GetModuleHandle(nullptr);
 
    WNDCLASS clazz = {
@@ -173,7 +172,7 @@ Window::~Window() {
 }
 
 bool Window::poll() {
-   std::memcpy(prev_pressed_keys_, pressed_keys_, sizeof(pressed_keys_));
+   prev_pressed_keys_ = pressed_keys_;
 
    // Reset mouse deltas as WM_INPUT is not guaranteed to be received every frame
    delta_mouse_x_ = 0;
