@@ -14,6 +14,12 @@
 
 using namespace vkad;
 
+enum class vkad::State {
+   STANDBY,
+   CREATE_POLYGON_DEGREE,
+   CREATE_POLYGON_RADIUS,
+};
+
 App::App()
     : vk_instance_(Window::vulkan_extensions()),
       window_(vk_instance_, "vkad"),
@@ -24,6 +30,7 @@ App::App()
       last_frame_time_(Clock::now()),
       delta_(0),
       player_(*this),
+      state_(State::STANDBY),
 
       font_("res/arial.ttf", 64, renderer_.physical_device(), renderer_.device().handle()),
       ui_uniforms_(renderer_.create_uniform_buffer<UiUniform>(3)),
@@ -102,6 +109,15 @@ bool App::poll() {
 
    if (window_.is_key_down(VKAD_KEY_ESC)) {
       window_.request_close();
+   }
+
+   if (window_.key_just_pressed(VKAD_KEY_P) && state_ == State::STANDBY) {
+      state_ = State::CREATE_POLYGON_DEGREE;
+      Widget text = font_.create_text("Enter number of sides:");
+      text.set_position(30, window_.height() - 50);
+      text.set_size(35);
+      renderer_.init_mesh(text);
+      text_meshes_.emplace_back(std::move(text));
    }
 
    Clock::time_point now = Clock::now();

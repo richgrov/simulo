@@ -15,6 +15,8 @@
 
 namespace vkad {
 
+enum class State;
+
 class App {
    using Clock = std::chrono::high_resolution_clock;
 
@@ -118,6 +120,7 @@ private:
    bool was_left_clicking_;
 
    Player player_;
+   State state_;
 };
 
 } // namespace vkad
