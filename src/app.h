@@ -124,6 +124,7 @@ private:
    Player player_;
    State state_;
    std::string input_;
+   int create_sides_;
 };
 
 } // namespace vkad

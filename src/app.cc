@@ -124,9 +124,8 @@ bool App::poll() {
    case State::CREATE_POLYGON_DEGREE:
       if (process_input("Enter number of sides: ")) {
          try {
-            int sides = std::stoi(input_);
+            create_sides_ = std::stoi(input_);
             input_.clear();
-            std::cout << sides << '\n';
             state_ = State::STANDBY;
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
