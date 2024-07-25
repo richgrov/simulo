@@ -150,7 +150,7 @@ bool App::poll() {
             Circle circle(create_radius_, create_sides_);
             Model mesh = circle.to_model();
             renderer_.init_mesh(mesh);
-            models_.push_back(mesh.id());
+            models_.emplace_back(std::move(mesh));
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
          }
@@ -204,8 +204,8 @@ void App::draw() {
    renderer_.set_material(model_material_);
    renderer_.set_uniform(model_material_, 0);
 
-   for (const int id : models_) {
-      renderer_.draw(id);
+   for (const Model &model : models_) {
+      renderer_.draw(model.id());
    }
 
    renderer_.set_material(ui_material_);

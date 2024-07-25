@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include "entity/player.h"
+#include "geometry/model.h"
 #include "gpu/buffer.h"
 #include "gpu/instance.h"
 #include "math/angle.h"
@@ -110,7 +111,7 @@ private:
 
    UniformBuffer model_uniforms_;
    int model_material_;
-   std::vector<int> models_;
+   std::vector<Model> models_;
 
    int last_width_;
    int last_height_;
