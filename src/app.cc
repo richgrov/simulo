@@ -111,13 +111,25 @@ bool App::poll() {
       window_.request_close();
    }
 
-   if (window_.key_just_pressed(VKAD_KEY_P) && state_ == State::STANDBY) {
-      state_ = State::CREATE_POLYGON_DEGREE;
-      Widget text = font_.create_text("Enter number of sides:");
-      text.set_position(30, window_.height() - 50);
-      text.set_size(35);
-      renderer_.init_mesh(text);
-      text_meshes_.emplace_back(std::move(text));
+   switch (state_) {
+   case State::STANDBY:
+      if (window_.key_just_pressed(VKAD_KEY_P)) {
+         state_ = State::CREATE_POLYGON_DEGREE;
+         add_prompt_text("Enter number of sides: ");
+      }
+      break;
+
+   case State::CREATE_POLYGON_DEGREE:
+      if (!window_.typed_chars().empty()) {
+         input_ += window_.typed_chars();
+         renderer_.delete_mesh(text_meshes_[1]);
+         text_meshes_.erase(text_meshes_.begin() + 1);
+         add_prompt_text("Enter number of sides: ");
+      }
+      break;
+
+   default:
+      break;
    }
 
    Clock::time_point now = Clock::now();
@@ -182,4 +194,12 @@ void App::handle_resize() {
    int width = window_.width();
    int height = window_.height();
    renderer_.recreate_swapchain(width, height, window_.surface());
+}
+
+void App::add_prompt_text(const std::string &message) {
+   Widget text = font_.create_text(message + input_);
+   text.set_position(30, window_.height() - 50);
+   text.set_size(35);
+   renderer_.init_mesh(text);
+   text_meshes_.emplace_back(std::move(text));
 }

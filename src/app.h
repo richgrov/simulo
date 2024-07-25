@@ -96,6 +96,7 @@ public:
 
 private:
    void handle_resize();
+   void add_prompt_text(const std::string &message);
 
    Instance vk_instance_;
    Window window_;
@@ -121,6 +122,7 @@ private:
 
    Player player_;
    State state_;
+   std::string input_;
 };
 
 } // namespace vkad
