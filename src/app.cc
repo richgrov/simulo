@@ -86,10 +86,6 @@ App::App()
    renderer_.init_mesh<UiVertex>(text);
    text_meshes_.emplace_back(std::move(text));
 
-   Circle circle(2.0, 20);
-   Model mesh = circle.extrude(1);
-   renderer_.init_mesh(mesh);
-   models_.push_back(mesh.id());
 }
 
 App::~App() {
@@ -133,6 +129,28 @@ bool App::poll() {
 
             state_ = State::CREATE_POLYGON_RADIUS;
             add_prompt_text("Enter radius: ");
+         } catch (const std::exception &e) {
+            state_ = State::STANDBY;
+         }
+      }
+      break;
+
+   case State::CREATE_POLYGON_RADIUS:
+      if (process_input("Enter radius: ")) {
+         try {
+            create_radius_ = std::stof(input_);
+            input_.clear();
+
+            if (create_radius_ <= 0) {
+               throw std::runtime_error("radius must be larger than 0");
+            }
+
+            state_ = State::STANDBY;
+
+            Circle circle(create_radius_, create_sides_);
+            Model mesh = circle.to_model();
+            renderer_.init_mesh(mesh);
+            models_.push_back(mesh.id());
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
          }

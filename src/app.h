@@ -125,6 +125,7 @@ private:
    State state_;
    std::string input_;
    int create_sides_;
+   float create_radius_;
 };
 
 } // namespace vkad
