@@ -64,6 +64,13 @@ public:
       update_mesh(mesh);
    }
 
+   template <class Vertex> inline void delete_mesh(Mesh<Vertex> &mesh) {
+      meshes_.release(mesh.id_);
+#ifdef VKAD_DEBUG
+      mesh.id_ = -1;
+#endif
+   }
+
    template <class T> UniformBuffer create_uniform_buffer(size_t num_elements) {
       return UniformBuffer(sizeof(T), num_elements, device_.handle(), physical_device_);
    }
