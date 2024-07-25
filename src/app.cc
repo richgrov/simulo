@@ -126,6 +126,10 @@ bool App::poll() {
          try {
             create_sides_ = std::stoi(input_);
             input_.clear();
+
+            if (create_sides_ < 3) {
+               throw std::runtime_error("need at least 3 sides");
+            }
             state_ = State::STANDBY;
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
