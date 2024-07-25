@@ -120,6 +120,11 @@ bool App::poll() {
       } else if (window_.key_just_pressed(VKAD_KEY_E)) {
          state_ = State::EXTRUDE;
          add_prompt_text("Extrude: ");
+      } else if (window_.key_just_pressed(VKAD_KEY_P)) {
+         std::vector<Triangle> tris = models_[0].to_stl_triangles();
+         std::ofstream file("model.stl");
+         write_stl("model", tris, file);
+         add_prompt_text("Model saved.");
       }
       break;
 
