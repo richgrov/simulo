@@ -130,7 +130,9 @@ bool App::poll() {
             if (create_sides_ < 3) {
                throw std::runtime_error("need at least 3 sides");
             }
-            state_ = State::STANDBY;
+
+            state_ = State::CREATE_POLYGON_RADIUS;
+            add_prompt_text("Enter radius: ");
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
          }
