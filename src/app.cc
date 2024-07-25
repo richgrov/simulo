@@ -7,11 +7,13 @@
 #include "math/mat4.h"
 #include "mesh.h"
 #include "renderer.h"
+#include "stl.h"
 #include "ui/ui.h"
 #include "ui/widget.h"
 #include "util/assert.h"
 #include "window/keys.h" // IWYU pragma: export
 #include <exception>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 
@@ -21,6 +23,7 @@ enum class vkad::State {
    STANDBY,
    CREATE_POLYGON_DEGREE,
    CREATE_POLYGON_RADIUS,
+   EXTRUDE,
 };
 
 App::App()
@@ -86,7 +89,6 @@ App::App()
    text.set_size(35);
    renderer_.init_mesh<UiVertex>(text);
    text_meshes_.emplace_back(std::move(text));
-
 }
 
 App::~App() {
@@ -115,6 +117,9 @@ bool App::poll() {
       if (window_.key_just_pressed(VKAD_KEY_C)) {
          state_ = State::CREATE_POLYGON_DEGREE;
          add_prompt_text("Enter number of sides: ");
+      } else if (window_.key_just_pressed(VKAD_KEY_E)) {
+         state_ = State::EXTRUDE;
+         add_prompt_text("Extrude: ");
       }
       break;
 
@@ -149,6 +154,7 @@ bool App::poll() {
             state_ = State::STANDBY;
 
             Circle circle(create_radius_, create_sides_);
+            shapes_.push_back(circle);
             Model mesh = circle.to_model();
             renderer_.init_mesh(mesh);
             models_.emplace_back(std::move(mesh));
@@ -158,7 +164,32 @@ bool App::poll() {
       }
       break;
 
-   default:
+   case State::EXTRUDE:
+      if (process_input("Extrude: ")) {
+         try {
+            extrude_amount_ = std::stof(input_);
+            input_.clear();
+
+            if (extrude_amount_ <= 0) {
+               throw std::runtime_error("must extrude by more than 0");
+            }
+
+            state_ = State::STANDBY;
+
+            for (Model &model : models_) {
+               renderer_.delete_mesh(model);
+            }
+            models_.clear();
+
+            Shape &shape = shapes_.back();
+            Model mesh = shape.extrude(extrude_amount_);
+            renderer_.init_mesh(mesh);
+            models_.emplace_back(std::move(mesh));
+            shapes_.clear();
+         } catch (const std::exception &e) {
+            state_ = State::STANDBY;
+         }
+      }
       break;
    }
 

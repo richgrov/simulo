@@ -5,6 +5,7 @@
 
 #include "entity/player.h"
 #include "geometry/model.h"
+#include "geometry/shape.h"
 #include "gpu/buffer.h"
 #include "gpu/instance.h"
 #include "math/angle.h"
@@ -111,6 +112,7 @@ private:
 
    UniformBuffer model_uniforms_;
    int model_material_;
+   std::vector<Shape> shapes_;
    std::vector<Model> models_;
 
    int last_width_;
@@ -127,6 +129,7 @@ private:
    std::string input_;
    int create_sides_;
    float create_radius_;
+   float extrude_amount_;
 };
 
 } // namespace vkad
