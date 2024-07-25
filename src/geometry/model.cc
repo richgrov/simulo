@@ -3,6 +3,10 @@
 
 using namespace vkad;
 
+static Vec3 swap_yz(Vec3 v) {
+   return {v.x, v.z, v.y};
+}
+
 std::vector<Triangle> Model::to_stl_triangles() const {
    std::vector<Triangle> triangles(indices_.size() / 3);
 
@@ -10,9 +14,9 @@ std::vector<Triangle> Model::to_stl_triangles() const {
       triangles.push_back(Triangle{
           .points =
               {
-                  vertices_[indices_[i]].pos,
-                  vertices_[indices_[i + 1]].pos,
-                  vertices_[indices_[i + 2]].pos,
+                  swap_yz(vertices_[indices_[i]].pos),
+                  swap_yz(vertices_[indices_[i + 1]].pos),
+                  swap_yz(vertices_[indices_[i + 2]].pos),
               },
           .normal = vertices_[indices_[i]].norm,
       });
