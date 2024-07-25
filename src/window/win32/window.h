@@ -1,6 +1,7 @@
 #ifndef VKAD_WINDOW_WIN32_WINDOW_H_
 #define VKAD_WINDOW_WIN32_WINDOW_H_
 
+#include <string_view>
 #include <vector>
 
 #include <Windows.h>
@@ -68,6 +69,10 @@ public:
       return !prev_pressed_keys_[key_code] && pressed_keys_[key_code];
    }
 
+   std::string_view typed_chars() const {
+      return std::string_view(typed_chars_, next_typed_letter_);
+   }
+
 private:
    const Instance &vk_instance_;
    HWND window_;
@@ -88,6 +93,9 @@ private:
 
    Bitfield<256> pressed_keys_;
    Bitfield<256> prev_pressed_keys_;
+
+   char typed_chars_[64];
+   int next_typed_letter_;
 
    friend LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 };
