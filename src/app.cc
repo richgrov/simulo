@@ -12,6 +12,7 @@
 #include "util/assert.h"
 #include "window/keys.h" // IWYU pragma: export
 #include <exception>
+#include <stdexcept>
 #include <string>
 
 using namespace vkad;
