@@ -96,6 +96,7 @@ public:
 
 private:
    void handle_resize();
+   bool process_input(const std::string &message);
    void add_prompt_text(const std::string &message);
 
    Instance vk_instance_;

@@ -11,6 +11,8 @@
 #include "ui/widget.h"
 #include "util/assert.h"
 #include "window/keys.h" // IWYU pragma: export
+#include <exception>
+#include <string>
 
 using namespace vkad;
 
@@ -120,11 +122,15 @@ bool App::poll() {
       break;
 
    case State::CREATE_POLYGON_DEGREE:
-      if (!window_.typed_chars().empty()) {
-         input_ += window_.typed_chars();
-         renderer_.delete_mesh(text_meshes_[1]);
-         text_meshes_.erase(text_meshes_.begin() + 1);
-         add_prompt_text("Enter number of sides: ");
+      if (process_input("Enter number of sides: ")) {
+         try {
+            int sides = std::stoi(input_);
+            input_.clear();
+            std::cout << sides << '\n';
+            state_ = State::STANDBY;
+         } catch (const std::exception &e) {
+            state_ = State::STANDBY;
+         }
       }
       break;
 
@@ -194,6 +200,37 @@ void App::handle_resize() {
    int width = window_.width();
    int height = window_.height();
    renderer_.recreate_swapchain(width, height, window_.surface());
+}
+
+bool App::process_input(const std::string &message) {
+   if (window_.typed_chars().empty()) {
+      return false;
+   }
+
+   if (text_meshes_.size() >= 2) {
+      renderer_.delete_mesh(text_meshes_[1]);
+      text_meshes_.erase(text_meshes_.begin() + 1);
+   }
+
+   for (char c : window_.typed_chars()) {
+      switch (c) {
+      case '\b':
+         if (!input_.empty()) {
+            input_.pop_back();
+         }
+         break;
+
+      case '\r':
+         return true;
+
+      default:
+         input_.push_back(c);
+         break;
+      }
+   }
+
+   add_prompt_text(message);
+   return false;
 }
 
 void App::add_prompt_text(const std::string &message) {
