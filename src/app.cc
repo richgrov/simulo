@@ -113,7 +113,7 @@ bool App::poll() {
 
    switch (state_) {
    case State::STANDBY:
-      if (window_.key_just_pressed(VKAD_KEY_P)) {
+      if (window_.key_just_pressed(VKAD_KEY_C)) {
          state_ = State::CREATE_POLYGON_DEGREE;
          add_prompt_text("Enter number of sides: ");
       }
