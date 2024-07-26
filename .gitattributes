@@ -2,3 +2,4 @@
 /src/vendor/* linguist-vendored
 res/*.ttf filter=lfs diff=lfs merge=lfs -text
 res/sfx/*.mp3 filter=lfs diff=lfs merge=lfs -text
+.github/logo.svg filter=lfs diff=lfs merge=lfs -text
