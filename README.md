@@ -1,4 +1,4 @@
-# vkad
+![vkad logo](.github/logo.svg)
 
 A simple, minimal-dependency CAD program powered by Vulkan
 
