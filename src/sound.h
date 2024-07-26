@@ -10,6 +10,16 @@ public:
    Sound(FMOD_SYSTEM *system, const char *path);
    ~Sound();
 
+   inline explicit Sound(Sound &&other) {
+      sound_ = other.sound_;
+      sound_system_ = other.sound_system_;
+      other.sound_ = nullptr;
+   }
+
+   explicit Sound(const Sound &other) = delete;
+
+   Sound &operator=(const Sound &other) = delete;
+
    void play() const;
 
 private:

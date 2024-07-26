@@ -14,7 +14,9 @@ Sound::Sound(FMOD_SYSTEM *system, const char *path) : sound_system_(system) {
 }
 
 Sound::~Sound() {
-   FMOD_Sound_Release(sound_);
+   if (sound_ != nullptr) {
+      FMOD_Sound_Release(sound_);
+   }
 }
 
 void Sound::play() const {
