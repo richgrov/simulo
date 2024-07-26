@@ -78,6 +78,11 @@ App::App()
       throw std::runtime_error("failed to initialize sound system");
    }
 
+   type_sfx_.emplace(std::move(create_sound("res/sfx/type.mp3")));
+   create_sfx_.emplace(std::move(create_sound("res/sfx/create.mp3")));
+   extrude_sfx_.emplace(std::move(create_sound("res/sfx/extrude.mp3")));
+   export_sfx_.emplace(std::move(create_sound("res/sfx/export.mp3")));
+
    window_.set_capture_mouse(true);
 
    Mat4 mvp = perspective_matrix() * player_.view_matrix();
@@ -124,6 +129,7 @@ bool App::poll() {
          std::vector<Triangle> tris = models_[0].to_stl_triangles();
          std::ofstream file("model.stl");
          write_stl("model", tris, file);
+         export_sfx_.value().play();
          add_prompt_text("Model saved.");
       }
       break;
@@ -163,6 +169,7 @@ bool App::poll() {
             Model mesh = circle.to_model();
             renderer_.init_mesh(mesh);
             models_.emplace_back(std::move(mesh));
+            create_sfx_.value().play();
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
          }
@@ -191,6 +198,7 @@ bool App::poll() {
             renderer_.init_mesh(mesh);
             models_.emplace_back(std::move(mesh));
             shapes_.clear();
+            extrude_sfx_.value().play();
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
          }
@@ -218,7 +226,7 @@ bool App::poll() {
 
    ModelUniform u2 = {
        .mvp = perspective_matrix() * player_.view_matrix(),
-       .color = Vec3(0.8, 0.2, 0.2),
+       .color = Vec3(0.1, 0.1, 0.8),
    };
    model_uniforms_.upload_memory(&u2, sizeof(u2), 0);
 
@@ -266,6 +274,8 @@ bool App::process_input(const std::string &message) {
    if (window_.typed_chars().empty()) {
       return false;
    }
+
+   type_sfx_.value().play();
 
    if (text_meshes_.size() >= 2) {
       renderer_.delete_mesh(text_meshes_[1]);

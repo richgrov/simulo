@@ -119,6 +119,10 @@ private:
    int last_height_;
 
    FMOD_SYSTEM *sound_system_;
+   std::optional<Sound> type_sfx_;
+   std::optional<Sound> create_sfx_;
+   std::optional<Sound> extrude_sfx_;
+   std::optional<Sound> export_sfx_;
 
    Clock::time_point last_frame_time_;
    std::chrono::duration<float> delta_;
