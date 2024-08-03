@@ -63,7 +63,7 @@ set(SOURCE_FILES
    ${OS_SPECIFIC_FILES}
 )
 
-add_library(vkad ${SOURCE_FILES})
+add_executable(vkad ${SOURCE_FILES} "main.cc")
 
 function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
