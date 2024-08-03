@@ -35,8 +35,8 @@ Device::Device(const PhysicalDevice &physical_device) {
        .queueCreateInfoCount = static_cast<uint32_t>(create_queues.size()),
        .pQueueCreateInfos = create_queues.data(),
 #ifdef VKAD_DEBUG
-       .enabledLayerCount = VKAD_ARRAY_LEN(validation_layers),
-       .ppEnabledLayerNames = validation_layers,
+       .enabledLayerCount = VKAD_ARRAY_LEN(kValidationLayers),
+       .ppEnabledLayerNames = kValidationLayers,
 #endif
        .enabledExtensionCount = 1,
        .ppEnabledExtensionNames = &swapchain_extension,

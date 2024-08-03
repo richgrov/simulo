@@ -22,7 +22,7 @@ void ensure_validation_layers_supported() {
    std::vector<VkLayerProperties> all_layers(total_layers);
    vkEnumerateInstanceLayerProperties(&total_layers, all_layers.data());
 
-   for (const char *const layer_name : validation_layers) {
+   for (const char *const layer_name : kValidationLayers) {
       bool match = false;
 
       for (const auto &layer : all_layers) {
@@ -58,8 +58,8 @@ Instance::Instance(const std::vector<const char *> extensions) {
 
 #ifdef VKAD_DEBUG
    ensure_validation_layers_supported();
-   create_info.enabledLayerCount = VKAD_ARRAY_LEN(validation_layers);
-   create_info.ppEnabledLayerNames = validation_layers;
+   create_info.enabledLayerCount = VKAD_ARRAY_LEN(kValidationLayers);
+   create_info.ppEnabledLayerNames = kValidationLayers;
    std::cout << "Validation layers enabled\n";
 #endif
 
