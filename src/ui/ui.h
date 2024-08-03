@@ -16,10 +16,10 @@ struct UiVertex {
    Vec3 pos;
    Vec2 tex_coord;
 
-   static const std::array<VkVertexInputAttributeDescription, 2> attributes;
+   static const std::array<VkVertexInputAttributeDescription, 2> kAttributes;
 };
 
-inline constexpr decltype(UiVertex::attributes) UiVertex::attributes = {
+inline constexpr decltype(UiVertex::kAttributes) UiVertex::kAttributes = {
     VKAD_ATTRIBUTE(0, UiVertex, pos),
     VKAD_ATTRIBUTE(1, UiVertex, tex_coord),
 };

@@ -27,13 +27,13 @@ public:
       return bitmap_.data();
    }
 
-   static constexpr int BITMAP_WIDTH = 1024;
+   static constexpr int kBitmapWidth = 1024;
 
 private:
-   static constexpr int NUM_CHARS = 96;
+   static constexpr int kNumChars = 96;
 
    float height_;
-   std::array<unsigned char, BITMAP_WIDTH * BITMAP_WIDTH> bitmap_;
+   std::array<unsigned char, kBitmapWidth * kBitmapWidth> bitmap_;
    std::array<stbtt_bakedchar, 96> chars_;
    Image image_;
 };

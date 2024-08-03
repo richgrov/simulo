@@ -15,10 +15,10 @@ struct ModelVertex {
    Vec3 pos;
    Vec3 norm;
 
-   static const std::array<VkVertexInputAttributeDescription, 2> attributes;
+   static const std::array<VkVertexInputAttributeDescription, 2> kAttributes;
 };
 
-inline constexpr decltype(ModelVertex::attributes) ModelVertex::attributes{
+inline constexpr decltype(ModelVertex::kAttributes) ModelVertex::kAttributes{
     VKAD_ATTRIBUTE(0, ModelVertex, pos),
     VKAD_ATTRIBUTE(1, ModelVertex, norm),
 };

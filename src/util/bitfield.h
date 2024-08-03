@@ -6,13 +6,13 @@
 namespace vkad {
 
 template <int Bits> class Bitfield {
-   static constexpr size_t NUM_BYTES = (Bits + (8 - Bits % 8) % 8) / 8;
+   static constexpr size_t kNumBytes = (Bits + (8 - Bits % 8) % 8) / 8;
 
 public:
    Bitfield() : bytes_{} {}
 
    Bitfield &operator=(const Bitfield &other) {
-      std::memcpy(bytes_, other.bytes_, NUM_BYTES);
+      std::memcpy(bytes_, other.bytes_, kNumBytes);
       return *this;
    }
 
@@ -30,7 +30,7 @@ public:
    }
 
 private:
-   unsigned char bytes_[NUM_BYTES];
+   unsigned char bytes_[kNumBytes];
 };
 
 } // namespace vkad

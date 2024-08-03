@@ -36,7 +36,7 @@ public:
        const std::vector<VkDescriptorSetLayoutBinding> &bindings
    ) {
       std::vector<VkVertexInputAttributeDescription> attrs(
-          Vertex::attributes.begin(), Vertex::attributes.end()
+          Vertex::kAttributes.begin(), Vertex::kAttributes.end()
       );
 
       return do_create_pipeline(sizeof(Vertex), attrs, shader_paths, bindings);

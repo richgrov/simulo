@@ -6,7 +6,7 @@
 
 namespace vkad {
 
-constexpr const char *validation_layers[] = {
+constexpr const char *kValidationLayers[] = {
     "VK_LAYER_KHRONOS_validation",
     //"VK_LAYER_LUNARG_api_dump",
 };

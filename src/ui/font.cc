@@ -24,7 +24,7 @@ Font::Font(
     : height_(height),
       image_(
           physical_device, device, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-          VK_FORMAT_R8_UNORM, BITMAP_WIDTH, BITMAP_WIDTH
+          VK_FORMAT_R8_UNORM, kBitmapWidth, kBitmapWidth
       ) {
 
    std::ifstream file(path, std::ios::ate | std::ios::binary);
@@ -41,8 +41,8 @@ Font::Font(
    }
 
    stbtt_BakeFontBitmap(
-       reinterpret_cast<unsigned char *>(data.data()), 0, height, bitmap_.data(), BITMAP_WIDTH,
-       BITMAP_WIDTH, 32, NUM_CHARS, chars_.data()
+       reinterpret_cast<unsigned char *>(data.data()), 0, height, bitmap_.data(), kBitmapWidth,
+       kBitmapWidth, 32, kNumChars, chars_.data()
    );
 }
 
@@ -63,7 +63,7 @@ Widget Font::create_text(const std::string &text) {
       float x = 0;
       float y = 0;
       stbtt_aligned_quad q;
-      stbtt_GetBakedQuad(chars_.data(), BITMAP_WIDTH, BITMAP_WIDTH, index, &x, &y, &q, 1);
+      stbtt_GetBakedQuad(chars_.data(), kBitmapWidth, kBitmapWidth, index, &x, &y, &q, 1);
 
       Vec2 pos1 = Vec2(q.x0 + x_off, -q.y0 + y_off) / height_;
       Vec2 pos2 = Vec2(q.x1 + x_off, -q.y1 + y_off) / height_;

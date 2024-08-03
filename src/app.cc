@@ -53,7 +53,7 @@ App::App()
           {"model-vert.spv", "model-frag.spv"}, {DescriptorPool::uniform_buffer_dynamic(0)}
       )) {
 
-   renderer_.init_image(font_.image(), font_.image_data(), Font::BITMAP_WIDTH * Font::BITMAP_WIDTH);
+   renderer_.init_image(font_.image(), font_.image_data(), Font::kBitmapWidth * Font::kBitmapWidth);
 
    renderer_.link_material(
        ui_material_,
