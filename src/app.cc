@@ -83,6 +83,8 @@ App::App()
    text_meshes_.emplace_back(std::move(text));
 }
 
+App::~App() {}
+
 bool App::poll() {
    last_width_ = window_.width();
    last_height_ = window_.height();
