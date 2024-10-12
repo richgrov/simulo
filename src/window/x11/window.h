@@ -1,8 +1,9 @@
 #ifndef VKAD_WINDOW_X11_WINDOW_H_
 #define VKAD_WINDOW_X11_WINDOW_H_
 
-#include "gpu/instance.h"
 #include <string_view>
+
+#include "gpu/instance.h"
 
 namespace vkad {
 
