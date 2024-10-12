@@ -23,7 +23,10 @@ vkad::Window::Window(const Instance &vk_instance, const char *title) {
    XMapWindow(display, window_);
 }
 
-vkad::Window::~Window() {}
+vkad::Window::~Window() {
+   XDestroyWindow(reinterpret_cast<Display *>(display_), window_);
+   XCloseDisplay(reinterpret_cast<Display *>(display_));
+}
 
 bool vkad::Window::poll() {
    return false;
