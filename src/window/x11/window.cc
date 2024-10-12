@@ -29,6 +29,17 @@ vkad::Window::~Window() {
 }
 
 bool vkad::Window::poll() {
+   auto display = reinterpret_cast<Display *>(display_);
+
+   while (true) {
+      if (XPending(display) < 1) {
+         break;
+      }
+
+      XEvent event;
+      XNextEvent(display, &event);
+   }
+
    return false;
 }
 
