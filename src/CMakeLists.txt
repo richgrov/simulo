@@ -72,9 +72,13 @@ function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
 
     # Vulkan
-    target_link_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Lib")
-    target_link_libraries(${subject} "vulkan-1.lib")
-    target_include_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Include")
+    if (WIN32)
+        target_link_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Lib")
+        target_link_libraries(${subject} "vulkan-1.lib")
+        target_include_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Include")
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_link_libraries(${subject} libvulkan.so)
+    endif()
 
     set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)
 endfunction()
