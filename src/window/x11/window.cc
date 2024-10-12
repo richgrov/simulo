@@ -20,7 +20,9 @@ vkad::Window::Window(const Instance &vk_instance, const char *title) {
    window_ = XCreateSimpleWindow(
        display, root, 0, 0, 1280, 720, 1, BlackPixel(display, 0), BlackPixel(display, 0)
    );
+
    XMapWindow(display, window_);
+   XFlush(display);
 }
 
 vkad::Window::~Window() {
