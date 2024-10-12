@@ -4,6 +4,10 @@ if (WIN32)
         "window/win32/window.cc"
         "window/win32/window.h"
     )
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(OS_SPECIFIC_FILES
+        "window/x11/window.h"
+    )
 endif()
 
 set(SOURCE_FILES
