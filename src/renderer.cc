@@ -4,7 +4,6 @@
 #include <stdexcept>
 #include <vector>
 
-#include <fmod.h>
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/buffer.h"

@@ -56,8 +56,6 @@ set(SOURCE_FILES
    "renderer.cc"
    "renderer.h"
    "mesh.h"
-   "sound.cc"
-   "sound.h"
    "stl.cc"
    "stl.h"
    ${OS_SPECIFIC_FILES}
@@ -72,11 +70,6 @@ function(setup_targets subject)
     target_link_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Lib")
     target_link_libraries(${subject} "vulkan-1.lib")
     target_include_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Include")
-    
-    # FMOD
-    target_link_directories(${subject} PUBLIC "$ENV{FMOD_HOME}/lib/x64")
-    target_link_libraries(${subject} fmod.dll)
-    target_include_directories(${subject} PUBLIC "$ENV{FMOD_HOME}/inc")
 
     set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)
 endfunction()

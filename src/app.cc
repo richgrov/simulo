@@ -70,19 +70,6 @@ App::App()
        }
    );
 
-   if (FMOD_System_Create(&sound_system_, FMOD_VERSION) != FMOD_OK) {
-      throw std::runtime_error("failed to create sound system");
-   }
-
-   if (FMOD_System_Init(sound_system_, 32, FMOD_INIT_NORMAL, nullptr) != FMOD_OK) {
-      throw std::runtime_error("failed to initialize sound system");
-   }
-
-   type_sfx_.emplace(std::move(create_sound("res/sfx/type.mp3")));
-   create_sfx_.emplace(std::move(create_sound("res/sfx/create.mp3")));
-   extrude_sfx_.emplace(std::move(create_sound("res/sfx/extrude.mp3")));
-   export_sfx_.emplace(std::move(create_sound("res/sfx/export.mp3")));
-
    window_.set_capture_mouse(true);
 
    Mat4 mvp = perspective_matrix() * player_.view_matrix();
@@ -94,10 +81,6 @@ App::App()
    text.set_size(35);
    renderer_.init_mesh<UiVertex>(text);
    text_meshes_.emplace_back(std::move(text));
-}
-
-App::~App() {
-   FMOD_System_Release(sound_system_);
 }
 
 bool App::poll() {
@@ -129,7 +112,6 @@ bool App::poll() {
          std::vector<Triangle> tris = models_[0].to_stl_triangles();
          std::ofstream file("model.stl");
          write_stl("model", tris, file);
-         export_sfx_.value().play();
          add_prompt_text("Model saved.");
       }
       break;
@@ -169,7 +151,6 @@ bool App::poll() {
             Model mesh = circle.to_model();
             renderer_.init_mesh(mesh);
             models_.emplace_back(std::move(mesh));
-            create_sfx_.value().play();
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
          }
@@ -198,7 +179,6 @@ bool App::poll() {
             renderer_.init_mesh(mesh);
             models_.emplace_back(std::move(mesh));
             shapes_.clear();
-            extrude_sfx_.value().play();
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
          }
@@ -211,10 +191,6 @@ bool App::poll() {
    last_frame_time_ = now;
 
    was_left_clicking_ = left_clicking();
-
-   if (FMOD_System_Update(sound_system_) != FMOD_OK) {
-      throw std::runtime_error("failed to poll fmod system");
-   }
 
    for (int i = 0; i < text_meshes_.size(); ++i) {
       UiUniform u = {
@@ -274,8 +250,6 @@ bool App::process_input(const std::string &message) {
    if (window_.typed_chars().empty()) {
       return false;
    }
-
-   type_sfx_.value().play();
 
    if (text_meshes_.size() >= 2) {
       renderer_.delete_mesh(text_meshes_[1]);

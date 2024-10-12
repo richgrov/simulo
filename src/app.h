@@ -11,7 +11,6 @@
 #include "math/angle.h"
 #include "math/mat4.h"
 #include "renderer.h"
-#include "sound.h"
 #include "ui/font.h"
 #include "window/window.h" // IWYU pragma: export
 
@@ -79,10 +78,6 @@ public:
       return player_;
    }
 
-   Sound create_sound(const char *path) {
-      return Sound(sound_system_, path);
-   }
-
    inline Mat4 ortho_matrix() const {
       return Mat4::ortho(0, window_.width(), window_.height(), 0, -1, 1);
    }
@@ -117,12 +112,6 @@ private:
 
    int last_width_;
    int last_height_;
-
-   FMOD_SYSTEM *sound_system_;
-   std::optional<Sound> type_sfx_;
-   std::optional<Sound> create_sfx_;
-   std::optional<Sound> extrude_sfx_;
-   std::optional<Sound> export_sfx_;
 
    Clock::time_point last_frame_time_;
    std::chrono::duration<float> delta_;
