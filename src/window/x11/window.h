@@ -3,6 +3,8 @@
 
 #include <string_view>
 
+#include <vulkan/vulkan_core.h>
+
 #include "gpu/instance.h"
 
 namespace vkad {
@@ -23,7 +25,7 @@ public:
    void request_close();
 
    inline VkSurfaceKHR surface() const {
-      return nullptr;
+      return surface_;
    }
 
    int width() const {
@@ -69,6 +71,7 @@ public:
 private:
    void *display_;
    unsigned long window_;
+   VkSurfaceKHR surface_;
 };
 
 } // namespace vkad
