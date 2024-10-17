@@ -26,7 +26,7 @@ VkSurfaceKHR create_surface(Display *display, ::Window window, VkInstance instan
 
 } // namespace
 
-vkad::Window::Window(const Instance &vk_instance, const char *title) {
+vkad::Window::Window(const Instance &vk_instance, const char *title) : width_(1280), height_(720) {
    Display *display = XOpenDisplay(NULL);
    display_ = display;
    if (display_ == nullptr) {
@@ -36,7 +36,7 @@ vkad::Window::Window(const Instance &vk_instance, const char *title) {
    ::Window root = DefaultRootWindow(display);
 
    window_ = XCreateSimpleWindow(
-       display, root, 0, 0, 1280, 720, 1, BlackPixel(display, 0), BlackPixel(display, 0)
+       display, root, 0, 0, width_, height_, 1, BlackPixel(display, 0), BlackPixel(display, 0)
    );
 
    XMapWindow(display, window_);

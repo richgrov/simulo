@@ -29,11 +29,11 @@ public:
    }
 
    int width() const {
-      return 0;
+      return width_;
    }
 
    int height() const {
-      return 0;
+      return height_;
    }
 
    int mouse_x() const {
@@ -72,6 +72,8 @@ private:
    void *display_;
    unsigned long window_;
    VkSurfaceKHR surface_;
+   int width_;
+   int height_;
 };
 
 } // namespace vkad
