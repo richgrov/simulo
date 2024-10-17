@@ -42,6 +42,9 @@ vkad::Window::Window(const Instance &vk_instance, const char *title) : width_(12
    XMapWindow(display, window_);
    XFlush(display);
 
+   wm_delete_window_ = XInternAtom(display, "WM_DELETE_WINDOW", false);
+   XSetWMProtocols(display, window_, &wm_delete_window_, 1);
+
    surface_ = create_surface(display, window_, vk_instance.handle());
 }
 
@@ -60,9 +63,16 @@ bool vkad::Window::poll() {
 
       XEvent event;
       XNextEvent(display, &event);
+
+      switch (event.type) {
+      case ClientMessage:
+         if (event.xclient.data.l[0] == wm_delete_window_) {
+            return false;
+         }
+      }
    }
 
-   return false;
+   return true;
 }
 
 void vkad::Window::set_capture_mouse(bool capture) {}

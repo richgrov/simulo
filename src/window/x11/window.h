@@ -71,6 +71,7 @@ public:
 private:
    void *display_;
    unsigned long window_;
+   unsigned long wm_delete_window_;
    VkSurfaceKHR surface_;
    int width_;
    int height_;
