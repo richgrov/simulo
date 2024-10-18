@@ -20,7 +20,9 @@ public:
 
    bool poll();
 
-   void set_capture_mouse(bool capture);
+   void set_capture_mouse(bool capture) {
+      mouse_captured_ = capture;
+   }
 
    void request_close();
 
@@ -72,6 +74,7 @@ private:
    void *display_;
    unsigned long window_;
    unsigned long wm_delete_window_;
+   bool mouse_captured_;
    VkSurfaceKHR surface_;
    int width_;
    int height_;

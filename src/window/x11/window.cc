@@ -79,9 +79,11 @@ bool vkad::Window::poll() {
       }
    }
 
+   if (mouse_captured_) {
+      XWarpPointer(display, window_, window_, 0, 0, 0, 0, width_ / 2, height_ / 2);
+   }
+
    return true;
 }
-
-void vkad::Window::set_capture_mouse(bool capture) {}
 
 void vkad::Window::request_close() {}
