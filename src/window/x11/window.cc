@@ -45,6 +45,8 @@ vkad::Window::Window(const Instance &vk_instance, const char *title) : width_(12
    wm_delete_window_ = XInternAtom(display, "WM_DELETE_WINDOW", false);
    XSetWMProtocols(display, window_, &wm_delete_window_, 1);
 
+   XSelectInput(display, window_, StructureNotifyMask);
+
    surface_ = create_surface(display, window_, vk_instance.handle());
 }
 
@@ -65,6 +67,11 @@ bool vkad::Window::poll() {
       XNextEvent(display, &event);
 
       switch (event.type) {
+      case ConfigureNotify:
+         width_ = event.xconfigure.width;
+         height_ = event.xconfigure.height;
+         break;
+
       case ClientMessage:
          if (event.xclient.data.l[0] == wm_delete_window_) {
             return false;
