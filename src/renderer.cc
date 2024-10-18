@@ -214,6 +214,7 @@ void Renderer::ensure_shader_loaded(const std::string &path) {
 }
 
 void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {
+   swapchain_.dispose();
    swapchain_ = std::move(Swapchain(
        {physical_device_.graphics_queue(), physical_device_.present_queue()},
        physical_device_.handle(), device_.handle(), surface, width, height

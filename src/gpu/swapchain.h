@@ -17,7 +17,11 @@ public:
 
    Swapchain &operator=(Swapchain &&other);
 
-   ~Swapchain();
+   void dispose();
+
+   ~Swapchain() {
+      dispose();
+   }
 
    inline VkSwapchainKHR handle() const {
       return swapchain_;

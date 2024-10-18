@@ -148,13 +148,7 @@ Swapchain::Swapchain(
 }
 
 Swapchain &Swapchain::operator=(Swapchain &&other) {
-   for (const VkImageView img_view : image_views_) {
-      vkDestroyImageView(device_, img_view, nullptr);
-   }
-
-   if (swapchain_ != VK_NULL_HANDLE) {
-      vkDestroySwapchainKHR(device_, swapchain_, nullptr);
-   }
+   dispose();
 
    images_ = other.images_;
    image_views_ = other.image_views_;
@@ -167,12 +161,14 @@ Swapchain &Swapchain::operator=(Swapchain &&other) {
    return *this;
 }
 
-Swapchain::~Swapchain() {
+void Swapchain::dispose() {
    for (const VkImageView img_view : image_views_) {
       vkDestroyImageView(device_, img_view, nullptr);
    }
+   image_views_.clear();
 
    if (swapchain_ != VK_NULL_HANDLE) {
       vkDestroySwapchainKHR(device_, swapchain_, nullptr);
+      swapchain_ = VK_NULL_HANDLE;
    }
 }
