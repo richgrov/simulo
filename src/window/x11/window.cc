@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include <X11/Xlib.h>
+#define VK_USE_PLATFORM_XLIB_XHR
 #include <vulkan/vulkan_xlib.h>
 
 #include "gpu/instance.h"
