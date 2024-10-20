@@ -105,6 +105,7 @@ bool vkad::Window::poll() {
          if (event.xclient.data.l[0] == wm_delete_window_) {
             return false;
          }
+         break;
 
       case GenericEvent:
          process_generic_event(event);
