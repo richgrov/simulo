@@ -7,6 +7,8 @@
 
 #include "gpu/instance.h"
 
+union _XEvent;
+
 namespace vkad {
 
 class Window {
@@ -47,11 +49,11 @@ public:
    }
 
    int delta_mouse_x() const {
-      return 0;
+      return delta_mouse_x_;
    }
 
    int delta_mouse_y() const {
-      return 0;
+      return delta_mouse_y_;
    }
 
    bool left_clicking() const {
@@ -71,13 +73,18 @@ public:
    }
 
 private:
+   void process_generic_event(_XEvent &event);
+
    void *display_;
+   int xi_opcode_;
    unsigned long window_;
    unsigned long wm_delete_window_;
    bool mouse_captured_;
    VkSurfaceKHR surface_;
    int width_;
    int height_;
+   int delta_mouse_x_;
+   int delta_mouse_y_;
 };
 
 } // namespace vkad

@@ -87,7 +87,7 @@ function(setup_targets subject)
 
     if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_include_directories(${subject} PRIVATE ${X11_INCLUDE_DIR})
-        target_link_libraries(${subject} ${X11_LIBRARIES})
+        target_link_libraries(${subject} ${X11_LIBRARIES} libXi.so)
     endif()
 
     set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)
