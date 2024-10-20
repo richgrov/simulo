@@ -73,7 +73,7 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
        .mask = mask,
    };
    XISetMask(mask, XI_RawMotion);
-   XISelectEvents(display_, DefaultRootWindow(display_), &event_mask, 1);
+   XISelectEvents(display_, root, &event_mask, 1);
 
    surface_ = create_surface(display_, window_, vk_instance.handle());
 }
