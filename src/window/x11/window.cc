@@ -45,27 +45,26 @@ VkSurfaceKHR create_surface(Display *display, ::Window window, VkInstance instan
 
 vkad::Window::Window(const Instance &vk_instance, const char *title)
     : width_(1280), height_(720), delta_mouse_x_(0), delta_mouse_y_(0) {
-   Display *display = XOpenDisplay(NULL);
-   display_ = display;
+   display_ = XOpenDisplay(NULL);
    if (display_ == nullptr) {
       throw std::runtime_error("XOpenDisplay returned null");
    }
 
-   xi_opcode_ = ensure_xinput2(display);
+   xi_opcode_ = ensure_xinput2(display_);
 
-   ::Window root = DefaultRootWindow(display);
+   ::Window root = DefaultRootWindow(display_);
 
    window_ = XCreateSimpleWindow(
-       display, root, 0, 0, width_, height_, 1, BlackPixel(display, 0), BlackPixel(display, 0)
+       display_, root, 0, 0, width_, height_, 1, BlackPixel(display_, 0), BlackPixel(display_, 0)
    );
 
-   XMapWindow(display, window_);
-   XFlush(display);
+   XMapWindow(display_, window_);
+   XFlush(display_);
 
-   wm_delete_window_ = XInternAtom(display, "WM_DELETE_WINDOW", false);
-   XSetWMProtocols(display, window_, &wm_delete_window_, 1);
+   wm_delete_window_ = XInternAtom(display_, "WM_DELETE_WINDOW", false);
+   XSetWMProtocols(display_, window_, &wm_delete_window_, 1);
 
-   XSelectInput(display, window_, StructureNotifyMask);
+   XSelectInput(display_, window_, StructureNotifyMask);
 
    unsigned char mask[XIMaskLen(XI_RawMotion)] = {0};
    XIEventMask event_mask = {
@@ -74,28 +73,27 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
        .mask = mask,
    };
    XISetMask(mask, XI_RawMotion);
-   XISelectEvents(display, DefaultRootWindow(display), &event_mask, 1);
+   XISelectEvents(display_, DefaultRootWindow(display_), &event_mask, 1);
 
-   surface_ = create_surface(display, window_, vk_instance.handle());
+   surface_ = create_surface(display_, window_, vk_instance.handle());
 }
 
 vkad::Window::~Window() {
-   XDestroyWindow(reinterpret_cast<Display *>(display_), window_);
-   XCloseDisplay(reinterpret_cast<Display *>(display_));
+   XDestroyWindow(display_, window_);
+   XCloseDisplay(display_);
 }
 
 bool vkad::Window::poll() {
    delta_mouse_x_ = 0;
    delta_mouse_y_ = 0;
-   auto display = reinterpret_cast<Display *>(display_);
 
    while (true) {
-      if (XPending(display) < 1) {
+      if (XPending(display_) < 1) {
          break;
       }
 
       XEvent event;
-      XNextEvent(display, &event);
+      XNextEvent(display_, &event);
 
       switch (event.type) {
       case ConfigureNotify:
@@ -114,7 +112,7 @@ bool vkad::Window::poll() {
    }
 
    if (mouse_captured_) {
-      XWarpPointer(display, window_, window_, 0, 0, 0, 0, width_ / 2, height_ / 2);
+      XWarpPointer(display_, window_, window_, 0, 0, 0, 0, width_ / 2, height_ / 2);
    }
 
    return true;
@@ -127,13 +125,12 @@ void vkad::Window::process_generic_event(XEvent &event) {
       return;
    }
 
-   auto display = reinterpret_cast<Display *>(display_);
-   if (!XGetEventData(display, &event.xcookie)) {
+   if (!XGetEventData(display_, &event.xcookie)) {
       return;
    }
 
    XIRawEvent *raw_event = reinterpret_cast<XIRawEvent *>(event.xcookie.data);
    delta_mouse_x_ += static_cast<int>(raw_event->raw_values[0]);
    delta_mouse_y_ += static_cast<int>(raw_event->raw_values[1]);
-   XFreeEventData(display, &event.xcookie);
+   XFreeEventData(display_, &event.xcookie);
 }

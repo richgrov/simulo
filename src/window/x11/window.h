@@ -8,6 +8,7 @@
 #include "gpu/instance.h"
 
 union _XEvent;
+struct _XDisplay;
 
 namespace vkad {
 
@@ -75,7 +76,7 @@ public:
 private:
    void process_generic_event(_XEvent &event);
 
-   void *display_;
+   _XDisplay *display_;
    int xi_opcode_;
    unsigned long window_;
    unsigned long wm_delete_window_;
