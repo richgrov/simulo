@@ -1,6 +1,7 @@
 #ifndef VKAD_WINDOW_X11_WINDOW_H_
 #define VKAD_WINDOW_X11_WINDOW_H_
 
+#include <bitset>
 #include <string_view>
 
 #include <vulkan/vulkan_core.h>
@@ -9,6 +10,7 @@
 
 union _XEvent;
 struct _XDisplay;
+#define XLIB_NUM_KEYS (255 - 8)
 
 namespace vkad {
 
@@ -62,11 +64,11 @@ public:
    }
 
    inline bool is_key_down(uint8_t key_code) const {
-      return false;
+      return pressed_keys_[key_code];
    }
 
    inline bool key_just_pressed(uint8_t key_code) const {
-      return false;
+      return !prev_pressed_keys_[key_code] && pressed_keys_[key_code];
    }
 
    std::string_view typed_chars() const {
@@ -86,6 +88,8 @@ private:
    int height_;
    int delta_mouse_x_;
    int delta_mouse_y_;
+   std::bitset<XLIB_NUM_KEYS> pressed_keys_;
+   std::bitset<XLIB_NUM_KEYS> prev_pressed_keys_;
 };
 
 } // namespace vkad

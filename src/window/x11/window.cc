@@ -64,7 +64,7 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
    wm_delete_window_ = XInternAtom(display_, "WM_DELETE_WINDOW", false);
    XSetWMProtocols(display_, window_, &wm_delete_window_, 1);
 
-   XSelectInput(display_, window_, StructureNotifyMask);
+   XSelectInput(display_, window_, StructureNotifyMask | KeyPressMask | KeyReleaseMask);
 
    unsigned char mask[XIMaskLen(XI_RawMotion)] = {0};
    XIEventMask event_mask = {
@@ -84,6 +84,8 @@ vkad::Window::~Window() {
 }
 
 bool vkad::Window::poll() {
+   prev_pressed_keys_ = pressed_keys_;
+
    delta_mouse_x_ = 0;
    delta_mouse_y_ = 0;
 
@@ -105,6 +107,14 @@ bool vkad::Window::poll() {
          if (event.xclient.data.l[0] == wm_delete_window_) {
             return false;
          }
+         break;
+
+      case KeyPress:
+         pressed_keys_[static_cast<unsigned char>(event.xkey.keycode)] = true;
+         break;
+
+      case KeyRelease:
+         pressed_keys_[static_cast<unsigned char>(event.xkey.keycode)] = false;
          break;
 
       case GenericEvent:
