@@ -1,5 +1,6 @@
 #include "window.h"
 
+#include <cstring>
 #include <stdexcept>
 
 #include <X11/Xlib.h>
@@ -61,7 +62,12 @@ XIC create_input_context(Display *display, ::Window window) {
 } // namespace
 
 vkad::Window::Window(const Instance &vk_instance, const char *title)
-    : width_(1280), height_(720), delta_mouse_x_(0), delta_mouse_y_(0) {
+    : width_(1280),
+      height_(720),
+      delta_mouse_x_(0),
+      delta_mouse_y_(0),
+      typed_chars_{},
+      next_typed_letter_(0) {
    display_ = XOpenDisplay(NULL);
    if (display_ == nullptr) {
       throw std::runtime_error("XOpenDisplay returned null");
@@ -105,6 +111,8 @@ vkad::Window::~Window() {
 
 bool vkad::Window::poll() {
    prev_pressed_keys_ = pressed_keys_;
+   std::memset(typed_chars_, 0, sizeof(typed_chars_));
+   next_typed_letter_ = 0;
 
    delta_mouse_x_ = 0;
    delta_mouse_y_ = 0;
@@ -130,6 +138,7 @@ bool vkad::Window::poll() {
          break;
 
       case KeyPress:
+         process_char_input(event);
          pressed_keys_[static_cast<unsigned char>(event.xkey.keycode)] = true;
          break;
 
@@ -164,4 +173,14 @@ void vkad::Window::process_generic_event(XEvent &event) {
    delta_mouse_x_ += static_cast<int>(raw_event->raw_values[0]);
    delta_mouse_y_ += static_cast<int>(raw_event->raw_values[1]);
    XFreeEventData(display_, &event.xcookie);
+}
+
+void vkad::Window::process_char_input(_XEvent &event) {
+   KeySym keysym_unused;
+   Status status_unused;
+   int len = Xutf8LookupString(
+       input_ctx_, &event.xkey, typed_chars_ + next_typed_letter_,
+       sizeof(typed_chars_) - next_typed_letter_, &keysym_unused, &status_unused
+   );
+   next_typed_letter_ += len;
 }

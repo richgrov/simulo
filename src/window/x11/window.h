@@ -73,11 +73,12 @@ public:
    }
 
    std::string_view typed_chars() const {
-      return "";
+      return std::string_view(typed_chars_, next_typed_letter_);
    }
 
 private:
    void process_generic_event(_XEvent &event);
+   void process_char_input(_XEvent &event);
 
    _XDisplay *display_;
    int xi_opcode_;
@@ -92,6 +93,8 @@ private:
    int delta_mouse_y_;
    std::bitset<XLIB_NUM_KEYS> pressed_keys_;
    std::bitset<XLIB_NUM_KEYS> prev_pressed_keys_;
+   char typed_chars_[64];
+   int next_typed_letter_;
 };
 
 } // namespace vkad
