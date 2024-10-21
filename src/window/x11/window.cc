@@ -171,7 +171,7 @@ void vkad::Window::process_generic_event(XEvent &event) {
 
    XIRawEvent *raw_event = reinterpret_cast<XIRawEvent *>(event.xcookie.data);
    delta_mouse_x_ += static_cast<int>(raw_event->raw_values[0]);
-   delta_mouse_y_ += static_cast<int>(raw_event->raw_values[1]);
+   delta_mouse_y_ -= static_cast<int>(raw_event->raw_values[1]);
    XFreeEventData(display_, &event.xcookie);
 }
 
