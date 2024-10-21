@@ -26,9 +26,7 @@ public:
 
    bool poll();
 
-   void set_capture_mouse(bool capture) {
-      mouse_captured_ = capture;
-   }
+   void set_capture_mouse(bool capture);
 
    void request_close();
 
@@ -95,6 +93,7 @@ private:
    std::bitset<XLIB_NUM_KEYS> prev_pressed_keys_;
    char typed_chars_[64];
    int next_typed_letter_;
+   unsigned long invisible_cursor_;
 };
 
 } // namespace vkad

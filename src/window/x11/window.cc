@@ -59,6 +59,16 @@ XIC create_input_context(Display *display, ::Window window) {
    return input_ctx;
 }
 
+Cursor create_invisible_cursor(Display *display, ::Window window) {
+   char bitmap_data = 0;
+   Pixmap empty_img = XCreateBitmapFromData(display, window, &bitmap_data, 1, 1);
+   XColor black;
+   XAllocNamedColor(
+       display, DefaultColormap(display, DefaultScreen(display)), "black", &black, &black
+   );
+   return XCreatePixmapCursor(display, empty_img, empty_img, &black, &black, 0, 0);
+}
+
 } // namespace
 
 vkad::Window::Window(const Instance &vk_instance, const char *title)
@@ -100,6 +110,8 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
    };
    XISetMask(mask, XI_RawMotion);
    XISelectEvents(display_, root, &event_mask, 1);
+
+   invisible_cursor_ = create_invisible_cursor(display_, window_);
 
    surface_ = create_surface(display_, window_, vk_instance.handle());
 }
@@ -156,6 +168,11 @@ bool vkad::Window::poll() {
    }
 
    return true;
+}
+
+void vkad::Window::set_capture_mouse(bool capture) {
+   mouse_captured_ = capture;
+   XDefineCursor(display_, window_, capture ? invisible_cursor_ : None);
 }
 
 void vkad::Window::request_close() {}
