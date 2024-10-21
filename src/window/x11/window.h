@@ -10,6 +10,7 @@
 
 union _XEvent;
 struct _XDisplay;
+struct _XIC;
 #define XLIB_NUM_KEYS (255 - 8)
 
 namespace vkad {
@@ -80,6 +81,7 @@ private:
 
    _XDisplay *display_;
    int xi_opcode_;
+   _XIC *input_ctx_;
    unsigned long window_;
    unsigned long wm_delete_window_;
    bool mouse_captured_;

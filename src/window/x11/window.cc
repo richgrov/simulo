@@ -41,6 +41,23 @@ VkSurfaceKHR create_surface(Display *display, ::Window window, VkInstance instan
    return surface;
 }
 
+XIC create_input_context(Display *display, ::Window window) {
+   XIM input_method = XOpenIM(display, nullptr, nullptr, nullptr);
+   if (input_method == nullptr) {
+      throw std::runtime_error("failed to open input method");
+   }
+
+   XIC input_ctx = XCreateIC(
+       input_method, XNInputStyle, XIMPreeditNothing | XIMStatusNothing, XNClientWindow, window,
+       nullptr
+   );
+   if (input_ctx == nullptr) {
+      throw std::runtime_error("failed to create input context");
+   }
+
+   return input_ctx;
+}
+
 } // namespace
 
 vkad::Window::Window(const Instance &vk_instance, const char *title)
@@ -65,6 +82,9 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
    XSetWMProtocols(display_, window_, &wm_delete_window_, 1);
 
    XSelectInput(display_, window_, StructureNotifyMask | KeyPressMask | KeyReleaseMask);
+
+   input_ctx_ = create_input_context(display_, window_);
+   XSetICFocus(input_ctx_);
 
    unsigned char mask[XIMaskLen(XI_RawMotion)] = {0};
    XIEventMask event_mask = {
