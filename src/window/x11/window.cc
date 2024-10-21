@@ -114,6 +114,11 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
    invisible_cursor_ = create_invisible_cursor(display_, window_);
 
    surface_ = create_surface(display_, window_, vk_instance.handle());
+
+   XWindowAttributes attrs;
+   XGetWindowAttributes(display_, window_, &attrs);
+   width_ = attrs.width;
+   height_ = attrs.height;
 }
 
 vkad::Window::~Window() {
