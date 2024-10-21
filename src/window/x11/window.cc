@@ -117,6 +117,7 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
 }
 
 vkad::Window::~Window() {
+   XFreeCursor(display_, invisible_cursor_);
    XDestroyWindow(display_, window_);
    XCloseDisplay(display_);
 }
