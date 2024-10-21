@@ -59,6 +59,17 @@ XIC create_input_context(Display *display, ::Window window) {
    return input_ctx;
 }
 
+void listen_raw_mouse_motion_events(Display *display) {
+   unsigned char mask[XIMaskLen(XI_RawMotion)] = {0};
+   XIEventMask event_mask = {
+       .deviceid = XIAllDevices,
+       .mask_len = sizeof(mask),
+       .mask = mask,
+   };
+   XISetMask(mask, XI_RawMotion);
+   XISelectEvents(display, DefaultRootWindow(display), &event_mask, 1);
+}
+
 Cursor create_invisible_cursor(Display *display, ::Window window) {
    char bitmap_data = 0;
    Pixmap empty_img = XCreateBitmapFromData(display, window, &bitmap_data, 1, 1);
@@ -85,10 +96,16 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
 
    xi_opcode_ = ensure_xinput2(display_);
 
-   ::Window root = DefaultRootWindow(display_);
-
    window_ = XCreateSimpleWindow(
-       display_, root, 0, 0, width_, height_, 1, BlackPixel(display_, 0), BlackPixel(display_, 0)
+       display_,                    //
+       DefaultRootWindow(display_), //
+       0,                           // x
+       0,                           // y
+       width_,                      //
+       height_,                     //
+       1,                           // border width
+       BlackPixel(display_, 0),     // border color
+       BlackPixel(display_, 0)      // background color
    );
 
    XMapWindow(display_, window_);
@@ -96,25 +113,18 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
 
    wm_delete_window_ = XInternAtom(display_, "WM_DELETE_WINDOW", false);
    XSetWMProtocols(display_, window_, &wm_delete_window_, 1);
-
    XSelectInput(display_, window_, StructureNotifyMask | KeyPressMask | KeyReleaseMask);
 
    input_ctx_ = create_input_context(display_, window_);
    XSetICFocus(input_ctx_);
-
-   unsigned char mask[XIMaskLen(XI_RawMotion)] = {0};
-   XIEventMask event_mask = {
-       .deviceid = XIAllDevices,
-       .mask_len = sizeof(mask),
-       .mask = mask,
-   };
-   XISetMask(mask, XI_RawMotion);
-   XISelectEvents(display_, root, &event_mask, 1);
+   listen_raw_mouse_motion_events(display_);
 
    invisible_cursor_ = create_invisible_cursor(display_, window_);
 
    surface_ = create_surface(display_, window_, vk_instance.handle());
 
+   // Manually query if size changed because ConfigureNotify is not guaranteed to be received on
+   // startup.
    XWindowAttributes attrs;
    XGetWindowAttributes(display_, window_, &attrs);
    width_ = attrs.width;
@@ -135,11 +145,7 @@ bool vkad::Window::poll() {
    delta_mouse_x_ = 0;
    delta_mouse_y_ = 0;
 
-   while (true) {
-      if (XPending(display_) < 1) {
-         break;
-      }
-
+   while (XPending(display_) > 0) {
       XEvent event;
       XNextEvent(display_, &event);
 
@@ -166,6 +172,7 @@ bool vkad::Window::poll() {
 
       case GenericEvent:
          process_generic_event(event);
+         break;
       }
    }
 
