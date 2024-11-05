@@ -1,4 +1,4 @@
-#include "window.h"
+#include "x11_window.h"
 
 #include <cstring>
 #include <stdexcept>
