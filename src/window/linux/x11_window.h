@@ -15,14 +15,14 @@ struct _XIC;
 
 namespace vkad {
 
-class Window {
+class X11Window {
 public:
    static inline std::vector<const char *> vulkan_extensions() {
       return {"VK_KHR_surface", "VK_KHR_xlib_surface"};
    }
 
-   explicit Window(const Instance &vk_instance, const char *title);
-   ~Window();
+   explicit X11Window(const Instance &vk_instance, const char *title);
+   ~X11Window();
 
    bool poll();
 

@@ -82,7 +82,7 @@ Cursor create_invisible_cursor(Display *display, ::Window window) {
 
 } // namespace
 
-vkad::Window::Window(const Instance &vk_instance, const char *title)
+vkad::X11Window::X11Window(const Instance &vk_instance, const char *title)
     : width_(1280),
       height_(720),
       delta_mouse_x_(0),
@@ -131,13 +131,13 @@ vkad::Window::Window(const Instance &vk_instance, const char *title)
    height_ = attrs.height;
 }
 
-vkad::Window::~Window() {
+vkad::X11Window::~X11Window() {
    XFreeCursor(display_, invisible_cursor_);
    XDestroyWindow(display_, window_);
    XCloseDisplay(display_);
 }
 
-bool vkad::Window::poll() {
+bool vkad::X11Window::poll() {
    prev_pressed_keys_ = pressed_keys_;
    std::memset(typed_chars_, 0, sizeof(typed_chars_));
    next_typed_letter_ = 0;
@@ -183,14 +183,14 @@ bool vkad::Window::poll() {
    return true;
 }
 
-void vkad::Window::set_capture_mouse(bool capture) {
+void vkad::X11Window::set_capture_mouse(bool capture) {
    mouse_captured_ = capture;
    XDefineCursor(display_, window_, capture ? invisible_cursor_ : None);
 }
 
-void vkad::Window::request_close() {}
+void vkad::X11Window::request_close() {}
 
-void vkad::Window::process_generic_event(XEvent &event) {
+void vkad::X11Window::process_generic_event(XEvent &event) {
    if (event.xcookie.extension != xi_opcode_ || event.xcookie.evtype != XI_RawMotion) {
       return;
    }
@@ -205,7 +205,7 @@ void vkad::Window::process_generic_event(XEvent &event) {
    XFreeEventData(display_, &event.xcookie);
 }
 
-void vkad::Window::process_char_input(_XEvent &event) {
+void vkad::X11Window::process_char_input(_XEvent &event) {
    KeySym keysym_unused;
    Status status_unused;
    int len = Xutf8LookupString(
