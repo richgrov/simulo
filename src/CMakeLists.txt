@@ -11,10 +11,10 @@ if (WIN32)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(OS_SPECIFIC_FILES
         "window/linux/keys.h"
-        "window/linux/x11_window.cc"
-        "window/linux/x11_window.h"
         "window/linux/window.h"
         "window/linux/window_init.h"
+        "window/linux/x11_window.cc"
+        "window/linux/x11_window.h"
     )
 endif()
 
