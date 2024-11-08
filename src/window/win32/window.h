@@ -20,7 +20,7 @@ public:
       return {"VK_KHR_surface", "VK_KHR_win32_surface"};
    }
 
-   explicit Window(const Instance &vk_instance_, const char *title);
+   explicit Window(const Instance &vk_instance, const char *title);
    ~Window();
 
    bool poll();
