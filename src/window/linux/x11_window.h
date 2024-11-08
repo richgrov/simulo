@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/instance.h"
+#include "window.h"
 
 union _XEvent;
 struct _XDisplay;
@@ -15,7 +16,7 @@ struct _XIC;
 
 namespace vkad {
 
-class X11Window {
+class X11Window : public vkad::Window {
 public:
    static inline std::vector<const char *> vulkan_extensions() {
       return {"VK_KHR_surface", "VK_KHR_xlib_surface"};
@@ -24,53 +25,53 @@ public:
    explicit X11Window(const Instance &vk_instance, const char *title);
    ~X11Window();
 
-   bool poll();
+   virtual bool poll() override;
 
-   void set_capture_mouse(bool capture);
+   virtual void set_capture_mouse(bool capture) override;
 
-   void request_close();
+   virtual void request_close() override;
 
-   inline VkSurfaceKHR surface() const {
+   virtual inline VkSurfaceKHR surface() const override {
       return surface_;
    }
 
-   int width() const {
+   virtual int width() const override {
       return width_;
    }
 
-   int height() const {
+   virtual int height() const override {
       return height_;
    }
 
-   int mouse_x() const {
+   virtual int mouse_x() const override {
       return 0;
    }
 
-   int mouse_y() const {
+   virtual int mouse_y() const override {
       return 0;
    }
 
-   int delta_mouse_x() const {
+   virtual int delta_mouse_x() const override {
       return delta_mouse_x_;
    }
 
-   int delta_mouse_y() const {
+   virtual int delta_mouse_y() const override {
       return delta_mouse_y_;
    }
 
-   bool left_clicking() const {
+   virtual bool left_clicking() const override {
       return false;
    }
 
-   inline bool is_key_down(uint8_t key_code) const {
+   virtual bool is_key_down(uint8_t key_code) const override {
       return pressed_keys_[key_code];
    }
 
-   inline bool key_just_pressed(uint8_t key_code) const {
+   virtual bool key_just_pressed(uint8_t key_code) const override {
       return !prev_pressed_keys_[key_code] && pressed_keys_[key_code];
    }
 
-   std::string_view typed_chars() const {
+   virtual std::string_view typed_chars() const override {
       return std::string_view(typed_chars_, next_typed_letter_);
    }
 
