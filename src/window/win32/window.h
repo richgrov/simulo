@@ -1,6 +1,7 @@
 #ifndef VKAD_WINDOW_WIN32_WINDOW_H_
 #define VKAD_WINDOW_WIN32_WINDOW_H_
 
+#include <memory>
 #include <string_view>
 #include <vector>
 
@@ -99,6 +100,10 @@ private:
 
    friend LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 };
+
+inline std::unique_ptr<Window> create_window(const Instance &vk_instance, const char *title) {
+   return std::make_unique<Window>(vk_instance, title);
+}
 
 }; // namespace vkad
 
