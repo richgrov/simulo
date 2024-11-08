@@ -13,6 +13,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         "window/linux/keys.h"
         "window/linux/x11_window.cc"
         "window/linux/x11_window.h"
+        "window/linux/window.h"
     )
 endif()
 
