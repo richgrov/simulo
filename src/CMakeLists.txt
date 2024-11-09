@@ -1,5 +1,7 @@
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_package(X11 REQUIRED)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-protocols)
 endif()
 
 if (WIN32)
@@ -90,6 +92,9 @@ function(setup_targets subject)
     if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_include_directories(${subject} PRIVATE ${X11_INCLUDE_DIR})
         target_link_libraries(${subject} ${X11_LIBRARIES} libXi.so)
+
+        target_include_directories(${subject} PRIVATE ${WAYLAND_INCLUDE_DIRS})
+        target_link_libraries(${subject} ${WAYLAND_LIBRARIES})
     endif()
 
     set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)
