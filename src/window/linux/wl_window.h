@@ -5,8 +5,15 @@
 #include "window/linux/window.h"
 
 struct wl_display;
+struct wl_registry;
+struct wl_compositor;
+struct wl_surface;
 
 namespace vkad {
+
+void handle_global(
+    void *user_ptr, wl_registry *registry, uint32_t id, const char *interface, uint32_t version
+);
 
 class WaylandWindow : public Window {
 public:
@@ -65,7 +72,13 @@ public:
    }
 
 private:
+   friend void vkad::handle_global(
+       void *user_ptr, wl_registry *registry, uint32_t id, const char *interface, uint32_t version
+   );
+
    wl_display *display_;
+   wl_compositor *compositor_;
+   wl_surface *surface_;
 };
 
 } // namespace vkad

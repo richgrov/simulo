@@ -2,7 +2,7 @@
 
 #include "gpu/instance.h"
 
-#include <iostream>
+#include <cstring>
 #include <stdexcept>
 #include <stdint.h>
 #include <wayland-client-core.h>
@@ -11,11 +11,18 @@
 
 using namespace vkad;
 
-namespace {
+void vkad::handle_global(
+    void *user_ptr, wl_registry *registry, uint32_t id, const char *interface, uint32_t version
+) {
+   WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_ptr);
 
-void handle_global(
-    void *user_ptr, wl_registry *registry, uint32_t name, const char *interface, uint32_t version
-) {}
+   if (std::strcmp(interface, "wl_compositor") == 0) {
+      void *compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 4);
+      window->compositor_ = reinterpret_cast<wl_compositor *>(compositor);
+   }
+}
+
+namespace {
 
 void global_remove(void *user_ptr, wl_registry *registry, uint32_t name) {}
 
@@ -33,11 +40,18 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title) {
    }
 
    wl_registry *registry = wl_display_get_registry(display_);
-   wl_registry_add_listener(registry, &registry_listener, NULL);
+   wl_registry_add_listener(registry, &registry_listener, this);
    wl_display_roundtrip(display_);
+
+   if (compositor_ == nullptr) {
+      throw std::runtime_error("compositor was not initialized");
+   }
+
+   surface_ = wl_compositor_create_surface(compositor_);
 }
 
 WaylandWindow::~WaylandWindow() {
+   wl_surface_destroy(surface_);
    wl_display_disconnect(display_);
 }
 
