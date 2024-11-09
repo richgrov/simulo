@@ -18,10 +18,6 @@ namespace vkad {
 
 class X11Window : public vkad::Window {
 public:
-   static inline std::vector<const char *> vulkan_extensions() {
-      return {"VK_KHR_surface", "VK_KHR_xlib_surface"};
-   }
-
    explicit X11Window(const Instance &vk_instance, const char *title);
    ~X11Window();
 
