@@ -13,6 +13,7 @@ struct xdg_surface;
 struct xdg_toplevel;
 struct wl_seat;
 struct wl_keyboard;
+
 struct xkb_context;
 struct xkb_keymap;
 
@@ -99,8 +100,9 @@ private:
    xdg_toplevel *xdg_toplevel_ = nullptr;
    wl_seat *seat_ = nullptr;
    wl_keyboard *keyboard_ = nullptr;
-   xkb_context *kb_ctx_;
-   xkb_keymap *keymap_;
+
+   xkb_context *xkb_ctx_ = nullptr;
+   xkb_keymap *keymap_ = nullptr;
 };
 
 } // namespace vkad

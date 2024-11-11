@@ -48,9 +48,11 @@ void vkad::kb_handler_keymap(
    auto window_class = reinterpret_cast<WaylandWindow *>(user_data);
 
    void *keymap_str = mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
+
+   xkb_keymap_unref(window_class->keymap_);
    window_class->keymap_ = xkb_keymap_new_from_string(
-       window_class->kb_ctx_, reinterpret_cast<const char *>(keymap_str), XKB_KEYMAP_FORMAT_TEXT_V1,
-       XKB_KEYMAP_COMPILE_NO_FLAGS
+       window_class->xkb_ctx_, reinterpret_cast<const char *>(keymap_str),
+       XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS
    );
 
    munmap(keymap_str, size);
@@ -98,7 +100,7 @@ void kb_handler_repeat_info(void *user_data, wl_keyboard *kb, int32_t rate, int3
 } // namespace
 
 WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
-    : kb_ctx_(xkb_context_new(XKB_CONTEXT_NO_FLAGS)) {
+    : xkb_ctx_(xkb_context_new(XKB_CONTEXT_NO_FLAGS)) {
 
    display_ = wl_display_connect(NULL);
    if (!display_) {
@@ -139,6 +141,8 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
 }
 
 WaylandWindow::~WaylandWindow() {
+   xkb_keymap_unref(keymap_);
+   xkb_context_unref(xkb_ctx_);
    wl_keyboard_destroy(keyboard_);
    wl_seat_destroy(seat_);
    xdg_toplevel_destroy(xdg_toplevel_);
