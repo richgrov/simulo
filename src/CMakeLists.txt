@@ -17,6 +17,8 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         "window/linux/window_init.h"
         "window/linux/wl_window.cc"
         "window/linux/wl_window.h"
+        "window/linux/xdg-shell-protocol.c"
+        "window/linux/xdg-shell-client-protocol.h"
         "window/linux/x11_window.cc"
         "window/linux/x11_window.h"
     )

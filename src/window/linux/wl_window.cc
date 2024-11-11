@@ -2,6 +2,7 @@
 
 #include "gpu/instance.h"
 #include "gpu/status.h"
+#include "xdg-shell-client-protocol.h"
 
 #include <cstring>
 #include <stdexcept>
@@ -22,6 +23,9 @@ void vkad::handle_global(
    if (std::strcmp(interface, "wl_compositor") == 0) {
       void *compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 4);
       window->compositor_ = reinterpret_cast<wl_compositor *>(compositor);
+   } else if (std::strcmp(interface, xdg_wm_base_interface.name) == 0) {
+      void *xdg_base = wl_registry_bind(registry, id, &xdg_wm_base_interface, 1);
+      window->xdg_base_ = reinterpret_cast<xdg_wm_base *>(xdg_base);
    }
 }
 
@@ -58,8 +62,8 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title) {
    wl_registry_add_listener(registry, &registry_listener, this);
    wl_display_roundtrip(display_);
 
-   if (compositor_ == nullptr) {
-      throw std::runtime_error("compositor was not initialized");
+   if (compositor_ == nullptr || xdg_base_ == nullptr) {
+      throw std::runtime_error("compositor or xdg_wm_base were not initialized");
    }
 
    surface_ = wl_compositor_create_surface(compositor_);
@@ -67,6 +71,7 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title) {
 }
 
 WaylandWindow::~WaylandWindow() {
+   xdg_wm_base_destroy(xdg_base_);
    wl_surface_destroy(surface_);
    wl_display_disconnect(display_);
 }
