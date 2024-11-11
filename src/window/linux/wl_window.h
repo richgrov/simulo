@@ -76,9 +76,9 @@ private:
        void *user_ptr, wl_registry *registry, uint32_t id, const char *interface, uint32_t version
    );
 
-   wl_display *display_;
-   wl_compositor *compositor_;
-   wl_surface *surface_;
+   wl_display *display_ = nullptr;
+   wl_compositor *compositor_ = nullptr;
+   wl_surface *surface_ = nullptr;
 };
 
 } // namespace vkad
