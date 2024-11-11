@@ -13,11 +13,17 @@ struct xdg_surface;
 struct xdg_toplevel;
 struct wl_seat;
 struct wl_keyboard;
+struct xkb_context;
+struct xkb_keymap;
 
 namespace vkad {
 
 void handle_global(
     void *user_ptr, wl_registry *registry, uint32_t id, const char *interface, uint32_t version
+);
+
+void kb_handler_keymap(
+    void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size
 );
 
 class WaylandWindow : public Window {
@@ -81,6 +87,9 @@ private:
        void *user_ptr, wl_registry *registry, uint32_t id, const char *interface, uint32_t version
    );
 
+   friend void
+   kb_handler_keymap(void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size);
+
    wl_display *display_ = nullptr;
    wl_compositor *compositor_ = nullptr;
    wl_surface *surface_ = nullptr;
@@ -90,6 +99,8 @@ private:
    xdg_toplevel *xdg_toplevel_ = nullptr;
    wl_seat *seat_ = nullptr;
    wl_keyboard *keyboard_ = nullptr;
+   xkb_context *kb_ctx_;
+   xkb_keymap *keymap_;
 };
 
 } // namespace vkad

@@ -2,6 +2,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_package(X11 REQUIRED)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-protocols)
+    pkg_check_modules(XKBCOMMON REQUIRED xkbcommon)
 endif()
 
 if (WIN32)
@@ -99,6 +100,10 @@ function(setup_targets subject)
 
         target_include_directories(${subject} PRIVATE ${WAYLAND_INCLUDE_DIRS})
         target_link_libraries(${subject} ${WAYLAND_LIBRARIES})
+
+        target_include_directories(${subject} PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
+        target_link_directories(${subject} PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
+        target_link_libraries(${subject} ${XKBCOMMON_LIBRARIES})
     endif()
 
     set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)

@@ -7,12 +7,14 @@
 #include <cstring>
 #include <stdexcept>
 #include <stdint.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_wayland.h>
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
 #include <wayland-client.h>
+#include <xkbcommon/xkbcommon.h>
 
 using namespace vkad;
 
@@ -40,6 +42,21 @@ void vkad::handle_global(
    }
 }
 
+void vkad::kb_handler_keymap(
+    void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size
+) {
+   auto window_class = reinterpret_cast<WaylandWindow *>(user_data);
+
+   void *keymap_str = mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
+   window_class->keymap_ = xkb_keymap_new_from_string(
+       window_class->kb_ctx_, reinterpret_cast<const char *>(keymap_str), XKB_KEYMAP_FORMAT_TEXT_V1,
+       XKB_KEYMAP_COMPILE_NO_FLAGS
+   );
+
+   munmap(keymap_str, size);
+   close(fd);
+}
+
 namespace {
 
 void global_remove(void *user_ptr, wl_registry *registry, uint32_t name) {}
@@ -61,12 +78,6 @@ VkSurfaceKHR create_surface(wl_display *display, wl_surface *surface, VkInstance
    return result;
 }
 
-void kb_handler_keymap(
-    void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size
-) {
-   close(fd);
-}
-
 void kb_handler_enter(
     void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface, wl_array *keys
 ) {}
@@ -86,7 +97,9 @@ void kb_handler_repeat_info(void *user_data, wl_keyboard *kb, int32_t rate, int3
 
 } // namespace
 
-WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title) {
+WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
+    : kb_ctx_(xkb_context_new(XKB_CONTEXT_NO_FLAGS)) {
+
    display_ = wl_display_connect(NULL);
    if (!display_) {
       throw std::runtime_error("couldn't connect to Wayland display");
