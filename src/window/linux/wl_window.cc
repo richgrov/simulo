@@ -68,14 +68,26 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title) {
 
    surface_ = wl_compositor_create_surface(compositor_);
    vk_surface_ = create_surface(display_, surface_, vk_instance.handle());
+
+   xdg_surface *surf = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
+   xdg_surface_get_toplevel(surf);
+   wl_surface_commit(surface_);
 }
 
 WaylandWindow::~WaylandWindow() {
+   xdg_toplevel_destroy(xdg_toplevel_);
+   xdg_surface_destroy(xdg_surface_);
    xdg_wm_base_destroy(xdg_base_);
    wl_surface_destroy(surface_);
    wl_display_disconnect(display_);
 }
 
 bool WaylandWindow::poll() {
-   return false;
+   wl_display_dispatch_pending(display_);
+
+   if (wl_display_flush(display_) == -1) {
+      throw std::runtime_error("wl_display_flush failed");
+   }
+
+   return true;
 }

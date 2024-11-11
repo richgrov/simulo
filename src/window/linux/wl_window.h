@@ -9,6 +9,8 @@ struct wl_registry;
 struct wl_compositor;
 struct wl_surface;
 struct xdg_wm_base;
+struct xdg_surface;
+struct xdg_toplevel;
 
 namespace vkad {
 
@@ -82,6 +84,8 @@ private:
    wl_surface *surface_ = nullptr;
    VkSurfaceKHR vk_surface_ = nullptr;
    xdg_wm_base *xdg_base_ = nullptr;
+   xdg_surface *xdg_surface_ = nullptr;
+   xdg_toplevel *xdg_toplevel_ = nullptr;
 };
 
 } // namespace vkad
