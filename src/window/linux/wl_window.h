@@ -28,7 +28,7 @@ public:
    virtual void request_close() override {}
 
    virtual inline VkSurfaceKHR surface() const override {
-      return nullptr;
+      return vk_surface_;
    }
 
    virtual int width() const override {
@@ -79,6 +79,7 @@ private:
    wl_display *display_ = nullptr;
    wl_compositor *compositor_ = nullptr;
    wl_surface *surface_ = nullptr;
+   VkSurfaceKHR vk_surface_ = nullptr;
 };
 
 } // namespace vkad

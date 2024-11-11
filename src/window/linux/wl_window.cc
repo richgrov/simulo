@@ -1,10 +1,13 @@
 #include "wl_window.h"
 
 #include "gpu/instance.h"
+#include "gpu/status.h"
 
 #include <cstring>
 #include <stdexcept>
 #include <stdint.h>
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_wayland.h>
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
 #include <wayland-client.h>
@@ -31,6 +34,18 @@ const struct wl_registry_listener registry_listener = {
     .global_remove = global_remove,
 };
 
+VkSurfaceKHR create_surface(wl_display *display, wl_surface *surface, VkInstance vk_instance) {
+   VkWaylandSurfaceCreateInfoKHR vk_create_info = {
+       .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+       .display = display,
+       .surface = surface,
+   };
+
+   VkSurfaceKHR result;
+   VKAD_VK(vkCreateWaylandSurfaceKHR(vk_instance, &vk_create_info, nullptr, &result));
+   return result;
+}
+
 } // namespace
 
 WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title) {
@@ -48,6 +63,7 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title) {
    }
 
    surface_ = wl_compositor_create_surface(compositor_);
+   vk_surface_ = create_surface(display_, surface_, vk_instance.handle());
 }
 
 WaylandWindow::~WaylandWindow() {
