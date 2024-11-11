@@ -11,6 +11,8 @@ struct wl_surface;
 struct xdg_wm_base;
 struct xdg_surface;
 struct xdg_toplevel;
+struct wl_seat;
+struct wl_keyboard;
 
 namespace vkad {
 
@@ -86,6 +88,8 @@ private:
    xdg_wm_base *xdg_base_ = nullptr;
    xdg_surface *xdg_surface_ = nullptr;
    xdg_toplevel *xdg_toplevel_ = nullptr;
+   wl_seat *seat_ = nullptr;
+   wl_keyboard *keyboard_ = nullptr;
 };
 
 } // namespace vkad

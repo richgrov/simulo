@@ -7,6 +7,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <stdint.h>
+#include <unistd.h>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_wayland.h>
 #include <wayland-client-core.h>
@@ -29,6 +30,12 @@ void vkad::handle_global(
    if (std::strcmp(interface, xdg_wm_base_interface.name) == 0) {
       void *xdg_base = wl_registry_bind(registry, id, &xdg_wm_base_interface, 1);
       window->xdg_base_ = reinterpret_cast<xdg_wm_base *>(xdg_base);
+      return;
+   }
+
+   if (std::strcmp(interface, wl_seat_interface.name) == 0) {
+      void *seat = wl_registry_bind(registry, id, &wl_seat_interface, version);
+      window->seat_ = reinterpret_cast<wl_seat *>(seat);
       return;
    }
 }
@@ -54,6 +61,29 @@ VkSurfaceKHR create_surface(wl_display *display, wl_surface *surface, VkInstance
    return result;
 }
 
+void kb_handler_keymap(
+    void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size
+) {
+   close(fd);
+}
+
+void kb_handler_enter(
+    void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface, wl_array *keys
+) {}
+
+void kb_handler_leave(void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface) {}
+
+void kb_handler_key(
+    void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t time, uint32_t key, uint32_t state
+) {}
+
+void kb_handler_modifiers(
+    void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t mods_pressed, uint32_t mods_latched,
+    uint32_t mods_locked, uint32_t group
+) {}
+
+void kb_handler_repeat_info(void *user_data, wl_keyboard *kb, int32_t rate, int32_t delay) {}
+
 } // namespace
 
 WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title) {
@@ -73,15 +103,31 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title) {
 
    VERIFY_INIT(compositor_);
    VERIFY_INIT(xdg_base_);
+   VERIFY_INIT(seat_);
+
    surface_ = wl_compositor_create_surface(compositor_);
    vk_surface_ = create_surface(display_, surface_, vk_instance.handle());
 
    xdg_surface *surf = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
    xdg_surface_get_toplevel(surf);
    wl_surface_commit(surface_);
+
+   keyboard_ = wl_seat_get_keyboard(seat_);
+   wl_keyboard_listener kb_listener = {
+       .keymap = kb_handler_keymap,
+       .enter = kb_handler_enter,
+       .leave = kb_handler_leave,
+       .key = kb_handler_key,
+       .modifiers = kb_handler_modifiers,
+       .repeat_info = kb_handler_repeat_info,
+   };
+   wl_keyboard_add_listener(keyboard_, &kb_listener, this);
+   wl_display_roundtrip(display_);
 }
 
 WaylandWindow::~WaylandWindow() {
+   wl_keyboard_destroy(keyboard_);
+   wl_seat_destroy(seat_);
    xdg_toplevel_destroy(xdg_toplevel_);
    xdg_surface_destroy(xdg_surface_);
    xdg_wm_base_destroy(xdg_base_);
