@@ -149,7 +149,9 @@ WaylandWindow::~WaylandWindow() {
 }
 
 bool WaylandWindow::poll() {
-   wl_display_dispatch_pending(display_);
+   if (wl_display_dispatch_pending(display_) == -1) {
+      throw std::runtime_error("wl_display_dispatch_pending failed");
+   }
 
    if (wl_display_flush(display_) == -1) {
       throw std::runtime_error("wl_display_flush failed");
