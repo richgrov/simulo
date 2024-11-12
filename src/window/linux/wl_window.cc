@@ -44,23 +44,6 @@ void vkad::handle_global(
    }
 }
 
-void vkad::kb_handler_keymap(
-    void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size
-) {
-   auto window_class = reinterpret_cast<WaylandWindow *>(user_data);
-
-   void *keymap_str = mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
-
-   xkb_keymap_unref(window_class->keymap_);
-   window_class->keymap_ = xkb_keymap_new_from_string(
-       window_class->xkb_ctx_, reinterpret_cast<const char *>(keymap_str),
-       XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS
-   );
-
-   munmap(keymap_str, size);
-   close(fd);
-}
-
 namespace {
 
 void global_remove(void *user_ptr, wl_registry *registry, uint32_t name) {}
@@ -166,4 +149,24 @@ bool WaylandWindow::poll() {
    }
 
    return true;
+}
+
+void WaylandWindow::kb_handler_keymap(
+    void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size
+) {
+   auto window_class = reinterpret_cast<WaylandWindow *>(user_data);
+
+   void *keymap_str = mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
+
+   xkb_keymap_unref(window_class->keymap_);
+   window_class->keymap_ = xkb_keymap_new_from_string(
+       window_class->xkb_ctx_, reinterpret_cast<const char *>(keymap_str),
+       XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS
+   );
+
+   xkb_state_unref(window_class->xkb_state_);
+   window_class->xkb_state_ = xkb_state_new(window_class->keymap_);
+
+   munmap(keymap_str, size);
+   close(fd);
 }

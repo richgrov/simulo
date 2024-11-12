@@ -23,10 +23,6 @@ void handle_global(
     void *user_ptr, wl_registry *registry, uint32_t id, const char *interface, uint32_t version
 );
 
-void kb_handler_keymap(
-    void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size
-);
-
 class WaylandWindow : public Window {
 public:
    WaylandWindow(const Instance &vk_instance, const char *title);
@@ -88,7 +84,7 @@ private:
        void *user_ptr, wl_registry *registry, uint32_t id, const char *interface, uint32_t version
    );
 
-   friend void
+   static void
    kb_handler_keymap(void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size);
 
    const Instance &vk_instance_;
