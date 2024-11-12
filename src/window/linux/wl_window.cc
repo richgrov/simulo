@@ -4,7 +4,9 @@
 #include "gpu/status.h"
 #include "xdg-shell-client-protocol.h"
 
+#include <cerrno>
 #include <cstring>
+#include <format>
 #include <stdexcept>
 #include <stdint.h>
 #include <sys/mman.h>
@@ -158,7 +160,8 @@ bool WaylandWindow::poll() {
    }
 
    if (wl_display_flush(display_) == -1) {
-      throw std::runtime_error("wl_display_flush failed");
+      int err = errno;
+      throw std::runtime_error(std::format("wl_display_flush failed: {}", err));
    }
 
    return true;
