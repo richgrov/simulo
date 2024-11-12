@@ -102,7 +102,7 @@ void kb_handler_repeat_info(void *user_data, wl_keyboard *kb, int32_t rate, int3
 } // namespace
 
 WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
-    : xkb_ctx_(xkb_context_new(XKB_CONTEXT_NO_FLAGS)) {
+    : vk_instance_(vk_instance), xkb_ctx_(xkb_context_new(XKB_CONTEXT_NO_FLAGS)) {
 
    display_ = wl_display_connect(NULL);
    if (!display_) {
@@ -150,6 +150,7 @@ WaylandWindow::~WaylandWindow() {
    xdg_toplevel_destroy(xdg_toplevel_);
    xdg_surface_destroy(xdg_surface_);
    xdg_wm_base_destroy(xdg_base_);
+   vkDestroySurfaceKHR(vk_instance_.handle(), vk_surface_, nullptr);
    wl_surface_destroy(surface_);
    wl_display_disconnect(display_);
 }

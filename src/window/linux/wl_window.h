@@ -91,6 +91,7 @@ private:
    friend void
    kb_handler_keymap(void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size);
 
+   const Instance &vk_instance_;
    wl_display *display_ = nullptr;
    wl_compositor *compositor_ = nullptr;
    wl_surface *surface_ = nullptr;

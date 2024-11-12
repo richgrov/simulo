@@ -75,6 +75,7 @@ private:
    void process_generic_event(_XEvent &event);
    void process_char_input(_XEvent &event);
 
+   const Instance &vk_instance_;
    _XDisplay *display_;
    int xi_opcode_;
    _XIC *input_ctx_;

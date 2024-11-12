@@ -83,7 +83,8 @@ Cursor create_invisible_cursor(Display *display, ::Window window) {
 } // namespace
 
 vkad::X11Window::X11Window(const Instance &vk_instance, const char *title)
-    : width_(1280),
+    : vk_instance_(vk_instance),
+      width_(1280),
       height_(720),
       delta_mouse_x_(0),
       delta_mouse_y_(0),
@@ -133,6 +134,7 @@ vkad::X11Window::X11Window(const Instance &vk_instance, const char *title)
 
 vkad::X11Window::~X11Window() {
    XFreeCursor(display_, invisible_cursor_);
+   vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
    XDestroyWindow(display_, window_);
    XCloseDisplay(display_);
 }
