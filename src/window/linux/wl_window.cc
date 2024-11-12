@@ -123,8 +123,8 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    surface_ = wl_compositor_create_surface(compositor_);
    vk_surface_ = create_surface(display_, surface_, vk_instance.handle());
 
-   xdg_surface *surf = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
-   xdg_surface_get_toplevel(surf);
+   xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
+   xdg_toplevel_ = xdg_surface_get_toplevel(xdg_surface_);
    wl_surface_commit(surface_);
 
    keyboard_ = wl_seat_get_keyboard(seat_);
