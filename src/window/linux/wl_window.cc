@@ -110,6 +110,11 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
 
    xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
    xdg_toplevel_ = xdg_surface_get_toplevel(xdg_surface_);
+   xdg_toplevel_set_user_data(xdg_toplevel_, this);
+   xdg_toplevel_listener toplevel_listener = {
+       .configure = toplevel_configure,
+   };
+   xdg_toplevel_add_listener(xdg_toplevel_, &toplevel_listener, this);
    wl_surface_commit(surface_);
 
    keyboard_ = wl_seat_get_keyboard(seat_);
@@ -169,4 +174,14 @@ void WaylandWindow::kb_handler_keymap(
 
    munmap(keymap_str, size);
    close(fd);
+}
+
+void WaylandWindow::toplevel_configure(
+    void *user_data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height,
+    struct wl_array *states
+) {
+   // TODO: Check if width/height are zero. If so, autonomously set window size
+   WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_data);
+   window->width_ = width;
+   window->height_ = height;
 }

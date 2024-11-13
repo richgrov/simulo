@@ -40,11 +40,11 @@ public:
    }
 
    virtual int width() const override {
-      return 0;
+      return width_;
    }
 
    virtual int height() const override {
-      return 0;
+      return height_;
    }
 
    virtual int mouse_x() const override {
@@ -87,6 +87,11 @@ private:
    static void
    kb_handler_keymap(void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size);
 
+   static void toplevel_configure(
+       void *user_data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height,
+       struct wl_array *states
+   );
+
    const Instance &vk_instance_;
    wl_display *display_ = nullptr;
    wl_compositor *compositor_ = nullptr;
@@ -100,6 +105,9 @@ private:
 
    xkb_context *xkb_ctx_ = nullptr;
    xkb_keymap *keymap_ = nullptr;
+
+   int width_ = 0;
+   int height_ = 0;
 };
 
 } // namespace vkad
