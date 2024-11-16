@@ -63,19 +63,7 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
 
    init_registry();
    init_xdg_wm_base();
-
-   surface_ = wl_compositor_create_surface(compositor_);
-   vk_surface_ = create_surface(display_, surface_, vk_instance.handle());
-
-   xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
-   xdg_surface_listener xdg_surf_listener = {
-       .configure =
-           [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
-              auto window = reinterpret_cast<WaylandWindow *>(data);
-              xdg_surface_ack_configure(xdg_surface, serial);
-           },
-   };
-   xdg_surface_add_listener(xdg_surface_, &xdg_surf_listener, this);
+   init_surfaces();
 
    xdg_toplevel_ = xdg_surface_get_toplevel(xdg_surface_);
    xdg_toplevel_set_user_data(xdg_toplevel_, this);
@@ -194,6 +182,29 @@ void WaylandWindow::init_xdg_wm_base() {
            },
    };
    xdg_wm_base_add_listener(xdg_base_, &xdg_listener, this);
+}
+
+void WaylandWindow::init_surfaces() {
+   surface_ = wl_compositor_create_surface(compositor_);
+   wl_surface_listener surface_listener = {
+       .enter = [](void *user_data, wl_surface *surface, wl_output *) {},
+       .leave = [](void *user_data, wl_surface *surface, wl_output *) {},
+       .preferred_buffer_scale = [](void *user_data, wl_surface *surface, int32_t) {},
+       .preferred_buffer_transform = [](void *user_data, wl_surface *surface, uint32_t) {},
+   };
+   wl_surface_add_listener(surface_, &surface_listener, this);
+
+   xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
+   xdg_surface_listener xdg_surf_listener = {
+       .configure =
+           [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
+              auto window = reinterpret_cast<WaylandWindow *>(data);
+              xdg_surface_ack_configure(xdg_surface, serial);
+           },
+   };
+   xdg_surface_add_listener(xdg_surface_, &xdg_surf_listener, this);
+
+   vk_surface_ = create_surface(display_, surface_, vk_instance_.handle());
 }
 
 void WaylandWindow::kb_handler_keymap(
