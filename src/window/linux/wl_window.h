@@ -94,6 +94,7 @@ private:
 
    const Instance &vk_instance_;
    wl_display *display_ = nullptr;
+   wl_registry *registry_ = nullptr;
    wl_compositor *compositor_ = nullptr;
    wl_surface *surface_ = nullptr;
    VkSurfaceKHR vk_surface_ = nullptr;

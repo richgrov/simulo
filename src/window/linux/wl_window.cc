@@ -92,8 +92,8 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
       throw std::runtime_error("couldn't connect to Wayland display");
    }
 
-   wl_registry *registry = wl_display_get_registry(display_);
-   wl_registry_add_listener(registry, &registry_listener, this);
+   registry_ = wl_display_get_registry(display_);
+   wl_registry_add_listener(registry_, &registry_listener, this);
    wl_display_roundtrip(display_);
 
 #define VERIFY_INIT(name)                                                                          \
@@ -147,7 +147,9 @@ WaylandWindow::~WaylandWindow() {
    xdg_surface_destroy(xdg_surface_);
    xdg_wm_base_destroy(xdg_base_);
    vkDestroySurfaceKHR(vk_instance_.handle(), vk_surface_, nullptr);
+   wl_compositor_destroy(compositor_);
    wl_surface_destroy(surface_);
+   wl_registry_destroy(registry_);
    wl_display_disconnect(display_);
 }
 
