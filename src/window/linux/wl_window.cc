@@ -20,38 +20,7 @@
 
 using namespace vkad;
 
-void vkad::handle_global(
-    void *user_ptr, wl_registry *registry, uint32_t id, const char *interface, uint32_t version
-) {
-   WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_ptr);
-
-   if (std::strcmp(interface, wl_compositor_interface.name) == 0) {
-      void *compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 4);
-      window->compositor_ = reinterpret_cast<wl_compositor *>(compositor);
-      return;
-   }
-
-   if (std::strcmp(interface, xdg_wm_base_interface.name) == 0) {
-      void *xdg_base = wl_registry_bind(registry, id, &xdg_wm_base_interface, 1);
-      window->xdg_base_ = reinterpret_cast<xdg_wm_base *>(xdg_base);
-      return;
-   }
-
-   if (std::strcmp(interface, wl_seat_interface.name) == 0) {
-      void *seat = wl_registry_bind(registry, id, &wl_seat_interface, version);
-      window->seat_ = reinterpret_cast<wl_seat *>(seat);
-      return;
-   }
-}
-
 namespace {
-
-void global_remove(void *user_ptr, wl_registry *registry, uint32_t name) {}
-
-const struct wl_registry_listener registry_listener = {
-    .global = handle_global,
-    .global_remove = global_remove,
-};
 
 VkSurfaceKHR create_surface(wl_display *display, wl_surface *surface, VkInstance vk_instance) {
    VkWaylandSurfaceCreateInfoKHR vk_create_info = {
@@ -92,18 +61,7 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
       throw std::runtime_error("couldn't connect to Wayland display");
    }
 
-   registry_ = wl_display_get_registry(display_);
-   wl_registry_add_listener(registry_, &registry_listener, this);
-   wl_display_roundtrip(display_);
-
-#define VERIFY_INIT(name)                                                                          \
-   if ((name) == nullptr) {                                                                        \
-      throw std::runtime_error(#name " was not initialized");                                      \
-   }
-
-   VERIFY_INIT(compositor_);
-   VERIFY_INIT(xdg_base_);
-   VERIFY_INIT(seat_);
+   init_registry();
 
    xdg_wm_base_listener xdg_listener = {
        .ping =
@@ -188,6 +146,51 @@ bool WaylandWindow::poll() {
    }
 
    return open_;
+}
+
+void WaylandWindow::init_registry() {
+   registry_ = wl_display_get_registry(display_);
+
+   wl_registry_listener registry_listener = {
+       .global =
+           [](void *user_ptr, wl_registry *registry, uint32_t id, const char *interface,
+              uint32_t version) {
+              WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_ptr);
+
+              if (std::strcmp(interface, wl_compositor_interface.name) == 0) {
+                 void *compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 4);
+                 window->compositor_ = reinterpret_cast<wl_compositor *>(compositor);
+                 return;
+              }
+
+              if (std::strcmp(interface, xdg_wm_base_interface.name) == 0) {
+                 void *xdg_base = wl_registry_bind(registry, id, &xdg_wm_base_interface, 1);
+                 window->xdg_base_ = reinterpret_cast<xdg_wm_base *>(xdg_base);
+                 return;
+              }
+
+              if (std::strcmp(interface, wl_seat_interface.name) == 0) {
+                 void *seat = wl_registry_bind(registry, id, &wl_seat_interface, version);
+                 window->seat_ = reinterpret_cast<wl_seat *>(seat);
+
+                 wl_seat_add_listener(window->seat_, &seat_listener, window);
+                 return;
+              }
+           },
+       .global_remove = [](void *user_ptr, wl_registry *registry, uint32_t name) {},
+   };
+   wl_registry_add_listener(registry_, &registry_listener, this);
+
+   wl_display_roundtrip(display_);
+
+#define VERIFY_INIT(name)                                                                          \
+   if ((name) == nullptr) {                                                                        \
+      throw std::runtime_error(#name " was not initialized");                                      \
+   }
+
+   VERIFY_INIT(compositor_);
+   VERIFY_INIT(xdg_base_);
+   VERIFY_INIT(seat_);
 }
 
 void WaylandWindow::kb_handler_keymap(
