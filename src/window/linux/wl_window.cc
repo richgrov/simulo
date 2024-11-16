@@ -130,6 +130,7 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    xdg_toplevel_set_user_data(xdg_toplevel_, this);
    xdg_toplevel_listener toplevel_listener = {
        .configure = toplevel_configure,
+       .close = toplevel_close,
    };
    xdg_toplevel_add_listener(xdg_toplevel_, &toplevel_listener, this);
    wl_surface_commit(surface_);
@@ -184,7 +185,7 @@ bool WaylandWindow::poll() {
       throw std::runtime_error(std::format("wayland display error {}", display_err));
    }
 
-   return true;
+   return open_;
 }
 
 void WaylandWindow::kb_handler_keymap(
@@ -215,4 +216,8 @@ void WaylandWindow::toplevel_configure(
    WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_data);
    window->width_ = width;
    window->height_ = height;
+}
+
+void WaylandWindow::toplevel_close(void *user_ptr, struct xdg_toplevel *xdg_toplevel) {
+   reinterpret_cast<WaylandWindow *>(user_ptr)->open_ = false;
 }

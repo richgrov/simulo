@@ -92,6 +92,8 @@ private:
        struct wl_array *states
    );
 
+   static void toplevel_close(void *data, struct xdg_toplevel *xdg_toplevel);
+
    const Instance &vk_instance_;
    wl_display *display_ = nullptr;
    wl_registry *registry_ = nullptr;
@@ -109,6 +111,7 @@ private:
 
    int width_ = 0;
    int height_ = 0;
+   bool open_ = true;
 };
 
 } // namespace vkad
