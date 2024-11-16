@@ -25,7 +25,7 @@ void vkad::handle_global(
 ) {
    WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_ptr);
 
-   if (std::strcmp(interface, "wl_compositor") == 0) {
+   if (std::strcmp(interface, wl_compositor_interface.name) == 0) {
       void *compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 4);
       window->compositor_ = reinterpret_cast<wl_compositor *>(compositor);
       return;
