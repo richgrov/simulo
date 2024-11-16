@@ -5,3 +5,4 @@ AllowShortFunctionsOnASingleLine: Empty
 AlignAfterOpenBracket: BlockIndent
 InsertBraces: true
 PackConstructorInitializers: NextLine
+AllowShortLambdasOnASingleLine: Empty
