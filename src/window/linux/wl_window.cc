@@ -117,6 +117,15 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    vk_surface_ = create_surface(display_, surface_, vk_instance.handle());
 
    xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
+   xdg_surface_listener xdg_surf_listener = {
+       .configure =
+           [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
+              auto window = reinterpret_cast<WaylandWindow *>(data);
+              xdg_surface_ack_configure(xdg_surface, serial);
+           },
+   };
+   xdg_surface_add_listener(xdg_surface_, &xdg_surf_listener, this);
+
    xdg_toplevel_ = xdg_surface_get_toplevel(xdg_surface_);
    xdg_toplevel_set_user_data(xdg_toplevel_, this);
    xdg_toplevel_listener toplevel_listener = {
