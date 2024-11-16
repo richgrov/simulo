@@ -81,6 +81,7 @@ private:
    kb_handler_keymap(void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size);
 
    void init_registry();
+   void init_xdg_wm_base();
 
    static void toplevel_configure(
        void *user_data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height,

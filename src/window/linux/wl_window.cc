@@ -62,14 +62,7 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    }
 
    init_registry();
-
-   xdg_wm_base_listener xdg_listener = {
-       .ping =
-           [](void *user_ptr, xdg_wm_base *xdg_wm_base, uint32_t serial) {
-              xdg_wm_base_pong(xdg_wm_base, serial);
-           },
-   };
-   xdg_wm_base_add_listener(xdg_base_, &xdg_listener, this);
+   init_xdg_wm_base();
 
    surface_ = wl_compositor_create_surface(compositor_);
    vk_surface_ = create_surface(display_, surface_, vk_instance.handle());
@@ -191,6 +184,16 @@ void WaylandWindow::init_registry() {
    VERIFY_INIT(compositor_);
    VERIFY_INIT(xdg_base_);
    VERIFY_INIT(seat_);
+}
+
+void WaylandWindow::init_xdg_wm_base() {
+   xdg_wm_base_listener xdg_listener = {
+       .ping =
+           [](void *user_ptr, xdg_wm_base *xdg_wm_base, uint32_t serial) {
+              xdg_wm_base_pong(xdg_wm_base, serial);
+           },
+   };
+   xdg_wm_base_add_listener(xdg_base_, &xdg_listener, this);
 }
 
 void WaylandWindow::kb_handler_keymap(
