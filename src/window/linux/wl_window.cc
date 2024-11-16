@@ -64,16 +64,8 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    init_registry();
    init_xdg_wm_base();
    init_surfaces();
+   init_toplevel(title);
 
-   xdg_toplevel_ = xdg_surface_get_toplevel(xdg_surface_);
-   xdg_toplevel_set_user_data(xdg_toplevel_, this);
-   xdg_toplevel_listener toplevel_listener = {
-       .configure = toplevel_configure,
-       .close = toplevel_close,
-       .configure_bounds = toplevel_configure_bounds,
-       .wm_capabilities = toplevel_wm_capabilities,
-   };
-   xdg_toplevel_add_listener(xdg_toplevel_, &toplevel_listener, this);
    wl_surface_commit(surface_);
 
    keyboard_ = wl_seat_get_keyboard(seat_);
@@ -207,6 +199,34 @@ void WaylandWindow::init_surfaces() {
    vk_surface_ = create_surface(display_, surface_, vk_instance_.handle());
 }
 
+void WaylandWindow::init_toplevel(const char *title) {
+   xdg_toplevel_ = xdg_surface_get_toplevel(xdg_surface_);
+   xdg_toplevel_listener toplevel_listener = {
+       .configure =
+           [](void *user_data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height,
+              struct wl_array *states) {
+              // TODO: Check if width/height are zero. If so, autonomously set window size
+              WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_data);
+              window->width_ = width;
+              window->height_ = height;
+           },
+
+       .close =
+           [](void *user_ptr, struct xdg_toplevel *xdg_toplevel) {
+              reinterpret_cast<WaylandWindow *>(user_ptr)->open_ = false;
+           },
+
+       .configure_bounds = [](void *user_ptr, struct xdg_toplevel *xdg_toplevel, int32_t width,
+                              int32_t height) {},
+       .wm_capabilities = [](void *user_ptr, struct xdg_toplevel *xdg_toplevel,
+                             struct wl_array *capabilities) {},
+   };
+
+   xdg_toplevel_set_user_data(xdg_toplevel_, this);
+   xdg_toplevel_add_listener(xdg_toplevel_, &toplevel_listener, this);
+   xdg_toplevel_set_title(xdg_toplevel_, title);
+}
+
 void WaylandWindow::kb_handler_keymap(
     void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size
 ) {
@@ -226,25 +246,3 @@ void WaylandWindow::kb_handler_keymap(
    munmap(keymap_str, size);
    close(fd);
 }
-
-void WaylandWindow::toplevel_configure(
-    void *user_data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height,
-    struct wl_array *states
-) {
-   // TODO: Check if width/height are zero. If so, autonomously set window size
-   WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_data);
-   window->width_ = width;
-   window->height_ = height;
-}
-
-void WaylandWindow::toplevel_close(void *user_ptr, struct xdg_toplevel *xdg_toplevel) {
-   reinterpret_cast<WaylandWindow *>(user_ptr)->open_ = false;
-}
-
-void WaylandWindow::toplevel_configure_bounds(
-    void *user_ptr, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height
-) {}
-
-void WaylandWindow::toplevel_wm_capabilities(
-    void *user_ptr, struct xdg_toplevel *xdg_toplevel, struct wl_array *capabilities
-) {}
