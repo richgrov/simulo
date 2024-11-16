@@ -161,6 +161,11 @@ bool WaylandWindow::poll() {
       throw std::runtime_error(std::format("wl_display_flush failed: {}", err));
    }
 
+   int display_err = wl_display_get_error(display_);
+   if (display_err != 0) {
+      throw std::runtime_error(std::format("wayland display error {}", display_err));
+   }
+
    return true;
 }
 
