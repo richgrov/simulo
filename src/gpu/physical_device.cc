@@ -6,13 +6,14 @@
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/instance.h"
+#include "gpu/status.h"
 #include "gpu/swapchain.h"
 
 using namespace vkad;
 
 PhysicalDevice::PhysicalDevice(const Instance &instance, VkSurfaceKHR surface) {
    uint32_t num_devices;
-   vkEnumeratePhysicalDevices(instance.handle(), &num_devices, nullptr);
+   VKAD_VK(vkEnumeratePhysicalDevices(instance.handle(), &num_devices, nullptr));
    if (num_devices == 0) {
       throw std::runtime_error("no physical devices");
    }
