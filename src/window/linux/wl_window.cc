@@ -131,6 +131,8 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    xdg_toplevel_listener toplevel_listener = {
        .configure = toplevel_configure,
        .close = toplevel_close,
+       .configure_bounds = toplevel_configure_bounds,
+       .wm_capabilities = toplevel_wm_capabilities,
    };
    xdg_toplevel_add_listener(xdg_toplevel_, &toplevel_listener, this);
    wl_surface_commit(surface_);
@@ -221,3 +223,11 @@ void WaylandWindow::toplevel_configure(
 void WaylandWindow::toplevel_close(void *user_ptr, struct xdg_toplevel *xdg_toplevel) {
    reinterpret_cast<WaylandWindow *>(user_ptr)->open_ = false;
 }
+
+void WaylandWindow::toplevel_configure_bounds(
+    void *user_ptr, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height
+) {}
+
+void WaylandWindow::toplevel_wm_capabilities(
+    void *user_ptr, struct xdg_toplevel *xdg_toplevel, struct wl_array *capabilities
+) {}

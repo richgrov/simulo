@@ -94,6 +94,14 @@ private:
 
    static void toplevel_close(void *data, struct xdg_toplevel *xdg_toplevel);
 
+   static void toplevel_configure_bounds(
+       void *data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height
+   );
+
+   static void toplevel_wm_capabilities(
+       void *data, struct xdg_toplevel *xdg_toplevel, struct wl_array *capabilities
+   );
+
    const Instance &vk_instance_;
    wl_display *display_ = nullptr;
    wl_registry *registry_ = nullptr;
