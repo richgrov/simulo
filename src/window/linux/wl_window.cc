@@ -62,12 +62,22 @@ xdg_toplevel_listener toplevel_listener;
 WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
     : vk_instance_(vk_instance), xkb_ctx_(xkb_context_new(XKB_CONTEXT_NO_FLAGS)) {
 
+#define VERIFY_INIT(name)                                                                          \
+   if ((name) == nullptr) {                                                                        \
+      throw std::runtime_error(#name " was not initialized");                                      \
+   }
+
    display_ = wl_display_connect(NULL);
    if (!display_) {
       throw std::runtime_error("couldn't connect to Wayland display");
    }
 
    init_registry();
+
+   VERIFY_INIT(compositor_);
+   VERIFY_INIT(xdg_base_);
+   VERIFY_INIT(seat_);
+
    init_xdg_wm_base();
    init_surfaces();
    init_toplevel(title);
@@ -161,15 +171,6 @@ void WaylandWindow::init_registry() {
    wl_registry_add_listener(registry_, &registry_listener, this);
 
    wl_display_roundtrip(display_);
-
-#define VERIFY_INIT(name)                                                                          \
-   if ((name) == nullptr) {                                                                        \
-      throw std::runtime_error(#name " was not initialized");                                      \
-   }
-
-   VERIFY_INIT(compositor_);
-   VERIFY_INIT(xdg_base_);
-   VERIFY_INIT(seat_);
 }
 
 void WaylandWindow::init_xdg_wm_base() {
