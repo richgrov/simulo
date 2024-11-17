@@ -51,6 +51,12 @@ void kb_handler_modifiers(
 
 void kb_handler_repeat_info(void *user_data, wl_keyboard *kb, int32_t rate, int32_t delay) {}
 
+wl_registry_listener registry_listener;
+xdg_wm_base_listener xdg_listener;
+wl_surface_listener surface_listener;
+xdg_surface_listener xdg_surf_listener;
+xdg_toplevel_listener toplevel_listener;
+
 } // namespace
 
 WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
@@ -124,7 +130,7 @@ bool WaylandWindow::poll() {
 void WaylandWindow::init_registry() {
    registry_ = wl_display_get_registry(display_);
 
-   wl_registry_listener registry_listener = {
+   registry_listener = {
        .global =
            [](void *user_ptr, wl_registry *registry, uint32_t id, const char *interface,
               uint32_t version) {
@@ -167,7 +173,7 @@ void WaylandWindow::init_registry() {
 }
 
 void WaylandWindow::init_xdg_wm_base() {
-   xdg_wm_base_listener xdg_listener = {
+   xdg_listener = {
        .ping =
            [](void *user_ptr, xdg_wm_base *xdg_wm_base, uint32_t serial) {
               xdg_wm_base_pong(xdg_wm_base, serial);
@@ -178,7 +184,7 @@ void WaylandWindow::init_xdg_wm_base() {
 
 void WaylandWindow::init_surfaces() {
    surface_ = wl_compositor_create_surface(compositor_);
-   wl_surface_listener surface_listener = {
+   surface_listener = {
        .enter = [](void *user_data, wl_surface *surface, wl_output *) {},
        .leave = [](void *user_data, wl_surface *surface, wl_output *) {},
        .preferred_buffer_scale = [](void *user_data, wl_surface *surface, int32_t) {},
@@ -187,7 +193,7 @@ void WaylandWindow::init_surfaces() {
    wl_surface_add_listener(surface_, &surface_listener, this);
 
    xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
-   xdg_surface_listener xdg_surf_listener = {
+   xdg_surf_listener = {
        .configure =
            [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
               auto window = reinterpret_cast<WaylandWindow *>(data);
@@ -201,7 +207,7 @@ void WaylandWindow::init_surfaces() {
 
 void WaylandWindow::init_toplevel(const char *title) {
    xdg_toplevel_ = xdg_surface_get_toplevel(xdg_surface_);
-   xdg_toplevel_listener toplevel_listener = {
+   toplevel_listener = {
        .configure =
            [](void *user_data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height,
               struct wl_array *states) {
