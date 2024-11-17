@@ -3,6 +3,7 @@
 
 #include "gpu/instance.h"
 #include "window/linux/window.h"
+#include <bitset>
 
 struct wl_display;
 struct wl_registry;
@@ -65,11 +66,11 @@ public:
    }
 
    virtual bool is_key_down(uint8_t key_code) const override {
-      return false;
+      return pressed_keys_[key_code];
    }
 
    virtual bool key_just_pressed(uint8_t key_code) const override {
-      return false;
+      return !prev_pressed_keys_[key_code] && pressed_keys_[key_code];
    }
 
    virtual std::string_view typed_chars() const override {
@@ -104,6 +105,8 @@ private:
    int width_ = 0;
    int height_ = 0;
    bool open_ = true;
+   std::bitset<256> pressed_keys_;
+   std::bitset<256> prev_pressed_keys_;
 };
 
 } // namespace vkad

@@ -2,6 +2,7 @@
 
 #include "gpu/instance.h"
 #include "gpu/status.h"
+#include "window/linux/keys.h"
 #include "xdg-shell-client-protocol.h"
 
 #include <cerrno>
@@ -16,11 +17,36 @@
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
 #include <wayland-client.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 #include <xkbcommon/xkbcommon.h>
 
 using namespace vkad;
 
 namespace {
+
+uint8_t xkb_to_xinput2(xkb_keysym_t key) {
+   switch (key) {
+   case XKB_KEY_Escape:
+      return VKAD_KEY_ESC;
+   case XKB_KEY_Shift_L:
+      return VKAD_KEY_SHIFT;
+   case XKB_KEY_space:
+      return VKAD_KEY_SPACE;
+   case XKB_KEY_c:
+      return VKAD_KEY_C;
+   case XKB_KEY_d:
+      return VKAD_KEY_D;
+   case XKB_KEY_e:
+      return VKAD_KEY_E;
+   case XKB_KEY_p:
+      return VKAD_KEY_P;
+   case XKB_KEY_w:
+      return VKAD_KEY_W;
+
+   default:
+      return -1;
+   }
+}
 
 VkSurfaceKHR create_surface(wl_display *display, wl_surface *surface, VkInstance vk_instance) {
    VkWaylandSurfaceCreateInfoKHR vk_create_info = {
@@ -89,6 +115,8 @@ WaylandWindow::~WaylandWindow() {
 }
 
 bool WaylandWindow::poll() {
+   prev_pressed_keys_ = pressed_keys_;
+
    while (wl_display_prepare_read(display_) != 0) {
       if (wl_display_dispatch_pending(display_) < 0) {
          throw std::runtime_error("wl_display_dispatch_pending failed");
@@ -270,6 +298,8 @@ void WaylandWindow::init_keyboard() {
               }
 
               xkb_keysym_t keysym = xkb_state_key_get_one_sym(window->xkb_state_, key + 8);
+              uint8_t xi2_key = xkb_to_xinput2(keysym);
+              window->pressed_keys_[xi2_key] = state == WL_KEYBOARD_KEY_STATE_PRESSED;
            },
 
        .modifiers =
