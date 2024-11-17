@@ -5,6 +5,7 @@
 #include "window/linux/keys.h"
 #include "xdg-shell-client-protocol.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <format>
@@ -116,6 +117,8 @@ WaylandWindow::~WaylandWindow() {
 
 bool WaylandWindow::poll() {
    prev_pressed_keys_ = pressed_keys_;
+   std::memset(typed_letters_, 0, sizeof(typed_letters_));
+   next_typed_letter_ = 0;
 
    while (wl_display_prepare_read(display_) != 0) {
       if (wl_display_dispatch_pending(display_) < 0) {
@@ -297,9 +300,16 @@ void WaylandWindow::init_keyboard() {
                  return;
               }
 
-              xkb_keysym_t keysym = xkb_state_key_get_one_sym(window->xkb_state_, key + 8);
+              uint32_t evdev_key = key + 8;
+              bool pressed = state == WL_KEYBOARD_KEY_STATE_PRESSED;
+
+              xkb_keysym_t keysym = xkb_state_key_get_one_sym(window->xkb_state_, evdev_key);
               uint8_t xi2_key = xkb_to_xinput2(keysym);
-              window->pressed_keys_[xi2_key] = state == WL_KEYBOARD_KEY_STATE_PRESSED;
+              window->pressed_keys_[xi2_key] = pressed;
+
+              if (pressed) {
+                 window->process_utf8_keyboard_input(evdev_key);
+              }
            },
 
        .modifiers =
@@ -319,4 +329,14 @@ void WaylandWindow::init_keyboard() {
    };
 
    wl_keyboard_add_listener(keyboard_, &kb_listener, this);
+}
+
+void WaylandWindow::process_utf8_keyboard_input(uint32_t evdev_key) {
+   int letter_size = xkb_state_key_get_utf8(
+       xkb_state_, evdev_key, &typed_letters_[next_typed_letter_],
+       sizeof(typed_letters_) - next_typed_letter_
+   );
+
+   next_typed_letter_ =
+       std::min(sizeof(typed_letters_), static_cast<size_t>(next_typed_letter_ + letter_size));
 }

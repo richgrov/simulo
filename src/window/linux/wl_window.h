@@ -4,6 +4,7 @@
 #include "gpu/instance.h"
 #include "window/linux/window.h"
 #include <bitset>
+#include <string_view>
 
 struct wl_display;
 struct wl_registry;
@@ -74,7 +75,7 @@ public:
    }
 
    virtual std::string_view typed_chars() const override {
-      return "";
+      return std::string_view(typed_letters_, next_typed_letter_);
    }
 
 private:
@@ -85,6 +86,8 @@ private:
 
    void init_seat();
    void init_keyboard();
+
+   void process_utf8_keyboard_input(uint32_t evdev_key);
 
    const Instance &vk_instance_;
    wl_display *display_ = nullptr;
@@ -107,6 +110,8 @@ private:
    bool open_ = true;
    std::bitset<256> pressed_keys_;
    std::bitset<256> prev_pressed_keys_;
+   char typed_letters_[64];
+   int next_typed_letter_ = 0;
 };
 
 } // namespace vkad
