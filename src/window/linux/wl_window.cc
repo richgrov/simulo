@@ -63,13 +63,11 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    VERIFY_INIT(compositor_);
    VERIFY_INIT(xdg_base_);
    VERIFY_INIT(seat_);
+   VERIFY_INIT(keyboard_);
 
    init_xdg_wm_base();
    init_surfaces();
    init_toplevel(title);
-
-   init_seat();
-   VERIFY_INIT(keyboard_);
    init_keyboard();
 
    wl_surface_commit(surface_);
@@ -140,6 +138,7 @@ void WaylandWindow::init_registry() {
               if (std::strcmp(interface, wl_seat_interface.name) == 0) {
                  void *seat = wl_registry_bind(registry, id, &wl_seat_interface, version);
                  window->seat_ = reinterpret_cast<wl_seat *>(seat);
+                 window->init_seat();
                  return;
               }
            },
@@ -148,6 +147,7 @@ void WaylandWindow::init_registry() {
    wl_registry_add_listener(registry_, &registry_listener, this);
 
    wl_display_roundtrip(display_);
+   wl_display_roundtrip(display_); // again so the wl_seat listener is run
 }
 
 void WaylandWindow::init_xdg_wm_base() {
@@ -221,8 +221,6 @@ void WaylandWindow::init_seat() {
        .name = [](void *user_pointer, wl_seat *seat, const char *name) {},
    };
    wl_seat_add_listener(seat_, &seat_listener, this);
-
-   wl_display_roundtrip(display_);
 }
 
 void WaylandWindow::init_keyboard() {
