@@ -15,6 +15,7 @@ struct wl_seat;
 struct wl_keyboard;
 
 struct xkb_context;
+struct xkb_state;
 struct xkb_keymap;
 
 namespace vkad {
@@ -76,7 +77,6 @@ public:
    }
 
 private:
-
    static void
    kb_handler_keymap(void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size);
 
@@ -98,6 +98,7 @@ private:
    wl_keyboard *keyboard_ = nullptr;
 
    xkb_context *xkb_ctx_ = nullptr;
+   xkb_state *xkb_state_ = nullptr;
    xkb_keymap *keymap_ = nullptr;
 
    int width_ = 0;
