@@ -77,13 +77,13 @@ public:
    }
 
 private:
-   static void
-   kb_handler_keymap(void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size);
-
    void init_registry();
    void init_xdg_wm_base();
    void init_surfaces();
    void init_toplevel(const char *title);
+
+   void init_seat();
+   void init_keyboard();
 
    const Instance &vk_instance_;
    wl_display *display_ = nullptr;

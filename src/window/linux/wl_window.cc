@@ -7,6 +7,7 @@
 #include <cerrno>
 #include <cstring>
 #include <format>
+#include <iostream>
 #include <stdexcept>
 #include <stdint.h>
 #include <sys/mman.h>
@@ -34,28 +35,13 @@ VkSurfaceKHR create_surface(wl_display *display, wl_surface *surface, VkInstance
    return result;
 }
 
-void kb_handler_enter(
-    void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface, wl_array *keys
-) {}
-
-void kb_handler_leave(void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface) {}
-
-void kb_handler_key(
-    void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t time, uint32_t key, uint32_t state
-) {}
-
-void kb_handler_modifiers(
-    void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t mods_pressed, uint32_t mods_latched,
-    uint32_t mods_locked, uint32_t group
-) {}
-
-void kb_handler_repeat_info(void *user_data, wl_keyboard *kb, int32_t rate, int32_t delay) {}
-
 wl_registry_listener registry_listener;
 xdg_wm_base_listener xdg_listener;
 wl_surface_listener surface_listener;
 xdg_surface_listener xdg_surf_listener;
 xdg_toplevel_listener toplevel_listener;
+wl_seat_listener seat_listener;
+wl_keyboard_listener kb_listener;
 
 } // namespace
 
@@ -82,18 +68,11 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    init_surfaces();
    init_toplevel(title);
 
-   wl_surface_commit(surface_);
+   init_seat();
+   VERIFY_INIT(keyboard_);
+   init_keyboard();
 
-   keyboard_ = wl_seat_get_keyboard(seat_);
-   wl_keyboard_listener kb_listener = {
-       .keymap = kb_handler_keymap,
-       .enter = kb_handler_enter,
-       .leave = kb_handler_leave,
-       .key = kb_handler_key,
-       .modifiers = kb_handler_modifiers,
-       .repeat_info = kb_handler_repeat_info,
-   };
-   wl_keyboard_add_listener(keyboard_, &kb_listener, this);
+   wl_surface_commit(surface_);
    wl_display_roundtrip(display_);
 }
 
@@ -161,8 +140,6 @@ void WaylandWindow::init_registry() {
               if (std::strcmp(interface, wl_seat_interface.name) == 0) {
                  void *seat = wl_registry_bind(registry, id, &wl_seat_interface, version);
                  window->seat_ = reinterpret_cast<wl_seat *>(seat);
-
-                 wl_seat_add_listener(window->seat_, &seat_listener, window);
                  return;
               }
            },
@@ -234,22 +211,54 @@ void WaylandWindow::init_toplevel(const char *title) {
    xdg_toplevel_set_title(xdg_toplevel_, title);
 }
 
-void WaylandWindow::kb_handler_keymap(
-    void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size
-) {
-   auto window_class = reinterpret_cast<WaylandWindow *>(user_data);
+void WaylandWindow::init_seat() {
+   seat_listener = {
+       .capabilities =
+           [](void *user_pointer, wl_seat *seat, uint32_t capabilities) {
+              auto window = reinterpret_cast<WaylandWindow *>(user_pointer);
+              window->keyboard_ = wl_seat_get_keyboard(seat);
+           },
+       .name = [](void *user_pointer, wl_seat *seat, const char *name) {},
+   };
+   wl_seat_add_listener(seat_, &seat_listener, this);
 
-   void *keymap_str = mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
+   wl_display_roundtrip(display_);
+}
 
-   xkb_keymap_unref(window_class->keymap_);
-   window_class->keymap_ = xkb_keymap_new_from_string(
-       window_class->xkb_ctx_, reinterpret_cast<const char *>(keymap_str),
-       XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS
-   );
+void WaylandWindow::init_keyboard() {
+   kb_listener = {
+       .keymap =
+           [](void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size) {
+              auto window_class = reinterpret_cast<WaylandWindow *>(user_data);
 
-   xkb_state_unref(window_class->xkb_state_);
-   window_class->xkb_state_ = xkb_state_new(window_class->keymap_);
+              void *keymap_str = mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
 
-   munmap(keymap_str, size);
-   close(fd);
+              xkb_keymap_unref(window_class->keymap_);
+              window_class->keymap_ = xkb_keymap_new_from_string(
+                  window_class->xkb_ctx_, reinterpret_cast<const char *>(keymap_str),
+                  XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS
+              );
+
+              xkb_state_unref(window_class->xkb_state_);
+              window_class->xkb_state_ = xkb_state_new(window_class->keymap_);
+
+              munmap(keymap_str, size);
+              close(fd);
+           },
+
+       .enter = [](void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface,
+                   wl_array *keys) {},
+       .leave = [](void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface) {},
+
+       .key =
+           [](void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t time, uint32_t key,
+              uint32_t state) {
+              std::cout << "hi\n";
+           },
+
+       .modifiers = [](void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t mods_pressed,
+                       uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {},
+       .repeat_info = [](void *user_data, wl_keyboard *kb, int32_t rate, int32_t delay) {},
+   };
+   wl_keyboard_add_listener(keyboard_, &kb_listener, this);
 }
