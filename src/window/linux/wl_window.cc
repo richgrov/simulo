@@ -33,6 +33,8 @@ uint8_t xkb_to_xinput2(xkb_keysym_t key) {
       return VKAD_KEY_SHIFT;
    case XKB_KEY_space:
       return VKAD_KEY_SPACE;
+   case XKB_KEY_a:
+      return VKAD_KEY_A;
    case XKB_KEY_c:
       return VKAD_KEY_C;
    case XKB_KEY_d:
@@ -41,6 +43,8 @@ uint8_t xkb_to_xinput2(xkb_keysym_t key) {
       return VKAD_KEY_E;
    case XKB_KEY_p:
       return VKAD_KEY_P;
+   case XKB_KEY_s:
+      return VKAD_KEY_S;
    case XKB_KEY_w:
       return VKAD_KEY_W;
 
