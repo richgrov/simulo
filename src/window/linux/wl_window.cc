@@ -216,7 +216,10 @@ void WaylandWindow::init_seat() {
        .capabilities =
            [](void *user_pointer, wl_seat *seat, uint32_t capabilities) {
               auto window = reinterpret_cast<WaylandWindow *>(user_pointer);
-              window->keyboard_ = wl_seat_get_keyboard(seat);
+
+              if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
+                 window->keyboard_ = wl_seat_get_keyboard(seat);
+              }
            },
        .name = [](void *user_pointer, wl_seat *seat, const char *name) {},
    };
