@@ -7,7 +7,6 @@
 #include <cerrno>
 #include <cstring>
 #include <format>
-#include <iostream>
 #include <stdexcept>
 #include <stdint.h>
 #include <sys/mman.h>
@@ -230,36 +229,64 @@ void WaylandWindow::init_keyboard() {
    kb_listener = {
        .keymap =
            [](void *user_data, wl_keyboard *kb, uint32_t format, int32_t fd, uint32_t size) {
-              auto window_class = reinterpret_cast<WaylandWindow *>(user_data);
+              auto window = reinterpret_cast<WaylandWindow *>(user_data);
 
               void *keymap_str = mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
 
-              xkb_keymap_unref(window_class->keymap_);
-              window_class->keymap_ = xkb_keymap_new_from_string(
-                  window_class->xkb_ctx_, reinterpret_cast<const char *>(keymap_str),
+              xkb_keymap_unref(window->keymap_);
+              window->keymap_ = xkb_keymap_new_from_string(
+                  window->xkb_ctx_, reinterpret_cast<const char *>(keymap_str),
                   XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS
               );
-
-              xkb_state_unref(window_class->xkb_state_);
-              window_class->xkb_state_ = xkb_state_new(window_class->keymap_);
 
               munmap(keymap_str, size);
               close(fd);
            },
 
-       .enter = [](void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface,
-                   wl_array *keys) {},
-       .leave = [](void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface) {},
+       .enter =
+           [](void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface,
+              wl_array *keys) {
+              auto window = reinterpret_cast<WaylandWindow *>(user_data);
+              if (window->keymap_ == nullptr) {
+                 return;
+              }
+
+              xkb_state_unref(window->xkb_state_);
+              window->xkb_state_ = xkb_state_new(window->keymap_);
+           },
+       .leave =
+           [](void *user_data, wl_keyboard *kb, uint32_t serial, wl_surface *surface) {
+              auto window = reinterpret_cast<WaylandWindow *>(user_data);
+              xkb_state_unref(window->xkb_state_);
+              window->xkb_state_ = nullptr;
+           },
 
        .key =
            [](void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t time, uint32_t key,
               uint32_t state) {
-              std::cout << "hi\n";
+              auto window = reinterpret_cast<WaylandWindow *>(user_data);
+              if (!window->xkb_state_) {
+                 return;
+              }
+
+              xkb_keysym_t keysym = xkb_state_key_get_one_sym(window->xkb_state_, key + 8);
            },
 
-       .modifiers = [](void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t mods_pressed,
-                       uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {},
+       .modifiers =
+           [](void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t mods_pressed,
+              uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
+              auto window = reinterpret_cast<WaylandWindow *>(user_data);
+              if (window->xkb_state_ == nullptr) {
+                 return;
+              }
+
+              xkb_state_update_mask(
+                  window->xkb_state_, mods_pressed, mods_latched, mods_locked, 0, 0, group
+              );
+           },
+
        .repeat_info = [](void *user_data, wl_keyboard *kb, int32_t rate, int32_t delay) {},
    };
+
    wl_keyboard_add_listener(keyboard_, &kb_listener, this);
 }
