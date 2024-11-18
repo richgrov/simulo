@@ -15,6 +15,7 @@ Compile shaders:
 Windows: `./recompile_shaders.ps1`
 
 Build & run:
+
 ```
 mkdir build
 cmake -B build
