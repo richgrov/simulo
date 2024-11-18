@@ -1,6 +1,10 @@
 ![vkad logo](.github/logo.svg)
 
-A simple, minimal-dependency CAD program powered by Vulkan
+A simple, minimal-dependency CAD program featuring:
+
+-  Custom Vulkan render backend
+-  Windows, X11, and Wayland windowing system from scratch
+-  Custom math utilities (Matrix, Vector)
 
 # Setup
 
