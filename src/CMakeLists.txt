@@ -22,6 +22,8 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         "window/linux/xdg-shell-client-protocol.h"
         "window/linux/x11_window.cc"
         "window/linux/x11_window.h"
+        "window/linux/zwp-relative-pointer-v1-protocol.c"
+        "window/linux/zwp-relative-pointer-v1-client-protocol.h"
     )
 endif()
 
