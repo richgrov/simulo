@@ -15,10 +15,13 @@ struct xdg_surface;
 struct xdg_toplevel;
 struct wl_seat;
 struct wl_keyboard;
+struct wl_pointer;
 
 struct xkb_context;
 struct xkb_state;
 struct xkb_keymap;
+struct zwp_relative_pointer_manager_v1;
+struct zwp_relative_pointer_v1;
 
 namespace vkad {
 
@@ -55,11 +58,11 @@ public:
    }
 
    virtual int delta_mouse_x() const override {
-      return 0;
+      return delta_mouse_x_;
    }
 
    virtual int delta_mouse_y() const override {
-      return 0;
+      return delta_mouse_y_;
    }
 
    virtual bool left_clicking() const override {
@@ -86,6 +89,7 @@ private:
 
    void init_seat();
    void init_keyboard();
+   void init_relative_pointer();
 
    void process_utf8_keyboard_input(uint32_t evdev_key);
 
@@ -99,11 +103,15 @@ private:
    xdg_surface *xdg_surface_ = nullptr;
    xdg_toplevel *xdg_toplevel_ = nullptr;
    wl_seat *seat_ = nullptr;
-   wl_keyboard *keyboard_ = nullptr;
 
+   wl_keyboard *keyboard_ = nullptr;
    xkb_context *xkb_ctx_ = nullptr;
    xkb_state *xkb_state_ = nullptr;
    xkb_keymap *keymap_ = nullptr;
+
+   wl_pointer *pointer_ = nullptr;
+   zwp_relative_pointer_manager_v1 *relative_pointer_manager_ = nullptr;
+   zwp_relative_pointer_v1 *relative_pointer_ = nullptr;
 
    int width_ = 0;
    int height_ = 0;
@@ -112,6 +120,8 @@ private:
    std::bitset<256> prev_pressed_keys_;
    char typed_letters_[64];
    int next_typed_letter_ = 0;
+   int delta_mouse_x_ = 0;
+   int delta_mouse_y_ = 0;
 };
 
 } // namespace vkad

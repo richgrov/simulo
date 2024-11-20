@@ -4,6 +4,7 @@
 #include "gpu/status.h"
 #include "window/linux/keys.h"
 #include "xdg-shell-client-protocol.h"
+#include "zwp-relative-pointer-v1-client-protocol.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -86,20 +87,28 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    VERIFY_INIT(xdg_base_);
    VERIFY_INIT(seat_);
    VERIFY_INIT(keyboard_);
+   VERIFY_INIT(pointer_);
+   VERIFY_INIT(relative_pointer_manager_);
 
    init_xdg_wm_base();
    init_surfaces();
    init_toplevel(title);
    init_keyboard();
+   init_relative_pointer();
 
    wl_surface_commit(surface_);
    wl_display_roundtrip(display_);
 }
 
 WaylandWindow::~WaylandWindow() {
+   zwp_relative_pointer_v1_destroy(relative_pointer_);
+   zwp_relative_pointer_manager_v1_destroy(relative_pointer_manager_);
+   wl_pointer_destroy(pointer_);
+
    xkb_keymap_unref(keymap_);
    xkb_context_unref(xkb_ctx_);
    wl_keyboard_destroy(keyboard_);
+
    wl_seat_destroy(seat_);
    xdg_toplevel_destroy(xdg_toplevel_);
    xdg_surface_destroy(xdg_surface_);
@@ -115,6 +124,8 @@ bool WaylandWindow::poll() {
    prev_pressed_keys_ = pressed_keys_;
    std::memset(typed_letters_, 0, sizeof(typed_letters_));
    next_typed_letter_ = 0;
+   delta_mouse_x_ = 0;
+   delta_mouse_y_ = 0;
 
    while (wl_display_prepare_read(display_) != 0) {
       if (wl_display_dispatch_pending(display_) < 0) {
@@ -165,6 +176,15 @@ void WaylandWindow::init_registry() {
                  void *seat = wl_registry_bind(registry, id, &wl_seat_interface, version);
                  window->seat_ = reinterpret_cast<wl_seat *>(seat);
                  window->init_seat();
+                 return;
+              }
+
+              if (std::strcmp(interface, zwp_relative_pointer_manager_v1_interface.name) == 0) {
+                 void *relative_pointer = wl_registry_bind(
+                     registry, id, &zwp_relative_pointer_manager_v1_interface, version
+                 );
+                 window->relative_pointer_manager_ =
+                     reinterpret_cast<zwp_relative_pointer_manager_v1 *>(relative_pointer);
                  return;
               }
            },
@@ -246,6 +266,10 @@ void WaylandWindow::init_seat() {
               if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
                  window->keyboard_ = wl_seat_get_keyboard(seat);
               }
+
+              if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
+                 window->pointer_ = wl_seat_get_pointer(seat);
+              }
            },
        .name = [](void *user_pointer, wl_seat *seat, const char *name) {},
    };
@@ -325,6 +349,24 @@ void WaylandWindow::init_keyboard() {
    };
 
    wl_keyboard_add_listener(keyboard_, &kb_listener, this);
+}
+
+void WaylandWindow::init_relative_pointer() {
+   relative_pointer_ =
+       zwp_relative_pointer_manager_v1_get_relative_pointer(relative_pointer_manager_, pointer_);
+
+   static constexpr zwp_relative_pointer_v1_listener listener = {
+       .relative_motion =
+           [](void *user_data, struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1,
+              uint32_t utime_hi, uint32_t utime_lo, wl_fixed_t dx, wl_fixed_t dy,
+              wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel) {
+              auto *window = reinterpret_cast<WaylandWindow *>(user_data);
+              window->delta_mouse_x_ += dx_unaccel / 256;
+              window->delta_mouse_y_ -= dy_unaccel / 256;
+           },
+   };
+
+   zwp_relative_pointer_v1_add_listener(relative_pointer_, &listener, this);
 }
 
 void WaylandWindow::process_utf8_keyboard_input(uint32_t evdev_key) {
