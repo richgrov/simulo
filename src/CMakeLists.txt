@@ -18,12 +18,8 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         "window/linux/window_init.h"
         "window/linux/wl_window.cc"
         "window/linux/wl_window.h"
-        "window/linux/xdg-shell-protocol.c"
-        "window/linux/xdg-shell-protocol.h"
         "window/linux/x11_window.cc"
         "window/linux/x11_window.h"
-        "window/linux/zwp-relative-pointer-v1-protocol.c"
-        "window/linux/zwp-relative-pointer-v1-protocol.h"
     )
 endif()
 
@@ -84,6 +80,26 @@ set(SOURCE_FILES
 
 add_executable(vkad ${SOURCE_FILES} "main.cc")
 
+function(generate_wayland_protocol target xml_path)
+    get_filename_component(protocol_name ${xml_path} NAME_WE)
+    set(header_output ${CMAKE_CURRENT_LIST_DIR}/window/linux/${protocol_name}-protocol.h)
+    set(c_output ${CMAKE_CURRENT_LIST_DIR}/window/linux/${protocol_name}-protocol.c)
+
+    add_custom_command(
+        OUTPUT ${header_output}
+        COMMAND wayland-scanner client-header ${xml_path} ${header_output}
+        DEPENDS ${xml_path}
+    )
+
+    add_custom_command(
+        OUTPUT ${c_output}
+        COMMAND wayland-scanner private-code ${xml_path} ${c_output}
+        DEPENDS ${xml_path}
+    )
+
+    target_sources(${target} PRIVATE ${header_output} ${c_output})
+endfunction()
+
 function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
 
@@ -106,6 +122,9 @@ function(setup_targets subject)
         target_include_directories(${subject} PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
         target_link_directories(${subject} PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
         target_link_libraries(${subject} ${XKBCOMMON_LIBRARIES})
+
+        generate_wayland_protocol(${subject} /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
+        generate_wayland_protocol(${subject} /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
     endif()
 
     set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)

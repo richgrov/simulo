@@ -2,9 +2,9 @@
 
 #include "gpu/instance.h"
 #include "gpu/status.h"
+#include "relative-pointer-unstable-v1-protocol.h"
 #include "window/linux/keys.h"
 #include "xdg-shell-protocol.h"
-#include "zwp-relative-pointer-v1-protocol.h"
 
 #include <algorithm>
 #include <cerrno>
