@@ -15,6 +15,9 @@ I started this project for two reasons:
 
 -  Custom font renderer implementation
 -  Image loading without `stb_image`
+-  SIMD Math Acceleration
+-  Refactor renderer to be more flexible
+-  UI Framework
 
 # Setup
 
