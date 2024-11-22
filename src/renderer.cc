@@ -136,7 +136,7 @@ Renderer::~Renderer() {
 
 int Renderer::do_create_pipeline(
     uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
-    const std::vector<std::string> &shader_paths,
+    const std::vector<std::pair<std::span<unsigned char>, bool>> &data,
     const std::vector<VkDescriptorSetLayoutBinding> &bindings
 ) {
    VkVertexInputBindingDescription binding = {
@@ -146,9 +146,11 @@ int Renderer::do_create_pipeline(
    };
 
    std::vector<Shader> shaders;
-   for (const std::string &path : shader_paths) {
-      ensure_shader_loaded(path);
-      shaders.push_back(shaders_[path]);
+   for (const std::pair<std::span<unsigned char>, bool> &shader_info : data) {
+      const std::span<unsigned char> &shader_data = shader_info.first;
+      bool fragment = shader_info.second;
+      ensure_shader_loaded(shader_data.data(), shader_data.size(), fragment);
+      shaders.push_back(shaders_[shader_data.data()]);
    }
 
    VkDescriptorSetLayoutCreateInfo layout_create = {
@@ -177,40 +179,31 @@ int Renderer::do_create_pipeline(
    return materials_.size() - 1;
 }
 
-void Renderer::ensure_shader_loaded(const std::string &path) {
-   if (shaders_.contains(path)) {
+void Renderer::ensure_shader_loaded(
+    const unsigned char *data, size_t size, bool fragment_shader_temp
+) {
+   if (shaders_.contains(data)) {
       return;
    }
 
    Shader shader;
-   if (path.find("vert") != std::string::npos) {
+   shader.type = fragment_shader_temp ? VK_SHADER_STAGE_FRAGMENT_BIT : VK_SHADER_STAGE_VERTEX_BIT;
+   /*if (!fragment_shader_temp) {
       shader.type = VK_SHADER_STAGE_VERTEX_BIT;
    } else if (path.find("frag") != std::string::npos) {
       shader.type = VK_SHADER_STAGE_FRAGMENT_BIT;
    } else {
       VKAD_PANIC("couldn't determine shader type of {}", path);
-   }
-
-   std::ifstream file(path, std::ios::ate | std::ios::binary);
-   file.unsetf(std::ios::skipws);
-
-   if (!file.is_open()) {
-      throw std::runtime_error(std::format("couldn't open {}", path));
-   }
-
-   std::vector<char> data(file.tellg());
-
-   file.seekg(0, std::ios::beg);
-   file.read(data.data(), data.size());
+   }*/
 
    VkShaderModuleCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-       .codeSize = data.size(),
-       .pCode = reinterpret_cast<uint32_t *>(data.data()),
+       .codeSize = size,
+       .pCode = reinterpret_cast<const uint32_t *>(data),
    };
    VKAD_VK(vkCreateShaderModule(device_.handle(), &create_info, nullptr, &shader.module));
 
-   shaders_.insert({path, shader});
+   shaders_.insert({data, shader});
 }
 
 void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {

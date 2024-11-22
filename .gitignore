@@ -1,6 +1,5 @@
 /build/
 .cache/
-*.spv
 *.stl
 
 src/res/*.h

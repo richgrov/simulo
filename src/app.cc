@@ -8,6 +8,10 @@
 #include "mesh.h"
 #include "renderer.h"
 #include "res/arial.ttf.h"
+#include "res/model.frag.h"
+#include "res/model.vert.h"
+#include "res/text.frag.h"
+#include "res/text.vert.h"
 #include "stl.h"
 #include "ui/ui.h"
 #include "ui/widget.h"
@@ -42,7 +46,8 @@ App::App()
       font_(res_arial_ttf, 64, renderer_.physical_device(), renderer_.device().handle()),
       ui_uniforms_(renderer_.create_uniform_buffer<UiUniform>(3)),
       ui_material_(renderer_.create_material<UiVertex>(
-          {"text-vert.spv", "text-frag.spv"},
+          {{std::span(shader_text_vert, shader_text_vert_len), false},
+           {std::span(shader_text_frag, shader_text_frag_len), true}},
           {
               DescriptorPool::uniform_buffer_dynamic(0),
               DescriptorPool::combined_image_sampler(1),
@@ -51,7 +56,9 @@ App::App()
 
       model_uniforms_(renderer_.create_uniform_buffer<ModelVertex>(1)),
       model_material_(renderer_.create_material<ModelVertex>(
-          {"model-vert.spv", "model-frag.spv"}, {DescriptorPool::uniform_buffer_dynamic(0)}
+          {{std::span(shader_model_vert, shader_model_vert_len), false},
+           {std::span(shader_model_frag, shader_model_frag_len), true}},
+          {DescriptorPool::uniform_buffer_dynamic(0)}
       )) {
 
    renderer_.init_image(font_.image(), font_.image_data(), Font::kBitmapWidth * Font::kBitmapWidth);

@@ -2,6 +2,7 @@
 #define VKAD_GPU_VK_GPU_H_
 
 #include <cstdint>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -31,19 +32,19 @@ public:
 
    template <class Vertex>
    int create_material(
-       const std::vector<std::string> &shader_paths,
+       const std::vector<std::pair<std::span<unsigned char>, bool>> data,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings
    ) {
       std::vector<VkVertexInputAttributeDescription> attrs(
           Vertex::kAttributes.begin(), Vertex::kAttributes.end()
       );
 
-      return do_create_pipeline(sizeof(Vertex), attrs, shader_paths, bindings);
+      return do_create_pipeline(sizeof(Vertex), attrs, data, bindings);
    }
 
    int do_create_pipeline(
        uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
-       const std::vector<std::string> &shader_paths,
+       const std::vector<std::pair<std::span<unsigned char>, bool>> &shader_paths,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings
    );
 
@@ -53,7 +54,7 @@ public:
       mat.descriptor_pool.write(mat.descriptor_set, writes);
    }
 
-   void ensure_shader_loaded(const std::string &path);
+   void ensure_shader_loaded(const unsigned char *data, size_t size, bool fragment_shader_temp);
 
    template <class Vertex> inline void init_mesh(Mesh<Vertex> &mesh) {
       mesh.id_ = meshes_.emplace(
@@ -159,7 +160,7 @@ private:
    Swapchain swapchain_;
    VkRenderPass render_pass_;
    std::vector<Material> materials_;
-   std::unordered_map<std::string, Shader> shaders_;
+   std::unordered_map<const void *, Shader> shaders_;
    Slab<VertexIndexBuffer> meshes_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;
