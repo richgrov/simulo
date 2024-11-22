@@ -111,6 +111,21 @@ function(embed_binary target file)
     target_sources(${target} PRIVATE ${file}.h)
 endfunction()
 
+function(embed_vulkan_shader target file)
+    string(REGEX REPLACE "[/.]" "_" c_array_name ${file})
+    get_filename_component(file_name ${file} NAME)
+    set(destination ${CMAKE_CURRENT_LIST_DIR}/res/${file_name}.h)
+
+    add_custom_command(
+        OUTPUT ${destination}
+        COMMAND glslc ${file} -o - | xxd -i -n ${c_array_name} > ${destination}
+        DEPENDS ${file}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    )
+
+    target_sources(${target} PRIVATE ${destination})
+endfunction()
+
 function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
 
@@ -136,6 +151,13 @@ function(setup_targets subject)
 
         generate_wayland_protocol(${subject} /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
         generate_wayland_protocol(${subject} /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
+    endif()
+
+    if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        embed_vulkan_shader(${subject} shader/text.vert)
+        embed_vulkan_shader(${subject} shader/text.frag)
+        embed_vulkan_shader(${subject} shader/model.vert)
+        embed_vulkan_shader(${subject} shader/model.frag)
     endif()
 
     embed_binary(${subject} res/arial.ttf)

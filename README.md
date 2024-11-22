@@ -23,10 +23,6 @@ I started this project for two reasons:
 
 Download `xxd` and the [Vulkan SDK](https://vulkan.lunarg.com/)
 
-Compile shaders:
-
-Windows: `./recompile_shaders.ps1`
-
 Build & run:
 
 ```
