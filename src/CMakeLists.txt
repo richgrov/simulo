@@ -138,6 +138,8 @@ function(setup_targets subject)
         generate_wayland_protocol(${subject} /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
     endif()
 
+    embed_binary(${subject} res/arial.ttf)
+
     set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)
 endfunction()
 

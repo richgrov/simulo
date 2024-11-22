@@ -19,7 +19,7 @@
 using namespace vkad;
 
 Font::Font(
-    const std::string &path, float height, const PhysicalDevice &physical_device, VkDevice device
+    const unsigned char *data, float height, const PhysicalDevice &physical_device, VkDevice device
 )
     : height_(height),
       image_(
@@ -27,22 +27,8 @@ Font::Font(
           VK_FORMAT_R8_UNORM, kBitmapWidth, kBitmapWidth
       ) {
 
-   std::ifstream file(path, std::ios::ate | std::ios::binary);
-   if (!file.is_open()) {
-      throw std::runtime_error(std::format("failed to open {}", path));
-   }
-
-   std::streamsize size = file.tellg();
-   file.seekg(0, std::ios::beg);
-
-   std::vector<char> data(size);
-   if (!file.read(data.data(), size)) {
-      throw std::runtime_error(std::format("failed to read {}", path));
-   }
-
    stbtt_BakeFontBitmap(
-       reinterpret_cast<unsigned char *>(data.data()), 0, height, bitmap_.data(), kBitmapWidth,
-       kBitmapWidth, 32, kNumChars, chars_.data()
+       data, 0, height, bitmap_.data(), kBitmapWidth, kBitmapWidth, 32, kNumChars, chars_.data()
    );
 }
 

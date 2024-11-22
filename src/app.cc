@@ -7,6 +7,7 @@
 #include "math/mat4.h"
 #include "mesh.h"
 #include "renderer.h"
+#include "res/arial.ttf.h"
 #include "stl.h"
 #include "ui/ui.h"
 #include "ui/widget.h"
@@ -38,7 +39,7 @@ App::App()
       player_(*this),
       state_(State::STANDBY),
 
-      font_("res/arial.ttf", 64, renderer_.physical_device(), renderer_.device().handle()),
+      font_(res_arial_ttf, 64, renderer_.physical_device(), renderer_.device().handle()),
       ui_uniforms_(renderer_.create_uniform_buffer<UiUniform>(3)),
       ui_material_(renderer_.create_material<UiVertex>(
           {"text-vert.spv", "text-frag.spv"},

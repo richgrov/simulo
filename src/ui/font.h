@@ -14,7 +14,8 @@ namespace vkad {
 class Font {
 public:
    Font(
-       const std::string &path, float height, const PhysicalDevice &physical_device, VkDevice device
+       const unsigned char *data, float height, const PhysicalDevice &physical_device,
+       VkDevice device
    );
 
    Widget create_text(const std::string &text);
