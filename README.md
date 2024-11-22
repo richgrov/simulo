@@ -21,7 +21,7 @@ I started this project for two reasons:
 
 # Setup
 
-Download the [Vulkan SDK](https://vulkan.lunarg.com/)
+Download `xxd` and the [Vulkan SDK](https://vulkan.lunarg.com/)
 
 Compile shaders:
 

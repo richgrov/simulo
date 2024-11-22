@@ -100,6 +100,17 @@ function(generate_wayland_protocol target xml_path)
     target_sources(${target} PRIVATE ${header_output} ${c_output})
 endfunction()
 
+function(embed_binary target file)
+    add_custom_command(
+        OUTPUT ${file}.h
+        COMMAND xxd -i ${file} ${file}.h
+        DEPENDS ${file}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    )
+
+    target_sources(${target} PRIVATE ${file}.h)
+endfunction()
+
 function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
 
