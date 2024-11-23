@@ -119,7 +119,7 @@ private:
    zwp_relative_pointer_v1 *relative_pointer_ = nullptr;
    zwp_pointer_constraints_v1 *pointer_constraints_ = nullptr;
    wl_region *mouse_lock_region_ = nullptr;
-   zwp_locked_pointer_v1 *locked_pointer_;
+   zwp_locked_pointer_v1 *locked_pointer_ = nullptr;
 
    int width_ = 0;
    int height_ = 0;
