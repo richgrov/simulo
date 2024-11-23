@@ -151,6 +151,7 @@ function(setup_targets subject)
 
         generate_wayland_protocol(${subject} /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
         generate_wayland_protocol(${subject} /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
+        generate_wayland_protocol(${subject} /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml)
     endif()
 
     if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
