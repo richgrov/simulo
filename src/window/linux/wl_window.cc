@@ -94,6 +94,7 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    init_surfaces();
    init_toplevel(title);
    init_keyboard();
+   init_pointer();
    init_relative_pointer();
 
    wl_surface_commit(surface_);
@@ -349,6 +350,39 @@ void WaylandWindow::init_keyboard() {
    };
 
    wl_keyboard_add_listener(keyboard_, &kb_listener, this);
+}
+
+void WaylandWindow::init_pointer() {
+   static constexpr wl_pointer_listener listener = {
+       .enter =
+           [](void *user_data, struct wl_pointer *wl_pointer, uint32_t serial,
+              struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y) {
+              auto window = reinterpret_cast<WaylandWindow *>(user_data);
+              if (window->mouse_captured_) {
+                 wl_pointer_set_cursor(window->pointer_, serial, nullptr, 0, 0);
+              }
+           },
+
+       .leave = [](void *data, struct wl_pointer *wl_pointer, uint32_t serial,
+                   struct wl_surface *surface) {},
+       .motion = [](void *data, struct wl_pointer *wl_pointer, uint32_t time, wl_fixed_t surface_x,
+                    wl_fixed_t surface_y) {},
+       .button = [](void *data, struct wl_pointer *wl_pointer, uint32_t serial, uint32_t time,
+                    uint32_t button, uint32_t state) {},
+       .axis = [](void *data, struct wl_pointer *wl_pointer, uint32_t time, uint32_t axis,
+                  wl_fixed_t value) {},
+       .frame = [](void *data, struct wl_pointer *wl_pointer) {},
+       .axis_source = [](void *data, struct wl_pointer *wl_pointer, uint32_t axis_source) {},
+       .axis_stop = [](void *data, struct wl_pointer *wl_pointer, uint32_t time, uint32_t axis) {},
+       .axis_discrete = [](void *data, struct wl_pointer *wl_pointer, uint32_t axis,
+                           int32_t discrete) {},
+       .axis_value120 = [](void *data, struct wl_pointer *wl_pointer, uint32_t axis,
+                           int32_t value120) {},
+       .axis_relative_direction = [](void *data, struct wl_pointer *wl_pointer, uint32_t axis,
+                                     uint32_t direction) {},
+   };
+
+   wl_pointer_add_listener(pointer_, &listener, this);
 }
 
 void WaylandWindow::init_relative_pointer() {

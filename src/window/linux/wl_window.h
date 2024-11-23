@@ -33,7 +33,9 @@ public:
 
    virtual bool poll() override;
 
-   virtual void set_capture_mouse(bool capture) override {}
+   virtual void set_capture_mouse(bool capture) override {
+      mouse_captured_ = capture;
+   }
 
    virtual void request_close() override {}
 
@@ -89,6 +91,7 @@ private:
 
    void init_seat();
    void init_keyboard();
+   void init_pointer();
    void init_relative_pointer();
 
    void process_utf8_keyboard_input(uint32_t evdev_key);
@@ -122,6 +125,7 @@ private:
    int next_typed_letter_ = 0;
    int delta_mouse_x_ = 0;
    int delta_mouse_y_ = 0;
+   bool mouse_captured_ = false;
 };
 
 } // namespace vkad
