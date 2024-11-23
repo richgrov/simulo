@@ -2,6 +2,7 @@
 
 #include "gpu/instance.h"
 #include "gpu/status.h"
+#include "pointer-constraints-unstable-v1-protocol.h"
 #include "relative-pointer-unstable-v1-protocol.h"
 #include "window/linux/keys.h"
 #include "xdg-shell-protocol.h"
@@ -89,6 +90,7 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    VERIFY_INIT(keyboard_);
    VERIFY_INIT(pointer_);
    VERIFY_INIT(relative_pointer_manager_);
+   VERIFY_INIT(pointer_constraints_);
 
    init_xdg_wm_base();
    init_surfaces();
@@ -97,11 +99,19 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    init_pointer();
    init_relative_pointer();
 
+   mouse_lock_region_ = wl_compositor_create_region(compositor_);
+   wl_region_add(mouse_lock_region_, 0, 0, 1, 1);
+
    wl_surface_commit(surface_);
    wl_display_roundtrip(display_);
 }
 
 WaylandWindow::~WaylandWindow() {
+   if (locked_pointer_ != nullptr) {
+      zwp_locked_pointer_v1_destroy(locked_pointer_);
+   }
+   zwp_pointer_constraints_v1_destroy(pointer_constraints_);
+   wl_region_destroy(mouse_lock_region_);
    zwp_relative_pointer_v1_destroy(relative_pointer_);
    zwp_relative_pointer_manager_v1_destroy(relative_pointer_manager_);
    wl_pointer_destroy(pointer_);
@@ -152,6 +162,22 @@ bool WaylandWindow::poll() {
    return open_;
 }
 
+void WaylandWindow::set_capture_mouse(bool capture) {
+   mouse_captured_ = capture;
+
+   if (mouse_captured_) {
+      if (locked_pointer_ != nullptr) {
+         zwp_locked_pointer_v1_destroy(locked_pointer_);
+      }
+
+      locked_pointer_ = zwp_pointer_constraints_v1_lock_pointer(
+          pointer_constraints_, surface_, pointer_, mouse_lock_region_,
+          ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT
+      );
+      init_locked_pointer();
+   }
+}
+
 void WaylandWindow::init_registry() {
    registry_ = wl_display_get_registry(display_);
 
@@ -186,6 +212,14 @@ void WaylandWindow::init_registry() {
                  );
                  window->relative_pointer_manager_ =
                      reinterpret_cast<zwp_relative_pointer_manager_v1 *>(relative_pointer);
+                 return;
+              }
+
+              if (std::strcmp(interface, zwp_pointer_constraints_v1_interface.name) == 0) {
+                 void *pointer_constraints =
+                     wl_registry_bind(registry, id, &zwp_pointer_constraints_v1_interface, version);
+                 window->pointer_constraints_ =
+                     reinterpret_cast<zwp_pointer_constraints_v1 *>(pointer_constraints);
                  return;
               }
            },
@@ -401,6 +435,14 @@ void WaylandWindow::init_relative_pointer() {
    };
 
    zwp_relative_pointer_v1_add_listener(relative_pointer_, &listener, this);
+}
+
+void WaylandWindow::init_locked_pointer() {
+   static constexpr zwp_locked_pointer_v1_listener listener = {
+       .locked = [](void *user_data, zwp_locked_pointer_v1 *locked_pointer) {},
+       .unlocked = [](void *user_data, zwp_locked_pointer_v1 *locked_pointer) {},
+   };
+   zwp_locked_pointer_v1_add_listener(locked_pointer_, &listener, this);
 }
 
 void WaylandWindow::process_utf8_keyboard_input(uint32_t evdev_key) {

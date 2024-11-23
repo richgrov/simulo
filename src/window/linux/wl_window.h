@@ -16,12 +16,15 @@ struct xdg_toplevel;
 struct wl_seat;
 struct wl_keyboard;
 struct wl_pointer;
+struct wl_region;
 
 struct xkb_context;
 struct xkb_state;
 struct xkb_keymap;
 struct zwp_relative_pointer_manager_v1;
 struct zwp_relative_pointer_v1;
+struct zwp_locked_pointer_v1;
+struct zwp_pointer_constraints_v1;
 
 namespace vkad {
 
@@ -33,9 +36,7 @@ public:
 
    virtual bool poll() override;
 
-   virtual void set_capture_mouse(bool capture) override {
-      mouse_captured_ = capture;
-   }
+   virtual void set_capture_mouse(bool capture) override;
 
    virtual void request_close() override {}
 
@@ -93,6 +94,7 @@ private:
    void init_keyboard();
    void init_pointer();
    void init_relative_pointer();
+   void init_locked_pointer();
 
    void process_utf8_keyboard_input(uint32_t evdev_key);
 
@@ -115,6 +117,9 @@ private:
    wl_pointer *pointer_ = nullptr;
    zwp_relative_pointer_manager_v1 *relative_pointer_manager_ = nullptr;
    zwp_relative_pointer_v1 *relative_pointer_ = nullptr;
+   zwp_pointer_constraints_v1 *pointer_constraints_ = nullptr;
+   wl_region *mouse_lock_region_ = nullptr;
+   zwp_locked_pointer_v1 *locked_pointer_;
 
    int width_ = 0;
    int height_ = 0;
