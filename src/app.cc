@@ -8,10 +8,7 @@
 #include "mesh.h"
 #include "renderer.h"
 #include "res/arial.ttf.h"
-#include "res/model.frag.h"
-#include "res/model.vert.h"
-#include "res/text.frag.h"
-#include "res/text.vert.h"
+#include "scene.h"
 #include "stl.h"
 #include "ui/ui.h"
 #include "ui/widget.h"
@@ -35,6 +32,7 @@ App::App()
     : vk_instance_(Window::vulkan_extensions()),
       window_(create_window(vk_instance_, "vkad")),
       renderer_(vk_instance_, window_->surface(), window_->width(), window_->height()),
+      scene_(renderer_),
       last_width_(window_->width()),
       last_height_(window_->height()),
       was_left_clicking_(false),
@@ -45,26 +43,13 @@ App::App()
 
       font_(res_arial_ttf, 64, renderer_.physical_device(), renderer_.device().handle()),
       ui_uniforms_(renderer_.create_uniform_buffer<UiUniform>(3)),
-      ui_material_(renderer_.create_material<UiVertex>(
-          {{std::span(shader_text_vert, shader_text_vert_len), false},
-           {std::span(shader_text_frag, shader_text_frag_len), true}},
-          {
-              DescriptorPool::uniform_buffer_dynamic(0),
-              DescriptorPool::combined_image_sampler(1),
-          }
-      )),
 
-      model_uniforms_(renderer_.create_uniform_buffer<ModelVertex>(1)),
-      model_material_(renderer_.create_material<ModelVertex>(
-          {{std::span(shader_model_vert, shader_model_vert_len), false},
-           {std::span(shader_model_frag, shader_model_frag_len), true}},
-          {DescriptorPool::uniform_buffer_dynamic(0)}
-      )) {
+      model_uniforms_(renderer_.create_uniform_buffer<ModelVertex>(1)) {
 
    renderer_.init_image(font_.image(), font_.image_data(), Font::kBitmapWidth * Font::kBitmapWidth);
 
    renderer_.link_material(
-       ui_material_,
+       scene_.materials().ui,
        {
            DescriptorPool::write_uniform_buffer_dynamic(ui_uniforms_),
            DescriptorPool::write_combined_image_sampler(renderer_.image_sampler(), font_.image()),
@@ -72,7 +57,7 @@ App::App()
    );
 
    renderer_.link_material(
-       model_material_,
+       scene_.materials().mesh,
        {
            DescriptorPool::write_uniform_buffer_dynamic(model_uniforms_),
        }
@@ -232,18 +217,18 @@ void App::draw() {
       );
    }
 
-   renderer_.set_material(model_material_);
-   renderer_.set_uniform(model_material_, 0);
+   renderer_.set_material(scene_.materials().mesh);
+   renderer_.set_uniform(scene_.materials().mesh, 0);
 
    for (const Model &model : models_) {
       renderer_.draw(model.id());
    }
 
-   renderer_.set_material(ui_material_);
+   renderer_.set_material(scene_.materials().ui);
 
    for (int i = 0; i < text_meshes_.size(); ++i) {
       Widget &widget = text_meshes_[i];
-      renderer_.set_uniform(ui_material_, i * ui_uniforms_.element_size());
+      renderer_.set_uniform(scene_.materials().ui, i * ui_uniforms_.element_size());
       renderer_.draw(widget.id());
    }
 

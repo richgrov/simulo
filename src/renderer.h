@@ -31,7 +31,7 @@ public:
    ~Renderer();
 
    template <class Vertex>
-   int create_material(
+   uint16_t create_material(
        const std::vector<std::pair<std::span<unsigned char>, bool>> data,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings
    ) {
@@ -42,7 +42,7 @@ public:
       return do_create_pipeline(sizeof(Vertex), attrs, data, bindings);
    }
 
-   int do_create_pipeline(
+   uint16_t do_create_pipeline(
        uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
        const std::vector<std::pair<std::span<unsigned char>, bool>> &shader_paths,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings

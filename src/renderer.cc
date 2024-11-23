@@ -134,7 +134,7 @@ Renderer::~Renderer() {
    }
 }
 
-int Renderer::do_create_pipeline(
+uint16_t Renderer::do_create_pipeline(
     uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
     const std::vector<std::pair<std::span<unsigned char>, bool>> &data,
     const std::vector<VkDescriptorSetLayoutBinding> &bindings

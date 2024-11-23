@@ -12,6 +12,7 @@
 #include "math/angle.h"
 #include "math/mat4.h"
 #include "renderer.h"
+#include "scene.h"
 #include "ui/font.h"
 #include "window/window.h" // IWYU pragma: export
 
@@ -100,14 +101,13 @@ private:
    Instance vk_instance_;
    std::unique_ptr<Window> window_;
    Renderer renderer_;
+   SceneGraph scene_;
 
    Font font_;
    UniformBuffer ui_uniforms_;
-   int ui_material_;
    std::vector<Widget> text_meshes_;
 
    UniformBuffer model_uniforms_;
-   int model_material_;
    std::vector<Shape> shapes_;
    std::vector<Model> models_;
 
