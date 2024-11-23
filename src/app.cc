@@ -49,7 +49,7 @@ App::App()
    renderer_.init_image(font_.image(), font_.image_data(), Font::kBitmapWidth * Font::kBitmapWidth);
 
    renderer_.link_material(
-       scene_.materials().ui,
+       scene_.pipelines().ui,
        {
            DescriptorPool::write_uniform_buffer_dynamic(ui_uniforms_),
            DescriptorPool::write_combined_image_sampler(renderer_.image_sampler(), font_.image()),
@@ -57,7 +57,7 @@ App::App()
    );
 
    renderer_.link_material(
-       scene_.materials().mesh,
+       scene_.pipelines().mesh,
        {
            DescriptorPool::write_uniform_buffer_dynamic(model_uniforms_),
        }
@@ -217,18 +217,18 @@ void App::draw() {
       );
    }
 
-   renderer_.set_material(scene_.materials().mesh);
-   renderer_.set_uniform(scene_.materials().mesh, 0);
+   renderer_.set_material(scene_.pipelines().mesh);
+   renderer_.set_uniform(scene_.pipelines().mesh, 0);
 
    for (const Model &model : models_) {
       renderer_.draw(model.id());
    }
 
-   renderer_.set_material(scene_.materials().ui);
+   renderer_.set_material(scene_.pipelines().ui);
 
    for (int i = 0; i < text_meshes_.size(); ++i) {
       Widget &widget = text_meshes_[i];
-      renderer_.set_uniform(scene_.materials().ui, i * ui_uniforms_.element_size());
+      renderer_.set_uniform(scene_.pipelines().ui, i * ui_uniforms_.element_size());
       renderer_.draw(widget.id());
    }
 

@@ -31,7 +31,7 @@ public:
    ~Renderer();
 
    template <class Vertex>
-   uint16_t create_material(
+   uint16_t create_pipeline(
        const std::vector<std::pair<std::span<unsigned char>, bool>> data,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings
    ) {
@@ -49,7 +49,7 @@ public:
    );
 
    void link_material(int material_id, const std::vector<DescriptorWrite> &writes) {
-      Material &mat = materials_[material_id];
+      Material &mat = pipelines_[material_id];
       mat.descriptor_set = mat.descriptor_pool.allocate(mat.descriptor_set_layout);
       mat.descriptor_pool.write(mat.descriptor_set, writes);
    }
@@ -159,7 +159,7 @@ private:
    Device device_;
    Swapchain swapchain_;
    VkRenderPass render_pass_;
-   std::vector<Material> materials_;
+   std::vector<Material> pipelines_;
    std::unordered_map<const void *, Shader> shaders_;
    Slab<VertexIndexBuffer> meshes_;
    std::vector<VkFramebuffer> framebuffers_;

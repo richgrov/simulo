@@ -7,7 +7,7 @@
 
 namespace vkad {
 
-struct Materials {
+struct Pipelines {
    uint16_t ui;
    uint16_t mesh;
 };
@@ -16,13 +16,13 @@ class SceneGraph {
 public:
    SceneGraph(Renderer &renderer);
 
-   const Materials &materials() {
-      return materials_;
+   const Pipelines &pipelines() {
+      return pipelines_;
    };
 
 private:
    Renderer &renderer_;
-   Materials materials_{};
+   Pipelines pipelines_{};
 };
 
 } // namespace vkad

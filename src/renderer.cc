@@ -109,7 +109,7 @@ Renderer::Renderer(
 Renderer::~Renderer() {
    device_.wait_idle();
 
-   for (const Material &mat : materials_) {
+   for (const Material &mat : pipelines_) {
       vkDestroyDescriptorSetLayout(device_.handle(), mat.descriptor_set_layout, nullptr);
    }
 
@@ -170,13 +170,13 @@ uint16_t Renderer::do_create_pipeline(
       });
    }
 
-   materials_.emplace_back(Material{
+   pipelines_.emplace_back(Material{
        .descriptor_set_layout = layout,
        .pipeline = Pipeline(device_.handle(), binding, attrs, shaders, layout, render_pass_),
        .descriptor_pool = DescriptorPool(device_.handle(), layout, sizes, 1),
        .descriptor_set = VK_NULL_HANDLE,
    });
-   return materials_.size() - 1;
+   return pipelines_.size() - 1;
 }
 
 void Renderer::ensure_shader_loaded(
@@ -314,7 +314,7 @@ bool Renderer::begin_draw() {
 }
 
 void Renderer::set_material(int material_id) {
-   Material &mat = materials_[material_id];
+   Material &mat = pipelines_[material_id];
    vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline.handle());
 
    VkViewport viewport = {
@@ -331,7 +331,7 @@ void Renderer::set_material(int material_id) {
 }
 
 void Renderer::set_uniform(int material_id, uint32_t offset) {
-   Material &mat = materials_[material_id];
+   Material &mat = pipelines_[material_id];
 
    uint32_t offsets[] = {offset};
    vkCmdBindDescriptorSets(
