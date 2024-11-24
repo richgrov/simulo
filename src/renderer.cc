@@ -1,6 +1,5 @@
 #include "renderer.h"
 
-#include <fstream>
 #include <stdexcept>
 #include <vector>
 
@@ -19,7 +18,6 @@
 #include "res/text.frag.h"
 #include "res/text.vert.h"
 #include "ui/ui.h"
-#include "util/assert.h"
 #include "util/memory.h"
 
 using namespace vkad;
