@@ -8,7 +8,6 @@
 #include "mesh.h"
 #include "renderer.h"
 #include "res/arial.ttf.h"
-#include "scene.h"
 #include "stl.h"
 #include "ui/ui.h"
 #include "ui/widget.h"
@@ -32,7 +31,6 @@ App::App()
     : vk_instance_(Window::vulkan_extensions()),
       window_(create_window(vk_instance_, "vkad")),
       renderer_(vk_instance_, window_->surface(), window_->width(), window_->height()),
-      scene_(renderer_),
       last_width_(window_->width()),
       last_height_(window_->height()),
       was_left_clicking_(false),
@@ -49,7 +47,7 @@ App::App()
    renderer_.init_image(font_.image(), font_.image_data(), Font::kBitmapWidth * Font::kBitmapWidth);
 
    renderer_.link_material(
-       scene_.pipelines().ui,
+       renderer_.pipelines().ui,
        {
            DescriptorPool::write_uniform_buffer_dynamic(ui_uniforms_),
            DescriptorPool::write_combined_image_sampler(renderer_.image_sampler(), font_.image()),
@@ -57,7 +55,7 @@ App::App()
    );
 
    renderer_.link_material(
-       scene_.pipelines().mesh,
+       renderer_.pipelines().mesh,
        {
            DescriptorPool::write_uniform_buffer_dynamic(model_uniforms_),
        }
@@ -217,18 +215,18 @@ void App::draw() {
       );
    }
 
-   renderer_.set_material(scene_.pipelines().mesh);
-   renderer_.set_uniform(scene_.pipelines().mesh, 0);
+   renderer_.set_material(renderer_.pipelines().mesh);
+   renderer_.set_uniform(renderer_.pipelines().mesh, 0);
 
    for (const Model &model : models_) {
       renderer_.draw(model.id());
    }
 
-   renderer_.set_material(scene_.pipelines().ui);
+   renderer_.set_material(renderer_.pipelines().ui);
 
    for (int i = 0; i < text_meshes_.size(); ++i) {
       Widget &widget = text_meshes_[i];
-      renderer_.set_uniform(scene_.pipelines().ui, i * ui_uniforms_.element_size());
+      renderer_.set_uniform(renderer_.pipelines().ui, i * ui_uniforms_.element_size());
       renderer_.draw(widget.id());
    }
 

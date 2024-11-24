@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "geometry/geometry.h"
 #include "gpu/buffer.h"
 #include "gpu/instance.h"
 #include "gpu/physical_device.h"
@@ -13,6 +14,11 @@
 #include "gpu/status.h"
 #include "gpu/swapchain.h"
 #include "mesh.h"
+#include "res/model.frag.h"
+#include "res/model.vert.h"
+#include "res/text.frag.h"
+#include "res/text.vert.h"
+#include "ui/ui.h"
 #include "util/assert.h"
 #include "util/memory.h"
 
@@ -104,6 +110,21 @@ Renderer::Renderer(
            VK_SUCCESS) {
       throw std::runtime_error("failed to create semaphore(s)");
    }
+
+   pipeline_ids_.ui = create_pipeline<UiVertex>(
+       {{std::span(shader_text_vert, shader_text_vert_len), false},
+        {std::span(shader_text_frag, shader_text_frag_len), true}},
+       {
+           DescriptorPool::uniform_buffer_dynamic(0),
+           DescriptorPool::combined_image_sampler(1),
+       }
+   );
+
+   pipeline_ids_.mesh = create_pipeline<ModelVertex>(
+       {{std::span(shader_model_vert, shader_model_vert_len), false},
+        {std::span(shader_model_frag, shader_model_frag_len), true}},
+       {DescriptorPool::uniform_buffer_dynamic(0)}
+   );
 }
 
 Renderer::~Renderer() {

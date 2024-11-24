@@ -23,6 +23,11 @@
 
 namespace vkad {
 
+struct Pipelines {
+   uint16_t ui;
+   uint16_t mesh;
+};
+
 class Renderer {
 public:
    explicit Renderer(
@@ -144,6 +149,10 @@ public:
       device_.wait_idle();
    }
 
+   const Pipelines &pipelines() const {
+      return pipeline_ids_;
+   }
+
 private:
    void create_framebuffers();
 
@@ -173,6 +182,8 @@ private:
    VkFence draw_cycle_complete;
 
    StagingBuffer staging_buffer_;
+
+   Pipelines pipeline_ids_;
 };
 
 }; // namespace vkad

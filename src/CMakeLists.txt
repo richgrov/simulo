@@ -73,8 +73,6 @@ set(SOURCE_FILES
    "renderer.cc"
    "renderer.h"
    "mesh.h"
-   "scene.cc"
-   "scene.h"
    "stl.cc"
    "stl.h"
    ${OS_SPECIFIC_FILES}
