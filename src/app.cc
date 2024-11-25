@@ -6,7 +6,7 @@
 #include "gpu/vulkan/descriptor_pool.h"
 #include "math/mat4.h"
 #include "mesh.h"
-#include "renderer.h"
+#include "render/renderer.h" // IWYU pragma: export
 #include "res/arial.ttf.h"
 #include "stl.h"
 #include "ui/ui.h"

@@ -11,7 +11,7 @@
 #include "gpu/vulkan/instance.h"
 #include "math/angle.h"
 #include "math/mat4.h"
-#include "renderer.h"
+#include "render/renderer.h" // IWYU pragma: export
 #include "ui/font.h"
 #include "window/window.h" // IWYU pragma: export
 
