@@ -34,19 +34,7 @@ public:
    );
    ~Renderer();
 
-   template <class Vertex>
    uint16_t create_pipeline(
-       const std::vector<std::pair<std::span<unsigned char>, bool>> data,
-       const std::vector<VkDescriptorSetLayoutBinding> &bindings
-   ) {
-      std::vector<VkVertexInputAttributeDescription> attrs(
-          Vertex::kAttributes.begin(), Vertex::kAttributes.end()
-      );
-
-      return do_create_pipeline(sizeof(Vertex), attrs, data, bindings);
-   }
-
-   uint16_t do_create_pipeline(
        uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
        const std::vector<std::pair<std::span<unsigned char>, bool>> &shader_paths,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings

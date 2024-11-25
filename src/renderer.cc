@@ -109,7 +109,11 @@ Renderer::Renderer(
       throw std::runtime_error("failed to create semaphore(s)");
    }
 
-   pipeline_ids_.ui = create_pipeline<UiVertex>(
+   pipeline_ids_.ui = create_pipeline(
+       sizeof(UiVertex),
+       std::vector<VkVertexInputAttributeDescription>(
+           UiVertex::kAttributes.begin(), UiVertex::kAttributes.end()
+       ),
        {{std::span(shader_text_vert, shader_text_vert_len), false},
         {std::span(shader_text_frag, shader_text_frag_len), true}},
        {
@@ -118,7 +122,11 @@ Renderer::Renderer(
        }
    );
 
-   pipeline_ids_.mesh = create_pipeline<ModelVertex>(
+   pipeline_ids_.mesh = create_pipeline(
+       sizeof(ModelVertex),
+       std::vector<VkVertexInputAttributeDescription>(
+           ModelVertex::kAttributes.begin(), ModelVertex::kAttributes.end()
+       ),
        {{std::span(shader_model_vert, shader_model_vert_len), false},
         {std::span(shader_model_frag, shader_model_frag_len), true}},
        {DescriptorPool::uniform_buffer_dynamic(0)}
@@ -153,7 +161,7 @@ Renderer::~Renderer() {
    }
 }
 
-uint16_t Renderer::do_create_pipeline(
+uint16_t Renderer::create_pipeline(
     uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
     const std::vector<std::pair<std::span<unsigned char>, bool>> &data,
     const std::vector<VkDescriptorSetLayoutBinding> &bindings
