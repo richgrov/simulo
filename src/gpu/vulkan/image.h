@@ -1,7 +1,7 @@
 #ifndef VKAD_GPU_IMAGE_H_
 #define VKAD_GPU_IMAGE_H_
 
-#include "gpu/physical_device.h"
+#include "physical_device.h"
 #include <vulkan/vulkan_core.h>
 
 namespace vkad {

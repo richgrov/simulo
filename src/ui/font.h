@@ -4,8 +4,8 @@
 #include <array>
 #include <string>
 
-#include "gpu/image.h"
-#include "gpu/physical_device.h"
+#include "gpu/vulkan/image.h"
+#include "gpu/vulkan/physical_device.h"
 #include "ui/widget.h"
 #include "vendor/stb_truetype.h"
 

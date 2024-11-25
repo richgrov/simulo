@@ -11,7 +11,7 @@
 #include <Windows.h> // IWYU pragma: export
 #include <vulkan/vulkan_win32.h>
 
-#include "gpu/status.h"
+#include "gpu/vulkan/status.h"
 
 using namespace vkad;
 

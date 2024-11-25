@@ -8,8 +8,8 @@
 #define VK_USE_PLATFORM_XLIB_XHR
 #include <vulkan/vulkan_xlib.h>
 
-#include "gpu/instance.h"
-#include "gpu/status.h"
+#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/status.h"
 
 using namespace vkad;
 

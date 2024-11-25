@@ -8,15 +8,15 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/buffer.h"
-#include "gpu/command_pool.h"
-#include "gpu/descriptor_pool.h"
-#include "gpu/device.h"
-#include "gpu/image.h"
-#include "gpu/instance.h"
-#include "gpu/physical_device.h"
-#include "gpu/pipeline.h"
-#include "gpu/swapchain.h"
+#include "gpu/vulkan/buffer.h"
+#include "gpu/vulkan/command_pool.h"
+#include "gpu/vulkan/descriptor_pool.h"
+#include "gpu/vulkan/device.h"
+#include "gpu/vulkan/image.h"
+#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/physical_device.h"
+#include "gpu/vulkan/pipeline.h"
+#include "gpu/vulkan/swapchain.h"
 #include "mesh.h"
 #include "util/slab.h"
 

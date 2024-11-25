@@ -1,7 +1,7 @@
 #ifndef VKAD_MESH_H_
 #define VKAD_MESH_H_
 
-#include "gpu/buffer.h"
+#include "gpu/vulkan/buffer.h"
 
 #include <vector>
 

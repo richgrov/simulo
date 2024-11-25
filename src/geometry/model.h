@@ -2,7 +2,7 @@
 #define VKAD_GEOMETRY_MODEL_H_
 
 #include "geometry/geometry.h"
-#include "gpu/buffer.h"
+#include "gpu/vulkan/buffer.h"
 #include "mesh.h"
 #include "stl.h"
 

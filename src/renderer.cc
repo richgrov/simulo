@@ -6,12 +6,12 @@
 #include <vulkan/vulkan_core.h>
 
 #include "geometry/geometry.h"
-#include "gpu/buffer.h"
-#include "gpu/instance.h"
-#include "gpu/physical_device.h"
-#include "gpu/pipeline.h"
-#include "gpu/status.h"
-#include "gpu/swapchain.h"
+#include "gpu/vulkan/buffer.h"
+#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/physical_device.h"
+#include "gpu/vulkan/pipeline.h"
+#include "gpu/vulkan/status.h"
+#include "gpu/vulkan/swapchain.h"
 #include "mesh.h"
 #include "res/model.frag.h"
 #include "res/model.vert.h"

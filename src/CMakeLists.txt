@@ -33,25 +33,25 @@ set(SOURCE_FILES
    "geometry/model.h"
    "geometry/shape.cc"
    "geometry/shape.h"
-   "gpu/command_pool.cc"
-   "gpu/command_pool.h"
-   "gpu/descriptor_pool.cc"
-   "gpu/descriptor_pool.h"
-   "gpu/device.cc"
-   "gpu/device.h"
-   "gpu/image.cc"
-   "gpu/image.h"
-   "gpu/instance.cc"
-   "gpu/instance.h"
-   "gpu/pipeline.cc"
-   "gpu/pipeline.h"
-   "gpu/physical_device.cc"
-   "gpu/physical_device.h"
-   "gpu/status.h"
-   "gpu/swapchain.cc"
-   "gpu/swapchain.h"
-   "gpu/buffer.cc"
-   "gpu/buffer.h"
+   "gpu/vulkan/command_pool.cc"
+   "gpu/vulkan/command_pool.h"
+   "gpu/vulkan/descriptor_pool.cc"
+   "gpu/vulkan/descriptor_pool.h"
+   "gpu/vulkan/device.cc"
+   "gpu/vulkan/device.h"
+   "gpu/vulkan/image.cc"
+   "gpu/vulkan/image.h"
+   "gpu/vulkan/instance.cc"
+   "gpu/vulkan/instance.h"
+   "gpu/vulkan/pipeline.cc"
+   "gpu/vulkan/pipeline.h"
+   "gpu/vulkan/physical_device.cc"
+   "gpu/vulkan/physical_device.h"
+   "gpu/vulkan/status.h"
+   "gpu/vulkan/swapchain.cc"
+   "gpu/vulkan/swapchain.h"
+   "gpu/vulkan/buffer.cc"
+   "gpu/vulkan/buffer.h"
    "math/angle.h"
    "math/mat4.h"
    "math/vec2.h"
@@ -148,6 +148,8 @@ function(setup_targets subject)
         target_include_directories(${subject} PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
         target_link_directories(${subject} PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
         target_link_libraries(${subject} ${XKBCOMMON_LIBRARIES})
+        #target_compile_options(${subject} PRIVATE -fsanitize=address)
+        #target_link_options(${subject} PRIVATE -fsanitize=address)
 
         generate_wayland_protocol(${subject} /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
         generate_wayland_protocol(${subject} /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)

@@ -1,7 +1,7 @@
 #ifndef VKAD_UI_TEXT_H_
 #define VKAD_UI_TEXT_H_
 
-#include "gpu/buffer.h"
+#include "gpu/vulkan/buffer.h"
 #include "mesh.h"
 #include "ui/ui.h"
 namespace vkad {

@@ -8,7 +8,7 @@
 #include <Windows.h>
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/instance.h"
+#include "gpu/vulkan/instance.h"
 #include "util/bitfield.h"
 
 namespace vkad {

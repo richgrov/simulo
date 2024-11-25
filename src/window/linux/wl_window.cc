@@ -1,7 +1,7 @@
 #include "wl_window.h"
 
-#include "gpu/instance.h"
-#include "gpu/status.h"
+#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/status.h"
 #include "pointer-constraints-unstable-v1-protocol.h"
 #include "relative-pointer-unstable-v1-protocol.h"
 #include "window/linux/keys.h"

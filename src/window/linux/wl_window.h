@@ -1,7 +1,7 @@
 #ifndef VKAD_WINDOW_LINUX_WL_WINDOW_H_
 #define VKAD_WINDOW_LINUX_WL_WINDOW_H_
 
-#include "gpu/instance.h"
+#include "gpu/vulkan/instance.h"
 #include "window/linux/window.h"
 #include <bitset>
 #include <string_view>

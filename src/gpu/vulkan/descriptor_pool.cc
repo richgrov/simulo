@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/status.h"
+#include "status.h"
 
 using namespace vkad;
 

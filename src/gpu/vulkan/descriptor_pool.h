@@ -3,8 +3,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/buffer.h"
-#include "gpu/image.h"
+#include "buffer.h"
+#include "image.h"
 
 namespace vkad {
 

@@ -5,9 +5,9 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/instance.h"
-#include "gpu/status.h"
-#include "gpu/swapchain.h"
+#include "instance.h"
+#include "status.h"
+#include "swapchain.h"
 
 using namespace vkad;
 

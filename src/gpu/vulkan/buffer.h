@@ -1,7 +1,7 @@
 #ifndef VKAD_GPU_BUFFER_H_
 #define VKAD_GPU_BUFFER_H_
 
-#include "gpu/physical_device.h"
+#include "physical_device.h"
 #include "vulkan/vulkan_core.h"
 #include <cstring>
 

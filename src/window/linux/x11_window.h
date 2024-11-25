@@ -6,7 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/instance.h"
+#include "gpu/vulkan/instance.h"
 #include "window.h"
 
 union _XEvent;

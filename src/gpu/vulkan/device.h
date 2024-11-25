@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/physical_device.h"
+#include "physical_device.h"
 
 namespace vkad {
 
