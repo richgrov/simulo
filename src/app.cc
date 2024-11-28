@@ -13,6 +13,7 @@
 #include "ui/widget.h"
 #include "util/assert.h"
 #include "window/keys.h" // IWYU pragma: export
+
 #include <exception>
 #include <fstream>
 #include <stdexcept>

@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vulkan/vk_enum_string_helper.h>
 
-#define VKAD_VK(x)                                                                                \
+#define VKAD_VK(x)                                                                                 \
    {                                                                                               \
       VkResult result__ = (x);                                                                     \
       if (result__ != VK_SUCCESS) {                                                                \

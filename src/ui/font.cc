@@ -6,10 +6,6 @@
 #include "render/ui.h"
 #include "ui/widget.h"
 #include "vulkan/vulkan_core.h"
-#include <format>
-#include <fstream>
-#include <ios>
-#include <stdexcept>
 #include <vector>
 
 #define STB_TRUETYPE_IMPLEMENTATION

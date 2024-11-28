@@ -62,7 +62,8 @@ public:
              static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), device,
              physical_device
          ),
-         num_vertices_(num_vertices * vertex_size), num_indices_(num_indices) {}
+         num_vertices_(num_vertices * vertex_size),
+         num_indices_(num_indices) {}
 
    inline size_t num_vertices() const {
       return num_vertices_;
