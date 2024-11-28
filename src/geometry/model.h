@@ -1,9 +1,9 @@
 #ifndef VKAD_GEOMETRY_MODEL_H_
 #define VKAD_GEOMETRY_MODEL_H_
 
-#include "geometry/geometry.h"
 #include "gpu/vulkan/buffer.h"
 #include "mesh.h"
+#include "render/model.h"
 #include "stl.h"
 
 namespace vkad {

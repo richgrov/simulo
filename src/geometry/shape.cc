@@ -1,6 +1,6 @@
 #include "shape.h"
-#include "geometry/geometry.h"
 #include "gpu/vulkan/buffer.h"
+#include "render/model.h"
 
 using namespace vkad;
 

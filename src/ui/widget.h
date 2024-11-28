@@ -3,7 +3,7 @@
 
 #include "gpu/vulkan/buffer.h"
 #include "mesh.h"
-#include "ui/ui.h"
+#include "render/ui.h"
 namespace vkad {
 
 class Widget : public Mesh<UiVertex> {

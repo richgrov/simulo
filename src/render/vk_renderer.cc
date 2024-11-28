@@ -5,7 +5,6 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "geometry/geometry.h"
 #include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/instance.h"
 #include "gpu/vulkan/physical_device.h"
@@ -13,11 +12,12 @@
 #include "gpu/vulkan/status.h"
 #include "gpu/vulkan/swapchain.h"
 #include "mesh.h"
+#include "model.h"
 #include "res/model.frag.h"
 #include "res/model.vert.h"
 #include "res/text.frag.h"
 #include "res/text.vert.h"
-#include "ui/ui.h"
+#include "ui.h"
 #include "util/memory.h"
 
 using namespace vkad;
@@ -111,11 +111,24 @@ Renderer::Renderer(
 
    pipeline_ids_.ui = create_pipeline(
        sizeof(UiVertex),
-       std::vector<VkVertexInputAttributeDescription>(
-           UiVertex::kAttributes.begin(), UiVertex::kAttributes.end()
-       ),
-       {{std::span(shader_text_vert, shader_text_vert_len), false},
-        {std::span(shader_text_frag, shader_text_frag_len), true}},
+       {
+           VkVertexInputAttributeDescription{
+               .location = 0,
+               .binding = 0,
+               .format = decltype(UiVertex::pos)::kFormat,
+               .offset = offsetof(UiVertex, pos),
+           },
+           VkVertexInputAttributeDescription{
+               .location = 1,
+               .binding = 0,
+               .format = decltype(UiVertex::tex_coord)::kFormat,
+               .offset = offsetof(UiVertex, tex_coord),
+           },
+       },
+       {
+           {std::span(shader_text_vert, shader_text_vert_len), false},
+           {std::span(shader_text_frag, shader_text_frag_len), true},
+       },
        {
            DescriptorPool::uniform_buffer_dynamic(0),
            DescriptorPool::combined_image_sampler(1),
@@ -124,11 +137,24 @@ Renderer::Renderer(
 
    pipeline_ids_.mesh = create_pipeline(
        sizeof(ModelVertex),
-       std::vector<VkVertexInputAttributeDescription>(
-           ModelVertex::kAttributes.begin(), ModelVertex::kAttributes.end()
-       ),
-       {{std::span(shader_model_vert, shader_model_vert_len), false},
-        {std::span(shader_model_frag, shader_model_frag_len), true}},
+       {
+           VkVertexInputAttributeDescription{
+               .location = 0,
+               .binding = 0,
+               .format = decltype(ModelVertex::pos)::kFormat,
+               .offset = offsetof(ModelVertex, pos),
+           },
+           VkVertexInputAttributeDescription{
+               .location = 1,
+               .binding = 0,
+               .format = decltype(ModelVertex::norm)::kFormat,
+               .offset = offsetof(ModelVertex, norm),
+           },
+       },
+       {
+           {std::span(shader_model_vert, shader_model_vert_len), false},
+           {std::span(shader_model_frag, shader_model_frag_len), true},
+       },
        {DescriptorPool::uniform_buffer_dynamic(0)}
    );
 }

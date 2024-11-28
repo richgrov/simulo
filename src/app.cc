@@ -1,15 +1,15 @@
 #include "app.h"
 #include "geometry/circle.h"
-#include "geometry/geometry.h"
 #include "geometry/model.h"
 #include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/descriptor_pool.h"
 #include "math/mat4.h"
 #include "mesh.h"
+#include "render/model.h"
 #include "render/renderer.h" // IWYU pragma: export
+#include "render/ui.h"
 #include "res/arial.ttf.h"
 #include "stl.h"
-#include "ui/ui.h"
 #include "ui/widget.h"
 #include "util/assert.h"
 #include "window/keys.h" // IWYU pragma: export
