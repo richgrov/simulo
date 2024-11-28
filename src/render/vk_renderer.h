@@ -36,7 +36,7 @@ public:
 
    uint16_t create_pipeline(
        uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
-       const std::vector<std::pair<std::span<unsigned char>, bool>> &shader_paths,
+       const std::vector<std::pair<std::span<unsigned char>, VkShaderStageFlagBits>> &shader_paths,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings
    );
 
@@ -46,7 +46,7 @@ public:
       mat.descriptor_pool.write(mat.descriptor_set, writes);
    }
 
-   void ensure_shader_loaded(const unsigned char *data, size_t size, bool fragment_shader_temp);
+   void ensure_shader_loaded(const unsigned char *data, size_t size, VkShaderStageFlagBits type);
 
    template <class Vertex> inline void init_mesh(Mesh<Vertex> &mesh) {
       mesh.id_ = meshes_.emplace(

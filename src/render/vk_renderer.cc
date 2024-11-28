@@ -126,8 +126,8 @@ Renderer::Renderer(
            },
        },
        {
-           {std::span(shader_text_vert, shader_text_vert_len), false},
-           {std::span(shader_text_frag, shader_text_frag_len), true},
+           {std::span(shader_text_vert, shader_text_vert_len), VK_SHADER_STAGE_VERTEX_BIT},
+           {std::span(shader_text_frag, shader_text_frag_len), VK_SHADER_STAGE_FRAGMENT_BIT},
        },
        {
            DescriptorPool::uniform_buffer_dynamic(0),
@@ -152,8 +152,8 @@ Renderer::Renderer(
            },
        },
        {
-           {std::span(shader_model_vert, shader_model_vert_len), false},
-           {std::span(shader_model_frag, shader_model_frag_len), true},
+           {std::span(shader_model_vert, shader_model_vert_len), VK_SHADER_STAGE_VERTEX_BIT},
+           {std::span(shader_model_frag, shader_model_frag_len), VK_SHADER_STAGE_FRAGMENT_BIT},
        },
        {DescriptorPool::uniform_buffer_dynamic(0)}
    );
@@ -189,7 +189,7 @@ Renderer::~Renderer() {
 
 uint16_t Renderer::create_pipeline(
     uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
-    const std::vector<std::pair<std::span<unsigned char>, bool>> &data,
+    const std::vector<std::pair<std::span<unsigned char>, VkShaderStageFlagBits>> &data,
     const std::vector<VkDescriptorSetLayoutBinding> &bindings
 ) {
    VkVertexInputBindingDescription binding = {
@@ -199,10 +199,10 @@ uint16_t Renderer::create_pipeline(
    };
 
    std::vector<Shader> shaders;
-   for (const std::pair<std::span<unsigned char>, bool> &shader_info : data) {
+   for (const auto &shader_info : data) {
       const std::span<unsigned char> &shader_data = shader_info.first;
-      bool fragment = shader_info.second;
-      ensure_shader_loaded(shader_data.data(), shader_data.size(), fragment);
+      VkShaderStageFlagBits type = shader_info.second;
+      ensure_shader_loaded(shader_data.data(), shader_data.size(), type);
       shaders.push_back(shaders_[shader_data.data()]);
    }
 
@@ -233,21 +233,15 @@ uint16_t Renderer::create_pipeline(
 }
 
 void Renderer::ensure_shader_loaded(
-    const unsigned char *data, size_t size, bool fragment_shader_temp
+    const unsigned char *data, size_t size, VkShaderStageFlagBits type
 ) {
    if (shaders_.contains(data)) {
       return;
    }
 
-   Shader shader;
-   shader.type = fragment_shader_temp ? VK_SHADER_STAGE_FRAGMENT_BIT : VK_SHADER_STAGE_VERTEX_BIT;
-   /*if (!fragment_shader_temp) {
-      shader.type = VK_SHADER_STAGE_VERTEX_BIT;
-   } else if (path.find("frag") != std::string::npos) {
-      shader.type = VK_SHADER_STAGE_FRAGMENT_BIT;
-   } else {
-      VKAD_PANIC("couldn't determine shader type of {}", path);
-   }*/
+   Shader shader = {
+       .type = type,
+   };
 
    VkShaderModuleCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
