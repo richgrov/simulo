@@ -1,5 +1,5 @@
-#ifndef VKAD_GPU_SWAPCHAIN_H_
-#define VKAD_GPU_SWAPCHAIN_H_
+#ifndef VKAD_GPU_VULKAN_SWAPCHAIN_H_
+#define VKAD_GPU_VULKAN_SWAPCHAIN_H_
 
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -56,4 +56,4 @@ private:
 
 } // namespace vkad
 
-#endif // !VKAD_GPU_SWAPCHAIN_H_
+#endif // !VKAD_GPU_VULKAN_SWAPCHAIN_H_
