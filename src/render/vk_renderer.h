@@ -21,7 +21,6 @@
 #include "gpu/vulkan/swapchain.h"
 #include "math/mat4.h"
 #include "mesh.h"
-#include "render/render_object.h"
 #include "util/slab.h"
 
 namespace vkad {
@@ -81,14 +80,20 @@ public:
       );
    }
 
-   void add_object(RenderObject &object) {
-      object.id_ = objects_.emplace(object);
-      meshes_.get(object.mesh_).instances.insert(object.id_);
+   int add_object(int mesh_id, Mat4 transform) {
+      int object_id = objects_.emplace(MeshInstance{
+          .transform = transform,
+          .mesh_id = mesh_id,
+      });
+      meshes_.get(mesh_id).instances.insert(object_id);
+
+      return object_id;
    }
 
-   void delete_object(RenderObject &object) {
-      meshes_.get(object.mesh_).instances.erase(object.id_);
-      objects_.release(object.id_);
+   void delete_object(int object_id) {
+      MeshInstance &instance = objects_.get(object_id);
+      meshes_.get(instance.mesh_id).instances.erase(object_id);
+      objects_.release(object_id);
    }
 
    void init_image(Image &image, unsigned char *img_data, size_t size) {
@@ -171,6 +176,11 @@ private:
       std::unordered_set<int> instances;
    };
 
+   struct MeshInstance {
+      Mat4 transform;
+      int mesh_id;
+   };
+
    Instance &vk_instance_;
    PhysicalDevice physical_device_;
    Device device_;
@@ -179,7 +189,7 @@ private:
    VkPipelineLayout current_pipeline_layout_;
    std::vector<Material> pipelines_;
    std::unordered_map<const void *, Shader> shaders_;
-   Slab<std::reference_wrapper<RenderObject>> objects_;
+   Slab<MeshInstance> objects_;
    Slab<Mesh> meshes_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;
