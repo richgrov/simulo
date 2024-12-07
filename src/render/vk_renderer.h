@@ -3,9 +3,9 @@
 
 #include <cstdint>
 #include <functional>
-#include <set>
 #include <span>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -168,7 +168,7 @@ private:
 
    struct Mesh {
       VertexIndexBuffer vertices_indices;
-      std::set<int> instances;
+      std::unordered_set<int> instances;
    };
 
    Instance &vk_instance_;
