@@ -28,7 +28,6 @@ set(SOURCE_FILES
    "entity/player.h"
    "geometry/circle.cc"
    "geometry/circle.h"
-   "geometry/geometry.h"
    "geometry/model.cc"
    "geometry/model.h"
    "geometry/shape.cc"
