@@ -195,7 +195,6 @@ private:
    Device device_;
    Swapchain swapchain_;
    VkRenderPass render_pass_;
-   VkPipelineLayout current_pipeline_layout_;
    std::vector<Material> pipelines_;
    std::unordered_map<const void *, Shader> shaders_;
    Slab<MeshInstance> objects_;

@@ -365,7 +365,6 @@ bool Renderer::begin_draw() {
 void Renderer::draw_material(int material_id, Mat4 view_projection) {
    Material &mat = pipelines_[material_id];
    vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline.handle());
-   current_pipeline_layout_ = mat.pipeline.layout();
 
    VkViewport viewport = {
        .width = static_cast<float>(swapchain_.extent().width),
@@ -386,29 +385,28 @@ void Renderer::draw_material(int material_id, Mat4 view_projection) {
    );
 
    for (const auto &[mesh_id, instances] : mat.instances) {
+      Mesh &mesh = meshes_.get(mesh_id);
+
+      VkBuffer buffers[] = {mesh.vertices_indices.buffer()};
+      VkDeviceSize offsets[] = {0};
+      vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
+      vkCmdBindIndexBuffer(
+          command_buffer_, mesh.vertices_indices.buffer(), mesh.vertices_indices.index_offset(),
+          VK_INDEX_TYPE_UINT16
+      );
+
       for (const int instance_id : instances) {
          MeshInstance &obj = objects_.get(instance_id);
-         draw(mesh_id, view_projection * obj.transform);
+         Mat4 mvp = view_projection * obj.transform;
+
+         vkCmdPushConstants(
+             command_buffer_, mat.pipeline.layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4),
+             &mvp
+         );
+
+         vkCmdDrawIndexed(command_buffer_, mesh.vertices_indices.num_indices(), 1, 0, 0, 0);
       }
    }
-}
-
-void Renderer::draw(int mesh_id, Mat4 mvp) {
-   Mesh &mesh = meshes_.get(mesh_id);
-
-   VkBuffer buffers[] = {mesh.vertices_indices.buffer()};
-   VkDeviceSize offsets[] = {0};
-   vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
-   vkCmdBindIndexBuffer(
-       command_buffer_, mesh.vertices_indices.buffer(), mesh.vertices_indices.index_offset(),
-       VK_INDEX_TYPE_UINT16
-   );
-
-   vkCmdPushConstants(
-       command_buffer_, current_pipeline_layout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &mvp
-   );
-
-   vkCmdDrawIndexed(command_buffer_, mesh.vertices_indices.num_indices(), 1, 0, 0, 0);
 }
 
 void Renderer::end_draw() {
