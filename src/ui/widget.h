@@ -9,7 +9,7 @@
 
 namespace vkad {
 
-class Widget : public Mesh<UiVertex>, RenderObject {
+class Widget : public Mesh<UiVertex>, public RenderObject {
 public:
    Widget(std::vector<UiVertex> &&vertices, std::vector<VertexIndexBuffer::IndexType> &&indices)
        : Mesh(std::move(vertices), std::move(indices)) {}

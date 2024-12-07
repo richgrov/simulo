@@ -71,6 +71,8 @@ App::App()
    text.set_position(30, 100);
    text.set_size(35);
    renderer_.init_mesh<UiVertex>(text);
+   text.mesh_ = text.id();
+   renderer_.add_object(text);
    text_meshes_.emplace_back(std::move(text));
 }
 
@@ -143,6 +145,8 @@ bool App::poll() {
             shapes_.push_back(circle);
             Model mesh = circle.to_model();
             renderer_.init_mesh(mesh);
+            mesh.mesh_ = mesh.id();
+            renderer_.add_object(mesh);
             models_.emplace_back(std::move(mesh));
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
@@ -163,6 +167,7 @@ bool App::poll() {
             state_ = State::STANDBY;
 
             for (Model &model : models_) {
+               renderer_.delete_object(model);
                renderer_.delete_mesh(model);
             }
             models_.clear();
@@ -170,6 +175,8 @@ bool App::poll() {
             Shape &shape = shapes_.back();
             Model mesh = shape.extrude(extrude_amount_);
             renderer_.init_mesh(mesh);
+            mesh.mesh_ = mesh.id();
+            renderer_.add_object(mesh);
             models_.emplace_back(std::move(mesh));
             shapes_.clear();
          } catch (const std::exception &e) {
@@ -243,6 +250,7 @@ bool App::process_input(const std::string &message) {
    }
 
    if (text_meshes_.size() >= 2) {
+      renderer_.delete_object(text_meshes_[1]);
       renderer_.delete_mesh(text_meshes_[1]);
       text_meshes_.erase(text_meshes_.begin() + 1);
    }
@@ -273,5 +281,7 @@ void App::add_prompt_text(const std::string &message) {
    text.set_position(30, window_->height() - 50);
    text.set_size(35);
    renderer_.init_mesh(text);
+   text.mesh_ = text.id();
+   renderer_.add_object(text);
    text_meshes_.emplace_back(std::move(text));
 }
