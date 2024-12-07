@@ -2,6 +2,8 @@
 #define VKAD_GPU_VK_GPU_H_
 
 #include <cstdint>
+#include <functional>
+#include <set>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -17,7 +19,9 @@
 #include "gpu/vulkan/physical_device.h"
 #include "gpu/vulkan/pipeline.h"
 #include "gpu/vulkan/swapchain.h"
+#include "math/mat4.h"
 #include "mesh.h"
+#include "render/render_object.h"
 #include "util/slab.h"
 
 namespace vkad {
@@ -49,10 +53,12 @@ public:
    void ensure_shader_loaded(const unsigned char *data, size_t size, VkShaderStageFlagBits type);
 
    template <class Vertex> inline void init_mesh(Mesh<Vertex> &mesh) {
-      mesh.id_ = meshes_.emplace(
-          mesh.vertices_.size(), sizeof(Vertex), mesh.indices_.size(), device_.handle(),
-          physical_device_
-      );
+      mesh.id_ = meshes_.emplace(Mesh{
+          .vertices_indices = VertexIndexBuffer(
+              mesh.vertices_.size(), sizeof(Vertex), mesh.indices_.size(), device_.handle(),
+              physical_device_
+          ),
+      });
       update_mesh(mesh);
    }
 
@@ -75,6 +81,16 @@ public:
       );
    }
 
+   void add_object(RenderObject &object) {
+      object.id_ = objects_.emplace(object);
+      meshes_.get(object.mesh_).instances.insert(object.id_);
+   }
+
+   void delete_object(RenderObject &object) {
+      meshes_.get(object.mesh_).instances.erase(object.id_);
+      objects_.release(object.id_);
+   }
+
    void init_image(Image &image, unsigned char *img_data, size_t size) {
       staging_buffer_.upload_raw(img_data, size);
       begin_preframe();
@@ -86,13 +102,13 @@ public:
    }
 
    template <class Vertex> void update_mesh(Mesh<Vertex> &mesh) {
-      VertexIndexBuffer &buf = meshes_.get(mesh.id_);
+      Mesh &renderer_mesh = meshes_.get(mesh.id_);
       staging_buffer_.upload_mesh(
           mesh.vertices_.data(), sizeof(Vertex) * mesh.vertices_.size(), mesh.indices_.data(),
           mesh.indices_.size()
       );
       begin_preframe();
-      buffer_copy(staging_buffer_, buf);
+      buffer_copy(staging_buffer_, renderer_mesh.vertices_indices);
       end_preframe();
    }
 
@@ -150,6 +166,11 @@ private:
       VkDescriptorSet descriptor_set;
    };
 
+   struct Mesh {
+      VertexIndexBuffer vertices_indices;
+      std::set<int> instances;
+   };
+
    Instance &vk_instance_;
    PhysicalDevice physical_device_;
    Device device_;
@@ -158,7 +179,8 @@ private:
    VkPipelineLayout current_pipeline_layout_;
    std::vector<Material> pipelines_;
    std::unordered_map<const void *, Shader> shaders_;
-   Slab<VertexIndexBuffer> meshes_;
+   Slab<std::reference_wrapper<RenderObject>> objects_;
+   Slab<Mesh> meshes_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;
    VkSampler sampler_;

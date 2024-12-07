@@ -58,6 +58,7 @@ set(SOURCE_FILES
    "math/vec3.h"
    "render/model.h"
    "render/renderer.h"
+   "render/render_object.h"
    "render/vk_renderer.cc"
    "render/vk_renderer.h"
    "render/ui.h"

@@ -225,7 +225,7 @@ void App::draw() {
    for (int i = 0; i < text_meshes_.size(); ++i) {
       Widget &widget = text_meshes_[i];
       renderer_.set_uniform(renderer_.pipelines().ui, i * ui_uniforms_.element_size());
-      renderer_.draw(widget.id(), ortho_matrix() * text_meshes_[i].model_matrix());
+      renderer_.draw(widget.id(), ortho_matrix() * text_meshes_[i].transform());
    }
 
    renderer_.end_draw();

@@ -34,6 +34,7 @@ Renderer::Renderer(
           physical_device_.handle(), device_.handle(), surface, initial_width, initial_height
       ),
       render_pass_(VK_NULL_HANDLE),
+      objects_(16),
       meshes_(16),
       staging_buffer_(1024 * 1024 * 8, device_.handle(), physical_device_) {
 
@@ -390,20 +391,21 @@ void Renderer::set_uniform(int material_id, uint32_t offset) {
 }
 
 void Renderer::draw(int mesh_id, Mat4 mvp) {
-   VertexIndexBuffer &buffer = meshes_.get(mesh_id);
+   Mesh &mesh = meshes_.get(mesh_id);
 
-   VkBuffer buffers[] = {buffer.buffer()};
+   VkBuffer buffers[] = {mesh.vertices_indices.buffer()};
    VkDeviceSize offsets[] = {0};
    vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
    vkCmdBindIndexBuffer(
-       command_buffer_, buffer.buffer(), buffer.index_offset(), VK_INDEX_TYPE_UINT16
+       command_buffer_, mesh.vertices_indices.buffer(), mesh.vertices_indices.index_offset(),
+       VK_INDEX_TYPE_UINT16
    );
 
    vkCmdPushConstants(
        command_buffer_, current_pipeline_layout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &mvp
    );
 
-   vkCmdDrawIndexed(command_buffer_, buffer.num_indices(), 1, 0, 0, 0);
+   vkCmdDrawIndexed(command_buffer_, mesh.vertices_indices.num_indices(), 1, 0, 0, 0);
 }
 
 void Renderer::end_draw() {

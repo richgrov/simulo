@@ -4,11 +4,12 @@
 #include "gpu/vulkan/buffer.h"
 #include "math/mat4.h"
 #include "mesh.h"
+#include "render/render_object.h"
 #include "render/ui.h"
 
 namespace vkad {
 
-class Widget : public Mesh<UiVertex> {
+class Widget : public Mesh<UiVertex>, RenderObject {
 public:
    Widget(std::vector<UiVertex> &&vertices, std::vector<VertexIndexBuffer::IndexType> &&indices)
        : Mesh(std::move(vertices), std::move(indices)) {}
@@ -22,7 +23,7 @@ public:
       scale_ = size;
    }
 
-   inline Mat4 model_matrix() const {
+   inline virtual Mat4 transform() const override {
       return Mat4::translate(Vec3(x_, y_, 0)) * Mat4::scale(Vec3(scale_, scale_, 1));
    }
 
