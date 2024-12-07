@@ -29,7 +29,7 @@ public:
       device_ = other.device_;
    }
 
-   explicit Pipeline(const Pipeline &other) = delete;
+   Pipeline(const Pipeline &other) = delete;
 
    ~Pipeline();
 

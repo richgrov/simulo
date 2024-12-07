@@ -15,6 +15,9 @@ public:
 
    ~Image();
 
+   Image(const Image &other) = delete;
+   Image &operator=(const Image &other) = delete;
+
    void init_view();
 
    void queue_transfer_layout(VkImageLayout layout, VkCommandBuffer cmd_buf);

@@ -12,6 +12,9 @@ public:
    Device(const PhysicalDevice &physical_device);
    ~Device();
 
+   Device(const Device &other) = delete;
+   Device &operator=(const Device &other) = delete;
+
    inline VkDevice handle() const {
       return device_;
    }

@@ -19,6 +19,9 @@ public:
       vkDestroyInstance(instance_, nullptr);
    }
 
+   Instance(const Instance &other) = delete;
+   Instance &operator=(const Instance &other) = delete;
+
    inline VkInstance handle() const {
       return instance_;
    }

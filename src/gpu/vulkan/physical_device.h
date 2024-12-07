@@ -10,6 +10,9 @@ class PhysicalDevice {
 public:
    PhysicalDevice(const Instance &instance, VkSurfaceKHR surface);
 
+   PhysicalDevice(const PhysicalDevice &other) = delete;
+   PhysicalDevice &operator=(const PhysicalDevice &other) = delete;
+
    inline VkPhysicalDevice handle() const {
       return physical_device_;
    }
