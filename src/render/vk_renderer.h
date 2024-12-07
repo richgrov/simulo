@@ -2,7 +2,6 @@
 #define VKAD_GPU_VK_GPU_H_
 
 #include <cstdint>
-#include <functional>
 #include <span>
 #include <unordered_map>
 #include <unordered_set>
@@ -80,18 +79,28 @@ public:
       );
    }
 
-   int add_object(int mesh_id, Mat4 transform) {
+   int add_object(int mesh_id, Mat4 transform, int material_id) {
       int object_id = objects_.emplace(MeshInstance{
           .transform = transform,
           .mesh_id = mesh_id,
+          .material_id = material_id,
       });
       meshes_.get(mesh_id).instances.insert(object_id);
+
+      Material &mat = pipelines_[material_id];
+      if (mat.instances.contains(mesh_id)) {
+         mat.instances.at(mesh_id).insert(object_id);
+      } else {
+         std::unordered_set<int> instances = {object_id};
+         mat.instances.emplace(mesh_id, std::move(instances));
+      }
 
       return object_id;
    }
 
    void delete_object(int object_id) {
       MeshInstance &instance = objects_.get(object_id);
+      pipelines_[instance.material_id].instances.at(instance.mesh_id).erase(object_id);
       meshes_.get(instance.mesh_id).instances.erase(object_id);
       objects_.release(object_id);
    }
@@ -169,6 +178,7 @@ private:
       Pipeline pipeline;
       DescriptorPool descriptor_pool;
       VkDescriptorSet descriptor_set;
+      std::unordered_map<int, std::unordered_set<int>> instances;
    };
 
    struct Mesh {
@@ -179,6 +189,7 @@ private:
    struct MeshInstance {
       Mat4 transform;
       int mesh_id;
+      int material_id;
    };
 
    Instance &vk_instance_;
