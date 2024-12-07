@@ -1,6 +1,7 @@
 #ifndef VKAD_UTIL_SLAB_H_
 #define VKAD_UTIL_SLAB_H_
 
+#include "util/assert.h"
 #include <algorithm>
 #include <utility>
 #include <vector>
@@ -13,26 +14,19 @@ template <class T> class Slab {
 public:
    explicit Slab(size_t initial_capacity) : next_available_(kInvalidSlabKey) {
       objects_.reserve(initial_capacity);
+      in_use_.reserve(initial_capacity);
    }
 
    ~Slab() {
-      bool in_use[objects_.size()];
-      std::fill_n(in_use, objects_.size(), true);
-
-      int next_available = next_available_;
-      while (next_available != kInvalidSlabKey) {
-         in_use[next_available] = false;
-         next_available = get_storage(next_available).next();
-      }
-
       for (int i = 0; i < objects_.size(); ++i) {
-         if (in_use[i]) {
+         if (in_use_[i]) {
             release(i);
          }
       }
    }
 
    [[nodiscard]] T &get(const int index) {
+      VKAD_DEBUG_ASSERT(in_use_[index]);
       return get_storage(index).value();
    }
 
@@ -41,6 +35,7 @@ public:
          int key = objects_.size();
          objects_.emplace_back();
          get_storage(key).store_value(std::forward<Args>(args)...);
+         in_use_.push_back(true);
          return key;
       }
 
@@ -48,14 +43,22 @@ public:
       auto &storage = get_storage(key);
       next_available_ = storage.next();
       storage.store_value(std::forward<Args>(args)...);
+      in_use_[key] = true;
       return key;
    }
 
    void release(const int key) {
+      VKAD_DEBUG_ASSERT(in_use_[key]);
+
       auto &storage = get_storage(key);
       storage.call_value_destructor();
       storage.store_next(next_available_);
       next_available_ = key;
+      in_use_[key] = false;
+   }
+
+   bool contains(const int key) {
+      return in_use_[key];
    }
 
 private:
@@ -94,6 +97,7 @@ private:
    }
 
    std::vector<Storage> objects_;
+   std::vector<bool> in_use_;
    int next_available_;
 };
 
