@@ -26,7 +26,9 @@ public:
    }
 
    [[nodiscard]] T &get(const int index) {
-      VKAD_DEBUG_ASSERT(in_use_[index]);
+      VKAD_DEBUG_ASSERT(
+          index >= 0 && index < in_use_.size() && in_use_[index], "index = {}", index
+      );
       return get_storage(index).value();
    }
 
@@ -48,7 +50,7 @@ public:
    }
 
    void release(const int key) {
-      VKAD_DEBUG_ASSERT(in_use_[key]);
+      VKAD_DEBUG_ASSERT(key >= 0 && key < in_use_.size() && in_use_[key], "key = {}", key);
 
       auto &storage = get_storage(key);
       storage.call_value_destructor();

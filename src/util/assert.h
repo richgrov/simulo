@@ -16,7 +16,12 @@
    }
 
 #ifdef VKAD_DEBUG
-#define VKAD_DEBUG_ASSERT(...) VKAD_ASSERT(__VA_ARGS__, "")
+#define VKAD_DEBUG_ASSERT(cond, msg, ...)                                                          \
+   if (!(cond)) {                                                                                  \
+      std::cerr << std::format("{}:{}: " msg, __FILE__, __LINE__, __VA_ARGS__) << "\n";            \
+      std::abort();                                                                                \
+   }
+
 #else
 #define VKAD_DEBUG_ASSERT(...)
 #endif
