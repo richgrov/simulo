@@ -362,7 +362,7 @@ bool Renderer::begin_draw() {
    return true;
 }
 
-void Renderer::set_material(int material_id) {
+void Renderer::draw_material(int material_id, Mat4 view_projection) {
    Material &mat = pipelines_[material_id];
    vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline.handle());
    current_pipeline_layout_ = mat.pipeline.layout();
@@ -378,16 +378,19 @@ void Renderer::set_material(int material_id) {
        .extent = swapchain_.extent(),
    };
    vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
-}
 
-void Renderer::set_uniform(int material_id, uint32_t offset) {
-   Material &mat = pipelines_[material_id];
-
-   uint32_t offsets[] = {offset};
+   uint32_t offsets[] = {0};
    vkCmdBindDescriptorSets(
        command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline.layout(), 0, 1,
        &mat.descriptor_set, 1, offsets
    );
+
+   for (const auto &[mesh_id, instances] : mat.instances) {
+      for (const int instance_id : instances) {
+         MeshInstance &obj = objects_.get(instance_id);
+         draw(mesh_id, view_projection * obj.transform);
+      }
+   }
 }
 
 void Renderer::draw(int mesh_id, Mat4 mvp) {

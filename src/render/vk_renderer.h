@@ -154,9 +154,7 @@ public:
 
    bool begin_draw();
 
-   void set_material(int material_id);
-
-   void set_uniform(int material_id, uint32_t offset);
+   void draw_material(int material_id, Mat4 view_projection);
 
    void draw(int mesh_id, Mat4 mvp);
 

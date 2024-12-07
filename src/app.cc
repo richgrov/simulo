@@ -220,20 +220,10 @@ void App::draw() {
       );
    }
 
-   renderer_.set_material(renderer_.pipelines().mesh);
-   renderer_.set_uniform(renderer_.pipelines().mesh, 0);
-
-   for (const Model &model : models_) {
-      renderer_.draw(model.id(), perspective_matrix() * player_.view_matrix());
-   }
-
-   renderer_.set_material(renderer_.pipelines().ui);
-
-   for (int i = 0; i < text_meshes_.size(); ++i) {
-      Widget &widget = text_meshes_[i];
-      renderer_.set_uniform(renderer_.pipelines().ui, i * ui_uniforms_.element_size());
-      renderer_.draw(widget.id(), ortho_matrix() * text_meshes_[i].transform());
-   }
+   renderer_.draw_material(
+       renderer_.pipelines().mesh, perspective_matrix() * player_.view_matrix()
+   );
+   renderer_.draw_material(renderer_.pipelines().ui, ortho_matrix());
 
    renderer_.end_draw();
 }
