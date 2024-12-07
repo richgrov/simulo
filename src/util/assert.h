@@ -15,4 +15,10 @@
       std::abort();                                                                                \
    }
 
+#ifdef VKAD_DEBUG
+#define VKAD_DEBUG_ASSERT(...) VKAD_ASSERT(__VA_ARGS__, "")
+#else
+#define VKAD_DEBUG_ASSERT(...)
+#endif
+
 #endif // !VKAD_UTIL_ASSERT_H_
