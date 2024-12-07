@@ -2,8 +2,10 @@
 #define VKAD_UI_TEXT_H_
 
 #include "gpu/vulkan/buffer.h"
+#include "math/mat4.h"
 #include "mesh.h"
 #include "render/ui.h"
+
 namespace vkad {
 
 class Widget : public Mesh<UiVertex> {

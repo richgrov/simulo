@@ -1,5 +1,6 @@
 #include "circle.h"
 
+#include <cmath>
 #include <numbers>
 
 using namespace vkad;
