@@ -64,8 +64,7 @@ App::App()
 
    window_->set_capture_mouse(true);
 
-   Mat4 mvp = perspective_matrix() * player_.view_matrix();
-   UiUniform u = {mvp, Vec3(1.0, 1.0, 1.0)};
+   UiUniform u = {Vec3(1.0, 1.0, 1.0)};
    ui_uniforms_.upload_memory(&u, sizeof(UiUniform), 0);
 
    Widget text = font_.create_text("C - Create polygon\nE - Extrude\nP - Export");
@@ -188,14 +187,12 @@ bool App::poll() {
 
    for (int i = 0; i < text_meshes_.size(); ++i) {
       UiUniform u = {
-          .mvp = ortho_matrix() * text_meshes_[i].model_matrix(),
           .color = Vec3(1.0, 1.0, 1.0),
       };
       ui_uniforms_.upload_memory(&u, sizeof(UiUniform), i);
    }
 
    ModelUniform u2 = {
-       .mvp = perspective_matrix() * player_.view_matrix(),
        .color = Vec3(0.1, 0.1, 0.8),
    };
    model_uniforms_.upload_memory(&u2, sizeof(u2), 0);
@@ -220,7 +217,7 @@ void App::draw() {
    renderer_.set_uniform(renderer_.pipelines().mesh, 0);
 
    for (const Model &model : models_) {
-      renderer_.draw(model.id());
+      renderer_.draw(model.id(), perspective_matrix() * player_.view_matrix());
    }
 
    renderer_.set_material(renderer_.pipelines().ui);
@@ -228,7 +225,7 @@ void App::draw() {
    for (int i = 0; i < text_meshes_.size(); ++i) {
       Widget &widget = text_meshes_[i];
       renderer_.set_uniform(renderer_.pipelines().ui, i * ui_uniforms_.element_size());
-      renderer_.draw(widget.id());
+      renderer_.draw(widget.id(), ortho_matrix() * text_meshes_[i].model_matrix());
    }
 
    renderer_.end_draw();

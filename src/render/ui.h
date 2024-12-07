@@ -1,7 +1,6 @@
 #ifndef VKAD_RENDER_VERTEX_H_
 #define VKAD_RENDER_VERTEX_H_
 
-#include "math/mat4.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
 
@@ -13,7 +12,6 @@ struct UiVertex {
 };
 
 struct UiUniform {
-   Mat4 mvp;
    Vec3 color;
 };
 

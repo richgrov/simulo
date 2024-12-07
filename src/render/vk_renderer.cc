@@ -11,6 +11,7 @@
 #include "gpu/vulkan/pipeline.h"
 #include "gpu/vulkan/status.h"
 #include "gpu/vulkan/swapchain.h"
+#include "math/mat4.h"
 #include "mesh.h"
 #include "model.h"
 #include "res/model.frag.h"
@@ -363,6 +364,7 @@ bool Renderer::begin_draw() {
 void Renderer::set_material(int material_id) {
    Material &mat = pipelines_[material_id];
    vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline.handle());
+   current_pipeline_layout_ = mat.pipeline.layout();
 
    VkViewport viewport = {
        .width = static_cast<float>(swapchain_.extent().width),
@@ -387,7 +389,7 @@ void Renderer::set_uniform(int material_id, uint32_t offset) {
    );
 }
 
-void Renderer::draw(int mesh_id) {
+void Renderer::draw(int mesh_id, Mat4 mvp) {
    VertexIndexBuffer &buffer = meshes_.get(mesh_id);
 
    VkBuffer buffers[] = {buffer.buffer()};
@@ -395,6 +397,10 @@ void Renderer::draw(int mesh_id) {
    vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
    vkCmdBindIndexBuffer(
        command_buffer_, buffer.buffer(), buffer.index_offset(), VK_INDEX_TYPE_UINT16
+   );
+
+   vkCmdPushConstants(
+       command_buffer_, current_pipeline_layout_, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &mvp
    );
 
    vkCmdDrawIndexed(command_buffer_, buffer.num_indices(), 1, 0, 0, 0);

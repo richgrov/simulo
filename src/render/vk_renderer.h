@@ -128,7 +128,7 @@ public:
 
    void set_uniform(int material_id, uint32_t offset);
 
-   void draw(int mesh_id);
+   void draw(int mesh_id, Mat4 mvp);
 
    void end_draw();
 
@@ -155,6 +155,7 @@ private:
    Device device_;
    Swapchain swapchain_;
    VkRenderPass render_pass_;
+   VkPipelineLayout current_pipeline_layout_;
    std::vector<Material> pipelines_;
    std::unordered_map<const void *, Shader> shaders_;
    Slab<VertexIndexBuffer> meshes_;

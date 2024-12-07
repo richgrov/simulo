@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "math/mat4.h"
 #include "status.h"
 #include "util/memory.h"
 
@@ -82,10 +83,18 @@ Pipeline::Pipeline(
        .pDynamicStates = dynamic_states,
    };
 
+   VkPushConstantRange push_constants = {
+       .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+       .offset = 0,
+       .size = sizeof(Mat4),
+   };
+
    VkPipelineLayoutCreateInfo layout_create = {
        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
        .setLayoutCount = 1,
        .pSetLayouts = &descriptor_layout,
+       .pushConstantRangeCount = 1,
+       .pPushConstantRanges = &push_constants,
    };
    VKAD_VK(vkCreatePipelineLayout(device, &layout_create, nullptr, &layout_));
 
