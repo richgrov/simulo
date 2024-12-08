@@ -25,7 +25,10 @@ namespace vkad {
 
 class WaylandDeleter {
 public:
-   void operator()(wl_display *display);
+   void operator()(wl_display *);
+   void operator()(wl_registry *);
+   void operator()(wl_compositor *);
+   void operator()(wl_surface *);
 };
 
 } // namespace vkad

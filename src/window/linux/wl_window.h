@@ -102,9 +102,9 @@ private:
 
    const Instance &vk_instance_;
    std::unique_ptr<wl_display, WaylandDeleter> display_;
-   wl_registry *registry_ = nullptr;
-   wl_compositor *compositor_ = nullptr;
-   wl_surface *surface_ = nullptr;
+   std::unique_ptr<wl_registry, WaylandDeleter> registry_;
+   std::unique_ptr<wl_compositor, WaylandDeleter> compositor_;
+   std::unique_ptr<wl_surface, WaylandDeleter> surface_;
    VkSurfaceKHR vk_surface_ = nullptr;
    xdg_wm_base *xdg_base_ = nullptr;
    xdg_surface *xdg_surface_ = nullptr;

@@ -99,10 +99,10 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    init_pointer();
    init_relative_pointer();
 
-   mouse_lock_region_ = wl_compositor_create_region(compositor_);
+   mouse_lock_region_ = wl_compositor_create_region(compositor_.get());
    wl_region_add(mouse_lock_region_, 0, 0, 1, 1);
 
-   wl_surface_commit(surface_);
+   wl_surface_commit(surface_.get());
    wl_display_roundtrip(display_.get());
 }
 
@@ -125,9 +125,6 @@ WaylandWindow::~WaylandWindow() {
    xdg_surface_destroy(xdg_surface_);
    xdg_wm_base_destroy(xdg_base_);
    vkDestroySurfaceKHR(vk_instance_.handle(), vk_surface_, nullptr);
-   wl_compositor_destroy(compositor_);
-   wl_surface_destroy(surface_);
-   wl_registry_destroy(registry_);
 }
 
 bool WaylandWindow::poll() {
@@ -170,7 +167,7 @@ void WaylandWindow::set_capture_mouse(bool capture) {
       }
 
       locked_pointer_ = zwp_pointer_constraints_v1_lock_pointer(
-          pointer_constraints_, surface_, pointer_, mouse_lock_region_,
+          pointer_constraints_, surface_.get(), pointer_, mouse_lock_region_,
           ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT
       );
       init_locked_pointer();
@@ -178,7 +175,7 @@ void WaylandWindow::set_capture_mouse(bool capture) {
 }
 
 void WaylandWindow::init_registry() {
-   registry_ = wl_display_get_registry(display_.get());
+   registry_.reset(wl_display_get_registry(display_.get()));
 
    static constexpr wl_registry_listener registry_listener = {
        .global =
@@ -188,7 +185,7 @@ void WaylandWindow::init_registry() {
 
               if (std::strcmp(interface, wl_compositor_interface.name) == 0) {
                  void *compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 4);
-                 window->compositor_ = reinterpret_cast<wl_compositor *>(compositor);
+                 window->compositor_.reset(reinterpret_cast<wl_compositor *>(compositor));
                  return;
               }
 
@@ -224,7 +221,7 @@ void WaylandWindow::init_registry() {
            },
        .global_remove = [](void *user_ptr, wl_registry *registry, uint32_t name) {},
    };
-   wl_registry_add_listener(registry_, &registry_listener, this);
+   wl_registry_add_listener(registry_.get(), &registry_listener, this);
 
    wl_display_roundtrip(display_.get());
    wl_display_roundtrip(display_.get()); // again so the wl_seat listener is run
@@ -241,16 +238,17 @@ void WaylandWindow::init_xdg_wm_base() {
 }
 
 void WaylandWindow::init_surfaces() {
-   surface_ = wl_compositor_create_surface(compositor_);
+   surface_.reset(wl_compositor_create_surface(compositor_.get()));
+
    static constexpr wl_surface_listener surface_listener = {
        .enter = [](void *user_data, wl_surface *surface, wl_output *) {},
        .leave = [](void *user_data, wl_surface *surface, wl_output *) {},
        .preferred_buffer_scale = [](void *user_data, wl_surface *surface, int32_t) {},
        .preferred_buffer_transform = [](void *user_data, wl_surface *surface, uint32_t) {},
    };
-   wl_surface_add_listener(surface_, &surface_listener, this);
+   wl_surface_add_listener(surface_.get(), &surface_listener, this);
 
-   xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_);
+   xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_.get());
    static constexpr xdg_surface_listener xdg_surf_listener = {
        .configure =
            [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
@@ -260,7 +258,7 @@ void WaylandWindow::init_surfaces() {
    };
    xdg_surface_add_listener(xdg_surface_, &xdg_surf_listener, this);
 
-   vk_surface_ = create_surface(display_.get(), surface_, vk_instance_.handle());
+   vk_surface_ = create_surface(display_.get(), surface_.get(), vk_instance_.handle());
 }
 
 void WaylandWindow::init_toplevel(const char *title) {
