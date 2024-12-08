@@ -3,7 +3,9 @@
 
 #include "gpu/vulkan/instance.h"
 #include "window/linux/window.h"
+#include "window/linux/wl_deleter.h"
 #include <bitset>
+#include <memory>
 #include <string_view>
 
 struct wl_display;
@@ -99,7 +101,7 @@ private:
    void process_utf8_keyboard_input(uint32_t evdev_key);
 
    const Instance &vk_instance_;
-   wl_display *display_ = nullptr;
+   std::unique_ptr<wl_display, WaylandDeleter> display_;
    wl_registry *registry_ = nullptr;
    wl_compositor *compositor_ = nullptr;
    wl_surface *surface_ = nullptr;

@@ -16,6 +16,8 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         "window/linux/keys.h"
         "window/linux/window.h"
         "window/linux/window_init.h"
+        "window/linux/wl_deleter.cc"
+        "window/linux/wl_deleter.h"
         "window/linux/wl_window.cc"
         "window/linux/wl_window.h"
         "window/linux/x11_window.cc"

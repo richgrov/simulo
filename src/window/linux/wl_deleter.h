@@ -1,0 +1,33 @@
+#ifndef VKAD_WINDOW_LINUX_WL_DELETER_H_
+#define VKAD_WINDOW_LINUX_WL_DELETER_H_
+
+struct wl_display;
+struct wl_registry;
+struct wl_compositor;
+struct wl_surface;
+struct xdg_wm_base;
+struct xdg_surface;
+struct xdg_toplevel;
+struct wl_seat;
+struct wl_keyboard;
+struct wl_pointer;
+struct wl_region;
+
+struct xkb_context;
+struct xkb_state;
+struct xkb_keymap;
+struct zwp_relative_pointer_manager_v1;
+struct zwp_relative_pointer_v1;
+struct zwp_locked_pointer_v1;
+struct zwp_pointer_constraints_v1;
+
+namespace vkad {
+
+class WaylandDeleter {
+public:
+   void operator()(wl_display *display);
+};
+
+} // namespace vkad
+
+#endif // !VKAD_WINDOW_LINUX_WL_DELETER_H_

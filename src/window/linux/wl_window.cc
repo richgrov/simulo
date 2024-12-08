@@ -77,8 +77,8 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
       throw std::runtime_error(#name " was not initialized");                                      \
    }
 
-   display_ = wl_display_connect(NULL);
-   if (!display_) {
+   display_.reset(wl_display_connect(NULL));
+   if (!display_.get()) {
       throw std::runtime_error("couldn't connect to Wayland display");
    }
 
@@ -103,7 +103,7 @@ WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
    wl_region_add(mouse_lock_region_, 0, 0, 1, 1);
 
    wl_surface_commit(surface_);
-   wl_display_roundtrip(display_);
+   wl_display_roundtrip(display_.get());
 }
 
 WaylandWindow::~WaylandWindow() {
@@ -128,7 +128,6 @@ WaylandWindow::~WaylandWindow() {
    wl_compositor_destroy(compositor_);
    wl_surface_destroy(surface_);
    wl_registry_destroy(registry_);
-   wl_display_disconnect(display_);
 }
 
 bool WaylandWindow::poll() {
@@ -138,23 +137,23 @@ bool WaylandWindow::poll() {
    delta_mouse_x_ = 0;
    delta_mouse_y_ = 0;
 
-   while (wl_display_prepare_read(display_) != 0) {
-      if (wl_display_dispatch_pending(display_) < 0) {
+   while (wl_display_prepare_read(display_.get()) != 0) {
+      if (wl_display_dispatch_pending(display_.get()) < 0) {
          throw std::runtime_error("wl_display_dispatch_pending failed");
       }
    }
 
-   if (wl_display_read_events(display_) != 0) {
+   if (wl_display_read_events(display_.get()) != 0) {
       int err = errno;
       throw std::runtime_error(std::format("wl_display_read_events failed: {}", err));
    }
 
-   if (wl_display_flush(display_) == -1) {
+   if (wl_display_flush(display_.get()) == -1) {
       int err = errno;
       throw std::runtime_error(std::format("wl_display_flush failed: {}", err));
    }
 
-   int display_err = wl_display_get_error(display_);
+   int display_err = wl_display_get_error(display_.get());
    if (display_err != 0) {
       throw std::runtime_error(std::format("wayland display error {}", display_err));
    }
@@ -179,7 +178,7 @@ void WaylandWindow::set_capture_mouse(bool capture) {
 }
 
 void WaylandWindow::init_registry() {
-   registry_ = wl_display_get_registry(display_);
+   registry_ = wl_display_get_registry(display_.get());
 
    static constexpr wl_registry_listener registry_listener = {
        .global =
@@ -227,8 +226,8 @@ void WaylandWindow::init_registry() {
    };
    wl_registry_add_listener(registry_, &registry_listener, this);
 
-   wl_display_roundtrip(display_);
-   wl_display_roundtrip(display_); // again so the wl_seat listener is run
+   wl_display_roundtrip(display_.get());
+   wl_display_roundtrip(display_.get()); // again so the wl_seat listener is run
 }
 
 void WaylandWindow::init_xdg_wm_base() {
@@ -261,7 +260,7 @@ void WaylandWindow::init_surfaces() {
    };
    xdg_surface_add_listener(xdg_surface_, &xdg_surf_listener, this);
 
-   vk_surface_ = create_surface(display_, surface_, vk_instance_.handle());
+   vk_surface_ = create_surface(display_.get(), surface_, vk_instance_.handle());
 }
 
 void WaylandWindow::init_toplevel(const char *title) {
