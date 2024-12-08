@@ -116,6 +116,7 @@ WaylandWindow::~WaylandWindow() {
    zwp_relative_pointer_manager_v1_destroy(relative_pointer_manager_);
    wl_pointer_destroy(pointer_);
 
+   xkb_state_unref(xkb_state_);
    xkb_keymap_unref(keymap_);
    xkb_context_unref(xkb_ctx_);
    wl_keyboard_destroy(keyboard_);
