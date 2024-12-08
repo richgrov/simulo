@@ -5,20 +5,17 @@
 
 #include "vulkan/vulkan_core.h"
 
-namespace vkad {
+#include "shader.h"
 
-struct Shader {
-   VkShaderModule module;
-   VkShaderStageFlagBits type;
-};
+namespace vkad {
 
 class Pipeline {
 public:
    explicit Pipeline(
        VkDevice device, VkVertexInputBindingDescription vertex_binding,
        const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
-       const std::vector<Shader> &shaders, VkDescriptorSetLayout descriptor_layout,
-       VkRenderPass render_pass
+       const Shader &vertex_shader, const Shader &fragment_shader,
+       VkDescriptorSetLayout descriptor_layout, VkRenderPass render_pass
    );
 
    explicit inline Pipeline(Pipeline &&other) {

@@ -127,10 +127,8 @@ Renderer::Renderer(
                .offset = offsetof(UiVertex, tex_coord),
            },
        },
-       {
-           {std::span(shader_text_vert, shader_text_vert_len), VK_SHADER_STAGE_VERTEX_BIT},
-           {std::span(shader_text_frag, shader_text_frag_len), VK_SHADER_STAGE_FRAGMENT_BIT},
-       },
+       std::span(shader_text_vert, shader_text_vert_len),
+       std::span(shader_text_frag, shader_text_frag_len),
        {
            DescriptorPool::uniform_buffer_dynamic(0),
            DescriptorPool::combined_image_sampler(1),
@@ -153,10 +151,8 @@ Renderer::Renderer(
                .offset = offsetof(ModelVertex, norm),
            },
        },
-       {
-           {std::span(shader_model_vert, shader_model_vert_len), VK_SHADER_STAGE_VERTEX_BIT},
-           {std::span(shader_model_frag, shader_model_frag_len), VK_SHADER_STAGE_FRAGMENT_BIT},
-       },
+       std::span(shader_model_vert, shader_model_vert_len),
+       std::span(shader_model_frag, shader_model_frag_len),
        {DescriptorPool::uniform_buffer_dynamic(0)}
    );
 }
@@ -166,10 +162,6 @@ Renderer::~Renderer() {
 
    for (const Material &mat : pipelines_) {
       vkDestroyDescriptorSetLayout(device_.handle(), mat.descriptor_set_layout, nullptr);
-   }
-
-   for (const auto &kv : shaders_) {
-      vkDestroyShaderModule(device_.handle(), kv.second.module, nullptr);
    }
 
    vkDestroySemaphore(device_.handle(), sem_img_avail, nullptr);
@@ -191,7 +183,7 @@ Renderer::~Renderer() {
 
 uint16_t Renderer::create_pipeline(
     uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
-    const std::vector<std::pair<std::span<unsigned char>, VkShaderStageFlagBits>> &data,
+    const std::span<uint8_t> vertex_shader, const std::span<uint8_t> fragment_shader,
     const std::vector<VkDescriptorSetLayoutBinding> &bindings
 ) {
    VkVertexInputBindingDescription binding = {
@@ -199,14 +191,6 @@ uint16_t Renderer::create_pipeline(
        .stride = vertex_size,
        .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
    };
-
-   std::vector<Shader> shaders;
-   for (const auto &shader_info : data) {
-      const std::span<unsigned char> &shader_data = shader_info.first;
-      VkShaderStageFlagBits type = shader_info.second;
-      ensure_shader_loaded(shader_data.data(), shader_data.size(), type);
-      shaders.push_back(shaders_[shader_data.data()]);
-   }
 
    VkDescriptorSetLayoutCreateInfo layout_create = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -225,34 +209,19 @@ uint16_t Renderer::create_pipeline(
       });
    }
 
+   Shader vertex(device_, vertex_shader);
+   Shader fragment(device_, fragment_shader);
+
    pipelines_.emplace_back(Material{
        .descriptor_set_layout = layout,
-       .pipeline = Pipeline(device_.handle(), binding, attrs, shaders, layout, render_pass_),
+       .pipeline =
+           Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
        .descriptor_pool = DescriptorPool(device_.handle(), layout, sizes, 1),
        .descriptor_set = VK_NULL_HANDLE,
+       .vertex_shader = std::move(vertex),
+       .fragment_shader = std::move(fragment),
    });
    return pipelines_.size() - 1;
-}
-
-void Renderer::ensure_shader_loaded(
-    const unsigned char *data, size_t size, VkShaderStageFlagBits type
-) {
-   if (shaders_.contains(data)) {
-      return;
-   }
-
-   Shader shader = {
-       .type = type,
-   };
-
-   VkShaderModuleCreateInfo create_info = {
-       .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-       .codeSize = size,
-       .pCode = reinterpret_cast<const uint32_t *>(data),
-   };
-   VKAD_VK(vkCreateShaderModule(device_.handle(), &create_info, nullptr, &shader.module));
-
-   shaders_.insert({data, shader});
 }
 
 void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {

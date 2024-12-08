@@ -11,20 +11,25 @@ using namespace vkad;
 Pipeline::Pipeline(
     VkDevice device, VkVertexInputBindingDescription vertex_binding,
     const std::vector<VkVertexInputAttributeDescription> &vertex_attributes,
-    const std::vector<Shader> &shaders, VkDescriptorSetLayout descriptor_layout,
-    VkRenderPass render_pass
+    const Shader &vertex_shader, const Shader &fragment_shader,
+    VkDescriptorSetLayout descriptor_layout, VkRenderPass render_pass
 )
     : layout_(VK_NULL_HANDLE), pipeline_(VK_NULL_HANDLE), device_(device) {
 
-   std::vector<VkPipelineShaderStageCreateInfo> shader_stages(shaders.size());
-   for (int i = 0; i < shader_stages.size(); ++i) {
-      shader_stages[i] = {
-          .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-          .stage = shaders[i].type,
-          .module = shaders[i].module,
-          .pName = "main",
-      };
-   }
+   std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages = {
+       VkPipelineShaderStageCreateInfo{
+           .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+           .stage = VK_SHADER_STAGE_VERTEX_BIT,
+           .module = vertex_shader.module(),
+           .pName = "main",
+       },
+       VkPipelineShaderStageCreateInfo{
+           .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+           .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+           .module = fragment_shader.module(),
+           .pName = "main",
+       },
+   };
 
    VkPipelineVertexInputStateCreateInfo vertex_input_create = {
        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,

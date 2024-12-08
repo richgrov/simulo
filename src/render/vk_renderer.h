@@ -17,6 +17,7 @@
 #include "gpu/vulkan/instance.h"
 #include "gpu/vulkan/physical_device.h"
 #include "gpu/vulkan/pipeline.h"
+#include "gpu/vulkan/shader.h"
 #include "gpu/vulkan/swapchain.h"
 #include "math/mat4.h"
 #include "mesh.h"
@@ -38,7 +39,7 @@ public:
 
    uint16_t create_pipeline(
        uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
-       const std::vector<std::pair<std::span<unsigned char>, VkShaderStageFlagBits>> &shader_paths,
+       const std::span<uint8_t> vertex_shader, const std::span<uint8_t> fragment_shader,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings
    );
 
@@ -47,8 +48,6 @@ public:
       mat.descriptor_set = mat.descriptor_pool.allocate(mat.descriptor_set_layout);
       mat.descriptor_pool.write(mat.descriptor_set, writes);
    }
-
-   void ensure_shader_loaded(const unsigned char *data, size_t size, VkShaderStageFlagBits type);
 
    template <class Vertex> inline void init_mesh(Mesh<Vertex> &mesh) {
       mesh.id_ = meshes_.emplace(Mesh{
@@ -176,6 +175,8 @@ private:
       Pipeline pipeline;
       DescriptorPool descriptor_pool;
       VkDescriptorSet descriptor_set;
+      Shader vertex_shader;
+      Shader fragment_shader;
       std::unordered_map<int, std::unordered_set<int>> instances;
    };
 
@@ -196,7 +197,6 @@ private:
    Swapchain swapchain_;
    VkRenderPass render_pass_;
    std::vector<Material> pipelines_;
-   std::unordered_map<const void *, Shader> shaders_;
    Slab<MeshInstance> objects_;
    Slab<Mesh> meshes_;
    std::vector<VkFramebuffer> framebuffers_;

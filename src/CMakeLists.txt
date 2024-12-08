@@ -49,6 +49,8 @@ set(SOURCE_FILES
    "gpu/vulkan/physical_device.cc"
    "gpu/vulkan/physical_device.h"
    "gpu/vulkan/status.h"
+   "gpu/vulkan/shader.cc"
+   "gpu/vulkan/shader.h"
    "gpu/vulkan/swapchain.cc"
    "gpu/vulkan/swapchain.h"
    "gpu/vulkan/buffer.cc"
