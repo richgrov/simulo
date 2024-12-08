@@ -14,12 +14,14 @@ public:
        VkDevice device, const PhysicalDevice &physical_device
    );
 
-   explicit Buffer(Buffer &&other)
+   Buffer(Buffer &&other)
        : allocation_(other.allocation_), device_(other.device_), buffer_(other.buffer_) {
 
       other.allocation_ = VK_NULL_HANDLE;
       other.buffer_ = VK_NULL_HANDLE;
    }
+
+   Buffer(const Buffer &other) = delete;
 
    inline ~Buffer() {
       if (buffer_ != VK_NULL_HANDLE) {
@@ -118,8 +120,13 @@ public:
        const PhysicalDevice &physical_device
    );
 
+   UniformBuffer(UniformBuffer &&other);
+
    inline ~UniformBuffer() {
-      vkUnmapMemory(device_, allocation_);
+      bool buffer_was_moved = allocation_ == nullptr;
+      if (!buffer_was_moved) {
+         vkUnmapMemory(device_, allocation_);
+      }
    }
 
    inline void upload_memory(void *data, size_t size, size_t element_index) {

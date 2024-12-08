@@ -59,7 +59,8 @@ StagingBuffer::StagingBuffer(
           ),
           device, physical_device
       ),
-      capacity_(capacity), size_(0) {
+      capacity_(capacity),
+      size_(0) {
    vkMapMemory(device, allocation_, 0, capacity, 0, &mem_map_);
 }
 
@@ -88,4 +89,10 @@ UniformBuffer::UniformBuffer(
       element_size_(align_to(element_size, physical_device.min_uniform_alignment())) {
 
    vkMapMemory(device, allocation_, 0, element_size_ * num_elements, 0, &mem_map_);
+}
+
+UniformBuffer::UniformBuffer(UniformBuffer &&other)
+    : Buffer(std::move(other)), element_size_(other.element_size_), mem_map_(other.mem_map_) {
+   other.element_size_ = 0;
+   other.mem_map_ = nullptr;
 }
