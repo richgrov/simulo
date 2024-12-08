@@ -61,7 +61,7 @@ App::App()
 
    window_->set_capture_mouse(true);
 
-   Widget text = font_.create_text("C - Create polygon\nE - Extrude\nP - Export");
+   Widget text(font_.create_text("C - Create polygon\nE - Extrude\nP - Export"));
    text.set_position(30, 100);
    text.set_size(35);
    renderer_.init_mesh<UiVertex>(text);
@@ -137,7 +137,7 @@ bool App::poll() {
 
             Circle circle(create_radius_, create_sides_);
             shapes_.push_back(circle);
-            Model mesh = circle.to_model();
+            Model mesh(circle.to_model());
             renderer_.init_mesh(mesh);
             mesh.renderer_handle_ =
                 renderer_.add_object(mesh.id(), mesh.transform(), renderer_.pipelines().mesh);
@@ -167,7 +167,7 @@ bool App::poll() {
             models_.clear();
 
             Shape &shape = shapes_.back();
-            Model mesh = shape.extrude(extrude_amount_);
+            Model mesh(shape.extrude(extrude_amount_));
             renderer_.init_mesh(mesh);
             mesh.renderer_handle_ =
                 renderer_.add_object(mesh.id(), mesh.transform(), renderer_.pipelines().mesh);
@@ -249,7 +249,7 @@ bool App::process_input(const std::string &message) {
 }
 
 void App::add_prompt_text(const std::string &message) {
-   Widget text = font_.create_text(message + input_);
+   Widget text(font_.create_text(message + input_));
    text.set_position(30, window_->height() - 50);
    text.set_size(35);
    renderer_.init_mesh(text);
