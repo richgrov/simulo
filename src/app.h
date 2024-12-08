@@ -7,7 +7,6 @@
 #include "entity/player.h"
 #include "geometry/model.h"
 #include "geometry/shape.h"
-#include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/instance.h"
 #include "math/angle.h"
 #include "math/mat4.h"
@@ -101,11 +100,11 @@ private:
    std::unique_ptr<Window> window_;
    Renderer renderer_;
 
+   int white_text_;
+   int blue_mesh_;
    Font font_;
-   UniformBuffer ui_uniforms_;
    std::vector<Widget> text_meshes_;
 
-   UniformBuffer model_uniforms_;
    std::vector<Shape> shapes_;
    std::vector<Model> models_;
 

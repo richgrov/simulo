@@ -34,8 +34,10 @@ Renderer::Renderer(
           physical_device_.handle(), device_.handle(), surface, initial_width, initial_height
       ),
       render_pass_(VK_NULL_HANDLE),
+      materials_(4),
       objects_(16),
       meshes_(16),
+      images_(4),
       staging_buffer_(1024 * 1024 * 8, device_.handle(), physical_device_) {
 
    VkAttachmentDescription color_attachment = {
@@ -112,7 +114,7 @@ Renderer::Renderer(
    }
 
    pipeline_ids_.ui = create_pipeline(
-       sizeof(UiVertex),
+       sizeof(UiVertex), sizeof(UiUniform),
        {
            VkVertexInputAttributeDescription{
                .location = 0,
@@ -136,7 +138,7 @@ Renderer::Renderer(
    );
 
    pipeline_ids_.mesh = create_pipeline(
-       sizeof(ModelVertex),
+       sizeof(ModelVertex), sizeof(ModelUniform),
        {
            VkVertexInputAttributeDescription{
                .location = 0,
@@ -160,7 +162,7 @@ Renderer::Renderer(
 Renderer::~Renderer() {
    device_.wait_idle();
 
-   for (const Material &mat : pipelines_) {
+   for (const MaterialPipeline &mat : pipelines_) {
       vkDestroyDescriptorSetLayout(device_.handle(), mat.descriptor_set_layout, nullptr);
    }
 
@@ -182,7 +184,8 @@ Renderer::~Renderer() {
 }
 
 uint16_t Renderer::create_pipeline(
-    uint32_t vertex_size, const std::vector<VkVertexInputAttributeDescription> &attrs,
+    uint32_t vertex_size, VkDeviceSize uniform_size,
+    const std::vector<VkVertexInputAttributeDescription> &attrs,
     const std::span<uint8_t> vertex_shader, const std::span<uint8_t> fragment_shader,
     const std::vector<VkDescriptorSetLayoutBinding> &bindings
 ) {
@@ -212,12 +215,12 @@ uint16_t Renderer::create_pipeline(
    Shader vertex(device_, vertex_shader);
    Shader fragment(device_, fragment_shader);
 
-   pipelines_.emplace_back(Material{
+   pipelines_.emplace_back(MaterialPipeline{
        .descriptor_set_layout = layout,
        .pipeline =
            Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
        .descriptor_pool = DescriptorPool(device_.handle(), layout, sizes, 1),
-       .descriptor_set = VK_NULL_HANDLE,
+       .uniforms = UniformBuffer(uniform_size, 4, device_.handle(), physical_device_),
        .vertex_shader = std::move(vertex),
        .fragment_shader = std::move(fragment),
    });
@@ -331,9 +334,9 @@ bool Renderer::begin_draw() {
    return true;
 }
 
-void Renderer::draw_material(int material_id, Mat4 view_projection) {
-   Material &mat = pipelines_[material_id];
-   vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline.handle());
+void Renderer::draw_pipeline(int pipeline_id, Mat4 view_projection) {
+   MaterialPipeline &pipe = pipelines_[pipeline_id];
+   vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline.handle());
 
    VkViewport viewport = {
        .width = static_cast<float>(swapchain_.extent().width),
@@ -347,33 +350,37 @@ void Renderer::draw_material(int material_id, Mat4 view_projection) {
    };
    vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
 
-   uint32_t offsets[] = {0};
-   vkCmdBindDescriptorSets(
-       command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline.layout(), 0, 1,
-       &mat.descriptor_set, 1, offsets
-   );
+   for (const int material_id : pipe.materials) {
+      Material &mat = materials_.get(material_id);
 
-   for (const auto &[mesh_id, instances] : mat.instances) {
-      Mesh &mesh = meshes_.get(mesh_id);
-
-      VkBuffer buffers[] = {mesh.vertices_indices.buffer()};
-      VkDeviceSize offsets[] = {0};
-      vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
-      vkCmdBindIndexBuffer(
-          command_buffer_, mesh.vertices_indices.buffer(), mesh.vertices_indices.index_offset(),
-          VK_INDEX_TYPE_UINT16
+      uint32_t offsets[] = {0};
+      vkCmdBindDescriptorSets(
+          command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline.layout(), 0, 1,
+          &mat.descriptor_set, 1, offsets
       );
 
-      for (const int instance_id : instances) {
-         MeshInstance &obj = objects_.get(instance_id);
-         Mat4 mvp = view_projection * obj.transform;
+      for (const auto &[mesh_id, instances] : mat.instances) {
+         Mesh &mesh = meshes_.get(mesh_id);
 
-         vkCmdPushConstants(
-             command_buffer_, mat.pipeline.layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4),
-             &mvp
+         VkBuffer buffers[] = {mesh.vertices_indices.buffer()};
+         VkDeviceSize offsets[] = {0};
+         vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
+         vkCmdBindIndexBuffer(
+             command_buffer_, mesh.vertices_indices.buffer(), mesh.vertices_indices.index_offset(),
+             VK_INDEX_TYPE_UINT16
          );
 
-         vkCmdDrawIndexed(command_buffer_, mesh.vertices_indices.num_indices(), 1, 0, 0, 0);
+         for (const int instance_id : instances) {
+            MeshInstance &obj = objects_.get(instance_id);
+            Mat4 mvp = view_projection * obj.transform;
+
+            vkCmdPushConstants(
+                command_buffer_, pipe.pipeline.layout(), VK_SHADER_STAGE_VERTEX_BIT, 0,
+                sizeof(Mat4), &mvp
+            );
+
+            vkCmdDrawIndexed(command_buffer_, mesh.vertices_indices.num_indices(), 1, 0, 0, 0);
+         }
       }
    }
 }

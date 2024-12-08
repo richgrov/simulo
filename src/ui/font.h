@@ -4,7 +4,6 @@
 #include <array>
 #include <string>
 
-#include "gpu/vulkan/image.h"
 #include "gpu/vulkan/physical_device.h"
 #include "ui/widget.h"
 #include "vendor/stb_truetype.h"
@@ -20,12 +19,16 @@ public:
 
    Widget create_text(const std::string &text);
 
-   Image &image() {
-      return image_;
+   void set_image(int id) {
+      image_handle_ = id;
    }
 
-   unsigned char *image_data() {
-      return bitmap_.data();
+   int image() const {
+      return image_handle_;
+   }
+
+   std::span<unsigned char> image_data() {
+      return bitmap_;
    }
 
    static constexpr int kBitmapWidth = 1024;
@@ -36,7 +39,7 @@ private:
    float height_;
    std::array<unsigned char, kBitmapWidth * kBitmapWidth> bitmap_;
    std::array<stbtt_bakedchar, 96> chars_;
-   Image image_;
+   int image_handle_;
 };
 
 } // namespace vkad

@@ -1,8 +1,6 @@
 #include "app.h"
 #include "geometry/circle.h"
 #include "geometry/model.h"
-#include "gpu/vulkan/buffer.h"
-#include "gpu/vulkan/descriptor_pool.h"
 #include "math/mat4.h"
 #include "mesh.h"
 #include "render/model.h"
@@ -40,32 +38,28 @@ App::App()
       player_(*this),
       state_(State::STANDBY),
 
-      font_(res_arial_ttf, 64, renderer_.physical_device(), renderer_.device().handle()),
-      ui_uniforms_(renderer_.create_uniform_buffer<UiUniform>(3)),
+      font_(res_arial_ttf, 64, renderer_.physical_device(), renderer_.device().handle()) {
 
-      model_uniforms_(renderer_.create_uniform_buffer<ModelVertex>(1)) {
+   font_.set_image(
+       renderer_.create_image(font_.image_data(), Font::kBitmapWidth, Font::kBitmapWidth)
+   );
 
-   renderer_.init_image(font_.image(), font_.image_data(), Font::kBitmapWidth * Font::kBitmapWidth);
-
-   renderer_.link_material(
+   white_text_ = renderer_.create_material<UiUniform>(
        renderer_.pipelines().ui,
        {
-           DescriptorPool::write_uniform_buffer_dynamic(ui_uniforms_),
-           DescriptorPool::write_combined_image_sampler(renderer_.image_sampler(), font_.image()),
+           {"image", font_.image()},
+           {"color", Vec3(1.0, 1.0, 1.0)},
        }
    );
 
-   renderer_.link_material(
+   blue_mesh_ = renderer_.create_material<ModelUniform>(
        renderer_.pipelines().mesh,
        {
-           DescriptorPool::write_uniform_buffer_dynamic(model_uniforms_),
+           {"color", Vec3(0.1, 0.1, 0.8)},
        }
    );
 
    window_->set_capture_mouse(true);
-
-   UiUniform u = {Vec3(1.0, 1.0, 1.0)};
-   ui_uniforms_.upload_memory(&u, sizeof(UiUniform), 0);
 
    Widget text = font_.create_text("C - Create polygon\nE - Extrude\nP - Export");
    text.set_position(30, 100);
@@ -192,18 +186,6 @@ bool App::poll() {
 
    was_left_clicking_ = left_clicking();
 
-   for (int i = 0; i < text_meshes_.size(); ++i) {
-      UiUniform u = {
-          .color = Vec3(1.0, 1.0, 1.0),
-      };
-      ui_uniforms_.upload_memory(&u, sizeof(UiUniform), i);
-   }
-
-   ModelUniform u2 = {
-       .color = Vec3(0.1, 0.1, 0.8),
-   };
-   model_uniforms_.upload_memory(&u2, sizeof(u2), 0);
-
    player_.update(delta_.count());
 
    return true;
@@ -220,10 +202,10 @@ void App::draw() {
       );
    }
 
-   renderer_.draw_material(
+   renderer_.draw_pipeline(
        renderer_.pipelines().mesh, perspective_matrix() * player_.view_matrix()
    );
-   renderer_.draw_material(renderer_.pipelines().ui, ortho_matrix());
+   renderer_.draw_pipeline(renderer_.pipelines().ui, ortho_matrix());
 
    renderer_.end_draw();
 }

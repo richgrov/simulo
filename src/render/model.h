@@ -2,6 +2,7 @@
 #define VKAD_RENDER_MODEL_H_
 
 #include "math/vec3.h"
+#include "renderer.h" // IWYU pragma: export
 
 namespace vkad {
 
@@ -12,6 +13,12 @@ struct ModelVertex {
 
 struct ModelUniform {
    Vec3 color;
+
+   static ModelUniform from_props(const MaterialProperties &props) {
+      return ModelUniform{
+          .color = props.get<Vec3>("color"),
+      };
+   }
 };
 
 } // namespace vkad

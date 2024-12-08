@@ -1,6 +1,5 @@
 #include "font.h"
 #include "gpu/vulkan/buffer.h"
-#include "gpu/vulkan/image.h"
 #include "gpu/vulkan/physical_device.h"
 #include "math/vec2.h"
 #include "render/ui.h"
@@ -17,11 +16,7 @@ using namespace vkad;
 Font::Font(
     const unsigned char *data, float height, const PhysicalDevice &physical_device, VkDevice device
 )
-    : height_(height),
-      image_(
-          physical_device, device, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-          VK_FORMAT_R8_UNORM, kBitmapWidth, kBitmapWidth
-      ) {
+    : height_(height) {
 
    stbtt_BakeFontBitmap(
        data, 0, height, bitmap_.data(), kBitmapWidth, kBitmapWidth, 32, kNumChars, chars_.data()
