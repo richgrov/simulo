@@ -156,11 +156,7 @@ public:
 
    void end_preframe();
 
-   bool begin_draw();
-
-   void draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection);
-
-   void end_draw();
+   bool render(Mat4 ui_view_projection, Mat4 world_view_projection);
 
    inline void wait_idle() const {
       device_.wait_idle();
@@ -171,6 +167,8 @@ public:
    }
 
 private:
+   void draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection);
+
    RenderPipeline create_pipeline(
        uint32_t vertex_size, VkDeviceSize uniform_size,
        const std::vector<VkVertexInputAttributeDescription> &attrs,

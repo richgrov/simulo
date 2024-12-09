@@ -87,8 +87,8 @@ Renderer::Renderer(
 
    VkSamplerCreateInfo sampler_create = {
        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-       .magFilter = VK_FILTER_NEAREST,
-       .minFilter = VK_FILTER_NEAREST,
+       .magFilter = VK_FILTER_LINEAR, // TODO check for support
+       .minFilter = VK_FILTER_LINEAR,
        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
        .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
        .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
@@ -350,7 +350,7 @@ void Renderer::end_preframe() {
    vkQueueWaitIdle(device_.graphics_queue());
 }
 
-bool Renderer::begin_draw() {
+bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
    vkWaitForFences(device_.handle(), 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
 
    VkResult next_image_res = vkAcquireNextImageKHR(
@@ -386,6 +386,36 @@ bool Renderer::begin_draw() {
    };
 
    vkCmdBeginRenderPass(command_buffer_, &render_begin, VK_SUBPASS_CONTENTS_INLINE);
+
+   draw_pipeline(pipeline_ids_.mesh, world_view_projection);
+   draw_pipeline(pipeline_ids_.ui, ui_view_projection);
+
+   vkCmdEndRenderPass(command_buffer_);
+   VKAD_VK(vkEndCommandBuffer(command_buffer_));
+
+   VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+   VkSubmitInfo submit_info = {
+       .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+       .waitSemaphoreCount = 1,
+       .pWaitSemaphores = &sem_img_avail,
+       .pWaitDstStageMask = wait_stages,
+       .commandBufferCount = 1,
+       .pCommandBuffers = &command_buffer_,
+       .signalSemaphoreCount = 1,
+       .pSignalSemaphores = &sem_render_complete,
+   };
+   VKAD_VK(vkQueueSubmit(device_.graphics_queue(), 1, &submit_info, draw_cycle_complete));
+
+   VkSwapchainKHR swap_chains[] = {swapchain_.handle()};
+   VkPresentInfoKHR present_info = {
+       .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+       .waitSemaphoreCount = 1,
+       .pWaitSemaphores = &sem_render_complete,
+       .swapchainCount = VKAD_ARRAY_LEN(swap_chains),
+       .pSwapchains = swap_chains,
+       .pImageIndices = &current_framebuffer_,
+   };
+   vkQueuePresentKHR(device_.present_queue(), &present_info);
    return true;
 }
 
@@ -438,35 +468,6 @@ void Renderer::draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection) {
          }
       }
    }
-}
-
-void Renderer::end_draw() {
-   vkCmdEndRenderPass(command_buffer_);
-   VKAD_VK(vkEndCommandBuffer(command_buffer_));
-
-   VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-   VkSubmitInfo submit_info = {
-       .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-       .waitSemaphoreCount = 1,
-       .pWaitSemaphores = &sem_img_avail,
-       .pWaitDstStageMask = wait_stages,
-       .commandBufferCount = 1,
-       .pCommandBuffers = &command_buffer_,
-       .signalSemaphoreCount = 1,
-       .pSignalSemaphores = &sem_render_complete,
-   };
-   VKAD_VK(vkQueueSubmit(device_.graphics_queue(), 1, &submit_info, draw_cycle_complete));
-
-   VkSwapchainKHR swap_chains[] = {swapchain_.handle()};
-   VkPresentInfoKHR present_info = {
-       .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-       .waitSemaphoreCount = 1,
-       .pWaitSemaphores = &sem_render_complete,
-       .swapchainCount = VKAD_ARRAY_LEN(swap_chains),
-       .pSwapchains = swap_chains,
-       .pImageIndices = &current_framebuffer_,
-   };
-   vkQueuePresentKHR(device_.present_queue(), &present_info);
 }
 
 void Renderer::create_framebuffers() {

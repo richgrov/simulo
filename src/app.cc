@@ -191,22 +191,19 @@ bool App::poll() {
 }
 
 void App::draw() {
-   bool did_begin = renderer_.begin_draw();
+   Mat4 ui_view_projection(ortho_matrix());
+   Mat4 world_view_projection(perspective_matrix() * player_.view_matrix());
 
-   if (!did_begin) {
+   bool swapchain_bad = !renderer_.render(ui_view_projection, world_view_projection);
+
+   if (swapchain_bad) {
       renderer_.recreate_swapchain(window_->width(), window_->height(), window_->surface());
 
       VKAD_ASSERT(
-          renderer_.begin_draw(), "failed to acquire next image after recreating swapchain"
+          renderer_.render(ui_view_projection, world_view_projection),
+          "failed to acquire next image after recreating swapchain"
       );
    }
-
-   renderer_.draw_pipeline(
-       renderer_.pipelines().mesh, perspective_matrix() * player_.view_matrix()
-   );
-   renderer_.draw_pipeline(renderer_.pipelines().ui, ortho_matrix());
-
-   renderer_.end_draw();
 }
 
 void App::handle_resize() {
