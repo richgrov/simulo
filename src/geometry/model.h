@@ -6,6 +6,7 @@
 #include "mesh.h"
 #include "render/model.h"
 #include "render/renderer.h" // IWYU pragma: export
+#include "render/vk_renderer.h"
 #include "stl.h"
 
 namespace vkad {
@@ -22,6 +23,7 @@ public:
    }
 
    RenderObject renderer_handle_;
+   RenderMesh mesh_handle_;
 };
 
 } // namespace vkad

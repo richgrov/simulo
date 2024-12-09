@@ -65,15 +65,15 @@ StagingBuffer::StagingBuffer(
 }
 
 void StagingBuffer::upload_mesh(
-    void *vertices, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
-    VertexIndexBuffer::IndexType num_indices
+    const std::span<uint8_t> vertex_data, const std::span<VertexIndexBuffer::IndexType> index_data
 ) {
-   VkDeviceSize indices_size = num_indices * sizeof(VertexIndexBuffer::IndexType);
-   VkDeviceSize total_size = vertices_size + indices_size;
-   size_ = total_size;
+   size_ = vertex_data.size_bytes() + index_data.size_bytes();
 
-   std::memcpy(mem_map_, vertices, vertices_size);
-   std::memcpy(reinterpret_cast<uint8_t *>(mem_map_) + vertices_size, indices, indices_size);
+   std::memcpy(mem_map_, vertex_data.data(), vertex_data.size_bytes());
+   std::memcpy(
+       reinterpret_cast<uint8_t *>(mem_map_) + vertex_data.size_bytes(), index_data.data(),
+       index_data.size_bytes()
+   );
 }
 
 UniformBuffer::UniformBuffer(

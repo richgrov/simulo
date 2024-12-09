@@ -4,6 +4,7 @@
 #include "physical_device.h"
 #include "vulkan/vulkan_core.h"
 #include <cstring>
+#include <span>
 
 namespace vkad {
 
@@ -54,33 +55,29 @@ public:
    using IndexType = uint16_t;
 
    explicit inline VertexIndexBuffer(
-       size_t num_vertices, size_t vertex_size, IndexType num_indices, VkDevice device,
+       size_t vertex_data_size, IndexType num_indices, VkDevice device,
        const PhysicalDevice &physical_device
    )
        : Buffer(
-             num_vertices * vertex_size + num_indices * sizeof(IndexType),
+             vertex_data_size + num_indices * sizeof(IndexType),
              VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
                  VK_BUFFER_USAGE_TRANSFER_DST_BIT,
              static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), device,
              physical_device
          ),
-         num_vertices_(num_vertices * vertex_size),
+         vertex_data_size_(vertex_data_size),
          num_indices_(num_indices) {}
-
-   inline size_t num_vertices() const {
-      return num_vertices_;
-   }
 
    inline IndexType num_indices() const {
       return num_indices_;
    }
 
    inline VkDeviceSize index_offset() const {
-      return num_vertices_;
+      return vertex_data_size_;
    }
 
 private:
-   size_t num_vertices_;
+   size_t vertex_data_size_;
    IndexType num_indices_;
 };
 
@@ -95,8 +92,8 @@ public:
    }
 
    void upload_mesh(
-       void *vertices, size_t vertices_size, VertexIndexBuffer::IndexType *indices,
-       VertexIndexBuffer::IndexType num_indices
+       const std::span<uint8_t> vertex_data,
+       const std::span<VertexIndexBuffer::IndexType> index_data
    );
 
    inline VkDeviceSize capacity() const {

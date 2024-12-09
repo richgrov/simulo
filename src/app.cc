@@ -64,9 +64,8 @@ App::App()
    Widget text(font_.create_text("C - Create polygon\nE - Extrude\nP - Export"));
    text.set_position(30, 100);
    text.set_size(35);
-   renderer_.init_mesh<UiVertex>(text);
-   text.renderer_handle_ =
-       renderer_.add_object(static_cast<RenderMesh>(text.id()), text.transform(), white_text_);
+   text.mesh_handle_ = renderer_.create_mesh(text.vertex_data(), text.indices());
+   text.renderer_handle_ = renderer_.add_object(text.mesh_handle_, text.transform(), white_text_);
    text_meshes_.emplace_back(text);
 }
 
@@ -138,10 +137,9 @@ bool App::poll() {
             Circle circle(create_radius_, create_sides_);
             shapes_.push_back(circle);
             Model mesh(circle.to_model());
-            renderer_.init_mesh(mesh);
-            mesh.renderer_handle_ = renderer_.add_object(
-                static_cast<RenderMesh>(mesh.id()), mesh.transform(), blue_mesh_
-            );
+            mesh.mesh_handle_ = renderer_.create_mesh(mesh.vertex_data(), mesh.indices());
+            mesh.renderer_handle_ =
+                renderer_.add_object(mesh.mesh_handle_, mesh.transform(), blue_mesh_);
             models_.emplace_back(mesh);
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
@@ -163,16 +161,15 @@ bool App::poll() {
 
             for (Model &model : models_) {
                renderer_.delete_object(model.renderer_handle_);
-               renderer_.delete_mesh(model);
+               renderer_.delete_mesh(model.mesh_handle_);
             }
             models_.clear();
 
             Shape &shape = shapes_.back();
             Model mesh(shape.extrude(extrude_amount_));
-            renderer_.init_mesh(mesh);
-            mesh.renderer_handle_ = renderer_.add_object(
-                static_cast<RenderMesh>(mesh.id()), mesh.transform(), blue_mesh_
-            );
+            mesh.mesh_handle_ = renderer_.create_mesh(mesh.vertex_data(), mesh.indices());
+            mesh.renderer_handle_ =
+                renderer_.add_object(mesh.mesh_handle_, mesh.transform(), blue_mesh_);
             models_.emplace_back(mesh);
             shapes_.clear();
          } catch (const std::exception &e) {
@@ -225,7 +222,7 @@ bool App::process_input(const std::string &message) {
 
    if (text_meshes_.size() >= 2) {
       renderer_.delete_object(text_meshes_[1].renderer_handle_);
-      renderer_.delete_mesh(text_meshes_[1]);
+      renderer_.delete_mesh(text_meshes_[1].mesh_handle_);
       text_meshes_.erase(text_meshes_.begin() + 1);
    }
 
@@ -254,8 +251,7 @@ void App::add_prompt_text(const std::string &message) {
    Widget text(font_.create_text(message + input_));
    text.set_position(30, window_->height() - 50);
    text.set_size(35);
-   renderer_.init_mesh(text);
-   text.renderer_handle_ =
-       renderer_.add_object(static_cast<RenderMesh>(text.id()), text.transform(), white_text_);
+   text.mesh_handle_ = renderer_.create_mesh(text.vertex_data(), text.indices());
+   text.renderer_handle_ = renderer_.add_object(text.mesh_handle_, text.transform(), white_text_);
    text_meshes_.emplace_back(text);
 }

@@ -3,6 +3,8 @@
 
 #include "gpu/vulkan/buffer.h"
 
+#include <cstdint>
+#include <span>
 #include <vector>
 
 namespace vkad {
@@ -27,22 +29,19 @@ public:
       return vertices_;
    }
 
-   inline std::vector<VertexIndexBuffer::IndexType> &indices() {
-      return indices_;
+   std::span<uint8_t> vertex_data() {
+      return std::span<uint8_t>(
+          reinterpret_cast<uint8_t *>(vertices_.data()), vertices_.size() * sizeof(Vertex)
+      );
    }
 
-   inline int id() const {
-      return id_;
+   inline std::vector<VertexIndexBuffer::IndexType> &indices() {
+      return indices_;
    }
 
 protected:
    std::vector<Vertex> vertices_;
    std::vector<VertexIndexBuffer::IndexType> indices_;
-
-private:
-   int id_;
-
-   friend class vkad::Renderer;
 };
 
 } // namespace vkad

@@ -104,21 +104,13 @@ public:
       return static_cast<RenderMaterial>(material_id);
    }
 
-   template <class Vertex> inline void init_mesh(Mesh<Vertex> &mesh) {
-      mesh.id_ = meshes_.emplace(Mesh{
-          .vertices_indices = VertexIndexBuffer(
-              mesh.vertices_.size(), sizeof(Vertex), mesh.indices_.size(), device_.handle(),
-              physical_device_
-          ),
-      });
-      update_mesh(mesh);
-   }
+   RenderMesh create_mesh(
+       const std::span<uint8_t> vertex_data,
+       const std::span<VertexIndexBuffer::IndexType> index_data
+   );
 
-   template <class Vertex> inline void delete_mesh(Mesh<Vertex> &mesh) {
-      meshes_.release(mesh.id_);
-#ifdef VKAD_DEBUG
-      mesh.id_ = -1;
-#endif
+   inline void delete_mesh(RenderMesh mesh) {
+      meshes_.release(mesh);
    }
 
    RenderObject add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material);
@@ -127,12 +119,12 @@ public:
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height);
 
-   template <class Vertex> void update_mesh(Mesh<Vertex> &mesh) {
-      Mesh &renderer_mesh = meshes_.get(mesh.id_);
-      staging_buffer_.upload_mesh(
-          mesh.vertices_.data(), sizeof(Vertex) * mesh.vertices_.size(), mesh.indices_.data(),
-          mesh.indices_.size()
-      );
+   void update_mesh(
+       RenderMesh mesh, const std::span<uint8_t> vertex_data,
+       const std::span<VertexIndexBuffer::IndexType> index_data
+   ) {
+      Mesh &renderer_mesh = meshes_.get(mesh);
+      staging_buffer_.upload_mesh(vertex_data, index_data);
       begin_preframe();
       buffer_copy(staging_buffer_, renderer_mesh.vertices_indices);
       end_preframe();

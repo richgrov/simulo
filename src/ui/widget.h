@@ -28,6 +28,7 @@ public:
    }
 
    RenderObject renderer_handle_;
+   RenderMesh mesh_handle_;
 
 private:
    int x_;

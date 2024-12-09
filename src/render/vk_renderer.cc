@@ -183,6 +183,18 @@ Renderer::~Renderer() {
    }
 }
 
+RenderMesh Renderer::create_mesh(
+    const std::span<uint8_t> vertex_data, const std::span<VertexIndexBuffer::IndexType> index_data
+) {
+   RenderMesh mesh_id = static_cast<RenderMesh>(meshes_.emplace(Mesh{
+       .vertices_indices = VertexIndexBuffer(
+           vertex_data.size_bytes(), index_data.size_bytes(), device_.handle(), physical_device_
+       ),
+   }));
+   update_mesh(mesh_id, vertex_data, index_data);
+   return mesh_id;
+}
+
 RenderObject Renderer::add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material) {
    RenderObject object_id = static_cast<RenderObject>(objects_.emplace(MeshInstance{
        .transform = transform,
