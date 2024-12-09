@@ -183,7 +183,7 @@ Renderer::~Renderer() {
    }
 }
 
-uint16_t Renderer::create_pipeline(
+RenderPipeline Renderer::create_pipeline(
     uint32_t vertex_size, VkDeviceSize uniform_size,
     const std::vector<VkVertexInputAttributeDescription> &attrs,
     const std::span<uint8_t> vertex_shader, const std::span<uint8_t> fragment_shader,
@@ -224,7 +224,7 @@ uint16_t Renderer::create_pipeline(
        .vertex_shader = std::move(vertex),
        .fragment_shader = std::move(fragment),
    });
-   return pipelines_.size() - 1;
+   return static_cast<RenderPipeline>(pipelines_.size() - 1);
 }
 
 void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {
@@ -334,7 +334,7 @@ bool Renderer::begin_draw() {
    return true;
 }
 
-void Renderer::draw_pipeline(int pipeline_id, Mat4 view_projection) {
+void Renderer::draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection) {
    MaterialPipeline &pipe = pipelines_[pipeline_id];
    vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline.handle());
 

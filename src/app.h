@@ -100,8 +100,8 @@ private:
    std::unique_ptr<Window> window_;
    Renderer renderer_;
 
-   int white_text_;
-   int blue_mesh_;
+   RenderMaterial white_text_;
+   RenderMaterial blue_mesh_;
    Font font_;
    std::vector<Widget> text_meshes_;
 

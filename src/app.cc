@@ -66,7 +66,7 @@ App::App()
    text.set_size(35);
    renderer_.init_mesh<UiVertex>(text);
    text.renderer_handle_ =
-       renderer_.add_object(text.id(), text.transform(), renderer_.pipelines().ui);
+       renderer_.add_object(static_cast<RenderMesh>(text.id()), text.transform(), white_text_);
    text_meshes_.emplace_back(text);
 }
 
@@ -139,8 +139,9 @@ bool App::poll() {
             shapes_.push_back(circle);
             Model mesh(circle.to_model());
             renderer_.init_mesh(mesh);
-            mesh.renderer_handle_ =
-                renderer_.add_object(mesh.id(), mesh.transform(), renderer_.pipelines().mesh);
+            mesh.renderer_handle_ = renderer_.add_object(
+                static_cast<RenderMesh>(mesh.id()), mesh.transform(), blue_mesh_
+            );
             models_.emplace_back(mesh);
          } catch (const std::exception &e) {
             state_ = State::STANDBY;
@@ -169,8 +170,9 @@ bool App::poll() {
             Shape &shape = shapes_.back();
             Model mesh(shape.extrude(extrude_amount_));
             renderer_.init_mesh(mesh);
-            mesh.renderer_handle_ =
-                renderer_.add_object(mesh.id(), mesh.transform(), renderer_.pipelines().mesh);
+            mesh.renderer_handle_ = renderer_.add_object(
+                static_cast<RenderMesh>(mesh.id()), mesh.transform(), blue_mesh_
+            );
             models_.emplace_back(mesh);
             shapes_.clear();
          } catch (const std::exception &e) {
@@ -254,6 +256,6 @@ void App::add_prompt_text(const std::string &message) {
    text.set_size(35);
    renderer_.init_mesh(text);
    text.renderer_handle_ =
-       renderer_.add_object(text.id(), text.transform(), renderer_.pipelines().ui);
+       renderer_.add_object(static_cast<RenderMesh>(text.id()), text.transform(), white_text_);
    text_meshes_.emplace_back(text);
 }

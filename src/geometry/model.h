@@ -5,6 +5,7 @@
 #include "math/mat4.h"
 #include "mesh.h"
 #include "render/model.h"
+#include "render/renderer.h" // IWYU pragma: export
 #include "stl.h"
 
 namespace vkad {
@@ -20,7 +21,7 @@ public:
       return Mat4::identity();
    }
 
-   int renderer_handle_;
+   RenderObject renderer_handle_;
 };
 
 } // namespace vkad

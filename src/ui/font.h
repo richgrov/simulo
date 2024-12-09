@@ -5,6 +5,7 @@
 #include <string>
 
 #include "gpu/vulkan/physical_device.h"
+#include "render/renderer.h" // IWYU pragma: export
 #include "ui/widget.h"
 #include "vendor/stb_truetype.h"
 
@@ -19,11 +20,11 @@ public:
 
    Widget create_text(const std::string &text);
 
-   void set_image(int id) {
+   void set_image(RenderImage id) {
       image_handle_ = id;
    }
 
-   int image() const {
+   RenderImage image() const {
       return image_handle_;
    }
 
@@ -39,7 +40,7 @@ private:
    float height_;
    std::array<unsigned char, kBitmapWidth * kBitmapWidth> bitmap_;
    std::array<stbtt_bakedchar, 96> chars_;
-   int image_handle_;
+   RenderImage image_handle_;
 };
 
 } // namespace vkad

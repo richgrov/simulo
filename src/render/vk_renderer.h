@@ -27,14 +27,20 @@
 
 namespace vkad {
 
+enum RenderPipeline : int {};
+enum RenderMaterial : int {};
+enum RenderMesh : int {};
+enum RenderObject : int {};
+enum RenderImage : int {};
+
 struct Pipelines {
-   uint16_t ui;
-   uint16_t mesh;
+   RenderPipeline ui;
+   RenderPipeline mesh;
 };
 
 class MaterialProperties {
 public:
-   using MaterialPropertyValue = std::variant<Vec3, int>;
+   using MaterialPropertyValue = std::variant<Vec3, RenderImage>;
 
    MaterialProperties(
        const std::initializer_list<std::pair<const std::string, MaterialPropertyValue>> &&kv_pairs
@@ -69,7 +75,8 @@ public:
    );
    ~Renderer();
 
-   template <class Uniform> int create_material(int pipeline_id, const MaterialProperties &props) {
+   template <class Uniform>
+   RenderMaterial create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
       MaterialPipeline &pipe = pipelines_[pipeline_id];
       int material_id = materials_.emplace(Material{
           .descriptor_set = pipe.descriptor_pool.allocate(pipe.descriptor_set_layout),
@@ -86,7 +93,7 @@ public:
       };
 
       if (props.has("image")) {
-         int image_id = props.get<int>("image");
+         RenderImage image_id = props.get<RenderImage>("image");
          writes.push_back(
              DescriptorPool::write_combined_image_sampler(image_sampler(), images_.get(image_id))
          );
@@ -94,7 +101,7 @@ public:
 
       pipe.descriptor_pool.write(mat.descriptor_set, writes);
 
-      return material_id;
+      return static_cast<RenderMaterial>(material_id);
    }
 
    template <class Vertex> inline void init_mesh(Mesh<Vertex> &mesh) {
@@ -118,33 +125,33 @@ public:
       return UniformBuffer(sizeof(T), num_elements, device_.handle(), physical_device_);
    }
 
-   int add_object(int mesh_id, Mat4 transform, int material_id) {
-      int object_id = objects_.emplace(MeshInstance{
+   RenderObject add_object(RenderMesh mesh_id, Mat4 transform, RenderMaterial material_id) {
+      RenderObject object_id = static_cast<RenderObject>(objects_.emplace(MeshInstance{
           .transform = transform,
           .mesh_id = mesh_id,
           .material_id = material_id,
-      });
+      }));
       meshes_.get(mesh_id).instances.insert(object_id);
 
       Material &mat = materials_.get(material_id);
       if (mat.instances.contains(mesh_id)) {
          mat.instances.at(mesh_id).insert(object_id);
       } else {
-         std::unordered_set<int> instances = {object_id};
+         std::unordered_set<RenderObject> instances = {object_id};
          mat.instances.emplace(mesh_id, std::move(instances));
       }
 
-      return object_id;
+      return static_cast<RenderObject>(object_id);
    }
 
-   void delete_object(int object_id) {
+   void delete_object(RenderObject object_id) {
       MeshInstance &instance = objects_.get(object_id);
       materials_.get(instance.material_id).instances.at(instance.mesh_id).erase(object_id);
       meshes_.get(instance.mesh_id).instances.erase(object_id);
       objects_.release(object_id);
    }
 
-   int create_image(std::span<uint8_t> img_data, int width, int height) {
+   RenderImage create_image(std::span<uint8_t> img_data, int width, int height) {
       int image_id = images_.emplace(
           physical_device_, device_.handle(),
           VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8_UNORM, width,
@@ -160,7 +167,7 @@ public:
       end_preframe();
 
       image.init_view();
-      return image_id;
+      return static_cast<RenderImage>(image_id);
    }
 
    template <class Vertex> void update_mesh(Mesh<Vertex> &mesh) {
@@ -202,9 +209,7 @@ public:
 
    bool begin_draw();
 
-   void draw_pipeline(int pipeline_id, Mat4 view_projection);
-
-   void draw(int mesh_id, Mat4 mvp);
+   void draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection);
 
    void end_draw();
 
@@ -217,7 +222,7 @@ public:
    }
 
 private:
-   uint16_t create_pipeline(
+   RenderPipeline create_pipeline(
        uint32_t vertex_size, VkDeviceSize uniform_size,
        const std::vector<VkVertexInputAttributeDescription> &attrs,
        const std::span<uint8_t> vertex_shader, const std::span<uint8_t> fragment_shader,
@@ -238,18 +243,18 @@ private:
 
    struct Material {
       VkDescriptorSet descriptor_set;
-      std::unordered_map<int, std::unordered_set<int>> instances;
+      std::unordered_map<RenderMesh, std::unordered_set<RenderObject>> instances;
    };
 
    struct Mesh {
       VertexIndexBuffer vertices_indices;
-      std::unordered_set<int> instances;
+      std::unordered_set<RenderObject> instances;
    };
 
    struct MeshInstance {
       Mat4 transform;
-      int mesh_id;
-      int material_id;
+      RenderMesh mesh_id;
+      RenderMaterial material_id;
    };
 
    Instance &vk_instance_;

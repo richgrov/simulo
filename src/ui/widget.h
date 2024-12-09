@@ -4,6 +4,7 @@
 #include "gpu/vulkan/buffer.h"
 #include "math/mat4.h"
 #include "mesh.h"
+#include "render/renderer.h" // IWYU pragma: export
 #include "render/ui.h"
 
 namespace vkad {
@@ -26,7 +27,7 @@ public:
       return Mat4::translate(Vec3(x_, y_, 0)) * Mat4::scale(Vec3(scale_, scale_, 1));
    }
 
-   int renderer_handle_;
+   RenderObject renderer_handle_;
 
 private:
    int x_;
