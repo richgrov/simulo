@@ -183,6 +183,49 @@ Renderer::~Renderer() {
    }
 }
 
+RenderObject Renderer::add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material) {
+   RenderObject object_id = static_cast<RenderObject>(objects_.emplace(MeshInstance{
+       .transform = transform,
+       .mesh_id = mesh,
+       .material_id = material,
+   }));
+
+   Material &mat = materials_.get(material);
+   if (mat.instances.contains(mesh)) {
+      mat.instances.at(mesh).insert(object_id);
+   } else {
+      std::unordered_set<RenderObject> instances = {object_id};
+      mat.instances.emplace(mesh, std::move(instances));
+   }
+
+   return static_cast<RenderObject>(object_id);
+}
+
+void Renderer::delete_object(RenderObject object) {
+   MeshInstance &instance = objects_.get(object);
+   materials_.get(instance.material_id).instances.at(instance.mesh_id).erase(object);
+   objects_.release(object);
+}
+
+RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int height) {
+   int image_id = images_.emplace(
+       physical_device_, device_.handle(),
+       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8_UNORM, width,
+       height
+   );
+   Image &image = images_.get(image_id);
+
+   staging_buffer_.upload_raw(img_data.data(), img_data.size());
+   begin_preframe();
+   transfer_image_layout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+   upload_texture(staging_buffer_, image);
+   transfer_image_layout(image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+   end_preframe();
+
+   image.init_view();
+   return static_cast<RenderImage>(image_id);
+}
+
 RenderPipeline Renderer::create_pipeline(
     uint32_t vertex_size, VkDeviceSize uniform_size,
     const std::vector<VkVertexInputAttributeDescription> &attrs,
