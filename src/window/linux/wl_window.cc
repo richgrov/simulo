@@ -36,18 +36,25 @@ uint8_t xkb_to_xinput2(xkb_keysym_t key) {
    case XKB_KEY_space:
       return VKAD_KEY_SPACE;
    case XKB_KEY_a:
+   case XKB_KEY_A:
       return VKAD_KEY_A;
    case XKB_KEY_c:
+   case XKB_KEY_C:
       return VKAD_KEY_C;
    case XKB_KEY_d:
+   case XKB_KEY_D:
       return VKAD_KEY_D;
    case XKB_KEY_e:
+   case XKB_KEY_E:
       return VKAD_KEY_E;
    case XKB_KEY_p:
+   case XKB_KEY_P:
       return VKAD_KEY_P;
    case XKB_KEY_s:
+   case XKB_KEY_S:
       return VKAD_KEY_S;
    case XKB_KEY_w:
+   case XKB_KEY_W:
       return VKAD_KEY_W;
 
    default:
@@ -349,7 +356,7 @@ void WaylandWindow::init_keyboard() {
            [](void *user_data, wl_keyboard *kb, uint32_t serial, uint32_t time, uint32_t key,
               uint32_t state) {
               auto window = reinterpret_cast<WaylandWindow *>(user_data);
-              if (!window->xkb_state_) {
+              if (window->xkb_state_ == nullptr) {
                  return;
               }
 
