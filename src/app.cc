@@ -6,9 +6,8 @@
 #include "render/model.h"
 #include "render/renderer.h" // IWYU pragma: export
 #include "render/ui.h"
-#include "res/arial.ttf.h"
 #include "stl.h"
-#include "ui/widget.h"
+#include "ui/text.h"
 #include "util/assert.h"
 #include "window/keys.h" // IWYU pragma: export
 
@@ -35,22 +34,9 @@ App::App()
       was_left_clicking_(false),
       last_frame_time_(Clock::now()),
       delta_(0),
+      ui_(renderer_),
       player_(*this),
-      state_(State::STANDBY),
-
-      font_(res_arial_ttf, 64, renderer_.physical_device(), renderer_.device().handle()) {
-
-   font_.set_image(
-       renderer_.create_image(font_.image_data(), Font::kBitmapWidth, Font::kBitmapWidth)
-   );
-
-   white_text_ = renderer_.create_material<UiUniform>(
-       renderer_.pipelines().ui,
-       {
-           {"image", font_.image()},
-           {"color", Vec3(1.0, 1.0, 1.0)},
-       }
-   );
+      state_(State::STANDBY) {
 
    blue_mesh_ = renderer_.create_material<ModelUniform>(
        renderer_.pipelines().mesh,
@@ -61,12 +47,7 @@ App::App()
 
    window_->set_capture_mouse(true);
 
-   Widget text(font_.create_text("C - Create polygon\nE - Extrude\nP - Export"));
-   text.set_position(30, 100);
-   text.set_size(35);
-   text.mesh_handle_ = renderer_.create_mesh(text.vertex_data(), text.indices());
-   text.renderer_handle_ = renderer_.add_object(text.mesh_handle_, text.transform(), white_text_);
-   text_meshes_.emplace_back(text);
+   ui_.add_child(Text("C - Create polygon\nE - Extrude\nP - Export", 35));
 }
 
 App::~App() {}
@@ -217,10 +198,8 @@ bool App::process_input(const std::string &message) {
       return false;
    }
 
-   if (text_meshes_.size() >= 2) {
-      renderer_.delete_object(text_meshes_[1].renderer_handle_);
-      renderer_.delete_mesh(text_meshes_[1].mesh_handle_);
-      text_meshes_.erase(text_meshes_.begin() + 1);
+   if (ui_.num_children() >= 2) {
+      ui_.delete_child(1);
    }
 
    for (char c : window_->typed_chars()) {
@@ -245,10 +224,5 @@ bool App::process_input(const std::string &message) {
 }
 
 void App::add_prompt_text(const std::string &message) {
-   Widget text(font_.create_text(message + input_));
-   text.set_position(30, window_->height() - 50);
-   text.set_size(35);
-   text.mesh_handle_ = renderer_.create_mesh(text.vertex_data(), text.indices());
-   text.renderer_handle_ = renderer_.add_object(text.mesh_handle_, text.transform(), white_text_);
-   text_meshes_.emplace_back(text);
+   ui_.add_child(Text(message + input_, 35));
 }

@@ -12,6 +12,7 @@
 #include "math/mat4.h"
 #include "render/renderer.h" // IWYU pragma: export
 #include "ui/font.h"
+#include "ui/ui.h"
 #include "window/window.h" // IWYU pragma: export
 
 namespace vkad {
@@ -87,10 +88,6 @@ public:
       return Mat4::perspective(aspect, deg_to_rad(70), 0.01, 100);
    }
 
-   inline Font &font() {
-      return font_;
-   }
-
 private:
    void handle_resize();
    bool process_input(const std::string &message);
@@ -100,10 +97,7 @@ private:
    std::unique_ptr<Window> window_;
    Renderer renderer_;
 
-   RenderMaterial white_text_;
    RenderMaterial blue_mesh_;
-   Font font_;
-   std::vector<Widget> text_meshes_;
 
    std::vector<Shape> shapes_;
    std::vector<Model> models_;
@@ -115,6 +109,7 @@ private:
    std::chrono::duration<float> delta_;
    bool was_left_clicking_;
 
+   Ui ui_;
    Player player_;
    State state_;
    std::string input_;
