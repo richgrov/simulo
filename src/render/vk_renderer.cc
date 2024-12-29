@@ -445,6 +445,12 @@ void Renderer::draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection) {
       );
 
       for (const auto &[mesh_id, instances] : mat.instances) {
+         // When a mesh is deleted, it's list of instances will be cleared, but not deleted with it.
+         // It's important to check this here to prevent out of bounds access and save performance
+         if (instances.empty()) {
+            continue;
+         }
+
          Mesh &mesh = meshes_.get(mesh_id);
 
          VkBuffer buffers[] = {mesh.vertices_indices.buffer()};
