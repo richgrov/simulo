@@ -1,5 +1,5 @@
-#ifndef VKAD_UI_TEXT_H_
-#define VKAD_UI_TEXT_H_
+#ifndef VKAD_UI_WIDGET_H_
+#define VKAD_UI_WIDGET_H_
 
 #include "gpu/vulkan/buffer.h"
 #include "math/mat4.h"
@@ -38,4 +38,4 @@ private:
 
 } // namespace vkad
 
-#endif // !VKAD_UI_TEXT_H_
+#endif // !VKAD_UI_WIDGET_H_
