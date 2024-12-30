@@ -2,13 +2,14 @@
 #define VKAD_UI_TEXT_H_
 
 #include "render/vk_renderer.h"
+#include "ui/widget.h"
 #include <string>
 
 namespace vkad {
 
 class Ui;
 
-class Text {
+class Text : public Widget {
 public:
    explicit Text(const std::string &text, int font_size) : text_(text), font_size_(font_size) {}
 

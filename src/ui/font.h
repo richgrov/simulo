@@ -2,11 +2,12 @@
 #define VKAD_UI_FONT_H_
 
 #include <array>
-#include <string>
+#include <string_view>
 
+#include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/physical_device.h"
 #include "render/renderer.h" // IWYU pragma: export
-#include "ui/widget.h"
+#include "render/ui.h"
 #include "vendor/stb_truetype.h"
 
 namespace vkad {
@@ -18,7 +19,10 @@ public:
        VkDevice device
    );
 
-   Widget create_text(const std::string &text);
+   void create_text(
+       const std::string_view &text, std::vector<UiVertex> &vertices,
+       std::vector<VertexIndexBuffer::IndexType> &indices
+   );
 
    void set_image(RenderImage id) {
       image_handle_ = id;

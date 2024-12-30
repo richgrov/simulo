@@ -1,18 +1,14 @@
 #ifndef VKAD_UI_WIDGET_H_
 #define VKAD_UI_WIDGET_H_
 
-#include "gpu/vulkan/buffer.h"
 #include "math/mat4.h"
-#include "mesh.h"
 #include "render/renderer.h" // IWYU pragma: export
-#include "render/ui.h"
 
 namespace vkad {
 
-class Widget : public Mesh<UiVertex> {
+class Widget {
 public:
-   Widget(std::vector<UiVertex> &&vertices, std::vector<VertexIndexBuffer::IndexType> &&indices)
-       : Mesh(std::move(vertices), std::move(indices)) {}
+   Widget() = default;
 
    inline void set_position(int x, int y) {
       x_ = x;
@@ -28,7 +24,6 @@ public:
    }
 
    RenderObject renderer_handle_;
-   RenderMesh mesh_handle_;
 
 private:
    int x_;

@@ -1,10 +1,12 @@
 #include "font.h"
+
 #include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/physical_device.h"
 #include "math/vec2.h"
 #include "render/ui.h"
-#include "ui/widget.h"
 #include "vulkan/vulkan_core.h"
+
+#include <string_view>
 #include <vector>
 
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -23,10 +25,10 @@ Font::Font(
    );
 }
 
-Widget Font::create_text(const std::string &text) {
-   std::vector<UiVertex> vertices;
-   std::vector<VertexIndexBuffer::IndexType> indices;
-
+void Font::create_text(
+    const std::string_view &text, std::vector<UiVertex> &vertices,
+    std::vector<VertexIndexBuffer::IndexType> &indices
+) {
    float x_off = 0;
    float y_off = 0;
    for (char c : text) {
@@ -58,6 +60,4 @@ Widget Font::create_text(const std::string &text) {
       indices.push_back(ind + 3);
       x_off += x;
    }
-
-   return Widget(std::move(vertices), std::move(indices));
 }
