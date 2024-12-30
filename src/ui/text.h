@@ -21,6 +21,14 @@ public:
       return font_size_;
    }
 
+   virtual void on_init(WidgetVisitor &visitor) override {
+      visitor.on_init_text(*this);
+   }
+
+   virtual void on_delete(WidgetVisitor &visitor) override {
+      visitor.on_delete_text(*this);
+   }
+
 private:
    std::string text_;
    int font_size_;

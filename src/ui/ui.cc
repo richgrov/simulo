@@ -25,20 +25,14 @@ Ui::Ui(Renderer &renderer)
    );
 }
 
-void Ui::add_child(Text &&text) {
-   RenderMesh mesh = get_or_create_text_mesh(text.text());
-   text.set_position(30, 100);
-   text.set_size(text.font_size());
-   text.renderer_handle_ = renderer_.add_object(mesh, text.transform(), white_text_);
-   children_.emplace_back(std::move(text));
+void Ui::add_child(std::unique_ptr<Widget> &&widget) {
+   widget->on_init(*this);
+   children_.emplace_back(std::move(widget));
 }
 
 void Ui::delete_child(int index) {
    VKAD_DEBUG_ASSERT(index >= 0 && index < children_.size(), "invalid child index {}", index);
-
-   Text &text = children_[index];
-   renderer_.delete_object(text.renderer_handle_);
-   unref_text_mesh(text.text());
+   children_[index]->on_delete(*this);
    children_.erase(children_.begin() + index);
 }
 
@@ -67,13 +61,21 @@ RenderMesh Ui::get_or_create_text_mesh(const std::string &text) {
    return value->second.mesh;
 }
 
-void Ui::unref_text_mesh(const std::string &text) {
+void Ui::on_init_text(Text &text) {
+   RenderMesh mesh = get_or_create_text_mesh(text.text());
+   text.renderer_handle_ = renderer_.add_object(mesh, text.transform(), white_text_);
+}
+
+void Ui::on_delete_text(Text &text) {
    VKAD_DEBUG_ASSERT(
-       text_meshes_.contains(text), "tried to delete non-existent mesh for text '{}'", text
+       text_meshes_.contains(text.text()), "tried to delete non-existent mesh for text '{}'",
+       text.text()
    );
 
-   TextMesh &mesh = text_meshes_.at(text);
+   TextMesh &mesh = text_meshes_.at(text.text());
    if (--mesh.refcount == 0) {
       renderer_.delete_mesh(mesh.mesh);
    }
+
+   renderer_.delete_object(text.renderer_handle_);
 }

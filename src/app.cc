@@ -13,6 +13,7 @@
 
 #include <exception>
 #include <fstream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 
@@ -47,7 +48,10 @@ App::App()
 
    window_->set_capture_mouse(true);
 
-   ui_.add_child(Text("C - Create polygon\nE - Extrude\nP - Export", 35));
+   auto text = std::make_unique<Text>("C - Create polygon\nE - Extrude\nP - Export", 35);
+   text->set_position(30, 100);
+   text->set_size(text->font_size());
+   ui_.add_child(std::move(text));
 }
 
 App::~App() {}
@@ -224,5 +228,8 @@ bool App::process_input(const std::string &message) {
 }
 
 void App::add_prompt_text(const std::string &message) {
-   ui_.add_child(Text(message + input_, 35));
+   auto text = std::make_unique<Text>(message + input_, 35);
+   text->set_position(30, window_->height() - 50);
+   text->set_size(text->font_size());
+   ui_.add_child(std::move(text));
 }

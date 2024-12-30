@@ -1,6 +1,7 @@
 #ifndef VKAD_UI_UI_H_
 #define VKAD_UI_UI_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -8,14 +9,15 @@
 #include "render/renderer.h"
 #include "ui/font.h"
 #include "ui/text.h"
+#include "ui/widget.h"
 
 namespace vkad {
 
-class Ui {
+class Ui : WidgetVisitor {
 public:
    Ui(Renderer &renderer);
 
-   void add_child(Text &&text);
+   void add_child(std::unique_ptr<Widget> &&widget);
 
    int num_children() const {
       return children_.size();
@@ -25,7 +27,9 @@ public:
 
 private:
    RenderMesh get_or_create_text_mesh(const std::string &text);
-   void unref_text_mesh(const std::string &text);
+
+   virtual void on_init_text(Text &text) override;
+   virtual void on_delete_text(Text &text) override;
 
    Renderer &renderer_;
    RenderMaterial white_text_;
@@ -37,7 +41,7 @@ private:
    };
 
    std::unordered_map<std::string, TextMesh> text_meshes_;
-   std::vector<Text> children_;
+   std::vector<std::unique_ptr<Widget>> children_;
 };
 
 } // namespace vkad
