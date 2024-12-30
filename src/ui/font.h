@@ -15,8 +15,7 @@ namespace vkad {
 class Font {
 public:
    Font(
-       const unsigned char *data, float height, const PhysicalDevice &physical_device,
-       VkDevice device
+       std::span<uint8_t> data, float height, const PhysicalDevice &physical_device, VkDevice device
    );
 
    void create_text(
