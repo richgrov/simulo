@@ -5,7 +5,7 @@
 
 #include "math/vec2.h"
 #include "math/vec3.h"
-#include "renderer.h" // IWYU pragma: export
+#include "renderer.h"
 
 namespace vkad {
 

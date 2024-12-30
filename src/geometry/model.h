@@ -5,7 +5,7 @@
 #include "math/mat4.h"
 #include "mesh.h"
 #include "render/model.h"
-#include "render/renderer.h" // IWYU pragma: export
+#include "render/renderer.h"
 #include "render/vk_renderer.h"
 #include "stl.h"
 

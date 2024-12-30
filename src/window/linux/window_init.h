@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "window/linux/wl_window.h"
-#include "window/linux/x11_window.h"
+#include "window/linux/wl_window.h"  // IWYU pragma: export
+#include "window/linux/x11_window.h" // IWYU pragma: export
 
 namespace vkad {
 

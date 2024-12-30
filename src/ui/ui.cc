@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "render/renderer.h" // IWYU pragma: export
+#include "render/renderer.h"
 #include "res/arial.ttf.h"
 #include "util/assert.h"
 

@@ -2,7 +2,7 @@
 #define VKAD_RENDER_MODEL_H_
 
 #include "math/vec3.h"
-#include "renderer.h" // IWYU pragma: export
+#include "renderer.h"
 
 namespace vkad {
 

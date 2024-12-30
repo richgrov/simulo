@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "render/renderer.h" // IWYU pragma: export
+#include "render/renderer.h"
 #include "ui/font.h"
 #include "ui/text.h"
 
