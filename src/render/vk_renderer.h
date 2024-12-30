@@ -70,6 +70,8 @@ private:
 
 class Renderer {
 public:
+   using IndexBufferType = VertexIndexBuffer::IndexType;
+
    explicit Renderer(
        Instance &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
    );

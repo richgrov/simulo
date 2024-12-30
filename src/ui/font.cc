@@ -1,8 +1,8 @@
 #include "font.h"
 
-#include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/physical_device.h"
 #include "math/vec2.h"
+#include "render/renderer.h"
 #include "render/ui.h"
 #include "vulkan/vulkan_core.h"
 
@@ -27,7 +27,7 @@ Font::Font(
 
 void Font::create_text(
     const std::string_view &text, std::vector<UiVertex> &vertices,
-    std::vector<VertexIndexBuffer::IndexType> &indices
+    std::vector<Renderer::IndexBufferType> &indices
 ) {
    float x_off = 0;
    float y_off = 0;

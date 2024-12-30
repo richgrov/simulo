@@ -48,7 +48,7 @@ RenderMesh Ui::get_or_create_text_mesh(const std::string &text) {
    }
 
    std::vector<UiVertex> vertices;
-   std::vector<VertexIndexBuffer::IndexType> indices;
+   std::vector<Renderer::IndexBufferType> indices;
    font_.create_text(text, vertices, indices);
 
    std::span<uint8_t> vertex_data(
