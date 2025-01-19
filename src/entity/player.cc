@@ -8,7 +8,7 @@
 
 using namespace vkad;
 
-Player::Player(App &app) : app_(app), pos_(0, 0, 1), pitch_(0), yaw_(0) {}
+Player::Player(App &app) : app_(app), pos_{0, 0, 1}, pitch_(0), yaw_(0) {}
 
 void Player::update(float delta) {
    Vec2 input;
@@ -30,11 +30,11 @@ void Player::update(float delta) {
    }
 
    if (app_.is_key_down(VKAD_KEY_SPACE)) {
-      pos_.y += delta;
+      pos_.y() += delta;
    }
 
    if (app_.is_key_down(VKAD_KEY_SHIFT)) {
-      pos_.y -= delta;
+      pos_.y() -= delta;
    }
 
    float delta_yaw = app_.delta_mouse_x() / 2.0f;
@@ -49,6 +49,6 @@ void Player::update(float delta) {
 
    float angle = atan2f(-input.y, input.x) - yaw_;
    Vec2 move = Vec2(cosf(angle), sinf(angle)) * delta;
-   pos_.x += move.x;
-   pos_.z += move.y;
+   pos_.x() += move.x;
+   pos_.z() += move.y;
 }

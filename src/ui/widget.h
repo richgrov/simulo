@@ -29,7 +29,10 @@ public:
    }
 
    inline Mat4 transform() const {
-      return Mat4::translate(Vec3(x_, y_, 0)) * Mat4::scale(Vec3(scale_, scale_, 1));
+      auto x = static_cast<float>(x_);
+      auto y = static_cast<float>(y_);
+      auto scale = static_cast<float>(scale_);
+      return Mat4::translate(Vec3{x, y, 0.f}) * Mat4::scale(Vec3{scale, scale, 1.f});
    }
 
    virtual void on_init(WidgetVisitor &visitor) {}

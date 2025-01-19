@@ -23,7 +23,7 @@ Ui::Ui(Renderer &renderer)
        renderer.pipelines().ui,
        {
            {"image", font_.image()},
-           {"color", Vec3(1.0, 1.0, 1.0)},
+           {"color", Vec3{1.f, 1.f, 1.f}},
        }
    );
 }

@@ -10,12 +10,13 @@ using namespace vkad;
 namespace {
 
 void write_traingle(const Triangle &tri, std::ostream &out) {
-   out << "facet normal " << tri.normal.x << " " << tri.normal.y << " " << tri.normal.z << "\n";
+   out << "facet normal " << tri.normal.x() << " " << tri.normal.y() << " " << tri.normal.z()
+       << "\n";
 
    out << "outer loop\n";
    for (int i = 0; i < VKAD_ARRAY_LEN(tri.points); ++i) {
       Vec3 point = tri.points[i];
-      out << "vertex " << point.x << " " << point.y << " " << point.z << "\n";
+      out << "vertex " << point.x() << " " << point.y() << " " << point.z() << "\n";
    }
    out << "endloop\n";
 

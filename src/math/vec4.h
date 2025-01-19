@@ -84,6 +84,7 @@ private:
    std::array<float, N> elements_;
 };
 
+using Vec3 = Vector<3, 16>;
 using Vec4 = Vector<4, 16>;
 
 } // namespace vkad

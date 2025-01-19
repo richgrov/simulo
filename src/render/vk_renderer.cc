@@ -119,7 +119,7 @@ Renderer::Renderer(
            VkVertexInputAttributeDescription{
                .location = 0,
                .binding = 0,
-               .format = decltype(UiVertex::pos)::kFormat,
+               .format = decltype(UiVertex::pos)::format(),
                .offset = offsetof(UiVertex, pos),
            },
            VkVertexInputAttributeDescription{
@@ -143,13 +143,13 @@ Renderer::Renderer(
            VkVertexInputAttributeDescription{
                .location = 0,
                .binding = 0,
-               .format = decltype(ModelVertex::pos)::kFormat,
+               .format = decltype(ModelVertex::pos)::format(),
                .offset = offsetof(ModelVertex, pos),
            },
            VkVertexInputAttributeDescription{
                .location = 1,
                .binding = 0,
-               .format = decltype(ModelVertex::norm)::kFormat,
+               .format = decltype(ModelVertex::norm)::format(),
                .offset = offsetof(ModelVertex, norm),
            },
        },

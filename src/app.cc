@@ -42,7 +42,7 @@ App::App()
    blue_mesh_ = renderer_.create_material<ModelUniform>(
        renderer_.pipelines().mesh,
        {
-           {"color", Vec3(0.1, 0.1, 0.8)},
+           {"color", Vec3{0.1, 0.1, 0.8}},
        }
    );
 

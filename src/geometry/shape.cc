@@ -13,16 +13,16 @@ static Model create_shape(std::vector<Vec2> points, float y, bool up) {
    float y_norm = up ? 1 : -1;
 
    vertices.push_back({
-       .pos = Vec3(0, y, 0),
-       .norm = Vec3(0, y_norm, 0),
+       .pos = Vec3{0, y, 0},
+       .norm = Vec3{0, y_norm, 0},
    });
 
    int boundary_verts = points.size();
 
    for (const Vec2 vec : points) {
       vertices.push_back({
-          .pos = Vec3(vec.x, y, vec.y),
-          .norm = Vec3(0, y_norm, 0),
+          .pos = Vec3{vec.x, y, vec.y},
+          .norm = Vec3{0, y_norm, 0},
       });
 
       VertexIndexBuffer::IndexType this_vert = vertices.size() - 1;
@@ -59,17 +59,17 @@ Model Shape::extrude(float amount) {
       Vec2 next_pos = vertices_[(i + 1) % vertices_.size()];
 
       Vec2 average_dir = (pos + next_pos) * 0.5f;
-      Vec3 norm(average_dir.x, 0, average_dir.y);
+      Vec3 norm{average_dir.x, 0, average_dir.y};
 
       bottom.vertices().insert(
           bottom.vertices().end(),
           {
               ModelVertex{
-                  .pos = Vec3(pos.x, 0, pos.y),
+                  .pos = Vec3{pos.x, 0, pos.y},
                   .norm = norm,
               },
               ModelVertex{
-                  .pos = Vec3(pos.x, amount, pos.y),
+                  .pos = Vec3{pos.x, amount, pos.y},
                   .norm = norm,
               },
           }
