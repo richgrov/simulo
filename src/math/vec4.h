@@ -5,6 +5,7 @@
 #include <array>
 #include <cstddef>
 #include <initializer_list>
+#include <type_traits>
 
 #include "util/assert.h"
 
@@ -44,6 +45,30 @@ template <size_t N, size_t Alignment> struct alignas(Alignment) Vector {
          result[i] = -result[i];
       }
       return result;
+   }
+
+   template <class = std::enable_if<N >= 1>::type> float &x() {
+      return (*this)[0];
+   }
+
+   template <class = std::enable_if<N >= 1>::type> float x() const {
+      return (*this)[0];
+   }
+
+   template <class = std::enable_if<N >= 2>::type> float &y() {
+      return (*this)[1];
+   }
+
+   template <class = std::enable_if<N >= 2>::type> float y() const {
+      return (*this)[1];
+   }
+
+   template <class = std::enable_if<N >= 3>::type> float &z() {
+      return (*this)[2];
+   }
+
+   template <class = std::enable_if<N >= 3>::type> float z() const {
+      return (*this)[2];
    }
 
 private:
