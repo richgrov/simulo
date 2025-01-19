@@ -100,7 +100,7 @@ struct Mat4 {
    }
 
    inline Vec4 row(int index) const {
-      return Vec4(cols[0][index], cols[1][index], cols[2][index], cols[3][index]);
+      return Vec4{cols[0][index], cols[1][index], cols[2][index], cols[3][index]};
    }
 
    Vec4 cols[4];

@@ -1,52 +1,39 @@
 #ifndef VKAD_MATH_VEC4_H_
 #define VKAD_MATH_VEC4_H_
 
+#include <algorithm>
+#include <array>
+#include <initializer_list>
+
 #include "util/assert.h"
 
 namespace vkad {
 
 struct alignas(16) Vec4 {
-   Vec4() : x(0), y(0), z(0), w(0) {}
-   Vec4(float x_, float y_, float z_, float w_) : x(x_), y(y_), z(z_), w(w_) {}
+   Vec4() {}
+
+   Vec4(std::initializer_list<float> elements) {
+      VKAD_DEBUG_ASSERT(elements.size() == 4, "vec4 initialized with {} elements", elements.size());
+      std::copy(elements.begin(), elements.begin() + 4, elements_.begin());
+   }
 
    inline float operator[](int index) const {
-      switch (index) {
-      case 0:
-         return x;
-      case 1:
-         return y;
-      case 2:
-         return z;
-      case 3:
-         return w;
-      default:
-         VKAD_PANIC("invalid index {}", index);
-      }
+      VKAD_DEBUG_ASSERT(index >= 0 && index < 4, "attempt to index vec4[{}]", index);
+      return elements_[index];
    }
 
    inline float &operator[](int index) {
-      switch (index) {
-      case 0:
-         return x;
-      case 1:
-         return y;
-      case 2:
-         return z;
-      case 3:
-         return w;
-      default:
-         VKAD_PANIC("invalid index {}", index);
-      }
+      VKAD_DEBUG_ASSERT(index >= 0 && index < 4, "attempt to index vec4[{}]", index);
+      return elements_[index];
    }
 
    inline float dot(Vec4 other) const {
-      return x * other.x + y * other.y + z * other.z + w * other.w;
+      return elements_[0] * other[0] + elements_[1] * other[1] + elements_[2] * other[2] +
+             elements_[3] * other[3];
    }
 
-   float x;
-   float y;
-   float z;
-   float w;
+private:
+   std::array<float, 4> elements_;
 };
 
 } // namespace vkad
