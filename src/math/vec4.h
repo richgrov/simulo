@@ -38,6 +38,14 @@ template <size_t N, size_t Alignment> struct alignas(Alignment) Vector {
       return sum;
    }
 
+   Vector operator-() const {
+      Vector result(*this);
+      for (size_t i = 0; i < N; ++i) {
+         result[i] = -result[i];
+      }
+      return result;
+   }
+
 private:
    std::array<float, N> elements_;
 };
