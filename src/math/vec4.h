@@ -3,38 +3,46 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <initializer_list>
 
 #include "util/assert.h"
 
 namespace vkad {
 
-struct alignas(16) Vec4 {
-   Vec4() {}
+template <size_t N, size_t Alignment> struct alignas(Alignment) Vector {
+   Vector() {}
 
-   Vec4(std::initializer_list<float> elements) {
-      VKAD_DEBUG_ASSERT(elements.size() == 4, "vec4 initialized with {} elements", elements.size());
-      std::copy(elements.begin(), elements.begin() + 4, elements_.begin());
+   Vector(std::initializer_list<float> elements) {
+      VKAD_DEBUG_ASSERT(
+          elements.size() == N, "vector<{}> initialized with {} elements", N, elements.size()
+      );
+      std::copy(elements.begin(), elements.begin() + N, elements_.begin());
    }
 
    inline float operator[](int index) const {
-      VKAD_DEBUG_ASSERT(index >= 0 && index < 4, "attempt to index vec4[{}]", index);
+      VKAD_DEBUG_ASSERT(index >= 0 && index < N, "attempt to index vector<{}>[{}]", N, index);
       return elements_[index];
    }
 
    inline float &operator[](int index) {
-      VKAD_DEBUG_ASSERT(index >= 0 && index < 4, "attempt to index vec4[{}]", index);
+      VKAD_DEBUG_ASSERT(index >= 0 && index < N, "attempt to index vector<{}>[{}]", N, index);
       return elements_[index];
    }
 
-   inline float dot(Vec4 other) const {
-      return elements_[0] * other[0] + elements_[1] * other[1] + elements_[2] * other[2] +
-             elements_[3] * other[3];
+   inline float dot(Vector<N, Alignment> other) const {
+      float sum = 0;
+      for (size_t i = 0; i < N; ++i) {
+         sum += elements_[i] * other[i];
+      }
+      return sum;
    }
 
 private:
-   std::array<float, 4> elements_;
+   std::array<float, N> elements_;
 };
+
+using Vec4 = Vector<4, 16>;
 
 } // namespace vkad
 
