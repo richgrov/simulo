@@ -7,6 +7,8 @@
 #include <initializer_list>
 #include <type_traits>
 
+#include <vulkan/vulkan_core.h>
+
 #include "util/assert.h"
 
 namespace vkad {
@@ -69,6 +71,13 @@ template <size_t N, size_t Alignment> struct alignas(Alignment) Vector {
 
    template <class = std::enable_if<N >= 3>::type> float z() const {
       return (*this)[2];
+   }
+
+   static constexpr VkFormat format() {
+      static_assert(N == 3);
+      if constexpr (N == 3) {
+         return VK_FORMAT_R32G32B32_SFLOAT;
+      }
    }
 
 private:
