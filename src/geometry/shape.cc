@@ -21,7 +21,7 @@ static Model create_shape(std::vector<Vec2> points, float y, bool up) {
 
    for (const Vec2 vec : points) {
       vertices.push_back({
-          .pos = Vec3{vec.x, y, vec.y},
+          .pos = Vec3{vec.x(), y, vec.y()},
           .norm = Vec3{0, y_norm, 0},
       });
 
@@ -59,17 +59,17 @@ Model Shape::extrude(float amount) {
       Vec2 next_pos = vertices_[(i + 1) % vertices_.size()];
 
       Vec2 average_dir = (pos + next_pos) * 0.5f;
-      Vec3 norm{average_dir.x, 0, average_dir.y};
+      Vec3 norm{average_dir.x(), 0, average_dir.y()};
 
       bottom.vertices().insert(
           bottom.vertices().end(),
           {
               ModelVertex{
-                  .pos = Vec3{pos.x, 0, pos.y},
+                  .pos = Vec3{pos.x(), 0, pos.y()},
                   .norm = norm,
               },
               ModelVertex{
-                  .pos = Vec3{pos.x, amount, pos.y},
+                  .pos = Vec3{pos.x(), amount, pos.y()},
                   .norm = norm,
               },
           }

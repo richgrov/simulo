@@ -14,19 +14,19 @@ void Player::update(float delta) {
    Vec2 input;
 
    if (app_.is_key_down(VKAD_KEY_D)) {
-      input.x += 1;
+      input.x() += 1;
    }
 
    if (app_.is_key_down(VKAD_KEY_A)) {
-      input.x -= 1;
+      input.x() -= 1;
    }
 
    if (app_.is_key_down(VKAD_KEY_W)) {
-      input.y += 1;
+      input.y() += 1;
    }
 
    if (app_.is_key_down(VKAD_KEY_S)) {
-      input.y -= 1;
+      input.y() -= 1;
    }
 
    if (app_.is_key_down(VKAD_KEY_SPACE)) {
@@ -43,12 +43,12 @@ void Player::update(float delta) {
    float delta_pitch = app_.delta_mouse_y() / 2.0f;
    pitch_ -= delta_pitch * delta;
 
-   if (input == Vec2(0, 0)) {
+   if (input == Vec2{0, 0}) {
       return;
    }
 
-   float angle = atan2f(-input.y, input.x) - yaw_;
-   Vec2 move = Vec2(cosf(angle), sinf(angle)) * delta;
-   pos_.x() += move.x;
-   pos_.z() += move.y;
+   float angle = atan2f(-input.y(), input.x()) - yaw_;
+   Vec2 move = Vec2{cosf(angle), sinf(angle)} * delta;
+   pos_.x() += move.x();
+   pos_.z() += move.y();
 }

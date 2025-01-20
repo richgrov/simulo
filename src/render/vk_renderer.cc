@@ -125,7 +125,7 @@ Renderer::Renderer(
            VkVertexInputAttributeDescription{
                .location = 1,
                .binding = 0,
-               .format = decltype(UiVertex::tex_coord)::kFormat,
+               .format = decltype(UiVertex::tex_coord)::format(),
                .offset = offsetof(UiVertex, tex_coord),
            },
        },

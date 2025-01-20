@@ -123,9 +123,12 @@ template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignme
       return (*this)[2];
    }
 
-   static constexpr VkFormat format() {
-      static_assert(N == 3);
-      if constexpr (N == 3) {
+   static constexpr VkFormat format()
+      requires(N >= 2 && N <= 3)
+   {
+      if constexpr (N == 2) {
+         return VK_FORMAT_R32G32_SFLOAT;
+      } else if constexpr (N == 3) {
          return VK_FORMAT_R32G32B32_SFLOAT;
       }
    }
@@ -134,6 +137,7 @@ private:
    std::array<float, N> elements_;
 };
 
+using Vec2 = Vector<2>;
 using Vec3 = Vector<3, 16>;
 using Vec4 = Vector<4>;
 
