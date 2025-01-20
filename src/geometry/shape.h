@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "math/vec2.h"
+#include "math/vector.h"
 #include "model.h"
 
 namespace vkad {

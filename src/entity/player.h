@@ -2,7 +2,7 @@
 #define VKAD_ENTITY_PLAYER_H_
 
 #include "math/mat4.h"
-#include "math/vec3.h"
+#include "math/vector.h"
 
 namespace vkad {
 

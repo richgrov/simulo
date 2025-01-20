@@ -1,7 +1,7 @@
 #ifndef VKAD_RENDER_MODEL_H_
 #define VKAD_RENDER_MODEL_H_
 
-#include "math/vec3.h"
+#include "math/vector.h"
 #include "renderer.h"
 
 namespace vkad {

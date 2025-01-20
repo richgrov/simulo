@@ -1,7 +1,7 @@
 #ifndef VKAD_STL_H_
 #define VKAD_STL_H_
 
-#include "math/vec3.h"
+#include "math/vector.h"
 #include <ostream>
 #include <vector>
 

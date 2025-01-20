@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include "app.h"
-#include "math/vec2.h"
+#include "math/vector.h"
 #include "window/keys.h"
 
 using namespace vkad;

@@ -1,7 +1,7 @@
 #include "font.h"
 
 #include "gpu/vulkan/physical_device.h"
-#include "math/vec2.h"
+#include "math/vector.h"
 #include "render/renderer.h"
 #include "render/ui.h"
 #include "util/bytebuf.h"
