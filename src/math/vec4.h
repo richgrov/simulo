@@ -40,12 +40,51 @@ template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignme
       return sum;
    }
 
+   Vector operator+(Vector other) const {
+      Vector result;
+      for (size_t i = 0; i < N; ++i) {
+         result[i] = elements_[i] + other[i];
+      }
+      return result;
+   }
+
    Vector operator-() const {
       Vector result(*this);
       for (size_t i = 0; i < N; ++i) {
          result[i] = -result[i];
       }
       return result;
+   }
+
+   Vector operator*(float f) const {
+      Vector result;
+      for (size_t i = 0; i < N; ++i) {
+         result[i] = elements_[i] * f;
+      }
+      return result;
+   }
+
+   Vector operator/(float f) const {
+      Vector result;
+      for (size_t i = 0; i < N; ++i) {
+         result[i] = elements_[i] / f;
+      }
+      return result;
+   }
+
+   void operator+=(const Vector &other) {
+      for (size_t i = 0; i < N; ++i) {
+         elements_[i] += other.elements_[i];
+      }
+   }
+
+   bool operator==(const Vector &other) const {
+      for (size_t i = 0; i < N; ++i) {
+         if (elements_[i] != other.elements_[i]) {
+            return false;
+         }
+      }
+      return true;
    }
 
    float &x()
