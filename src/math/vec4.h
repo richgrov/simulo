@@ -5,7 +5,6 @@
 #include <array>
 #include <cstddef>
 #include <initializer_list>
-#include <type_traits>
 
 #include <vulkan/vulkan_core.h>
 
@@ -49,27 +48,39 @@ template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignme
       return result;
    }
 
-   template <class = std::enable_if<N >= 1>::type> float &x() {
+   float &x()
+      requires(N >= 1)
+   {
       return (*this)[0];
    }
 
-   template <class = std::enable_if<N >= 1>::type> float x() const {
+   float x() const
+      requires(N >= 1)
+   {
       return (*this)[0];
    }
 
-   template <class = std::enable_if<N >= 2>::type> float &y() {
+   float &y()
+      requires(N >= 2)
+   {
       return (*this)[1];
    }
 
-   template <class = std::enable_if<N >= 2>::type> float y() const {
+   float y() const
+      requires(N >= 2)
+   {
       return (*this)[1];
    }
 
-   template <class = std::enable_if<N >= 3>::type> float &z() {
+   float &z()
+      requires(N >= 3)
+   {
       return (*this)[2];
    }
 
-   template <class = std::enable_if<N >= 3>::type> float z() const {
+   float z() const
+      requires(N >= 3)
+   {
       return (*this)[2];
    }
 
