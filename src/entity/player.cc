@@ -8,7 +8,7 @@
 
 using namespace vkad;
 
-Player::Player(App &app) : app_(app), pos_{0, 0, 1}, pitch_(0), yaw_(0) {}
+Player::Player(App &app) : app_(app), pos_{0, 1, 0}, pitch_(0), yaw_(0) {}
 
 void Player::update(float delta) {
    Vec2 input;
