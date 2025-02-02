@@ -1,6 +1,7 @@
 #include "ttf.h"
 #include "ttf/reader.h"
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
 using namespace vkad;
@@ -10,10 +11,34 @@ namespace {
 constexpr uint32_t SCALAR_TYPE_TRUE1 = 0x74727565;
 constexpr uint32_t SCALAR_TYPE_TRUE2 = 0x00010000;
 
+constexpr uint32_t HEAD_MAGIC_NUMBER = 0x5F0F3CF5;
+
 constexpr uint32_t TAG_HEAD = 'h' << 24 | 'e' << 16 | 'a' << 8 | 'd';
 constexpr uint32_t TAG_GLYF = 'g' << 24 | 'l' << 16 | 'y' << 8 | 'f';
 
-void read_head(Reader &file) {}
+void read_head(Reader &file) {
+   std::cout << file.read_fixed() << "\n"; // version
+   std::cout << file.read_fixed() << "\n"; // font revision
+   std::cout << file.read_u32() << "\n";   // check sum adjustment
+
+   if (auto magic_num = file.read_u32(); magic_num != HEAD_MAGIC_NUMBER) {
+      throw std::runtime_error(std::format("bad header magic number: {}", magic_num));
+   }
+
+   std::cout << file.read_u16() << "\n";      // flags
+   std::cout << file.read_u16() << "\n";      // units per em
+   std::cout << file.read_datetime() << "\n"; // created
+   std::cout << file.read_datetime() << "\n"; // modified
+   std::cout << file.read_fword() << "\n";    // x min
+   std::cout << file.read_fword() << "\n";    // y min
+   std::cout << file.read_fword() << "\n";    // x max
+   std::cout << file.read_fword() << "\n";    // y max
+   std::cout << file.read_u16() << "\n";      // mac style
+   std::cout << file.read_u16() << "\n";      // lowest rec ppem
+   std::cout << file.read_i16() << "\n";      // font direction hint
+   std::cout << file.read_i16() << "\n";      // index to loc format
+   std::cout << file.read_i16() << "\n";      // glyph data format
+}
 
 void read_glyf(Reader &file) {
    int16_t num_contours = file.read_i16();
