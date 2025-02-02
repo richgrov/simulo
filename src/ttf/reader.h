@@ -1,6 +1,7 @@
 #ifndef VKAD_TTF_READER_H_
 #define VKAD_TTF_READER_H_
 
+#include <chrono>
 #include <cstdint>
 #include <format>
 #include <span>
@@ -21,6 +22,10 @@ public:
 
    int16_t read_i16() {
       return static_cast<int16_t>(read_u16());
+   }
+
+   int16_t read_fword() {
+      return read_i16();
    }
 
    uint16_t read_u16() {
@@ -44,6 +49,25 @@ public:
       read_index_ += 4;
 
       return result;
+   }
+
+   double read_fixed() {
+      int32_t raw = read_u32();
+      return static_cast<double>(raw) / (1 << 16);
+   }
+
+   std::chrono::system_clock::time_point read_datetime() {
+      if (read_index_ + 8 > data_.size()) {
+         throw std::out_of_range("buffer too short to read datetime");
+      }
+
+      int64_t result = 0;
+      for (int i = 0; i < 8; ++i, ++read_index_) {
+         result |= static_cast<int64_t>(data_[read_index_]) << (8 - i) * 8;
+      }
+
+      auto seconds = std::chrono::seconds(result - (1970 - 1904) * 365 * 24 * 60 * 60);
+      return std::chrono::system_clock::time_point(seconds);
    }
 
    void seek(size_t position) {
