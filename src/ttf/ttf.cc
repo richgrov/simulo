@@ -89,17 +89,15 @@ void vkad::read_ttf(const std::span<uint8_t> data) {
       file.seek(offset);
 
       switch (tag) {
-      case TAG_HEAD:
-         read_head(file);
-         break;
-
       case TAG_GLYF:
          read_glyf(file);
+         break;
+
+      case TAG_HEAD:
+         read_head(file);
          break;
       }
 
       file.seek(position);
-      std::cout << (char)(tag >> 24) << (char)(tag >> 16 & 0xFF) << (char)(tag >> 8 & 0xFF)
-                << (char)(tag & 0xFF) << '\n';
    }
 }
