@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <initializer_list>
 
@@ -30,6 +31,28 @@ template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignme
    inline float &operator[](int index) {
       VKAD_DEBUG_ASSERT(index >= 0 && index < N, "attempt to index vector<{}>[{}]", N, index);
       return elements_[index];
+   }
+
+   float length() const {
+      float result = 0;
+      for (size_t i = 0; i < N; ++i) {
+         result += elements_[i] * elements_[i];
+      }
+      return std::sqrtf(result);
+   }
+
+   Vector normalized() const {
+      Vector result;
+
+      float len = length();
+      if (len == 0) {
+         return result;
+      }
+
+      for (size_t i = 0; i < N; ++i) {
+         result[i] = elements_[i] / len;
+      }
+      return result;
    }
 
    inline float dot(Vector<N, Alignment> other) const {
