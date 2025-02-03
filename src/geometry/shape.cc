@@ -54,11 +54,13 @@ Model Shape::extrude(float amount) {
    for (int i = 0; i < vertices_.size(); ++i) {
       VertexIndexBuffer::IndexType bottom_vert = bottom.vertices().size();
       VertexIndexBuffer::IndexType top_vert = bottom_vert + 1;
+      VertexIndexBuffer::IndexType connected_bottom = bottom_vert + 2;
+      VertexIndexBuffer::IndexType connected_top = bottom_vert + 3;
 
       Vec2 pos = vertices_[i];
       Vec2 next_pos = vertices_[(i + 1) % vertices_.size()];
 
-      Vec2 average_dir = (pos + next_pos) * 0.5f;
+      Vec2 average_dir = (pos + next_pos).normalized();
       Vec3 norm{average_dir.x(), 0, average_dir.y()};
 
       bottom.vertices().insert(
@@ -72,12 +74,16 @@ Model Shape::extrude(float amount) {
                   .pos = Vec3{pos.x(), amount, pos.y()},
                   .norm = norm,
               },
+              ModelVertex{
+                  .pos = Vec3{next_pos.x(), 0, next_pos.y()},
+                  .norm = norm,
+              },
+              ModelVertex{
+                  .pos = Vec3{next_pos.x(), amount, next_pos.y()},
+                  .norm = norm,
+              },
           }
       );
-
-      int next_index = (i + 1) % vertices_.size();
-      VertexIndexBuffer::IndexType connected_bottom = num_verts + (next_index * 2);
-      VertexIndexBuffer::IndexType connected_top = connected_bottom + 1;
 
       bottom.indices().insert(
           bottom.indices().end(),
