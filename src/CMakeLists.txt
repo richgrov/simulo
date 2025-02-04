@@ -76,6 +76,7 @@ set(SOURCE_FILES
    "util/bitfield.h"
    "util/memory.h"
    "util/rand.h"
+   "util/reader.h"
    "util/slab.h"
    "vendor/stb_image.h"
    "vendor/stb_truetype.h"

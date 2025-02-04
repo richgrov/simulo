@@ -16,7 +16,7 @@ constexpr uint32_t HEAD_MAGIC_NUMBER = 0x5F0F3CF5;
 constexpr uint32_t TAG_HEAD = 'h' << 24 | 'e' << 16 | 'a' << 8 | 'd';
 constexpr uint32_t TAG_GLYF = 'g' << 24 | 'l' << 16 | 'y' << 8 | 'f';
 
-void read_head(Reader &file) {
+void read_head(TtfReader &file) {
    std::cout << file.read_fixed() << "\n"; // version
    std::cout << file.read_fixed() << "\n"; // font revision
    std::cout << file.read_u32() << "\n";   // check sum adjustment
@@ -67,7 +67,7 @@ void read_glyf(Reader &file) {
 } // namespace
 
 void vkad::read_ttf(const std::span<uint8_t> data) {
-   Reader file(data);
+   TtfReader file(data);
 
    uint32_t scaler_type = file.read_u32();
    if (scaler_type != SCALAR_TYPE_TRUE1 && scaler_type != SCALAR_TYPE_TRUE2) {
