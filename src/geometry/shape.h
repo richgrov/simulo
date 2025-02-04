@@ -1,5 +1,4 @@
-#ifndef VKAD_GEOMETRY_BLUEPRINT_H_
-#define VKAD_GEOMETRY_BLUEPRINT_H_
+#pragma once
 
 #include <vector>
 
@@ -23,5 +22,3 @@ protected:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_GEOMETRY_BLUEPRINT_H_

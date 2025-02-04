@@ -1,5 +1,4 @@
-#ifndef VKAD_MATH_SIZES_H_
-#define VKAD_MATH_SIZES_H_
+#pragma once
 
 #include <cstddef>
 
@@ -14,5 +13,3 @@ namespace vkad {
    }
 
 } // namespace vkad
-
-#endif // !VKAD_MATH_SIZES_H_

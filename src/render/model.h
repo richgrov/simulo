@@ -1,5 +1,4 @@
-#ifndef VKAD_RENDER_MODEL_H_
-#define VKAD_RENDER_MODEL_H_
+#pragma once
 
 #include "math/vector.h"
 #include "renderer.h"
@@ -22,5 +21,3 @@ struct ModelUniform {
 };
 
 } // namespace vkad
-
-#endif // !VKAD_RENDER_MODEL_H_

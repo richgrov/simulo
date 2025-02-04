@@ -1,5 +1,4 @@
-#ifndef VKAD_GPU_VULKAN_STATUS_H_
-#define VKAD_GPU_VULKAN_STATUS_H_
+#pragma once
 
 #include <format>
 #include <stdexcept>
@@ -14,5 +13,3 @@
          );                                                                                        \
       }                                                                                            \
    }
-
-#endif // !VKAD_GPU_VULKAN_STATUS_H_

@@ -1,5 +1,4 @@
-#ifndef VKAD_WINDOW_LINUX_WL_DELETER_H_
-#define VKAD_WINDOW_LINUX_WL_DELETER_H_
+#pragma once
 
 struct wl_display;
 struct wl_registry;
@@ -32,5 +31,3 @@ public:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_WINDOW_LINUX_WL_DELETER_H_

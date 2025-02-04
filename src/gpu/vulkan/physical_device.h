@@ -1,5 +1,4 @@
-#ifndef VKAD_GPU_VULKAN_PHYSICAL_DEVICE_H_
-#define VKAD_GPU_VULKAN_PHYSICAL_DEVICE_H_
+#pragma once
 
 #include "instance.h"
 #include <vulkan/vulkan_core.h>
@@ -42,5 +41,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_GPU_VULKAN_PHYSICAL_DEVICE_H_

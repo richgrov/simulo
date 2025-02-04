@@ -1,5 +1,4 @@
-#ifndef VKAD_WINDOW_LINUX_WINDOW_H_
-#define VKAD_WINDOW_LINUX_WINDOW_H_
+#pragma once
 
 #include <cstdlib>
 #include <cstring>
@@ -56,5 +55,3 @@ public:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_WINDOW_LINUX_WINDOW_H_

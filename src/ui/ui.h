@@ -1,5 +1,4 @@
-#ifndef VKAD_UI_UI_H_
-#define VKAD_UI_UI_H_
+#pragma once
 
 #include <memory>
 #include <string>
@@ -45,5 +44,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_UI_UI_H_

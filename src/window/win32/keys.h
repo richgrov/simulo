@@ -1,5 +1,4 @@
-#ifndef VKAD_WINDOW_WIN32_KEYS_H_
-#define VKAD_WINDOW_WIN32_KEYS_H_
+#pragma once
 
 #define VKAD_KEY_SHIFT 0x10
 #define VKAD_KEY_SPACE 0x20
@@ -12,5 +11,3 @@
 #define VKAD_KEY_Q 0x51
 #define VKAD_KEY_W 0x57
 #define VKAD_KEY_ESC 0x1B
-
-#endif // !VKAD_WINDOW_WIN32_KEYS_H_

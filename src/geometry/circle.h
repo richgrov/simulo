@@ -1,5 +1,4 @@
-#ifndef VKAD_GEOMETRY_CIRCLE_H_
-#define VKAD_GEOMETRY_CIRCLE_H_
+#pragma once
 
 #include "geometry/shape.h"
 
@@ -11,5 +10,3 @@ public:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_GEOMETRY_CIRCLE_H_

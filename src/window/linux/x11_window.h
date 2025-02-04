@@ -1,5 +1,4 @@
-#ifndef VKAD_WINDOW_X11_WINDOW_H_
-#define VKAD_WINDOW_X11_WINDOW_H_
+#pragma once
 
 #include <bitset>
 #include <string_view>
@@ -95,5 +94,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_WINDOW_X11_WINDOW_H_

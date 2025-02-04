@@ -1,5 +1,4 @@
-#ifndef VKAD_RENDER_VERTEX_H_
-#define VKAD_RENDER_VERTEX_H_
+#pragma once
 
 #include <string>
 
@@ -24,5 +23,3 @@ struct UiUniform {
 };
 
 } // namespace vkad
-
-#endif // !VKAD_RENDER_VERTEX_H_

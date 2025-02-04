@@ -1,5 +1,4 @@
-#ifndef VKAD_GEOMETRY_MODEL_H_
-#define VKAD_GEOMETRY_MODEL_H_
+#pragma once
 
 #include "gpu/vulkan/buffer.h"
 #include "math/mat4.h"
@@ -27,5 +26,3 @@ public:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_GEOMETRY_MODEL_H_

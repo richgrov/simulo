@@ -1,5 +1,4 @@
-#ifndef VKAD_UI_FONT_H_
-#define VKAD_UI_FONT_H_
+#pragma once
 
 #include <array>
 #include <string_view>
@@ -47,5 +46,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_UI_FONT_H_

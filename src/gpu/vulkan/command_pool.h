@@ -1,5 +1,4 @@
-#ifndef VKAD_GPU_VULKAN_COMMAND_POOL_H_
-#define VKAD_GPU_VULKAN_COMMAND_POOL_H_
+#pragma once
 
 #include <cstdint>
 
@@ -26,5 +25,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_GPU_VULKAN_COMMAND_POOL_H_

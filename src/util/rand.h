@@ -1,5 +1,4 @@
-#ifndef VKAD_UTIL_RAND_H_
-#define VKAD_UTIL_RAND_H_
+#pragma once
 
 #include <random>
 
@@ -10,5 +9,3 @@ static inline float randf() {
 }
 
 } // namespace vkad
-
-#endif // !VKAD_UTIL_RAND_H_

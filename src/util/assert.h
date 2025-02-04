@@ -1,5 +1,4 @@
-#ifndef VKAD_UTIL_ASSERT_H_
-#define VKAD_UTIL_ASSERT_H_
+#pragma once
 
 #include <cstdlib>
 #include <format>
@@ -25,5 +24,3 @@
 #else
 #define VKAD_DEBUG_ASSERT(...)
 #endif
-
-#endif // !VKAD_UTIL_ASSERT_H_

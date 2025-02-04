@@ -1,5 +1,4 @@
-#ifndef VKAD_UI_WIDGET_H_
-#define VKAD_UI_WIDGET_H_
+#pragma once
 
 #include "math/mat4.h"
 #include "render/renderer.h" // IWYU pragma: export
@@ -47,5 +46,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_UI_WIDGET_H_

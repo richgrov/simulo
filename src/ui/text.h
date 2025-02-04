@@ -1,5 +1,4 @@
-#ifndef VKAD_UI_TEXT_H_
-#define VKAD_UI_TEXT_H_
+#pragma once
 
 #include "render/vk_renderer.h"
 #include "ui/widget.h"
@@ -36,5 +35,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_UI_TEXT_H_

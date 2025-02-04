@@ -1,5 +1,4 @@
-#ifndef VKAD_GPU_BUFFER_H_
-#define VKAD_GPU_BUFFER_H_
+#pragma once
 
 #include "physical_device.h"
 #include "vulkan/vulkan_core.h"
@@ -141,5 +140,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_GPU_BUFFER_H_

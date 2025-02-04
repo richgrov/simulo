@@ -1,5 +1,4 @@
-#ifndef VKAD_MESH_H_
-#define VKAD_MESH_H_
+#pragma once
 
 #include "gpu/vulkan/buffer.h"
 
@@ -45,5 +44,3 @@ protected:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_MESH_H_

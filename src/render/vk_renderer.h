@@ -1,5 +1,4 @@
-#ifndef VKAD_GPU_VK_GPU_H_
-#define VKAD_GPU_VK_GPU_H_
+#pragma once
 
 #include <cstdint>
 #include <initializer_list>
@@ -231,5 +230,3 @@ private:
 };
 
 }; // namespace vkad
-
-#endif // !VKAD_GPU_VK_GPU_H_

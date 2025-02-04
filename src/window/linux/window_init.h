@@ -1,5 +1,4 @@
-#ifndef VKAD_WINDOW_LINUX_WINDOW_INIT_H_
-#define VKAD_WINDOW_LINUX_WINDOW_INIT_H_
+#pragma once
 
 #include <memory>
 
@@ -17,5 +16,3 @@ inline std::unique_ptr<Window> create_window(const Instance &vk_instance, const 
 }
 
 } // namespace vkad
-
-#endif // !VKAD_WINDOW_LINUX_WINDOW_INIT_H_

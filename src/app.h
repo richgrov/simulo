@@ -1,5 +1,4 @@
-#ifndef VKAD_APP_H_
-#define VKAD_APP_H_
+#pragma once
 
 #include <chrono>
 #include <memory>
@@ -119,5 +118,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_APP_H_

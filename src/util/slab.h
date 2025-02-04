@@ -1,5 +1,4 @@
-#ifndef VKAD_UTIL_SLAB_H_
-#define VKAD_UTIL_SLAB_H_
+#pragma once
 
 #include "util/assert.h"
 #include <algorithm>
@@ -104,5 +103,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_UTIL_SLAB_H_

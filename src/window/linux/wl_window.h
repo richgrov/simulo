@@ -1,5 +1,4 @@
-#ifndef VKAD_WINDOW_LINUX_WL_WINDOW_H_
-#define VKAD_WINDOW_LINUX_WL_WINDOW_H_
+#pragma once
 
 #include "gpu/vulkan/instance.h"
 #include "window/linux/window.h"
@@ -136,5 +135,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_WINDOW_LINUX_WL_WINDOW_H_

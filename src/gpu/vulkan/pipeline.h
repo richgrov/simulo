@@ -1,5 +1,4 @@
-#ifndef VKAD_GPU_VULKAN_PIPELINE_H_
-#define VKAD_GPU_VULKAN_PIPELINE_H_
+#pragma once
 
 #include <vector>
 
@@ -47,5 +46,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_GPU_VULKAN_PIPELINE_H_

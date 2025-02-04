@@ -1,5 +1,4 @@
-#ifndef VKAD_GPU_VULKAN_SHADER_H_
-#define VKAD_GPU_VULKAN_SHADER_H_
+#pragma once
 
 #include <cstdint>
 #include <span>
@@ -29,5 +28,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_GPU_VULKAN_SHADER_H_

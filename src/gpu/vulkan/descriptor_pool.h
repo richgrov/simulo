@@ -1,5 +1,4 @@
-#ifndef VKAD_GPU_VULKAN_DESCRIPTOR_POOL_H_
-#define VKAD_GPU_VULKAN_DESCRIPTOR_POOL_H_
+#pragma once
 
 #include <vulkan/vulkan_core.h>
 
@@ -108,5 +107,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_GPU_VULKAN_DESCRIPTOR_POOL_H_

@@ -1,5 +1,4 @@
-#ifndef VKAD_STL_H_
-#define VKAD_STL_H_
+#pragma once
 
 #include "math/vector.h"
 #include <ostream>
@@ -15,5 +14,3 @@ struct Triangle {
 void write_stl(const std::string &name, const std::vector<Triangle> triangles, std::ostream &out);
 
 } // namespace vkad
-
-#endif // !VKAD_STL_H_

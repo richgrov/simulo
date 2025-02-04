@@ -1,5 +1,4 @@
-#ifndef VKAD_TTF_READER_H_
-#define VKAD_TTF_READER_H_
+#pragma once
 
 #include <chrono>
 #include <cstdint>
@@ -87,5 +86,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_TTF_READER_H_

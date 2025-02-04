@@ -1,5 +1,4 @@
-#ifndef VKAD_WINDOW_WIN32_WINDOW_H_
-#define VKAD_WINDOW_WIN32_WINDOW_H_
+#pragma once
 
 #include <memory>
 #include <string_view>
@@ -105,6 +104,4 @@ inline std::unique_ptr<Window> create_window(const Instance &vk_instance, const 
    return std::make_unique<Window>(vk_instance, title);
 }
 
-}; // namespace vkad
-
-#endif // !VKAD_WINDOW_WIN32_WINDOW_H_
+} // namespace vkad

@@ -1,5 +1,4 @@
-#ifndef VKAD_MATH_ANGLE_H_
-#define VKAD_MATH_ANGLE_H_
+#pragma once
 
 #include <numbers>
 
@@ -10,5 +9,3 @@ inline float deg_to_rad(float deg) {
 }
 
 } // namespace vkad
-
-#endif // !VKAD_MATH_ANGLE_H_

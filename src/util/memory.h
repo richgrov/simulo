@@ -1,5 +1,4 @@
-#ifndef VKAD_UTIL_MEMORY_H_
-#define VKAD_UTIL_MEMORY_H_
+#pragma once
 
 namespace vkad {
 
@@ -10,5 +9,3 @@ template <class T> T align_to(T size, T min_alignment) {
 }
 
 } // namespace vkad
-
-#endif // !VKAD_UTIL_MEMORY_H_

@@ -1,5 +1,4 @@
-#ifndef VKAD_ENTITY_PLAYER_H_
-#define VKAD_ENTITY_PLAYER_H_
+#pragma once
 
 #include "math/mat4.h"
 #include "math/vector.h"
@@ -39,5 +38,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_ENTITY_PLAYER_H_

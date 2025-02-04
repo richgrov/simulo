@@ -1,5 +1,4 @@
-#ifndef VKAD_UTIL_BITFIELD_H_
-#define VKAD_UTIL_BITFIELD_H_
+#pragma once
 
 #include <cstring>
 
@@ -34,5 +33,3 @@ private:
 };
 
 } // namespace vkad
-
-#endif // !VKAD_UTIL_BITFIELD_H_

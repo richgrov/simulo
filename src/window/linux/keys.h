@@ -1,5 +1,4 @@
-#ifndef VKAD_WINDOW_X11_KEYS_H_
-#define VKAD_WINDOW_X11_KEYS_H_
+#pragma once
 
 #define VKAD_KEY_ESC 9
 #define VKAD_KEY_W 25
@@ -11,5 +10,3 @@
 #define VKAD_KEY_SHIFT 50
 #define VKAD_KEY_C 54
 #define VKAD_KEY_SPACE 65
-
-#endif // !VKAD_WINDOW_X11_KEYS_H_

@@ -1,5 +1,4 @@
-#ifndef VKAD_MATH_MAT4_H_
-#define VKAD_MATH_MAT4_H_
+#pragma once
 
 #include <cmath>
 
@@ -106,5 +105,3 @@ struct Mat4 {
 };
 
 } // namespace vkad
-
-#endif // !VKAD_MATH_MAT4_H_

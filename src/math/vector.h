@@ -1,5 +1,4 @@
-#ifndef VKAD_MATH_VEC4_H_
-#define VKAD_MATH_VEC4_H_
+#pragma once
 
 #include <algorithm>
 #include <array>
@@ -165,5 +164,3 @@ using Vec3 = Vector<3, 16>;
 using Vec4 = Vector<4>;
 
 } // namespace vkad
-
-#endif // !VKAD_MATH_VEC4_H_
