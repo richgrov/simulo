@@ -7,4 +7,5 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   include(CTest)
 endif()
 
+add_subdirectory(src/vendor/libdeflate)
 add_subdirectory(src)
