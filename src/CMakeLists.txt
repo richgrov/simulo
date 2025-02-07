@@ -55,6 +55,8 @@ set(SOURCE_FILES
    "gpu/vulkan/swapchain.h"
    "gpu/vulkan/buffer.cc"
    "gpu/vulkan/buffer.h"
+   "image/png.cc"
+   "image/png.h"
    "math/angle.h"
    "math/mat4.h"
    "math/vector.h"
