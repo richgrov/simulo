@@ -4,45 +4,53 @@
 #include <format>
 #include <span>
 #include <stdexcept>
+#include <vector>
 
 namespace vkad {
 
 class Reader {
 public:
-   Reader(const std::span<uint8_t> data) : data_(data) {}
+   Reader(const std::span<const uint8_t> data) : data_(data) {}
 
-   uint8_t read_u8() {
-      if (read_index_ + 1 > data_.size()) {
-         throw std::out_of_range("buffer too short to read u8");
+   template <class T> inline T read() {
+      if (read_index_ + sizeof(T) > data_.size()) {
+         throw std::out_of_range(std::format("buffer too short to read {}", typeid(T).name()));
       }
-      return data_[read_index_++];
+
+      T result = 0;
+      for (size_t i = 0; i < sizeof(T); ++i) {
+         result |= static_cast<T>(data_[read_index_++]) << (sizeof(T) - 1 - i) * 8;
+      }
+
+      return result;
    }
 
-   int16_t read_i16() {
-      return static_cast<int16_t>(read_u16());
+   uint8_t read_u8() {
+      return read<uint8_t>();
+   }
+
+   uint16_t read_i16() {
+      return read<int16_t>();
    }
 
    uint16_t read_u16() {
-      if (read_index_ + 2 > data_.size()) {
-         throw std::out_of_range("buffer too short to read u16");
-      }
-
-      uint32_t result = data_[read_index_] << 8 | data_[read_index_ + 1];
-      read_index_ += 2;
-
-      return result;
+      return read<uint16_t>();
    }
 
    uint32_t read_u32() {
-      if (read_index_ + 4 > data_.size()) {
-         throw std::out_of_range("buffer too short to read u32");
+      return read<uint32_t>();
+   }
+
+   uint64_t read_u64() {
+      return read<uint64_t>();
+   }
+
+   void read_into(std::vector<uint8_t> &dest, size_t size) {
+      if (read_index_ + size > data_.size()) {
+         throw std::out_of_range(std::format("buffer too short to read {} bytes", dest.size()));
       }
 
-      uint32_t result = data_[read_index_] << 24 | data_[read_index_ + 1] << 16 |
-                        data_[read_index_ + 2] << 8 | data_[read_index_ + 3];
-      read_index_ += 4;
-
-      return result;
+      dest.insert(dest.end(), data_.begin() + read_index_, data_.begin() + read_index_ + size);
    }
 
    void seek(size_t position) {
@@ -57,7 +65,7 @@ public:
    }
 
 protected:
-   std::span<uint8_t> data_;
+   std::span<const uint8_t> data_;
    size_t read_index_ = 0;
 };
 
