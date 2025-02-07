@@ -74,6 +74,7 @@ set(SOURCE_FILES
    "ui/widget.h"
    "util/assert.h"
    "util/bitfield.h"
+   "util/libdeflate.h"
    "util/memory.h"
    "util/rand.h"
    "util/reader.h"
@@ -140,6 +141,7 @@ endfunction()
 
 function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
+    target_link_libraries(${subject} libdeflate)
 
     # Vulkan
     if (WIN32)
