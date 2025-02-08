@@ -13,6 +13,7 @@ namespace {
 
 constexpr uint64_t PNG_HEADER = 0x89504e470d0a1a0a;
 constexpr uint32_t CHUNK_IHDR = 'I' << 24 | 'H' << 16 | 'D' << 8 | 'R';
+constexpr uint32_t CHUNK_IDAT = 'I' << 24 | 'D' << 16 | 'A' << 8 | 'T';
 constexpr uint32_t CHUNK_IEND = 'I' << 24 | 'E' << 16 | 'N' << 8 | 'D';
 constexpr uint8_t COLOR_TYPE_RGBA = 6;
 constexpr uint8_t FILTER_NONE = 0;
@@ -132,13 +133,17 @@ ParsedImage vkad::parse_png(std::span<const uint8_t> data) {
 
    std::vector<uint8_t> compressed_pixels;
    for (Chunk &chunk : chunks) {
+      if (chunk.type != CHUNK_IDAT) {
+         continue;
+      }
+
       reader.seek(chunk.data_start);
       reader.read_into(compressed_pixels, chunk.length);
    }
 
    std::vector<uint8_t> decompressed_pixels((ihdr.width * 4 + 1) * ihdr.height);
    Decompressor deflator;
-   deflator.decompress(compressed_pixels, decompressed_pixels);
+   deflator.zlib_decompress(compressed_pixels, decompressed_pixels);
 
    std::vector<uint8_t> result(ihdr.width * ihdr.height * 4);
 
