@@ -1,22 +1,33 @@
 #include <exception>
 #include <iostream>
+#include <filesystem>
+#include <fstream>
+#include <vector>
 
 #include "app.h"
-
 #include "image/png.h"
 
 using namespace vkad;
 
 int main(int argc, char **argv) {
-   std::string dir("/home/richard/Documents/FantasyEngine/sprites");
-   // iterate all files in this directory and run this function for the data of each. AI!
-   vkad::parse_png(std::span<const uint8_t> data)
-
-       if (true) {
-      return 0;
-   }
-
    try {
+       std::string dir("/home/richard/Documents/FantasyEngine/sprites");
+       
+       for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+           if (entry.path().extension() == ".png") {
+               std::ifstream file(entry.path(), std::ios::binary);
+               std::vector<uint8_t> data((std::istreambuf_iterator<char>(file)),
+                                        std::istreambuf_iterator<char>());
+               
+               try {
+                   vkad::parse_png(data);
+                   std::cout << "Successfully parsed: " << entry.path().filename() << std::endl;
+               } catch (const std::exception& e) {
+                   std::cerr << "Failed to parse " << entry.path().filename() 
+                            << ": " << e.what() << std::endl;
+               }
+           }
+       }
       App app;
 
       while (app.poll()) {
