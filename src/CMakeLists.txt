@@ -143,7 +143,7 @@ endfunction()
 
 function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
-    target_link_libraries(${subject} libdeflate)
+    target_link_libraries(${subject} libdeflate_static)
 
     # Vulkan
     if (WIN32)
