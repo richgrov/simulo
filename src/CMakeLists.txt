@@ -11,6 +11,7 @@ if (WIN32)
         "window/win32/window.cc"
         "window/win32/window.h"
     )
+    set(VULKAN TRUE)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(OS_SPECIFIC_FILES
         "window/linux/keys.h"
@@ -23,6 +24,33 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         "window/linux/x11_window.cc"
         "window/linux/x11_window.h"
     )
+    set(VULKAN TRUE)
+endif()
+
+if (VULKAN)
+    set(GPU_FILES
+       "gpu/vulkan/command_pool.cc"
+       "gpu/vulkan/command_pool.h"
+       "gpu/vulkan/descriptor_pool.cc"
+       "gpu/vulkan/descriptor_pool.h"
+       "gpu/vulkan/device.cc"
+       "gpu/vulkan/device.h"
+       "gpu/vulkan/image.cc"
+       "gpu/vulkan/image.h"
+       "gpu/vulkan/instance.cc"
+       "gpu/vulkan/instance.h"
+       "gpu/vulkan/pipeline.cc"
+       "gpu/vulkan/pipeline.h"
+       "gpu/vulkan/physical_device.cc"
+       "gpu/vulkan/physical_device.h"
+       "gpu/vulkan/status.h"
+       "gpu/vulkan/shader.cc"
+       "gpu/vulkan/shader.h"
+       "gpu/vulkan/swapchain.cc"
+       "gpu/vulkan/swapchain.h"
+       "gpu/vulkan/buffer.cc"
+       "gpu/vulkan/buffer.h"
+    )
 endif()
 
 set(SOURCE_FILES
@@ -34,27 +62,6 @@ set(SOURCE_FILES
    "geometry/model.h"
    "geometry/shape.cc"
    "geometry/shape.h"
-   "gpu/vulkan/command_pool.cc"
-   "gpu/vulkan/command_pool.h"
-   "gpu/vulkan/descriptor_pool.cc"
-   "gpu/vulkan/descriptor_pool.h"
-   "gpu/vulkan/device.cc"
-   "gpu/vulkan/device.h"
-   "gpu/vulkan/image.cc"
-   "gpu/vulkan/image.h"
-   "gpu/vulkan/instance.cc"
-   "gpu/vulkan/instance.h"
-   "gpu/vulkan/pipeline.cc"
-   "gpu/vulkan/pipeline.h"
-   "gpu/vulkan/physical_device.cc"
-   "gpu/vulkan/physical_device.h"
-   "gpu/vulkan/status.h"
-   "gpu/vulkan/shader.cc"
-   "gpu/vulkan/shader.h"
-   "gpu/vulkan/swapchain.cc"
-   "gpu/vulkan/swapchain.h"
-   "gpu/vulkan/buffer.cc"
-   "gpu/vulkan/buffer.h"
    "image/png.cc"
    "image/png.h"
    "math/angle.h"
@@ -91,6 +98,7 @@ set(SOURCE_FILES
    "stl.cc"
    "stl.h"
    ${OS_SPECIFIC_FILES}
+   ${GPU_FILES}
 )
 
 add_executable(vkad ${SOURCE_FILES} "main.cc")

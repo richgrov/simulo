@@ -1,6 +1,8 @@
 #pragma once
 
+#ifndef __APPLE__
 #include "gpu/vulkan/buffer.h"
+#endif
 
 #include <cstdint>
 #include <span>

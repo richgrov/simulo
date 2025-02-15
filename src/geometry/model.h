@@ -1,11 +1,9 @@
 #pragma once
 
-#include "gpu/vulkan/buffer.h"
 #include "math/mat4.h"
 #include "mesh.h"
 #include "render/model.h"
 #include "render/renderer.h"
-#include "render/vk_renderer.h"
 #include "stl.h"
 
 namespace vkad {

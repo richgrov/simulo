@@ -3,8 +3,10 @@
 #include <array>
 #include <string_view>
 
+#ifndef __APPLE__
 #include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/physical_device.h"
+#endif
 #include "render/renderer.h" // IWYU pragma: export
 #include "render/ui.h"
 #include "vendor/stb_truetype.h"
