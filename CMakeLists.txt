@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.8)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-project("vkad")
+project("vkad" LANGUAGES C CXX OBJC OBJCXX)
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   include(CTest)

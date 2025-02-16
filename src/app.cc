@@ -27,9 +27,13 @@ enum class vkad::State {
 };
 
 App::App()
+#ifndef __APPLE__
     : vk_instance_(Window::vulkan_extensions()),
       window_(create_window(vk_instance_, "vkad")),
       renderer_(vk_instance_, window_->surface(), window_->width(), window_->height()),
+#else
+    : renderer_(),
+#endif
       last_width_(window_->width()),
       last_height_(window_->height()),
       was_left_clicking_(false),
@@ -179,6 +183,7 @@ void App::draw() {
    Mat4 ui_view_projection(ortho_matrix());
    Mat4 world_view_projection(perspective_matrix() * player_.view_matrix());
 
+#ifndef __APPLE__
    bool swapchain_bad = !renderer_.render(ui_view_projection, world_view_projection);
 
    if (swapchain_bad) {
@@ -189,12 +194,15 @@ void App::draw() {
           "failed to acquire next image after recreating swapchain"
       );
    }
+#endif
 }
 
 void App::handle_resize() {
    int width = window_->width();
    int height = window_->height();
+#ifndef __APPLE__
    renderer_.recreate_swapchain(width, height, window_->surface());
+#endif
 }
 
 bool App::process_input(const std::string &message) {

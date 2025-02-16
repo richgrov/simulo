@@ -12,6 +12,15 @@ if (WIN32)
         "window/win32/window.h"
     )
     set(VULKAN TRUE)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(OS_SPECIFIC_FILES
+        "window/macos/window.h"
+        "window/macos/window.mm"
+    )
+
+    set(GPU_FILES
+        "render/mt_renderer.h"
+    )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(OS_SPECIFIC_FILES
         "window/linux/keys.h"
@@ -29,6 +38,8 @@ endif()
 
 if (VULKAN)
     set(GPU_FILES
+       "render/vk_renderer.cc"
+       "render/vk_renderer.h"
        "gpu/vulkan/command_pool.cc"
        "gpu/vulkan/command_pool.h"
        "gpu/vulkan/descriptor_pool.cc"
@@ -69,8 +80,6 @@ set(SOURCE_FILES
    "math/vector.h"
    "render/model.h"
    "render/renderer.h"
-   "render/vk_renderer.cc"
-   "render/vk_renderer.h"
    "render/ui.h"
    "ttf/reader.h"
    "ttf/ttf.cc"
@@ -185,6 +194,13 @@ function(setup_targets subject)
         embed_vulkan_shader(${subject} shader/text.frag)
         embed_vulkan_shader(${subject} shader/model.vert)
         embed_vulkan_shader(${subject} shader/model.frag)
+    endif()
+
+    if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        target_link_libraries(${subject}
+            "-framework Foundation"
+            "-framework AppKit"
+        )
     endif()
 
     embed_binary(${subject} res/arial.ttf)
