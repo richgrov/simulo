@@ -1,10 +1,12 @@
 #pragma once
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+#include "util/os_detect.h"
+
+#ifdef VKAD_WINDOWS
 #include "win32/window.h" // IWYU pragma: export
-#elif defined(__APPLE__)
+#elif defined(VKAD_APPLE)
 #include "macos/window.h" // IWYU pragma: export
-#elif defined(__linux__)
+#elif defined(VKAD_LINUX)
 #include "linux/window_init.h" // IWYU pragma: export
 #else
 #error "platform not supported"

@@ -94,6 +94,7 @@ set(SOURCE_FILES
    "util/bitfield.h"
    "util/libdeflate.h"
    "util/memory.h"
+   "util/os_detect.h"
    "util/rand.h"
    "util/reader.h"
    "util/slab.h"
