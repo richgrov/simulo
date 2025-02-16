@@ -7,6 +7,10 @@
 using namespace vkad;
 
 Gpu::Gpu() : mt_device_(MTLCreateSystemDefaultDevice()) {
+   if (mt_device_ == nullptr) {
+      throw std::runtime_error("failed to create metal device");
+   }
+
    auto mt_device = reinterpret_cast<id<MTLDevice>>(mt_device_);
 
    library_ = [mt_device newDefaultLibrary];
