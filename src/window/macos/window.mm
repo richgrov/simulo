@@ -1,4 +1,4 @@
-#include <AppKit/AppKit.h>
+#import <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 
 #include "window.h"
