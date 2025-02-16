@@ -32,8 +32,8 @@ App::App()
       window_(create_window(vk_instance_, "vkad")),
       renderer_(vk_instance_, window_->surface(), window_->width(), window_->height()),
 #else
-    : window_(create_window("vkad")),
-      renderer_(),
+    : window_(create_window(gpu_, "vkad")),
+      renderer_(gpu_),
 #endif
       last_width_(window_->width()),
       last_height_(window_->height()),

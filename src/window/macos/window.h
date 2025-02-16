@@ -1,14 +1,16 @@
 #pragma once
 
-#include "util/bitfield.h"
 #include <cstdint>
 #include <string_view>
+
+#include "gpu/gpu.h"
+#include "util/bitfield.h"
 
 namespace vkad {
 
 class Window {
 public:
-   explicit Window(const char *title);
+   explicit Window(const Gpu &gpu, const char *title);
    ~Window();
 
    bool poll();
@@ -76,8 +78,8 @@ private:
    int next_typed_letter_;
 };
 
-inline std::unique_ptr<Window> create_window(const char *title) {
-   return std::make_unique<Window>(title);
+inline std::unique_ptr<Window> create_window(const Gpu &gpu, const char *title) {
+   return std::make_unique<Window>(gpu, title);
 }
 
 } // namespace vkad
