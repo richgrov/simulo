@@ -198,6 +198,8 @@ function(setup_targets subject)
         target_link_libraries(${subject}
             "-framework Foundation"
             "-framework AppKit"
+            "-framework Metal"
+            "-framework QuartzCore"
         )
     endif()
 
