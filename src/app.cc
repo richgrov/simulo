@@ -32,7 +32,8 @@ App::App()
       window_(create_window(vk_instance_, "vkad")),
       renderer_(vk_instance_, window_->surface(), window_->width(), window_->height()),
 #else
-    : renderer_(),
+    : window_(create_window("vkad")),
+      renderer_(),
 #endif
       last_width_(window_->width()),
       last_height_(window_->height()),

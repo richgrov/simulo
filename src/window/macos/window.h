@@ -11,9 +11,7 @@ public:
    explicit Window(const char *title);
    ~Window();
 
-   bool poll() {
-      return false;
-   }
+   bool poll();
 
    void set_capture_mouse(bool capture) {}
 
@@ -77,5 +75,9 @@ private:
    char typed_chars_[64];
    int next_typed_letter_;
 };
+
+inline std::unique_ptr<Window> create_window(const char *title) {
+   return std::make_unique<Window>(title);
+}
 
 } // namespace vkad
