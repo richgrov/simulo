@@ -11,15 +11,13 @@ Gpu::Gpu() : mt_device_(MTLCreateSystemDefaultDevice()) {
       throw std::runtime_error("failed to create metal device");
    }
 
-   auto mt_device = reinterpret_cast<id<MTLDevice>>(mt_device_);
-
-   library_ = [mt_device newDefaultLibrary];
+   library_ = [mt_device_ newDefaultLibrary];
    if (library_ == nullptr) {
       throw std::runtime_error("failed to create metal library");
    }
 }
 
 Gpu::~Gpu() {
-   [reinterpret_cast<id<MTLLibrary>>(library_) release];
-   [reinterpret_cast<id<MTLDevice>>(mt_device_) release];
+   [library_ release];
+   [mt_device_ release];
 }
