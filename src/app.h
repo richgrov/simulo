@@ -6,9 +6,7 @@
 #include "entity/player.h"
 #include "geometry/model.h"
 #include "geometry/shape.h"
-#ifndef __APPLE__
-#include "gpu/vulkan/instance.h"
-#endif
+#include "gpu/gpu.h"
 #include "math/angle.h"
 #include "math/mat4.h"
 #include "render/renderer.h"
@@ -94,7 +92,9 @@ private:
    bool process_input(const std::string &message);
    void add_prompt_text(const std::string &message);
 
-#ifndef __APPLE__
+#ifdef __APPLE__
+   Gpu gpu_;
+#else
    Instance vk_instance_;
 #endif
    std::unique_ptr<Window> window_;

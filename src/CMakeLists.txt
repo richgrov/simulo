@@ -19,6 +19,8 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     )
 
     set(GPU_FILES
+        "gpu/metal/gpu.h"
+        "gpu/metal/gpu.mm"
         "render/mt_renderer.h"
     )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -73,6 +75,7 @@ set(SOURCE_FILES
    "geometry/model.h"
    "geometry/shape.cc"
    "geometry/shape.h"
+   "gpu/gpu.h"
    "image/png.cc"
    "image/png.h"
    "math/angle.h"
