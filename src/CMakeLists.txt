@@ -181,8 +181,6 @@ function(setup_targets subject)
         target_include_directories(${subject} PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
         target_link_directories(${subject} PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
         target_link_libraries(${subject} ${XKBCOMMON_LIBRARIES})
-        #target_compile_options(${subject} PRIVATE -fsanitize=address)
-        #target_link_options(${subject} PRIVATE -fsanitize=address)
 
         generate_wayland_protocol(${subject} /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
         generate_wayland_protocol(${subject} /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
