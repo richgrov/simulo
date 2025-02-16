@@ -1,11 +1,9 @@
 #include "font.h"
 
-#include "gpu/vulkan/physical_device.h"
 #include "math/vector.h"
 #include "render/renderer.h"
 #include "render/ui.h"
 #include "ttf/ttf.h"
-#include "vulkan/vulkan_core.h"
 
 #include <cstdint>
 #include <string_view>
@@ -16,11 +14,7 @@
 
 using namespace vkad;
 
-Font::Font(
-    std::span<uint8_t> data, float height, const PhysicalDevice &physical_device, VkDevice device
-)
-    : height_(height) {
-
+Font::Font(std::span<uint8_t> data, float height) : height_(height) {
    read_ttf(data);
 
    stbtt_BakeFontBitmap(

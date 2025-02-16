@@ -1,6 +1,6 @@
 #include "shape.h"
-#include "gpu/vulkan/buffer.h"
 #include "render/model.h"
+#include "render/renderer.h"
 
 using namespace vkad;
 
@@ -8,7 +8,7 @@ namespace {
 
 static Model create_shape(std::vector<Vec2> points, float y, bool up) {
    std::vector<ModelVertex> vertices;
-   std::vector<VertexIndexBuffer::IndexType> indices;
+   std::vector<Renderer::IndexBufferType> indices;
 
    float y_norm = up ? 1 : -1;
 
@@ -25,8 +25,8 @@ static Model create_shape(std::vector<Vec2> points, float y, bool up) {
           .norm = Vec3{0, y_norm, 0},
       });
 
-      VertexIndexBuffer::IndexType this_vert = vertices.size() - 1;
-      VertexIndexBuffer::IndexType connected_vert = (this_vert % boundary_verts) + 1;
+      Renderer::IndexBufferType this_vert = vertices.size() - 1;
+      Renderer::IndexBufferType connected_vert = (this_vert % boundary_verts) + 1;
 
       if (up) {
          indices.insert(indices.end(), {0, this_vert, connected_vert});
@@ -52,10 +52,10 @@ Model Shape::extrude(float amount) {
    int num_verts = bottom.vertices().size();
 
    for (int i = 0; i < vertices_.size(); ++i) {
-      VertexIndexBuffer::IndexType bottom_vert = bottom.vertices().size();
-      VertexIndexBuffer::IndexType top_vert = bottom_vert + 1;
-      VertexIndexBuffer::IndexType connected_bottom = bottom_vert + 2;
-      VertexIndexBuffer::IndexType connected_top = bottom_vert + 3;
+      Renderer::IndexBufferType bottom_vert = bottom.vertices().size();
+      Renderer::IndexBufferType top_vert = bottom_vert + 1;
+      Renderer::IndexBufferType connected_bottom = bottom_vert + 2;
+      Renderer::IndexBufferType connected_top = bottom_vert + 3;
 
       Vec2 pos = vertices_[i];
       Vec2 next_pos = vertices_[(i + 1) % vertices_.size()];

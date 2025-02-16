@@ -105,10 +105,8 @@ public:
       return static_cast<RenderMaterial>(material_id);
    }
 
-   RenderMesh create_mesh(
-       const std::span<uint8_t> vertex_data,
-       const std::span<VertexIndexBuffer::IndexType> index_data
-   );
+   RenderMesh
+   create_mesh(const std::span<uint8_t> vertex_data, const std::span<IndexBufferType> index_data);
 
    inline void delete_mesh(RenderMesh mesh) {
       meshes_.release(mesh);

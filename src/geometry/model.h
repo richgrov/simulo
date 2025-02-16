@@ -10,7 +10,7 @@ namespace vkad {
 
 class Model : public Mesh<ModelVertex> {
 public:
-   Model(std::vector<ModelVertex> &&vertices, std::vector<VertexIndexBuffer::IndexType> &&indices)
+   Model(std::vector<ModelVertex> &&vertices, std::vector<Renderer::IndexBufferType> &&indices)
        : Mesh(std::move(vertices), std::move(indices)) {}
 
    std::vector<Triangle> to_stl_triangles() const;

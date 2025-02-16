@@ -1,12 +1,9 @@
 #pragma once
 
 #include <array>
+#include <span>
 #include <string_view>
 
-#ifndef __APPLE__
-#include "gpu/vulkan/buffer.h"
-#include "gpu/vulkan/physical_device.h"
-#endif
 #include "render/renderer.h" // IWYU pragma: export
 #include "render/ui.h"
 #include "vendor/stb_truetype.h"
@@ -15,13 +12,11 @@ namespace vkad {
 
 class Font {
 public:
-   Font(
-       std::span<uint8_t> data, float height, const PhysicalDevice &physical_device, VkDevice device
-   );
+   Font(std::span<uint8_t> data, float height);
 
    void create_text(
        const std::string_view &text, std::vector<UiVertex> &vertices,
-       std::vector<VertexIndexBuffer::IndexType> &indices
+       std::vector<Renderer::IndexBufferType> &indices
    );
 
    void set_image(RenderImage id) {

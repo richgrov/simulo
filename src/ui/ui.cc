@@ -9,11 +9,7 @@
 using namespace vkad;
 
 Ui::Ui(Renderer &renderer)
-    : renderer_(renderer),
-      font_(
-          std::span(res_arial_ttf, res_arial_ttf_len), 64, renderer.physical_device(),
-          renderer.device().handle()
-      ) {
+    : renderer_(renderer), font_(std::span(res_arial_ttf, res_arial_ttf_len), 64) {
 
    RenderImage font_texture =
        renderer.create_image(font_.image_data(), Font::kBitmapWidth, Font::kBitmapWidth);
