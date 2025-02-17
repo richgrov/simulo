@@ -1,7 +1,9 @@
 #include "gpu.h"
 
+#include <format>
 #include <stdexcept>
 
+#import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 
 using namespace vkad;
@@ -11,9 +13,11 @@ Gpu::Gpu() : mt_device_(MTLCreateSystemDefaultDevice()) {
       throw std::runtime_error("failed to create metal device");
    }
 
-   library_ = [mt_device_ newDefaultLibrary];
-   if (library_ == nullptr) {
-      throw std::runtime_error("failed to create metal library");
+   NSError *err = nullptr;
+   library_ = [mt_device_ newDefaultLibraryWithBundle:[NSBundle mainBundle] error:&err];
+   if (err != nullptr) {
+      const char *message = [err.localizedDescription UTF8String];
+      throw std::runtime_error(std::format("failed to create metal library: {}", message));
    }
 }
 
