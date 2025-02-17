@@ -3,6 +3,10 @@
 #include <cstdint>
 #include <string_view>
 
+#ifdef __OBJC__
+#import <Metal/Metal.h>
+#endif
+
 #include "gpu/gpu.h"
 #include "util/bitfield.h"
 
@@ -59,8 +63,24 @@ public:
       return std::string_view(typed_chars_, next_typed_letter_);
    }
 
+#ifdef __OBJC__
+   MTLPixelFormat layer_pixel_format() const {
+      return layer_pixel_format_;
+   }
+#else
+   void *layer_pixel_format() const {
+      return layer_pixel_format_;
+   }
+#endif
+
 private:
    void *ns_window_;
+#ifdef __OBJC__
+   MTLPixelFormat layer_pixel_format_;
+#else
+   void *layer_pixel_format_;
+#endif
+
    bool open_;
    bool closing_;
    bool cursor_captured_;
