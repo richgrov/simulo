@@ -19,6 +19,8 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     )
 
     set(GPU_FILES
+        "gpu/metal/command_queue.h"
+        "gpu/metal/command_queue.mm"
         "gpu/metal/gpu.h"
         "gpu/metal/gpu.mm"
         "render/mt_renderer.h"
