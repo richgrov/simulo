@@ -14,20 +14,24 @@
 
 using namespace vkad;
 
-Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
-    : gpu_(gpu), metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)), command_queue_(gpu) {
-   simd::float3 triangle[] = {
-       {0.0f, 0.5f, 0.0f},
-       {0.5f, -0.5f, 0.0f},
-       {-0.5f, -0.5f, 0.0f},
-   };
+namespace {
 
-   buffer_ = [gpu.device() newBufferWithBytes:triangle
-                                       length:sizeof(triangle)
-                                      options:MTLResourceStorageModeShared];
-   if (buffer_ == nullptr) {
-      throw std::runtime_error("error creating buffer");
-   }
+constexpr simd::float3 triangle[] = {
+    {0.0f, 0.5f, 0.0f},
+    {0.5f, -0.5f, 0.0f},
+    {-0.5f, -0.5f, 0.0f},
+};
+
+}
+
+Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
+    : gpu_(gpu),
+      metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)),
+      vertex_buffer_(
+          gpu_,
+          std::span<const uint8_t>(reinterpret_cast<const uint8_t *>(triangle), sizeof(triangle))
+      ),
+      command_queue_(gpu) {
 
    id<MTLFunction> vertex_func = [gpu.library() newFunctionWithName:@"vertex_main"];
    if (vertex_func == nullptr) {
@@ -76,7 +80,7 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
       id<MTLRenderCommandEncoder> render_encoder =
           [cmd_buf renderCommandEncoderWithDescriptor:render_pass_desc];
       [render_encoder setRenderPipelineState:render_pipeline_state_];
-      [render_encoder setVertexBuffer:buffer_ offset:0 atIndex:0];
+      [render_encoder setVertexBuffer:vertex_buffer_.buffer() offset:0 atIndex:0];
       [render_encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
       [render_encoder endEncoding];
 
