@@ -56,12 +56,12 @@ Window::Window(const Gpu &gpu, const char *title) {
    [window makeKeyAndOrderFront:nil];
    window.releasedWhenClosed = NO;
 
-   CAMetalLayer *metal_layer = [[CAMetalLayer alloc] init];
-   metal_layer.device = reinterpret_cast<id<MTLDevice>>(gpu.device());
-   metal_layer.opaque = YES;
-   layer_pixel_format_ = metal_layer.pixelFormat;
-   resize_metal_layer_to_window(window, metal_layer);
-   window.contentView.layer = metal_layer;
+   metal_layer_ = [[CAMetalLayer alloc] init];
+   metal_layer_.device = reinterpret_cast<id<MTLDevice>>(gpu.device());
+   metal_layer_.opaque = YES;
+   layer_pixel_format_ = metal_layer_.pixelFormat;
+   resize_metal_layer_to_window(window, metal_layer_);
+   window.contentView.layer = metal_layer_;
 
    this->ns_window_ = window;
 }

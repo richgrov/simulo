@@ -5,6 +5,7 @@
 
 #ifdef __OBJC__
 #import <Metal/Metal.h>
+#import <QuartzCore/QuartzCore.h>
 #endif
 
 #include "gpu/gpu.h"
@@ -67,9 +68,17 @@ public:
    MTLPixelFormat layer_pixel_format() const {
       return layer_pixel_format_;
    }
+
+   CAMetalLayer *metal_layer() const {
+      return metal_layer_;
+   }
 #else
    void *layer_pixel_format() const {
       return layer_pixel_format_;
+   }
+
+   void *metal_layer() const {
+      return metal_layer_;
    }
 #endif
 
@@ -77,8 +86,10 @@ private:
    void *ns_window_;
 #ifdef __OBJC__
    MTLPixelFormat layer_pixel_format_;
+   CAMetalLayer *metal_layer_;
 #else
    void *layer_pixel_format_;
+   void *metal_layer_;
 #endif
 
    bool open_;

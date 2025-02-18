@@ -15,6 +15,10 @@ public:
    id<MTLDevice> device() const {
       return mt_device_;
    }
+
+   id<MTLLibrary> library() const {
+      return library_;
+   }
 #endif
 
 private:
