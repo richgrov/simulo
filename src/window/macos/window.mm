@@ -77,7 +77,7 @@ bool Window::poll() {
    @autoreleasepool {
       while (true) {
          NSEvent *event = [NSApp nextEventMatchingMask:NSEventMaskAny
-                                             untilDate:[NSDate distantFuture]
+                                             untilDate:[NSDate distantPast]
                                                 inMode:NSDefaultRunLoopMode
                                                dequeue:YES];
 
