@@ -195,6 +195,10 @@ void App::draw() {
           "failed to acquire next image after recreating swapchain"
       );
    }
+#else
+   VKAD_ASSERT(
+       renderer_.render(ui_view_projection, world_view_projection), "render returned false"
+   );
 #endif
 }
 
