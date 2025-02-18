@@ -105,8 +105,7 @@ public:
       return static_cast<RenderMaterial>(material_id);
    }
 
-   RenderMesh
-   create_mesh(const std::span<uint8_t> vertex_data, const std::span<IndexBufferType> index_data);
+   RenderMesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
 
    inline void delete_mesh(RenderMesh mesh) {
       meshes_.release(mesh);
@@ -119,8 +118,8 @@ public:
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height);
 
    void update_mesh(
-       RenderMesh mesh, const std::span<uint8_t> vertex_data,
-       const std::span<VertexIndexBuffer::IndexType> index_data
+       RenderMesh mesh, std::span<uint8_t> vertex_data,
+       std::span<VertexIndexBuffer::IndexType> index_data
    ) {
       Mesh &renderer_mesh = meshes_.get(mesh);
       staging_buffer_.upload_mesh(vertex_data, index_data);
@@ -171,7 +170,7 @@ private:
    RenderPipeline create_pipeline(
        uint32_t vertex_size, VkDeviceSize uniform_size,
        const std::vector<VkVertexInputAttributeDescription> &attrs,
-       const std::span<uint8_t> vertex_shader, const std::span<uint8_t> fragment_shader,
+       std::span<uint8_t> vertex_shader, std::span<uint8_t> fragment_shader,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings
    );
 

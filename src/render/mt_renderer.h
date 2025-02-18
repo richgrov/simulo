@@ -70,8 +70,7 @@ public:
       return static_cast<RenderMaterial>(0);
    }
 
-   RenderMesh
-   create_mesh(const std::span<uint8_t> vertex_data, const std::span<IndexBufferType> index_data) {
+   RenderMesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data) {
       return static_cast<RenderMesh>(0);
    }
 

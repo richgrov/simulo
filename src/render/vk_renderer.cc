@@ -184,7 +184,7 @@ Renderer::~Renderer() {
 }
 
 RenderMesh Renderer::create_mesh(
-    const std::span<uint8_t> vertex_data, const std::span<VertexIndexBuffer::IndexType> index_data
+    std::span<uint8_t> vertex_data, std::span<VertexIndexBuffer::IndexType> index_data
 ) {
    RenderMesh mesh_id = static_cast<RenderMesh>(meshes_.emplace(Mesh{
        .vertices_indices = VertexIndexBuffer(
@@ -240,9 +240,8 @@ RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int h
 
 RenderPipeline Renderer::create_pipeline(
     uint32_t vertex_size, VkDeviceSize uniform_size,
-    const std::vector<VkVertexInputAttributeDescription> &attrs,
-    const std::span<uint8_t> vertex_shader, const std::span<uint8_t> fragment_shader,
-    const std::vector<VkDescriptorSetLayoutBinding> &bindings
+    const std::vector<VkVertexInputAttributeDescription> &attrs, std::span<uint8_t> vertex_shader,
+    std::span<uint8_t> fragment_shader, const std::vector<VkDescriptorSetLayoutBinding> &bindings
 ) {
    VkVertexInputBindingDescription binding = {
        .binding = 0,
