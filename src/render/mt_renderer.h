@@ -4,6 +4,13 @@
 #include <utility>
 #include <variant>
 
+#ifdef __OBJC__
+#import <Metal/Metal.h>
+#import <QuartzCore/QuartzCore.h>
+#endif
+
+#include "gpu/gpu.h"
+#include "gpu/metal/command_queue.h"
 #include "math/mat4.h"
 #include "math/vector.h"
 
@@ -54,6 +61,9 @@ class Renderer {
 public:
    using IndexBufferType = uint32_t;
 
+   Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer);
+   ~Renderer();
+
    template <class Uniform>
    RenderMaterial create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
       return static_cast<RenderMaterial>(0);
@@ -76,9 +86,7 @@ public:
       return static_cast<RenderImage>(0);
    }
 
-   bool render(Mat4 ui_view_projection, Mat4 world_view_projection) {
-      return false;
-   }
+   bool render(Mat4 ui_view_projection, Mat4 world_view_projection);
 
    void recreate_swapchain() const {}
 
@@ -89,7 +97,18 @@ public:
    }
 
 private:
+   Gpu &gpu_;
+#ifdef __OBJC__
+   CAMetalLayer *metal_layer_;
+   id<MTLBuffer> buffer_;
+   id<MTLRenderPipelineState> render_pipeline_state_;
+#else
+   void *metal_layer_;
+   void *buffer_;
+   void *render_pipeline_state_;
+#endif
    Pipelines pipelines_;
+   CommandQueue command_queue_;
 };
 
 } // namespace vkad

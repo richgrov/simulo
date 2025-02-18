@@ -24,6 +24,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         "gpu/metal/gpu.h"
         "gpu/metal/gpu.mm"
         "render/mt_renderer.h"
+        "render/mt_renderer.mm"
     )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(OS_SPECIFIC_FILES
