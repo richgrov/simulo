@@ -165,6 +165,32 @@ function(embed_vulkan_shader target file)
     target_sources(${target} PRIVATE ${destination})
 endfunction()
 
+function(embed_metal_shader target file)
+    get_filename_component(file_name ${file} NAME_WE)
+    set(output "${CMAKE_CURRENT_BINARY_DIR}/default.metallib")
+    
+    add_custom_command(
+        OUTPUT ${output}
+        COMMAND xcrun -sdk macosx metal -c ${file} -o ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.air
+        COMMAND xcrun -sdk macosx metallib ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.air -o ${output} 
+        DEPENDS ${file}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    )
+
+    # Ensure the target is a bundle
+    set_target_properties(${target} PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.vkad.app"
+    )
+
+    # Add the metallib to the bundle's resources
+    set_source_files_properties(${output} PROPERTIES 
+        MACOSX_PACKAGE_LOCATION "Resources"
+        XCODE_EXPLICIT_FILE_TYPE "com.apple.metal-library"
+    )
+    target_sources(${target} PRIVATE ${output})
+endfunction()
+
 function(setup_targets subject)
     target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
     target_link_libraries(${subject} libdeflate_static)
@@ -199,9 +225,9 @@ function(setup_targets subject)
         embed_vulkan_shader(${subject} shader/text.frag)
         embed_vulkan_shader(${subject} shader/model.vert)
         embed_vulkan_shader(${subject} shader/model.frag)
-    endif()
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        embed_metal_shader(${subject} shader/text.metal)
 
-    if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         target_link_libraries(${subject}
             "-framework Foundation"
             "-framework AppKit"

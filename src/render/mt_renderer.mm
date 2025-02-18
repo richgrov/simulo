@@ -29,8 +29,15 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
       throw std::runtime_error("error creating buffer");
    }
 
-   id<MTLFunction> vertex_func = [gpu.library() newFunctionWithName:@"vertex"];
-   id<MTLFunction> fragment_func = [gpu.library() newFunctionWithName:@"fragment"];
+   id<MTLFunction> vertex_func = [gpu.library() newFunctionWithName:@"vertex_main"];
+   if (vertex_func == nullptr) {
+      throw std::runtime_error("vertex function not found");
+   }
+
+   id<MTLFunction> fragment_func = [gpu.library() newFunctionWithName:@"fragment_main"];
+   if (fragment_func == nullptr) {
+      throw std::runtime_error("fragment function not found");
+   }
 
    MTLRenderPipelineDescriptor *pipeline_desc = [[MTLRenderPipelineDescriptor alloc] init];
    pipeline_desc.label = @"triangle";
