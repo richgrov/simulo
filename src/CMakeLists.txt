@@ -106,6 +106,8 @@ set(SOURCE_FILES
    "util/rand.h"
    "util/reader.h"
    "util/slab.h"
+   "util/rational.h"
+   "util/rational.cc"
    "vendor/stb_image.h"
    "vendor/stb_truetype.h"
    "window/keys.h"
