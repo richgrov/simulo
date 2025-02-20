@@ -1,3 +1,6 @@
 [submodule "src/vendor/libdeflate"]
 	path = src/vendor/libdeflate
 	url = https://github.com/ebiggers/libdeflate.git
+[submodule "src/vendor/MigroGD"]
+	path = src/vendor/MigroGD
+	url = https://github.com/richgrov/MicroGD.git
