@@ -4,6 +4,7 @@
 #include <cmath>
 #include <initializer_list>
 
+#include "util/assert.h"
 #include "vector.h"
 
 namespace vkad {
@@ -21,6 +22,7 @@ template <size_t N, size_t M> struct Matrix {
          for (size_t column = 0; column < M; ++column) {
             cols_[column][i] = row[column];
          }
+         ++i;
       }
    }
 
@@ -123,6 +125,14 @@ template <size_t N, size_t M> struct Matrix {
       return result;
    }
 
+   Vector<N> operator*(const Vector<M> &v) {
+      Vector<N> result;
+      for (size_t i = 0; i < N; ++i) {
+         result[i] = row(i).dot(v);
+      }
+      return result;
+   }
+
    inline Vector<M> row(size_t index) const {
       Vector<M> result;
       for (size_t i = 0; i < M; ++i) {
@@ -158,6 +168,7 @@ template <size_t N, size_t M> struct Matrix {
       return result;
    }
 
+private:
    std::array<Vector<N>, M> cols_;
 };
 
