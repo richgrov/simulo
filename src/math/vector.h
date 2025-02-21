@@ -64,6 +64,16 @@ template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignme
       return sum;
    }
 
+   Vector<3, Alignment> cross(Vector other) const
+      requires(N == 3)
+   {
+      return Vector{
+          elements_[1] * other[2] - elements_[2] * other[1],
+          elements_[0] * other[2] - elements_[2] * other[0],
+          elements_[0] * other[1] - elements_[1] * other[0],
+      };
+   }
+
    Vector operator+(Vector other) const {
       Vector result;
       for (size_t i = 0; i < N; ++i) {

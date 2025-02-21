@@ -56,6 +56,15 @@ TEST_CASE("Vector mathematical operations") {
       CHECK(v1.dot(v2) == 32.0f);
    }
 
+   SUBCASE("Basic cross product") {
+      Vec3 v1{1.0f, 0.0f, 0.0f};
+      Vec3 v2{0.0f, 1.0f, 0.0f};
+      Vec3 cross = v1.cross(v2);
+      CHECK(cross.x() == 0.0f);
+      CHECK(cross.y() == 0.0f);
+      CHECK(cross.z() == 1.0f);
+   }
+
    SUBCASE("Scalar multiplication") {
       Vec3 v{1.0f, 2.0f, 3.0f};
       Vec3 result = v * 2.0f;
