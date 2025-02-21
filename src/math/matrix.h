@@ -149,6 +149,16 @@ template <size_t N, size_t M> struct Matrix {
       return cols_[index];
    }
 
+   Matrix transposed() const {
+      Matrix result;
+      for (size_t row = 0; row < N; ++row) {
+         for (size_t column = 0; column < N; ++column) {
+            result.cols_[row][column] = (*this)[row][column];
+         }
+      }
+      return result;
+   }
+
    Matrix<N - 1, M - 1> minor(size_t splice_row, size_t splice_column) const {
       Matrix<N - 1, M - 1> result;
       for (size_t row = 0; row < N; ++row) {
