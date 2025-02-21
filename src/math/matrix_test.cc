@@ -101,4 +101,31 @@ TEST_CASE("Matrix operations") {
       CHECK(result[1][0] == doctest::Approx(43.0f));
       CHECK(result[1][1] == doctest::Approx(50.0f));
    }
+
+   SUBCASE("Matrix minor") {
+      Mat3 m{{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}, {7.0f, 8.0f, 9.0f}};
+
+      Mat2 minor = m.minor(0, 0);
+      CHECK(minor[0][0] == doctest::Approx(5.0f));
+      CHECK(minor[0][1] == doctest::Approx(6.0f));
+      CHECK(minor[1][0] == doctest::Approx(8.0f));
+      CHECK(minor[1][1] == doctest::Approx(9.0f));
+
+      minor = m.minor(1, 1);
+      CHECK(minor[0][0] == doctest::Approx(1.0f));
+      CHECK(minor[0][1] == doctest::Approx(3.0f));
+      CHECK(minor[1][0] == doctest::Approx(7.0f));
+      CHECK(minor[1][1] == doctest::Approx(9.0f));
+   }
+
+   SUBCASE("Matrix determinant") {
+      Mat2 m2{{1.0f, 2.0f}, {3.0f, 4.0f}};
+      CHECK(m2.determinant() == doctest::Approx(-2.0f));
+
+      Mat3 m3{{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}, {7.0f, 8.0f, 9.0f}};
+      CHECK(m3.determinant() == doctest::Approx(0.0f));
+
+      Mat3 m3b{{2.0f, -3.0f, 1.0f}, {2.0f, 0.0f, -1.0f}, {1.0f, 4.0f, 5.0f}};
+      CHECK(m3b.determinant() == doctest::Approx(49.0f));
+   }
 }

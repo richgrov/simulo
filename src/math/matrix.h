@@ -141,28 +141,48 @@ template <size_t N, size_t M> struct Matrix {
       return result;
    }
 
-   Matrix<N - 1, M - 1> minor(size_t splice_row, size_t splice_column) {
-      Matrix &self = *this;
+   inline Vector<N> &column(size_t index) {
+      return cols_[index];
+   }
 
+   inline const Vector<N> &column(size_t index) const {
+      return cols_[index];
+   }
+
+   Matrix<N - 1, M - 1> minor(size_t splice_row, size_t splice_column) const {
       Matrix<N - 1, M - 1> result;
       for (size_t row = 0; row < N; ++row) {
+         if (row == splice_row) {
+            continue;
+         }
+
          size_t minor_row = row - (row > splice_row);
 
          for (size_t column = 0; column < M; ++column) {
-            size_t minor_column = column - (row > splice_column);
-            result[minor_row][minor_column] = self[row][column];
+            if (column == splice_column) {
+               continue;
+            }
+
+            size_t minor_column = column - (column > splice_column);
+            result.column(minor_column)[minor_row] = (*this)[row][column];
          }
       }
 
       return result;
    }
 
-   float determinant() const {
-      Matrix &self = *this;
+   float determinant() const
+      requires(N == 1 && M == 1)
+   {
+      return cols_[0][0];
+   }
 
+   float determinant() const
+      requires(N > 1 && M > 1)
+   {
       float result = 0;
-      for (size_t row = 0; row < N; ++row) {
-         result += (row % 2 == 0 ? -1 : 1) * minor(row, 0).determinant() * self[row][0];
+      for (size_t column = 0; column < M; ++column) {
+         result += (column % 2 == 0 ? 1 : -1) * minor(0, column).determinant() * (*this)[0][column];
       }
 
       return result;
