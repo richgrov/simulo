@@ -119,7 +119,7 @@ template <size_t N, size_t M> struct Matrix {
       Matrix result;
       for (size_t x = 0; x < N; ++x) {
          for (size_t y = 0; y < M; ++y) {
-            result.cols_[y][x] = row(x).dot(other.cols_[y]);
+            result.cols_[y][x] = (*this)[x].dot(other.cols_[y]);
          }
       }
       return result;
@@ -128,12 +128,12 @@ template <size_t N, size_t M> struct Matrix {
    Vector<N> operator*(const Vector<M> &v) {
       Vector<N> result;
       for (size_t i = 0; i < N; ++i) {
-         result[i] = row(i).dot(v);
+         result[i] = (*this)[i].dot(v);
       }
       return result;
    }
 
-   inline Vector<M> row(size_t index) const {
+   inline Vector<M> operator[](size_t index) const {
       Vector<M> result;
       for (size_t i = 0; i < M; ++i) {
          result[i] = cols_[i][index];
