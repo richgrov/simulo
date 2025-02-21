@@ -253,6 +253,7 @@ if (BUILD_TESTING)
     add_executable(vkad_test
         "test_main.cc"
         "math/angle_test.cc"
+        "math/matrix_test.cc"
         "math/vector_test.cc"
         ${SOURCE_FILES}
     )
