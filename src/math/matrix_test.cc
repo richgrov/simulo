@@ -67,6 +67,30 @@ TEST_CASE("Matrix operations") {
       CHECK(result[3] == doctest::Approx(1.0f));
    }
 
+   SUBCASE("Rotation matrix Y") {
+      float angle = std::numbers::pi / 2.0f;
+      Mat4 m = Mat4::rotate_y(angle);
+      Vec4 point{1.0f, 0.0f, 0.0f, 1.0f};
+
+      Vec4 result = m * point;
+      CHECK(result[0] == doctest::Approx(0.0f).epsilon(0.0001f));
+      CHECK(result[1] == doctest::Approx(0.0f).epsilon(0.0001f));
+      CHECK(result[2] == doctest::Approx(1.0f).epsilon(0.0001f));
+      CHECK(result[3] == doctest::Approx(1.0f));
+   }
+
+   SUBCASE("Rotation matrix Z") {
+      float angle = std::numbers::pi / 2.0f;
+      Mat4 m = Mat4::rotate_z(angle);
+      Vec4 point{1.0f, 0.0f, 0.0f, 1.0f};
+
+      Vec4 result = m * point;
+      CHECK(result[0] == doctest::Approx(0.0f).epsilon(0.0001f));
+      CHECK(result[1] == doctest::Approx(1.0f).epsilon(0.0001f));
+      CHECK(result[2] == doctest::Approx(0.0f).epsilon(0.0001f));
+      CHECK(result[3] == doctest::Approx(1.0f));
+   }
+
    SUBCASE("Matrix multiplication") {
       Mat2 a{{1.0f, 2.0f}, {3.0f, 4.0f}};
       Mat2 b{{5.0f, 6.0f}, {7.0f, 8.0f}};
