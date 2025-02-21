@@ -1,6 +1,6 @@
 #pragma once
 
-#include "math/mat4.h"
+#include "math/matrix.h"
 #include "mesh.h"
 #include "render/model.h"
 #include "render/renderer.h"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "math/mat4.h"
+#include "math/matrix.h"
 #include "render/renderer.h" // IWYU pragma: export
 
 namespace vkad {

@@ -12,7 +12,7 @@
 #include "gpu/gpu.h"
 #include "gpu/metal/buffer.h"
 #include "gpu/metal/command_queue.h"
-#include "math/mat4.h"
+#include "math/matrix.h"
 #include "math/vector.h"
 
 namespace vkad {

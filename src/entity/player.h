@@ -1,6 +1,6 @@
 #pragma once
 
-#include "math/mat4.h"
+#include "math/matrix.h"
 #include "math/vector.h"
 
 namespace vkad {

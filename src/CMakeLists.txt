@@ -84,7 +84,7 @@ set(SOURCE_FILES
    "image/png.cc"
    "image/png.h"
    "math/angle.h"
-   "math/mat4.h"
+   "math/matrix.h"
    "math/vector.h"
    "render/model.h"
    "render/renderer.h"

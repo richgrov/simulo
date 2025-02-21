@@ -8,7 +8,7 @@
 #include "geometry/shape.h"
 #include "gpu/gpu.h"
 #include "math/angle.h"
-#include "math/mat4.h"
+#include "math/matrix.h"
 #include "render/renderer.h"
 #include "ui/font.h"
 #include "ui/ui.h"
