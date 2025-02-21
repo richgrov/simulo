@@ -149,4 +149,27 @@ TEST_CASE("Matrix operations") {
       CHECK(mt[2][1] == doctest::Approx(6.0f));
       CHECK(mt[2][2] == doctest::Approx(9.0f));
    }
+   SUBCASE("Matrix inversion") {
+      Mat2 m2{{4.0f, 7.0f}, {2.0f, 6.0f}};
+      Mat2 inv2 = m2.inverted();
+      Mat2 identity2 = m2 * inv2;
+
+      CHECK(identity2[0][0] == doctest::Approx(1.0f).epsilon(0.0001f));
+      CHECK(identity2[0][1] == doctest::Approx(0.0f).epsilon(0.0001f));
+      CHECK(identity2[1][0] == doctest::Approx(0.0f).epsilon(0.0001f));
+      CHECK(identity2[1][1] == doctest::Approx(1.0f).epsilon(0.0001f));
+
+      Mat3 m3{{1.0f, 2.0f, 3.0f}, {0.0f, 1.0f, 4.0f}, {5.0f, 6.0f, 0.0f}};
+      Mat3 inv3 = m3.inverted();
+      Mat3 identity3 = m3 * inv3;
+
+      for (int i = 0; i < 3; i++) {
+         for (int j = 0; j < 3; j++) {
+            CHECK(identity3[i][j] == doctest::Approx(i == j ? 1.0f : 0.0f).epsilon(0.0001f));
+         }
+      }
+
+      Mat2 singular{{1.0f, 2.0f}, {2.0f, 4.0f}};
+      CHECK_THROWS_AS(singular.inverted(), std::runtime_error);
+   }
 }

@@ -198,6 +198,25 @@ template <size_t N, size_t M> struct Matrix {
       return result;
    }
 
+   Matrix inverted() const
+      requires(N == M)
+   {
+      float det = determinant();
+      if (std::abs(det) < 1e-2f) {
+         throw std::runtime_error("matrix is not invertible");
+      }
+
+      Matrix result;
+      for (size_t row = 0; row < N; ++row) {
+         for (size_t col = 0; col < M; ++col) {
+            float cofactor = ((row + col) % 2 == 0 ? 1 : -1) * minor(row, col).determinant();
+            result.column(col)[row] = cofactor / det;
+         }
+      }
+
+      return result.transposed();
+   }
+
 private:
    std::array<Vector<N>, M> cols_;
 };
