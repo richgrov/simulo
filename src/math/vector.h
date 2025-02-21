@@ -157,6 +157,12 @@ template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignme
       return (*this)[2];
    }
 
+   float w() const
+      requires(N >= 4)
+   {
+      return (*this)[3];
+   }
+
 #ifndef __APPLE__
    static constexpr VkFormat format()
       requires(N >= 2 && N <= 3)
