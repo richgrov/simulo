@@ -130,25 +130,23 @@ TEST_CASE("Matrix operations") {
    }
 
    SUBCASE("Matrix transpose") {
-      Mat3 m{{1.0f, 2.0f, 3.0f}, 
-             {4.0f, 5.0f, 6.0f}, 
-             {7.0f, 8.0f, 9.0f}};
-      
+      Mat3 m{{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}, {7.0f, 8.0f, 9.0f}};
+
       Mat3 mt = m.transposed();
-      
-      // Check all elements are correctly transposed
+
       CHECK(mt[0][0] == doctest::Approx(1.0f));
       CHECK(mt[0][1] == doctest::Approx(4.0f));
       CHECK(mt[0][2] == doctest::Approx(7.0f));
-      
+
       CHECK(mt[1][0] == doctest::Approx(2.0f));
       CHECK(mt[1][1] == doctest::Approx(5.0f));
       CHECK(mt[1][2] == doctest::Approx(8.0f));
-      
+
       CHECK(mt[2][0] == doctest::Approx(3.0f));
       CHECK(mt[2][1] == doctest::Approx(6.0f));
       CHECK(mt[2][2] == doctest::Approx(9.0f));
    }
+
    SUBCASE("Matrix inversion") {
       Mat2 m2{{4.0f, 7.0f}, {2.0f, 6.0f}};
       Mat2 inv2 = m2.inverted();
