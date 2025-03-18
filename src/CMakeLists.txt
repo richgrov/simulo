@@ -6,19 +6,14 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 if (WIN32)
-    set(OS_SPECIFIC_FILES
+    set(PLATFORM_FILES ${PLATFORM_FILES}
         "window/win32/keys.h"
         "window/win32/window.cc"
         "window/win32/window.h"
     )
     set(VULKAN TRUE)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    set(OS_SPECIFIC_FILES
-        "window/macos/window.h"
-        "window/macos/window.mm"
-    )
-
-    set(GPU_FILES
+    set(PLATFORM_FILES ${PLATFORM_FILES}
         "gpu/metal/buffer.h"
         "gpu/metal/buffer.mm"
         "gpu/metal/command_queue.h"
@@ -27,9 +22,11 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         "gpu/metal/gpu.mm"
         "render/mt_renderer.h"
         "render/mt_renderer.mm"
+        "window/macos/window.h"
+        "window/macos/window.mm"
     )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(OS_SPECIFIC_FILES
+    set(PLATFORM_FILES ${PLATFORM_FILES}
         "window/linux/keys.h"
         "window/linux/window.h"
         "window/linux/window_init.h"
@@ -44,7 +41,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 if (VULKAN)
-    set(GPU_FILES
+    set(PLATFORM_FILES ${PLATFORM_FILES}
        "render/vk_renderer.cc"
        "render/vk_renderer.h"
        "gpu/vulkan/command_pool.cc"
@@ -71,7 +68,7 @@ if (VULKAN)
     )
 endif()
 
-set(SOURCE_FILES
+add_library(vkad_common
    "entity/player.cc"
    "entity/player.h"
    "geometry/circle.cc"
@@ -117,11 +114,8 @@ set(SOURCE_FILES
    "mesh.h"
    "stl.cc"
    "stl.h"
-   ${OS_SPECIFIC_FILES}
-   ${GPU_FILES}
+   ${PLATFORM_FILES}
 )
-
-add_executable(vkad ${SOURCE_FILES} "main.cc")
 
 function(generate_wayland_protocol target xml_path)
     get_filename_component(protocol_name ${xml_path} NAME_WE)
@@ -181,71 +175,70 @@ function(embed_metal_shader target file)
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     )
 
-    # Ensure the target is a bundle
-    set_target_properties(${target} PROPERTIES
-        MACOSX_BUNDLE TRUE
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.vkad.app"
-    )
-
     # Add the metallib to the bundle's resources
     set_source_files_properties(${output} PROPERTIES 
         MACOSX_PACKAGE_LOCATION "Resources"
         XCODE_EXPLICIT_FILE_TYPE "com.apple.metal-library"
     )
-    target_sources(${target} PRIVATE ${output})
+    target_sources(${target} PUBLIC ${output})
 endfunction()
 
-function(setup_targets subject)
-    target_include_directories(${subject} PUBLIC "${PROJECT_SOURCE_DIR}/src")
-    target_link_libraries(${subject} libdeflate_static)
+target_include_directories(vkad_common PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(vkad_common libdeflate_static)
 
-    # Vulkan
-    if (WIN32)
-        target_link_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Lib")
-        target_link_libraries(${subject} "vulkan-1.lib")
-        target_include_directories(${subject} PUBLIC "$ENV{VULKAN_SDK}/Include")
-    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        target_link_libraries(${subject} libvulkan.so)
-    endif()
+# Vulkan
+if (WIN32)
+    target_link_directories(vkad_common PUBLIC "$ENV{VULKAN_SDK}/Lib")
+    target_link_libraries(vkad_common "vulkan-1.lib")
+    target_include_directories(vkad_common PUBLIC "$ENV{VULKAN_SDK}/Include")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(vkad_common libvulkan.so)
+endif()
 
-    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        target_include_directories(${subject} PRIVATE ${X11_INCLUDE_DIR})
-        target_link_libraries(${subject} ${X11_LIBRARIES} libXi.so)
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_include_directories(vkad_common PRIVATE ${X11_INCLUDE_DIR})
+    target_link_libraries(vkad_common ${X11_LIBRARIES} libXi.so)
 
-        target_include_directories(${subject} PRIVATE ${WAYLAND_INCLUDE_DIRS})
-        target_link_libraries(${subject} ${WAYLAND_LIBRARIES})
+    target_include_directories(vkad_common PRIVATE ${WAYLAND_INCLUDE_DIRS})
+    target_link_libraries(vkad_common ${WAYLAND_LIBRARIES})
 
-        target_include_directories(${subject} PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
-        target_link_directories(${subject} PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
-        target_link_libraries(${subject} ${XKBCOMMON_LIBRARIES})
+    target_include_directories(vkad_common PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
+    target_link_directories(vkad_common PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
+    target_link_libraries(vkad_common ${XKBCOMMON_LIBRARIES})
 
-        generate_wayland_protocol(${subject} /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
-        generate_wayland_protocol(${subject} /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
-        generate_wayland_protocol(${subject} /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml)
-    endif()
+    generate_wayland_protocol(vkad_common /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
+    generate_wayland_protocol(vkad_common /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
+    generate_wayland_protocol(vkad_common /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml)
+endif()
 
-    if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        embed_vulkan_shader(${subject} shader/text.vert)
-        embed_vulkan_shader(${subject} shader/text.frag)
-        embed_vulkan_shader(${subject} shader/model.vert)
-        embed_vulkan_shader(${subject} shader/model.frag)
-    elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        embed_metal_shader(${subject} shader/text.metal)
+if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    embed_vulkan_shader(vkad_common shader/text.vert)
+    embed_vulkan_shader(vkad_common shader/text.frag)
+    embed_vulkan_shader(vkad_common shader/model.vert)
+    embed_vulkan_shader(vkad_common shader/model.frag)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    embed_metal_shader(vkad_common shader/text.metal)
 
-        target_link_libraries(${subject}
-            "-framework Foundation"
-            "-framework AppKit"
-            "-framework Metal"
-            "-framework QuartzCore"
-        )
-    endif()
+    target_link_libraries(vkad_common
+        "-framework Foundation"
+        "-framework AppKit"
+        "-framework Metal"
+        "-framework QuartzCore"
+    )
+endif()
 
-    embed_binary(${subject} res/arial.ttf)
 
-    set_property(TARGET ${subject} PROPERTY CXX_STANDARD 20)
-endfunction()
+embed_binary(vkad_common res/arial.ttf)
+target_compile_features(vkad_common PUBLIC cxx_std_20)
 
-setup_targets(vkad)
+add_executable(vkad "main.cc")
+target_link_libraries(vkad vkad_common)
+target_compile_features(vkad PUBLIC cxx_std_20)
+set_target_properties(vkad PROPERTIES
+    MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.vkad.app"
+)
+
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVKAD_DEBUG")
 
@@ -255,8 +248,10 @@ if (BUILD_TESTING)
         "math/angle_test.cc"
         "math/matrix_test.cc"
         "math/vector_test.cc"
-        ${SOURCE_FILES}
     )
-
-    setup_targets(vkad_test)
+    target_link_libraries(vkad_test vkad_common)
+    set_target_properties(vkad_test PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.vkad.app"
+    )
 endif()
