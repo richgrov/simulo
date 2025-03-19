@@ -26,6 +26,7 @@ constexpr simd::float3 triangle[] = {
 
 Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
     : gpu_(gpu),
+      images_(4),
       metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)),
       vertex_buffer_(
           gpu_,

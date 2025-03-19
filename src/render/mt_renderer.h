@@ -12,9 +12,11 @@
 #include "gpu/gpu.h"
 #include "gpu/metal/buffer.h"
 #include "gpu/metal/command_queue.h"
+#include "gpu/metal/image.h"
 #include "gpu/metal/render_pipeline.h"
 #include "math/matrix.h"
 #include "math/vector.h"
+#include "util/slab.h"
 
 namespace vkad {
 
@@ -84,7 +86,8 @@ public:
    void delete_object(RenderObject object) {}
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height) {
-      return static_cast<RenderImage>(0);
+      int id = images_.emplace(gpu_, img_data, width, height);
+      return static_cast<RenderImage>(id);
    }
 
    bool render(Mat4 ui_view_projection, Mat4 world_view_projection);
@@ -109,6 +112,7 @@ private:
 #endif
 
    std::vector<Pipeline> render_pipelines_;
+   Slab<Image> images_;
    Buffer vertex_buffer_;
    Pipelines pipelines_;
    CommandQueue command_queue_;

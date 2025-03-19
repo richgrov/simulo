@@ -20,6 +20,8 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         "gpu/metal/command_queue.mm"
         "gpu/metal/gpu.h"
         "gpu/metal/gpu.mm"
+        "gpu/metal/image.h"
+        "gpu/metal/image.mm"
         "gpu/metal/render_pipeline.h"
         "gpu/metal/render_pipeline.mm"
         "render/mt_renderer.h"
