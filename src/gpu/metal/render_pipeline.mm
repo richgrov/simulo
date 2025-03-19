@@ -43,6 +43,13 @@ Pipeline::Pipeline(
    }
 }
 
+Pipeline::Pipeline(Pipeline &&old) {
+   pipeline_state_ = old.pipeline_state_;
+   old.pipeline_state_ = nil;
+}
+
 Pipeline::~Pipeline() {
-   [pipeline_state_ release];
+   if (pipeline_state_ != nil) {
+      [pipeline_state_ release];
+   }
 }
