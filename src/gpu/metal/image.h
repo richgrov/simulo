@@ -25,6 +25,8 @@ public:
 private:
 #ifdef __OBJC__
    id<MTLTexture> _Nonnull texture_;
+#else
+   void *texture_;
 #endif
 };
 
