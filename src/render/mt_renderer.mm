@@ -1,4 +1,5 @@
 #include "mt_renderer.h"
+#include "gpu/metal/buffer.h"
 #include "gpu/metal/image.h"
 #include "render/ui.h"
 
@@ -20,24 +21,27 @@ using namespace vkad;
 namespace {
 
 constexpr UiVertex triangle[] = {
-    {{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}}, {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},  {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},   {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
+    {{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
+    {{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},
 };
 
-}
+constexpr uint16_t indices[] = {0, 1, 2, 1, 3, 2};
+
+} // namespace
 
 Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
     : gpu_(gpu),
       images_(4),
       materials_(8),
       metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)),
-      vertex_buffer_(
+      geometry_(VertexIndexBuffer::concat(
           gpu_,
-          std::span<const uint8_t>(reinterpret_cast<const uint8_t *>(triangle), sizeof(triangle))
-      ),
+          std::span<const uint8_t>(reinterpret_cast<const uint8_t *>(triangle), sizeof(triangle)),
+          std::span<const uint16_t>(indices, 6)
+      )),
       command_queue_(gpu) {
-
    pipelines_.ui = static_cast<RenderPipeline>(render_pipelines_.size());
    render_pipelines_.emplace_back(MaterialPipeline{
        .pipeline = Pipeline(gpu, pipeline_pixel_format, "ui", "vertex_main", "fragment_main"),
@@ -92,8 +96,12 @@ void Renderer::do_render_pipeline(RenderPipeline pipeline_id, void *render_enc) 
          [render_encoder setFragmentTexture:img.texture() atIndex:0];
       }
 
-      [render_encoder setVertexBuffer:vertex_buffer_.buffer() offset:0 atIndex:0];
-      [render_encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
+      [render_encoder setVertexBuffer:geometry_.buffer() offset:0 atIndex:0];
+      [render_encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                                 indexCount:geometry_.num_indices()
+                                  indexType:VertexIndexBuffer::kIndexType
+                                indexBuffer:geometry_.buffer()
+                          indexBufferOffset:geometry_.index_offset()];
    }
 
    [render_encoder endEncoding];

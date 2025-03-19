@@ -139,7 +139,7 @@ private:
    std::vector<MaterialPipeline> render_pipelines_;
    Slab<Image> images_;
    Slab<Material> materials_;
-   Buffer vertex_buffer_;
+   VertexIndexBuffer geometry_;
    Pipelines pipelines_;
    CommandQueue command_queue_;
 };
