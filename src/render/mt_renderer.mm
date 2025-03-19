@@ -7,16 +7,16 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 #import <objc/NSObjCRuntime.h>
-#import <simd/simd.h>
 
 #include "gpu/gpu.h"
 #include "gpu/metal/command_queue.h"
+#include "math/vector.h"
 
 using namespace vkad;
 
 namespace {
 
-constexpr simd::float3 triangle[] = {
+constexpr Vec3 triangle[] = {
     {0.0f, 0.5f, 0.0f},
     {0.5f, -0.5f, 0.0f},
     {-0.5f, -0.5f, 0.0f},

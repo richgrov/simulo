@@ -17,7 +17,7 @@ namespace vkad {
 template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignment) Vector {
    Vector() : elements_() {}
 
-   Vector(std::initializer_list<float> elements) {
+   constexpr Vector(std::initializer_list<float> elements) {
       VKAD_DEBUG_ASSERT(
           elements.size() == N, "vector<{}> initialized with {} elements", N, elements.size()
       );
