@@ -1,5 +1,6 @@
 #include "mt_renderer.h"
 
+#include <Foundation/Foundation.h>
 #include <format>
 #include <ranges>
 #include <stdexcept>
@@ -27,6 +28,7 @@ constexpr Vec3 triangle[] = {
 Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
     : gpu_(gpu),
       images_(4),
+      materials_(8),
       metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)),
       vertex_buffer_(
           gpu_,
@@ -35,7 +37,9 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
       command_queue_(gpu) {
 
    pipelines_.ui = static_cast<RenderPipeline>(render_pipelines_.size());
-   render_pipelines_.emplace_back(gpu, pipeline_pixel_format, "ui", "vertex_main", "fragment_main");
+   render_pipelines_.emplace_back(MaterialPipeline{
+       .pipeline = Pipeline(gpu, pipeline_pixel_format, "ui", "vertex_main", "fragment_main"),
+   });
 }
 
 Renderer::~Renderer() {}
@@ -55,7 +59,8 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
 
       id<MTLRenderCommandEncoder> render_encoder =
           [cmd_buf renderCommandEncoderWithDescriptor:render_pass_desc];
-      do_render_pipeline(pipelines_.ui, render_encoder);
+
+      do_render_pipeline(pipelines_.ui, (__bridge void *)render_encoder);
 
       [cmd_buf presentDrawable:drawable];
       [cmd_buf commit];
@@ -67,10 +72,10 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
 }
 
 void Renderer::do_render_pipeline(RenderPipeline pipeline_id, void *render_enc) {
-   auto render_encoder = reinterpret_cast<id<MTLRenderCommandEncoder>>(render_enc);
-   const Pipeline &pipeline = render_pipelines_[pipeline_id];
+   auto render_encoder = (__bridge id<MTLRenderCommandEncoder>)render_enc;
+   const MaterialPipeline &mat_pipeline = render_pipelines_[pipeline_id];
 
-   [render_encoder setRenderPipelineState:pipeline.pipeline_state()];
+   [render_encoder setRenderPipelineState:mat_pipeline.pipeline.pipeline_state()];
    [render_encoder setVertexBuffer:vertex_buffer_.buffer() offset:0 atIndex:0];
    [render_encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
    [render_encoder endEncoding];

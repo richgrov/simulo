@@ -1,6 +1,7 @@
 #pragma once
 
 #include <span>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 
@@ -70,7 +71,14 @@ public:
 
    template <class Uniform>
    RenderMaterial create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
-      return static_cast<RenderMaterial>(0);
+      int id = materials_.emplace(Material{
+          .pipeline = pipeline_id,
+      });
+
+      MaterialPipeline &pipeline = render_pipelines_[pipeline_id];
+      pipeline.materials.insert(id);
+
+      return static_cast<RenderMaterial>(id);
    }
 
    RenderMesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data) {
@@ -111,8 +119,18 @@ private:
    void *metal_layer_;
 #endif
 
-   std::vector<Pipeline> render_pipelines_;
+   struct Material {
+      RenderPipeline pipeline;
+   };
+
+   struct MaterialPipeline {
+      Pipeline pipeline;
+      std::unordered_set<int> materials;
+   };
+
+   std::vector<MaterialPipeline> render_pipelines_;
    Slab<Image> images_;
+   Slab<Material> materials_;
    Buffer vertex_buffer_;
    Pipelines pipelines_;
    CommandQueue command_queue_;
