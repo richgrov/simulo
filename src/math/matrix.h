@@ -69,6 +69,14 @@ template <size_t N, size_t M> struct Matrix {
       };
    }
 
+   static Matrix skew(Vec2 v) {
+      return Matrix{
+          {1, v.x()},
+          {v.y(), 1},
+          {0, 0, 1},
+      };
+   }
+
    static Matrix rotate_x(float v) {
       // clang-format off
       return Matrix{
