@@ -43,8 +43,7 @@ Pipeline::Pipeline(
    }
 }
 
-Pipeline::Pipeline(Pipeline &&old) {
-   pipeline_state_ = old.pipeline_state_;
+Pipeline::Pipeline(Pipeline &&old) : pipeline_state_(old.pipeline_state_) {
    old.pipeline_state_ = nil;
 }
 
