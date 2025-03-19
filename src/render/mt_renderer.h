@@ -12,6 +12,7 @@
 #include "gpu/gpu.h"
 #include "gpu/metal/buffer.h"
 #include "gpu/metal/command_queue.h"
+#include "gpu/metal/render_pipeline.h"
 #include "math/matrix.h"
 #include "math/vector.h"
 
@@ -98,13 +99,14 @@ public:
 
 private:
    Gpu &gpu_;
+
 #ifdef __OBJC__
    CAMetalLayer *metal_layer_;
-   id<MTLRenderPipelineState> render_pipeline_state_;
 #else
    void *metal_layer_;
-   void *render_pipeline_state_;
 #endif
+
+   Pipeline ui_pipeline_;
    Buffer vertex_buffer_;
    Pipelines pipelines_;
    CommandQueue command_queue_;
