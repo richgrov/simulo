@@ -71,8 +71,15 @@ public:
 
    template <class Uniform>
    RenderMaterial create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
+      std::vector<RenderImage> images;
+
+      if (props.has("image")) {
+         images.push_back(props.get<RenderImage>("image"));
+      }
+
       int id = materials_.emplace(Material{
           .pipeline = pipeline_id,
+          .images = std::move(images),
       });
 
       MaterialPipeline &pipeline = render_pipelines_[pipeline_id];
@@ -121,6 +128,7 @@ private:
 
    struct Material {
       RenderPipeline pipeline;
+      std::vector<RenderImage> images;
    };
 
    struct MaterialPipeline {

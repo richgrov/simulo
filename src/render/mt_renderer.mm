@@ -1,4 +1,6 @@
 #include "mt_renderer.h"
+#include "gpu/metal/image.h"
+#include "render/ui.h"
 
 #include <Foundation/Foundation.h>
 #include <format>
@@ -17,10 +19,10 @@ using namespace vkad;
 
 namespace {
 
-constexpr Vec3 triangle[] = {
-    {0.0f, 0.5f, 0.0f},
-    {0.5f, -0.5f, 0.0f},
-    {-0.5f, -0.5f, 0.0f},
+constexpr UiVertex triangle[] = {
+    {{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}}, {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},  {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},   {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
 };
 
 }
@@ -39,6 +41,11 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
    pipelines_.ui = static_cast<RenderPipeline>(render_pipelines_.size());
    render_pipelines_.emplace_back(MaterialPipeline{
        .pipeline = Pipeline(gpu, pipeline_pixel_format, "ui", "vertex_main", "fragment_main"),
+   });
+
+   pipelines_.mesh = static_cast<RenderPipeline>(render_pipelines_.size());
+   render_pipelines_.emplace_back(MaterialPipeline{
+       .pipeline = Pipeline(gpu, pipeline_pixel_format, "mesh", "vertex_main2", "fragment_main2"),
    });
 }
 
@@ -74,9 +81,20 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
 void Renderer::do_render_pipeline(RenderPipeline pipeline_id, void *render_enc) {
    auto render_encoder = (__bridge id<MTLRenderCommandEncoder>)render_enc;
    const MaterialPipeline &mat_pipeline = render_pipelines_[pipeline_id];
-
    [render_encoder setRenderPipelineState:mat_pipeline.pipeline.pipeline_state()];
-   [render_encoder setVertexBuffer:vertex_buffer_.buffer() offset:0 atIndex:0];
-   [render_encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+
+   for (int mat_id : mat_pipeline.materials) {
+      const Material &mat = materials_.get(mat_id);
+
+      for (int i = 0; i < mat.images.size(); ++i) {
+         RenderImage img_id = mat.images[i];
+         const Image &img = images_.get(img_id);
+         [render_encoder setFragmentTexture:img.texture() atIndex:0];
+      }
+
+      [render_encoder setVertexBuffer:vertex_buffer_.buffer() offset:0 atIndex:0];
+      [render_encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
+   }
+
    [render_encoder endEncoding];
 }
