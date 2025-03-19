@@ -57,7 +57,7 @@ Window::Window(const Gpu &gpu, const char *title) {
    window.releasedWhenClosed = NO;
 
    metal_layer_ = [[CAMetalLayer alloc] init];
-   metal_layer_.device = reinterpret_cast<id<MTLDevice>>(gpu.device());
+   metal_layer_.device = gpu.device();
    metal_layer_.opaque = YES;
    layer_pixel_format_ = metal_layer_.pixelFormat;
    resize_metal_layer_to_window(window, metal_layer_);
