@@ -10,7 +10,10 @@ namespace vkad {
 
 class Pipeline {
 public:
-   Pipeline(const Gpu &gpu, void *pixel_format);
+   Pipeline(
+       const Gpu &gpu, void *pixel_format, const char *label, const char *vertex_fn,
+       const char *fragment_fn
+   );
    ~Pipeline();
 
 #ifdef __OBJC__

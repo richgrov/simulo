@@ -35,7 +35,7 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
       command_queue_(gpu) {
 
    pipelines_.ui = static_cast<RenderPipeline>(render_pipelines_.size());
-   render_pipelines_.emplace_back(gpu, pipeline_pixel_format);
+   render_pipelines_.emplace_back(gpu, pipeline_pixel_format, "ui", "vertex_main", "fragment_main");
 }
 
 Renderer::~Renderer() {}
