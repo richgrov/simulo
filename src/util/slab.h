@@ -1,7 +1,10 @@
 #pragma once
 
 #include "util/assert.h"
+
 #include <algorithm>
+#include <array>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -66,29 +69,29 @@ private:
    struct Storage {
       static constexpr std::size_t kSize = std::max<std::size_t>({sizeof(int), sizeof(T)});
       static constexpr std::size_t kAlign = std::max<std::size_t>({alignof(int), alignof(T)});
-      alignas(kAlign) unsigned char storage[kSize];
+      alignas(kAlign) std::array<uint8_t, kSize> storage;
 
       int next() {
-         auto ptr = reinterpret_cast<int *>(&storage);
+         auto ptr = reinterpret_cast<int *>(storage.data());
          return *ptr;
       }
 
       void store_next(const int next) {
-         auto ptr = reinterpret_cast<int *>(&storage);
+         auto ptr = reinterpret_cast<int *>(storage.data());
          *ptr = next;
       }
 
       template <class... Args> void store_value(Args &&...args) {
-         new (&storage) T(std::forward<Args>(args)...);
+         new (storage.data()) T(std::forward<Args>(args)...);
       }
 
       T &value() {
-         auto ptr = reinterpret_cast<T *>(&storage);
+         auto ptr = reinterpret_cast<T *>(storage.data());
          return *ptr;
       }
 
       void call_value_destructor() {
-         auto ptr = reinterpret_cast<T *>(&storage);
+         auto ptr = reinterpret_cast<T *>(storage.data());
          ptr->T::~T();
       }
    };
