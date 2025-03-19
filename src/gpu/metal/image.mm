@@ -23,9 +23,6 @@ Image::Image(const Gpu &gpu, std::span<const uint8_t> data, int width, int heigh
       throw std::runtime_error("Failed to create texture");
    }
 
-   std::cout << (size_t)data.data() << " " << data.size() << " " << width << " " << height
-             << std::endl;
-
    [texture_ replaceRegion:MTLRegionMake3D(0, 0, 0, width, height, 1)
                mipmapLevel:0
                  withBytes:data.data()
