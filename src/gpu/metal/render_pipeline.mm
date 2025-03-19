@@ -33,6 +33,8 @@ Pipeline::Pipeline(const Gpu &gpu, void *pixel_format) {
       throw std::runtime_error(std::format("error creating render pipeline state: {}", message));
    }
 
+   [vertex_func release];
+   [fragment_func release];
    [pipeline_desc release];
 }
 
