@@ -98,6 +98,8 @@ public:
    }
 
 private:
+   void do_render_pipeline(RenderPipeline pipeline, void *render_enc);
+
    Gpu &gpu_;
 
 #ifdef __OBJC__
@@ -106,7 +108,7 @@ private:
    void *metal_layer_;
 #endif
 
-   Pipeline ui_pipeline_;
+   std::vector<Pipeline> render_pipelines_;
    Buffer vertex_buffer_;
    Pipelines pipelines_;
    CommandQueue command_queue_;
