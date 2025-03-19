@@ -17,6 +17,12 @@ Buffer::Buffer(const Gpu &gpu, std::span<const uint8_t> data) {
    }
 }
 
+Buffer::Buffer(Buffer &&other) : buffer_(other.buffer_) {
+   other.buffer_ = nullptr;
+}
+
 Buffer::~Buffer() {
-   [buffer_ release];
+   if (buffer_ != nullptr) {
+      [buffer_ release];
+   }
 }

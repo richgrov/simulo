@@ -13,10 +13,12 @@ namespace vkad {
 class Buffer {
 public:
    Buffer(const Gpu &gpu, std::span<const uint8_t> data);
+   Buffer(Buffer &&other);
    ~Buffer();
 
    Buffer(const Buffer &other) = delete;
    Buffer &operator=(const Buffer &other) = delete;
+   Buffer &operator=(Buffer &&other) = delete;
 
 #ifdef __OBJC__
    id<MTLBuffer> _Nonnull buffer() const {
