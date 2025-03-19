@@ -4,6 +4,7 @@
 #include <string_view>
 
 #ifdef __OBJC__
+#import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 #endif
@@ -83,11 +84,12 @@ public:
 #endif
 
 private:
-   void *ns_window_;
 #ifdef __OBJC__
+   NSWindow *ns_window_;
    MTLPixelFormat layer_pixel_format_;
    CAMetalLayer *metal_layer_;
 #else
+   void *ns_window_;
    void *layer_pixel_format_;
    void *metal_layer_;
 #endif

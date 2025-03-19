@@ -67,13 +67,10 @@ Window::Window(const Gpu &gpu, const char *title) {
 }
 
 Window::~Window() {
-   NSWindow *window = reinterpret_cast<NSWindow *>(ns_window_);
-   [window release];
+   [ns_window_ release];
 }
 
 bool Window::poll() {
-   auto window = reinterpret_cast<NSWindow *>(ns_window_);
-
    @autoreleasepool {
       while (true) {
          NSEvent *event = [NSApp nextEventMatchingMask:NSEventMaskAny
@@ -87,7 +84,7 @@ bool Window::poll() {
 
          [NSApp sendEvent:event];
 
-         if (![window isVisible]) {
+         if (![ns_window_ isVisible]) {
             return false;
          }
       }
