@@ -1,6 +1,18 @@
-![vkad logo](.github/logo.svg)
+![simulo logo](.github/simulo-banner.png)
 
-A simple, minimal-dependency CAD program featuring:
+# simulo
+
+The game engine of the real world.
+
+Originally called `vkad`, this project began as a CAD program so I could learn about 3D printing
+and graphics programming.
+
+I hope to make this a tool to create games in the real world through simulation of physics,
+robotics, and computer vision. Entertainment is at the core of what motivates young thinkers to do
+great things, and there's no reason critical thinking, socialization, and physical activity can't
+come with it.
+
+**Featuring**
 
 - Custom Vulkan and Metal render backend
 - Windows, X11, Wayland, and macOS windowing system from scratch
@@ -21,4 +33,8 @@ I started this project for two reasons:
 
 # Setup
 
-Download `xxd` and the [Vulkan SDK](https://vulkan.lunarg.com/)
+- Install `xxd`
+
+Windows & Linux:
+
+- Install the [Vulkan SDK](https://vulkan.lunarg.com/)
