@@ -7,6 +7,8 @@
 #import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
+@class WindowDelegate;
+@class WindowView;
 #endif
 
 #include "gpu/gpu.h"
@@ -49,13 +51,9 @@ public:
       return left_clicking_;
    }
 
-   inline bool is_key_down(uint8_t key_code) const {
-      return pressed_keys_[key_code];
-   }
+   bool is_key_down(uint8_t key_code) const;
 
-   inline bool key_just_pressed(uint8_t key_code) const {
-      return !prev_pressed_keys_[key_code] && pressed_keys_[key_code];
-   }
+   bool key_just_pressed(uint8_t key_code) const;
 
    std::string_view typed_chars() const {
       return std::string_view(typed_chars_, next_typed_letter_);
@@ -84,10 +82,14 @@ private:
    NSWindow *ns_window_;
    MTLPixelFormat layer_pixel_format_;
    CAMetalLayer *metal_layer_;
+   WindowDelegate *window_delegate_;
+   WindowView *window_view_;
 #else
    void *ns_window_;
    void *layer_pixel_format_;
    void *metal_layer_;
+   void *window_delegate_;
+   void *window_view_;
 #endif
 
    bool closing_ = false;
@@ -99,8 +101,6 @@ private:
    int delta_mouse_y_;
    bool left_clicking_;
 
-   Bitfield<256> pressed_keys_;
-   Bitfield<256> prev_pressed_keys_;
 
    char typed_chars_[64];
    int next_typed_letter_;

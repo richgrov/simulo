@@ -19,7 +19,14 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
 
 } // namespace
 
-@interface WindowDelegate : NSObject <NSWindowDelegate> {
+@class WindowDelegate;
+@class WindowView;
+
+@interface WindowDelegate : NSObject <NSWindowDelegate, NSApplicationDelegate> {
+@public
+   Bitfield<256> pressed_keys_;
+@public
+   Bitfield<256> prev_pressed_keys_;
 }
 @end
 
@@ -31,11 +38,87 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
    resize_metal_layer_to_window(window, metal_layer);
 }
 
-
 @end
 
+@interface WindowView : NSView <NSTextInputClient> {
+   WindowDelegate *delegate_;
+}
+@end
+
+@implementation WindowView
+
+- (id)initWithWindowAndDelegate:(vkad::Window *)window delegate:(WindowDelegate *)delegate {
+   self = [super init];
+   if (self) {
+      windowRef_ = window;
+      delegate_ = delegate;
+      self.wantsLayer = YES;
+   }
+   return self;
+}
+
+- (BOOL)acceptsFirstResponder {
+   return YES;
+}
+
+- (BOOL)canBecomeKeyView {
+   return YES;
+}
+
+- (BOOL)wantsUpdateLayer {
+   return YES;
+}
+
+- (void)keyDown:(NSEvent *)event {
+   delegate_->pressed_keys_.set(event.keyCode);
+   [self interpretKeyEvents:@[ event ]];
+}
+
+- (void)keyUp:(NSEvent *)event {
+   delegate_->pressed_keys_.unset(event.keyCode);
+}
+- (void)setMarkedText:(id)string
+        selectedRange:(NSRange)selectedRange
+     replacementRange:(NSRange)replacementRange {
+}
+
+- (void)unmarkText {
+}
+
+- (NSRange)selectedRange {
+   return NSMakeRange(NSNotFound, 0);
+}
+
+- (NSRange)markedRange {
+   return NSMakeRange(NSNotFound, 0);
+}
+
+- (BOOL)hasMarkedText {
+   return NO;
+}
+
+- (NSAttributedString *)attributedSubstringForProposedRange:(NSRange)range
+                                                actualRange:(NSRangePointer)actualRange {
+   return nil;
+}
+
+- (NSArray<NSAttributedStringKey> *)validAttributesForMarkedText {
+   return @[];
+}
+
+- (NSRect)firstRectForCharacterRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
+   return NSMakeRect(0, 0, 0, 0);
+}
+
+- (NSUInteger)characterIndexForPoint:(NSPoint)point {
+   return 0;
+}
+
+@end
 Window::Window(const Gpu &gpu, const char *title) {
    [NSApplication sharedApplication];
+   [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+
    NSRect bounds = NSMakeRect(0, 0, 1280, 720);
    NSWindow *window = [[NSWindow alloc]
        initWithContentRect:bounds
@@ -44,7 +127,12 @@ Window::Window(const Gpu &gpu, const char *title) {
                    backing:NSBackingStoreBuffered
                      defer:NO];
 
-   window.delegate = [[WindowDelegate alloc] init];
+   window_delegate_ = [[WindowDelegate alloc] init];
+   window.delegate = window_delegate_;
+   [NSApp setDelegate:window_delegate_];
+
+   window_view_ = [[WindowView alloc] initWithWindowAndDelegate:this delegate:window_delegate_];
+   [window setContentView:window_view_];
 
    [window center];
    window.title = [NSString stringWithUTF8String:title];
@@ -60,10 +148,12 @@ Window::Window(const Gpu &gpu, const char *title) {
    window.contentView.layer = metal_layer_;
 
    this->ns_window_ = window;
+
+   [NSApp activateIgnoringOtherApps:YES];
 }
 
 Window::~Window() {
-   [ns_window_.delegate release];
+   [window_delegate_ release];
    [ns_window_ release];
 }
 
@@ -75,6 +165,8 @@ bool Window::poll() {
       );
       CGWarpMouseCursorPosition(centerPoint);
    }
+
+   window_delegate_->prev_pressed_keys_ = window_delegate_->pressed_keys_;
 
    @autoreleasepool {
       while (true) {
@@ -117,4 +209,13 @@ int Window::width() const {
 
 int Window::height() const {
    return static_cast<int>(ns_window_.frame.size.height);
+}
+
+bool Window::is_key_down(uint8_t key_code) const {
+   return window_delegate_->pressed_keys_[key_code];
+}
+
+bool Window::key_just_pressed(uint8_t key_code) const {
+   return !window_delegate_->prev_pressed_keys_[key_code] &&
+          window_delegate_->pressed_keys_[key_code];
 }
