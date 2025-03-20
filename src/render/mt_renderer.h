@@ -116,7 +116,7 @@ public:
    }
 
 private:
-   void do_render_pipeline(RenderPipeline pipeline, void *render_enc);
+   void do_render_pipeline(RenderPipeline pipeline, void *render_enc, Mat4 projection);
 
    Gpu &gpu_;
 

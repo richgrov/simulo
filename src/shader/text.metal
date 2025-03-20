@@ -12,9 +12,9 @@ struct OutVertex {
 	simd::float2 uv;
 };
 
-vertex OutVertex vertex_main(uint vert_id [[vertex_id]], constant UiVertex* vertices) {
+vertex OutVertex vertex_main(uint vert_id [[vertex_id]], constant UiVertex* vertices, constant simd::float4x4 *transform) {
 	OutVertex out;
-	out.pos = simd::float4(vertices[vert_id].pos, 1.0);
+	out.pos = transform[0] * simd::float4(vertices[vert_id].pos, 1.0);
 	out.uv = vertices[vert_id].uv;
 	return out;
 }

@@ -21,10 +21,10 @@ using namespace vkad;
 namespace {
 
 constexpr UiVertex triangle[] = {
-    {{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
-    {{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},
+    {{0, 0, 0.0f}, {0.0f, 1.0f}},
+    {{0, 1, 0.0f}, {0.0f, 0.0f}},
+    {{1, 0, 0.0f}, {1.0f, 1.0f}},
+    {{1, 1, 0.0f}, {1.0f, 0.0f}},
 };
 
 constexpr uint16_t indices[] = {0, 1, 2, 1, 3, 2};
@@ -71,7 +71,7 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
       id<MTLRenderCommandEncoder> render_encoder =
           [cmd_buf renderCommandEncoderWithDescriptor:render_pass_desc];
 
-      do_render_pipeline(pipelines_.ui, (__bridge void *)render_encoder);
+      do_render_pipeline(pipelines_.ui, (__bridge void *)render_encoder, ui_view_projection);
 
       [cmd_buf presentDrawable:drawable];
       [cmd_buf commit];
@@ -82,7 +82,7 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
    return true;
 }
 
-void Renderer::do_render_pipeline(RenderPipeline pipeline_id, void *render_enc) {
+void Renderer::do_render_pipeline(RenderPipeline pipeline_id, void *render_enc, Mat4 projection) {
    auto render_encoder = (__bridge id<MTLRenderCommandEncoder>)render_enc;
    const MaterialPipeline &mat_pipeline = render_pipelines_[pipeline_id];
    [render_encoder setRenderPipelineState:mat_pipeline.pipeline.pipeline_state()];
@@ -97,6 +97,12 @@ void Renderer::do_render_pipeline(RenderPipeline pipeline_id, void *render_enc) 
       }
 
       [render_encoder setVertexBuffer:geometry_.buffer() offset:0 atIndex:0];
+
+      Mat4 transform = projection * Mat4::scale(Vec3{360, 360, 0});
+      [render_encoder setVertexBytes:reinterpret_cast<void *>(&transform)
+                              length:sizeof(Mat4)
+                             atIndex:1];
+
       [render_encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
                                  indexCount:geometry_.num_indices()
                                   indexType:VertexIndexBuffer::kIndexType
