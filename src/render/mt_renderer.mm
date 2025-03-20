@@ -35,6 +35,8 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
     : gpu_(gpu),
       images_(4),
       materials_(8),
+      meshes_(32),
+      instances_(64),
       metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)),
       geometry_(VertexIndexBuffer::concat(
           gpu_,
@@ -54,6 +56,35 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
 }
 
 Renderer::~Renderer() {}
+
+RenderObject Renderer::add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material) {
+   int id = instances_.emplace(MeshInstance{
+       .transform = transform,
+       .mesh = mesh,
+       .material = material,
+   });
+
+   Material &mat = materials_.get(material);
+   if (mat.mesh_instances.contains(mesh)) {
+      mat.mesh_instances[mesh].insert(id);
+   } else {
+      mat.mesh_instances.insert({mesh, {id}});
+   }
+
+   return static_cast<RenderObject>(id);
+}
+
+void Renderer::delete_object(RenderObject object) {
+   MeshInstance instance = instances_.get(object);
+
+   Material &mat = materials_.get(instance.material);
+   mat.mesh_instances[instance.mesh].erase(object);
+   if (mat.mesh_instances[instance.mesh].empty()) {
+      mat.mesh_instances.erase(instance.mesh);
+   }
+
+   instances_.release(object);
+}
 
 bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
    @autoreleasepool {
@@ -96,18 +127,24 @@ void Renderer::do_render_pipeline(RenderPipeline pipeline_id, void *render_enc, 
          [render_encoder setFragmentTexture:img.texture() atIndex:0];
       }
 
-      [render_encoder setVertexBuffer:geometry_.buffer() offset:0 atIndex:0];
+      for (const auto &[mesh_id, instances] : mat.mesh_instances) {
+         VertexIndexBuffer &buf = meshes_.get(mesh_id);
+         [render_encoder setVertexBuffer:buf.buffer() offset:0 atIndex:0];
 
-      Mat4 transform = projection * Mat4::scale(Vec3{360, 360, 0});
-      [render_encoder setVertexBytes:reinterpret_cast<void *>(&transform)
-                              length:sizeof(Mat4)
-                             atIndex:1];
+         for (int instance_id : instances) {
+            const MeshInstance &instance = instances_.get(instance_id);
+            Mat4 transform = projection * instance.transform;
+            [render_encoder setVertexBytes:reinterpret_cast<void *>(&transform)
+                                    length:sizeof(Mat4)
+                                   atIndex:1];
 
-      [render_encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-                                 indexCount:geometry_.num_indices()
-                                  indexType:VertexIndexBuffer::kIndexType
-                                indexBuffer:geometry_.buffer()
-                          indexBufferOffset:geometry_.index_offset()];
+            [render_encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                                       indexCount:buf.num_indices()
+                                        indexType:VertexIndexBuffer::kIndexType
+                                      indexBuffer:buf.buffer()
+                                indexBufferOffset:buf.index_offset()];
+         }
+      }
    }
 
    [render_encoder endEncoding];

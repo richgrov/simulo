@@ -64,7 +64,7 @@ private:
 
 class Renderer {
 public:
-   using IndexBufferType = uint32_t;
+   using IndexBufferType = VertexIndexBuffer::IndexType;
 
    Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer);
    ~Renderer();
@@ -89,16 +89,17 @@ public:
    }
 
    RenderMesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data) {
-      return static_cast<RenderMesh>(0);
+      int id = meshes_.emplace(VertexIndexBuffer::concat(gpu_, vertex_data, index_data));
+      return static_cast<RenderMesh>(id);
    }
 
-   void delete_mesh(RenderMesh mesh) const {}
-
-   RenderObject add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material) const {
-      return static_cast<RenderObject>(0);
+   void delete_mesh(RenderMesh mesh) {
+      meshes_.release(static_cast<int>(mesh));
    }
 
-   void delete_object(RenderObject object) {}
+   RenderObject add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material);
+
+   void delete_object(RenderObject object);
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height) {
       int id = images_.emplace(gpu_, img_data, width, height);
@@ -129,6 +130,7 @@ private:
    struct Material {
       RenderPipeline pipeline;
       std::vector<RenderImage> images;
+      std::unordered_map<RenderMesh, std::unordered_set<int>> mesh_instances;
    };
 
    struct MaterialPipeline {
@@ -136,9 +138,17 @@ private:
       std::unordered_set<int> materials;
    };
 
+   struct MeshInstance {
+      Mat4 transform;
+      RenderMesh mesh;
+      RenderMaterial material;
+   };
+
    std::vector<MaterialPipeline> render_pipelines_;
    Slab<Image> images_;
    Slab<Material> materials_;
+   Slab<VertexIndexBuffer> meshes_;
+   Slab<MeshInstance> instances_;
    VertexIndexBuffer geometry_;
    Pipelines pipelines_;
    CommandQueue command_queue_;
