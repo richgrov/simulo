@@ -25,13 +25,9 @@ public:
 
    void request_close() {}
 
-   int width() const {
-      return -1;
-   }
+   int width() const;
 
-   int height() const {
-      return -1;
-   }
+   int height() const;
 
    int mouse_x() const {
       return mouse_x_;

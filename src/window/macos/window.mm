@@ -91,3 +91,11 @@ bool Window::poll() {
    }
    return true;
 }
+
+int Window::width() const {
+   return static_cast<int>(ns_window_.frame.size.width);
+}
+
+int Window::height() const {
+   return static_cast<int>(ns_window_.frame.size.height);
+}
