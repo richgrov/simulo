@@ -121,6 +121,8 @@ void Renderer::do_render_pipeline(RenderPipeline pipeline_id, void *render_enc, 
    for (int mat_id : mat_pipeline.materials) {
       const Material &mat = materials_.get(mat_id);
 
+      [render_encoder setFragmentBuffer:mat.uniform_buffer.buffer() offset:0 atIndex:0];
+
       for (int i = 0; i < mat.images.size(); ++i) {
          RenderImage img_id = mat.images[i];
          const Image &img = images_.get(img_id);

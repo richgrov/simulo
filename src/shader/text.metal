@@ -19,10 +19,10 @@ vertex OutVertex vertex_main(uint vert_id [[vertex_id]], constant UiVertex* vert
 	return out;
 }
 
-fragment float4 fragment_main(OutVertex vert [[stage_in]], texture2d<float> texture [[texture(0)]]) {
+fragment float4 fragment_main(OutVertex vert [[stage_in]], constant simd::float3 *color, texture2d<float> texture [[texture(0)]]) {
 	constexpr sampler tex_sampler(mag_filter::linear, min_filter::linear);
 
-	return texture.sample(tex_sampler, vert.uv);
+	return texture.sample(tex_sampler, vert.uv).x * float4(color[0], 1.0);
 }
 
 vertex OutVertex vertex_main2(uint vert_id [[vertex_id]], constant UiVertex* vertices) {

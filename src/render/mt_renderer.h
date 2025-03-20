@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <span>
 #include <unordered_set>
 #include <utility>
@@ -77,8 +78,11 @@ public:
          images.push_back(props.get<RenderImage>("image"));
       }
 
+      Uniform data(Uniform::from_props(props));
       int id = materials_.emplace(Material{
           .pipeline = pipeline_id,
+          .uniform_buffer =
+              Buffer(gpu_, std::span(reinterpret_cast<uint8_t *>(&data), sizeof(data))),
           .images = std::move(images),
       });
 
@@ -129,6 +133,7 @@ private:
 
    struct Material {
       RenderPipeline pipeline;
+      Buffer uniform_buffer;
       std::vector<RenderImage> images;
       std::unordered_map<RenderMesh, std::unordered_set<int>> mesh_instances;
    };
