@@ -67,6 +67,7 @@ Window::Window(const Gpu &gpu, const char *title) {
 }
 
 Window::~Window() {
+   [ns_window_.delegate release];
    [ns_window_ release];
 }
 
