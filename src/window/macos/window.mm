@@ -20,7 +20,7 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
 } // namespace
 
 @interface WindowDelegate : NSObject <NSWindowDelegate> {
-   BOOL _closed;
+   BOOL closed_;
 }
 @end
 
@@ -33,7 +33,7 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
 }
 
 - (void)windowWillClose:(NSNotification *)notification {
-   _closed = true;
+   closed_ = true;
 }
 
 @end
