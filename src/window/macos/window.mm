@@ -72,6 +72,14 @@ Window::~Window() {
 }
 
 bool Window::poll() {
+   if (cursor_captured_) {
+      NSRect frame = ns_window_.frame;
+      CGPoint centerPoint = CGPointMake(
+          frame.origin.x + frame.size.width / 2, frame.origin.y + frame.size.height / 2
+      );
+      CGWarpMouseCursorPosition(centerPoint);
+   }
+
    @autoreleasepool {
       while (true) {
          NSEvent *event = [NSApp nextEventMatchingMask:NSEventMaskAny
@@ -91,6 +99,16 @@ bool Window::poll() {
       }
    }
    return true;
+}
+
+void Window::set_capture_mouse(bool capture) {
+   cursor_captured_ = capture;
+
+   if (capture) {
+      [NSCursor hide];
+   } else {
+      [NSCursor unhide];
+   }
 }
 
 int Window::width() const {

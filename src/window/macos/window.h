@@ -21,7 +21,7 @@ public:
 
    bool poll();
 
-   void set_capture_mouse(bool capture) {}
+   void set_capture_mouse(bool capture);
 
    void request_close() {}
 
@@ -92,7 +92,7 @@ private:
 
    bool open_;
    bool closing_;
-   bool cursor_captured_;
+   bool cursor_captured_ = false;
 
    int mouse_x_;
    int mouse_y_;
