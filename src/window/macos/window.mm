@@ -20,7 +20,6 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
 } // namespace
 
 @interface WindowDelegate : NSObject <NSWindowDelegate> {
-   BOOL closed_;
 }
 @end
 
@@ -32,9 +31,6 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
    resize_metal_layer_to_window(window, metal_layer);
 }
 
-- (void)windowWillClose:(NSNotification *)notification {
-   closed_ = true;
-}
 
 @end
 
@@ -92,13 +88,10 @@ bool Window::poll() {
          }
 
          [NSApp sendEvent:event];
-
-         if (![ns_window_ isVisible]) {
-            return false;
-         }
       }
    }
-   return true;
+
+   return [ns_window_ isVisible];
 }
 
 void Window::set_capture_mouse(bool capture) {
@@ -108,6 +101,13 @@ void Window::set_capture_mouse(bool capture) {
       [NSCursor hide];
    } else {
       [NSCursor unhide];
+   }
+}
+
+void Window::request_close() {
+   if (!closing_) {
+      [ns_window_ performClose:nil];
+      closing_ = true;
    }
 }
 

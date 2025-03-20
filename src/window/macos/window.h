@@ -23,7 +23,7 @@ public:
 
    void set_capture_mouse(bool capture);
 
-   void request_close() {}
+   void request_close();
 
    int width() const;
 
@@ -90,8 +90,7 @@ private:
    void *metal_layer_;
 #endif
 
-   bool open_;
-   bool closing_;
+   bool closing_ = false;
    bool cursor_captured_ = false;
 
    int mouse_x_;
