@@ -31,33 +31,21 @@ public:
 
    int height() const;
 
-   int mouse_x() const {
-      return mouse_x_;
-   }
+   int mouse_x() const;
 
-   int mouse_y() const {
-      return mouse_y_;
-   }
+   int mouse_y() const;
 
-   int delta_mouse_x() const {
-      return delta_mouse_x_;
-   }
+   int delta_mouse_x() const;
 
-   int delta_mouse_y() const {
-      return delta_mouse_y_;
-   }
+   int delta_mouse_y() const;
 
-   bool left_clicking() const {
-      return left_clicking_;
-   }
+   bool left_clicking() const;
 
    bool is_key_down(uint8_t key_code) const;
 
    bool key_just_pressed(uint8_t key_code) const;
 
-   std::string_view typed_chars() const {
-      return std::string_view(typed_chars_, next_typed_letter_);
-   }
+   std::string_view typed_chars() const;
 
 #ifdef __OBJC__
    MTLPixelFormat layer_pixel_format() const {
@@ -94,16 +82,6 @@ private:
 
    bool closing_ = false;
    bool cursor_captured_ = false;
-
-   int mouse_x_;
-   int mouse_y_;
-   int delta_mouse_x_;
-   int delta_mouse_y_;
-   bool left_clicking_;
-
-
-   char typed_chars_[64];
-   int next_typed_letter_;
 };
 
 inline std::unique_ptr<Window> create_window(const Gpu &gpu, const char *title) {

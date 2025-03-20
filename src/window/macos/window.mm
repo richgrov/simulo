@@ -7,6 +7,7 @@
 #import <objc/objc.h>
 
 #include "gpu/gpu.h"
+#include "window/macos/keys.h"
 
 using namespace vkad;
 
@@ -23,10 +24,6 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
 @class WindowView;
 
 @interface WindowDelegate : NSObject <NSWindowDelegate, NSApplicationDelegate> {
-@public
-   Bitfield<256> pressed_keys_;
-@public
-   Bitfield<256> prev_pressed_keys_;
 }
 @end
 
@@ -41,20 +38,38 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
 @end
 
 @interface WindowView : NSView <NSTextInputClient> {
-   WindowDelegate *delegate_;
+@public
+   Bitfield<256> pressed_keys_;
+@public
+   Bitfield<256> prev_pressed_keys_;
+   int mouse_x_;
+   int mouse_y_;
+   int delta_mouse_x_;
+   int delta_mouse_y_;
+   bool mouse_down_;
+   char typed_chars_[64];
+   int next_typed_letter_;
 }
 @end
 
 @implementation WindowView
 
-- (id)initWithWindowAndDelegate:(vkad::Window *)window delegate:(WindowDelegate *)delegate {
+- (id)initWithDelegate:(WindowDelegate *)delegate {
    self = [super init];
    if (self) {
-      windowRef_ = window;
-      delegate_ = delegate;
       self.wantsLayer = YES;
    }
    return self;
+}
+
+- (void)update {
+   prev_pressed_keys_ = pressed_keys_;
+
+   std::memset(typed_chars_, 0, sizeof(typed_chars_));
+   next_typed_letter_ = 0;
+
+   delta_mouse_x_ = 0;
+   delta_mouse_y_ = 0;
 }
 
 - (BOOL)acceptsFirstResponder {
@@ -69,14 +84,70 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
    return YES;
 }
 
+- (void)mouseDown:(NSEvent *)event {
+   mouse_down_ = true;
+}
+
+- (void)mouseUp:(NSEvent *)event {
+   mouse_down_ = false;
+}
+
+- (void)mouseMoved:(NSEvent *)event {
+   NSPoint locationInWindow = [event locationInWindow];
+   NSPoint locationInView = [self convertPoint:locationInWindow fromView:nil];
+
+   int new_x = static_cast<int>(locationInView.x);
+   int new_y = static_cast<int>(self.frame.size.height - locationInView.y);
+
+   delta_mouse_x_ = new_x - mouse_x_;
+   delta_mouse_y_ = new_y - mouse_y_;
+   mouse_x_ = new_x;
+   mouse_y_ = new_y;
+}
+
+- (void)mouseDragged:(NSEvent *)event {
+   [self mouseMoved:event];
+}
+
 - (void)keyDown:(NSEvent *)event {
-   delegate_->pressed_keys_.set(event.keyCode);
+   pressed_keys_.set(event.keyCode);
+
+   if (next_typed_letter_ < sizeof(typed_chars_)) {
+      switch (event.keyCode) {
+      case VKAD_KEY_DELETE:
+         typed_chars_[next_typed_letter_++] = '\b';
+         return;
+      case VKAD_KEY_RETURN:
+         typed_chars_[next_typed_letter_++] = '\r';
+         return;
+      }
+   }
+
    [self interpretKeyEvents:@[ event ]];
 }
 
 - (void)keyUp:(NSEvent *)event {
-   delegate_->pressed_keys_.unset(event.keyCode);
+   pressed_keys_.unset(event.keyCode);
 }
+
+- (void)scrollWheel:(NSEvent *)event {
+}
+
+#pragma mark - NSTextInputClient Protocol
+
+- (void)insertText:(id)string replacementRange:(NSRange)replacementRange {
+   if ([string isKindOfClass:[NSString class]]) {
+      NSString *nsString = (NSString *)string;
+      const char *utf8Chars = [nsString UTF8String];
+      size_t len = strlen(utf8Chars);
+
+      if (next_typed_letter_ + len < sizeof(typed_chars_)) {
+         memcpy(typed_chars_ + next_typed_letter_, utf8Chars, len);
+         next_typed_letter_ += static_cast<int>(len);
+      }
+   }
+}
+
 - (void)setMarkedText:(id)string
         selectedRange:(NSRange)selectedRange
      replacementRange:(NSRange)replacementRange {
@@ -115,6 +186,7 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
 }
 
 @end
+
 Window::Window(const Gpu &gpu, const char *title) {
    [NSApplication sharedApplication];
    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -131,7 +203,7 @@ Window::Window(const Gpu &gpu, const char *title) {
    window.delegate = window_delegate_;
    [NSApp setDelegate:window_delegate_];
 
-   window_view_ = [[WindowView alloc] initWithWindowAndDelegate:this delegate:window_delegate_];
+   window_view_ = [[WindowView alloc] initWithDelegate:window_delegate_];
    [window setContentView:window_view_];
 
    [window center];
@@ -166,7 +238,7 @@ bool Window::poll() {
       CGWarpMouseCursorPosition(centerPoint);
    }
 
-   window_delegate_->prev_pressed_keys_ = window_delegate_->pressed_keys_;
+   [window_view_ update];
 
    @autoreleasepool {
       while (true) {
@@ -211,11 +283,34 @@ int Window::height() const {
    return static_cast<int>(ns_window_.frame.size.height);
 }
 
+int Window::mouse_x() const {
+   return window_view_->mouse_x_;
+}
+
+int Window::mouse_y() const {
+   return window_view_->mouse_y_;
+}
+
+int Window::delta_mouse_x() const {
+   return window_view_->delta_mouse_x_;
+}
+
+int Window::delta_mouse_y() const {
+   return window_view_->delta_mouse_y_;
+}
+
+bool Window::left_clicking() const {
+   return window_view_->mouse_down_;
+}
+
 bool Window::is_key_down(uint8_t key_code) const {
-   return window_delegate_->pressed_keys_[key_code];
+   return window_view_->pressed_keys_[key_code];
 }
 
 bool Window::key_just_pressed(uint8_t key_code) const {
-   return !window_delegate_->prev_pressed_keys_[key_code] &&
-          window_delegate_->pressed_keys_[key_code];
+   return !window_view_->prev_pressed_keys_[key_code] && window_view_->pressed_keys_[key_code];
+}
+
+std::string_view Window::typed_chars() const {
+   return std::string_view(window_view_->typed_chars_, window_view_->next_typed_letter_);
 }
