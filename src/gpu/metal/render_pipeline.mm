@@ -1,5 +1,7 @@
 #include "render_pipeline.h"
 
+#include <Metal/Metal.h>
+
 #include <format>
 #include <stdexcept>
 
@@ -28,6 +30,12 @@ Pipeline::Pipeline(
       pipeline_desc.label = [NSString stringWithUTF8String:label];
       pipeline_desc.vertexFunction = vertex_func;
       pipeline_desc.fragmentFunction = fragment_func;
+      pipeline_desc.colorAttachments[0].blendingEnabled = true;
+      pipeline_desc.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+      pipeline_desc.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
+      pipeline_desc.colorAttachments[0].destinationRGBBlendFactor =
+          MTLBlendFactorOneMinusSourceAlpha;
+      pipeline_desc.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
       pipeline_desc.colorAttachments[0].pixelFormat =
           static_cast<MTLPixelFormat>((NSUInteger)pixel_format);
 
