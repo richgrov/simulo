@@ -5,6 +5,7 @@
 #include <initializer_list>
 
 #include "util/assert.h"
+#include "util/os_detect.h"
 #include "vector.h"
 
 namespace vkad {
@@ -40,7 +41,11 @@ template <size_t N, size_t M> struct Matrix {
       // clang-format off
       return Matrix{
           {2.0f / (right - left), 0,                     0,                   -(right+left) / (right-left)},
-          {0,                     2.0f / (bottom - top), 0,                   -(bottom+top) / (bottom-top)},
+#ifdef VKAD_APPLE
+          {0,                     2.0f / (top - bottom), 0,                   -(top+bottom) / (top-bottom)},
+#else
+          {0,                     2.0f / (top - bottom), 0,                   -(bottom+top) / (bottom-top)},
+#endif
           {0,                     0,                     1.0f / (near - far), near/(near-far)},
           {0,                     0,                     0,                   1},
       };
