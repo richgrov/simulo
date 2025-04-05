@@ -1,0 +1,10 @@
+[project]
+name = "onnx-exporter"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "onnx>=1.17.0",
+    "onnxruntime>=1.21.0",
+    "onnxslim>=0.1.49",
+    "ultralytics>=8.3.101",
+]
