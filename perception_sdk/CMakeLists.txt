@@ -27,3 +27,5 @@ if (BUILD_TESTING)
    add_executable(perception_test "test.cc")
    target_link_libraries(perception_test perception_sdk)
 endif()
+
+add_subdirectory(godot)

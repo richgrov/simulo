@@ -2,7 +2,5 @@
 *.onnx
 *.onnx.h
 
-/godot/extension_api.json
-/godot/build/
 /godot/.sconsign.dblite
 /godot/*.os
