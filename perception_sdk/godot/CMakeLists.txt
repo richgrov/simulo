@@ -1,8 +1,5 @@
 add_subdirectory(godot-cpp)
 
-# print build type
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-
 set(BASE_LIB_NAME "gdperception")
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
