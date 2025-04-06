@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 
 #include <opencv2/core/types.hpp>
@@ -9,6 +10,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
+#include <thread>
 
 #include "onnx_exporter/yolo11n-pose.onnx.h"
 
@@ -53,7 +55,7 @@ float rescale(float f, float from_range, float to_range) {
 
 Perception::~Perception() {}
 
-std::vector<Perception::Detection> Perception::detect() {
+void Perception::detect() {
    cv::Mat capture_mat;
    if (!capture_->read(capture_mat)) {
       throw std::runtime_error("Could not read from camera");
@@ -126,5 +128,19 @@ std::vector<Perception::Detection> Perception::detect() {
       cv::rectangle(capture_mat, cv::Rect(x, y, w, h), cv::Scalar(0, 255, 0), 2);
    }
 
-   return result;
+   std::unique_lock lock(detection_lock_);
+   latest_detections_ = std::move(result);
+}
+void Perception::set_running(bool run) {
+   running_ = run;
+
+   if (run) {
+      thread_ = std::thread([this] {
+         while (running_) {
+            detect();
+         }
+      });
+   } else {
+      thread_->join();
+   }
 }
