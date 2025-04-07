@@ -43,7 +43,9 @@ float rescale(float f, float from_range, float to_range) {
    return f / from_range * to_range;
 }
 
-Perception::~Perception() {}
+Perception::~Perception() {
+   set_running(false);
+}
 
 void Perception::detect() {
    cv::Mat capture_mat;
