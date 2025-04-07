@@ -1,23 +1,14 @@
 #pragma once
 
 #include <atomic>
-#include <memory>
 #include <optional>
 #include <shared_mutex>
 #include <thread>
 #include <vector>
 
-namespace cv {
-
-class VideoCapture;
-
-namespace dnn::dnn4_v20241223 {
-
-class Net;
-
-}
-
-} // namespace cv
+#include <opencv2/core/mat.hpp>
+#include <opencv2/dnn.hpp>
+#include <opencv2/videoio.hpp>
 
 namespace simulo {
 
@@ -52,8 +43,8 @@ public:
 private:
    void detect();
 
-   std::unique_ptr<cv::VideoCapture> capture_;
-   std::unique_ptr<cv::dnn::dnn4_v20241223::Net> model_;
+   cv::VideoCapture capture_;
+   cv::dnn::Net model_;
    std::atomic<bool> running_;
    std::optional<std::thread> thread_;
 

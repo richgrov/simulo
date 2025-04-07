@@ -1,7 +1,6 @@
 #include "perception.h"
 
 #include <cassert>
-#include <memory>
 #include <mutex>
 #include <stdexcept>
 
@@ -12,7 +11,7 @@
 #include <opencv2/videoio.hpp>
 #include <thread>
 
-#include "onnx_exporter/yolo11n-pose.onnx.h"
+#include "pose_model.h"
 
 using namespace simulo;
 
@@ -38,16 +37,7 @@ cv::Mat postprocess(const std::vector<cv::Mat> &outputs) {
 
 } // namespace
 
-Perception::Perception()
-    : capture_(std::make_unique<cv::VideoCapture>(0)),
-      model_(std::make_unique<cv::dnn::Net>(cv::dnn::readNetFromONNX(
-          reinterpret_cast<const char *>(onnx_exporter_yolo11n_pose_onnx),
-          onnx_exporter_yolo11n_pose_onnx_len
-      ))) {
-
-   model_->setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
-   model_->setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
-}
+Perception::Perception() : capture_(0), model_(get_pose_model()) {}
 
 float rescale(float f, float from_range, float to_range) {
    return f / from_range * to_range;
@@ -57,7 +47,7 @@ Perception::~Perception() {}
 
 void Perception::detect() {
    cv::Mat capture_mat;
-   if (!capture_->read(capture_mat)) {
+   if (!capture_.read(capture_mat)) {
       throw std::runtime_error("Could not read from camera");
    }
 
@@ -65,10 +55,10 @@ void Perception::detect() {
    cv::dnn::blobFromImage(
        capture_mat, blob, 1.0 / 255.0, kInputImageSize, cv::Scalar(), true, false
    );
-   model_->setInput(blob);
+   model_.setInput(blob);
 
    static thread_local std::vector<cv::Mat> outputs;
-   model_->forward(outputs, model_->getUnconnectedOutLayersNames());
+   model_.forward(outputs, model_.getUnconnectedOutLayersNames());
 
    cv::Mat output = postprocess(outputs);
 

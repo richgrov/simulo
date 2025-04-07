@@ -3,10 +3,17 @@ find_package(OpenCV REQUIRED)
 add_library(perception_sdk
    "perception.cc"
    "perception.h"
+   "pose_model.cc"
+   "pose_model.h"
 )
 
-target_include_directories(perception_sdk PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(perception_sdk PRIVATE ${OpenCV_LIBS})
+target_include_directories(perception_sdk 
+   PUBLIC 
+      ${OpenCV_INCLUDE_DIRS}
+   PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(perception_sdk PUBLIC ${OpenCV_LIBS})
 
 function(embed_binary target file)
    add_custom_command(
