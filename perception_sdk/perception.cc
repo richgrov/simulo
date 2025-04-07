@@ -132,7 +132,7 @@ void Perception::apply_calibration_transform(Detection &detection) {
 }
 
 void Perception::detect() {
-   cv::Mat capture_mat;
+   static thread_local cv::Mat capture_mat;
    if (!capture_.read(capture_mat)) {
       throw std::runtime_error("Could not read from camera");
    }
@@ -220,6 +220,7 @@ void Perception::detect() {
    std::unique_lock lock(detection_lock_);
    latest_detections_ = std::move(result);
 }
+
 void Perception::set_running(bool run) {
    running_ = run;
 
