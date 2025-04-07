@@ -40,8 +40,14 @@ public:
       return latest_detections_;
    }
 
+   bool is_calibrated() const {
+      return calibrated_;
+   }
+
 private:
    void detect();
+   bool detect_calibration_marker(cv::Mat &frame);
+   void apply_calibration_transform(Detection &detection);
 
    cv::VideoCapture capture_;
    cv::dnn::Net model_;
@@ -50,6 +56,10 @@ private:
 
    std::shared_mutex detection_lock_;
    std::vector<Detection> latest_detections_;
+
+   std::atomic<bool> calibrated_{false};
+   std::vector<cv::Point2f> calibration_quad_;
+   cv::Mat perspective_transform_;
 };
 
 } // namespace simulo
