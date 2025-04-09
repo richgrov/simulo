@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <optional>
 #include <shared_mutex>
 #include <thread>
 #include <vector>
@@ -52,7 +51,7 @@ private:
    cv::VideoCapture capture_;
    cv::dnn::Net model_;
    std::atomic<bool> running_;
-   std::optional<std::thread> thread_;
+   std::thread thread_;
 
    std::shared_mutex detection_lock_;
    std::vector<Detection> latest_detections_;

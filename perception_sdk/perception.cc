@@ -231,6 +231,8 @@ void Perception::set_running(bool run) {
          }
       });
    } else {
-      thread_->join();
+      if (thread_.joinable()) {
+         thread_.join();
+      }
    }
 }
