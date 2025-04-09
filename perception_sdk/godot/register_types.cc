@@ -1,5 +1,6 @@
 #include <gdextension_interface.h>
 #include <godot_cpp/classes/global_constants.hpp>
+#include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -39,8 +40,8 @@ protected:
    }
 };
 
-class Perception2d : public RefCounted {
-   GDCLASS(Perception2d, RefCounted);
+class Perception2d : public Node {
+   GDCLASS(Perception2d, Node);
 
 public:
    Perception2d() {
