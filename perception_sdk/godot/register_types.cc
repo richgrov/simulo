@@ -1,10 +1,13 @@
 #include <gdextension_interface.h>
+#include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 #include <godot_cpp/variant/array.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+#include <godot_cpp/variant/variant.hpp>
 
 #include "../perception.h"
 
@@ -18,7 +21,12 @@ class Detection : public RefCounted {
 public:
    Detection() {}
 
-   Vector2 get_keypoint(int keypoint_index) {
+   Variant get_keypoint(int keypoint_index) {
+      if (keypoint_index < 0 || keypoint_index >= detection_.points.size()) {
+         UtilityFunctions::push_error("keypoint index out of range");
+         return ERR_INVALID_PARAMETER;
+      }
+
       simulo::Perception::Keypoint kp = detection_.points[keypoint_index];
       return Vector2(kp.x, kp.y);
    }
