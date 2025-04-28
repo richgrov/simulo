@@ -74,9 +74,14 @@ public:
       return result;
    }
 
+   bool is_calibrated() {
+      return perception_.is_calibrated();
+   }
+
 protected:
    static void _bind_methods() {
       ClassDB::bind_method(D_METHOD("detect"), &Perception2d::detect);
+      ClassDB::bind_method(D_METHOD("is_calibrated"), &Perception2d::is_calibrated);
    }
 
 private:
