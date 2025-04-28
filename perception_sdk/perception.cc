@@ -68,18 +68,15 @@ bool Perception::detect_calibration_marker(cv::Mat &frame) {
       return true;
    }
 
-   static thread_local cv::Mat gray;
+   static thread_local cv::Mat gray, edges;
    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+   cv::Canny(gray, edges, 30, 40);
 
-   static thread_local cv::Mat mask;
-   cv::inRange(gray, 140, 255, mask);
-
-   static thread_local cv::Mat blurred, edges;
-   cv::GaussianBlur(mask, blurred, cv::Size(5, 5), 0);
-   cv::Canny(blurred, edges, 50, 150);
+   static thread_local cv::Mat blurred_edges;
+   cv::GaussianBlur(edges, blurred_edges, cv::Size(5, 5), 0);
 
    std::vector<std::vector<cv::Point>> contours;
-   cv::findContours(edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+   cv::findContours(blurred_edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
    float min_area = frame.rows * frame.cols * kCalibrationMinContourArea;
    for (const auto &contour : contours) {
