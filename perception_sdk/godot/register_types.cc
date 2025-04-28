@@ -11,6 +11,7 @@
 #include <godot_cpp/variant/variant.hpp>
 
 #include "../perception.h"
+#include "godot_cpp/classes/display_server.hpp"
 
 using namespace godot;
 
@@ -29,7 +30,14 @@ public:
       }
 
       simulo::Perception::Keypoint kp = detection_.points[keypoint_index];
-      return Vector2(kp.x, kp.y);
+      DisplayServer *display = DisplayServer::get_singleton();
+      if (display == nullptr) {
+         UtilityFunctions::push_error("display server not initialized");
+         return ERR_CANT_ACQUIRE_RESOURCE;
+      }
+
+      Vector2i window_size = display->window_get_size();
+      return Vector2(kp.x * window_size.x, kp.y * window_size.y);
    }
 
    simulo::Perception::Detection detection_;
