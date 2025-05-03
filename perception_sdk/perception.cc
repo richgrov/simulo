@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include <opencv2/calib3d.hpp>
+#include <opencv2/core.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv2/dnn/dnn.hpp>
 #include <opencv2/highgui.hpp>
@@ -25,8 +26,7 @@ static constexpr int kNumBoxes = 8400;
 static constexpr float kScoreThreshold = 0.7;
 static constexpr float kNmsThreshold = 0.5;
 
-static constexpr float kCalibrationMinContourArea = 0.1f;
-static constexpr float kPolyApproxEpsilon = 0.02f;
+static const cv::Size kChessboardPatternSize(9, 6);
 
 // Given a vector of B*C*N, return a N*C matrix
 cv::Mat postprocess(const std::vector<cv::Mat> &outputs) {
@@ -38,17 +38,6 @@ cv::Mat postprocess(const std::vector<cv::Mat> &outputs) {
 #endif
 
    return outputs[0].reshape(1, kBoxChannels).t();
-}
-
-// Sorts points for a warped quad in TL, TR, BL, BR order
-void sort_quadrangle_points(std::vector<cv::Point2f> &points) {
-   std::sort(points.begin(), points.end(), [](cv::Point2f a, cv::Point2f b) {
-      return a.y + a.x < b.y + b.x;
-   });
-
-   if (points[1].x < points[2].x) {
-      std::swap(points[1], points[2]);
-   }
 }
 
 } // namespace
@@ -68,45 +57,34 @@ bool Perception::detect_calibration_marker(cv::Mat &frame) {
       return true;
    }
 
-   static thread_local cv::Mat gray, edges;
+   static thread_local cv::Mat gray;
    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-   cv::Canny(gray, edges, 30, 40);
 
-   static thread_local cv::Mat blurred_edges;
-   cv::GaussianBlur(edges, blurred_edges, cv::Size(5, 5), 0);
+   std::vector<cv::Point2f> corners;
+   bool found =
+       cv::findChessboardCornersSB(gray, kChessboardPatternSize, corners, cv::CALIB_CB_EXHAUSTIVE);
 
-   std::vector<std::vector<cv::Point>> contours;
-   cv::findContours(blurred_edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-   float min_area = frame.rows * frame.cols * kCalibrationMinContourArea;
-   for (const auto &contour : contours) {
-      double area = cv::contourArea(contour);
-      if (area < min_area) {
-         continue;
-      }
-
-      double epsilon = kPolyApproxEpsilon * cv::arcLength(contour, true);
-      cv::approxPolyDP(contour, calibration_quad_, epsilon, true);
-
-      if (calibration_quad_.size() != 4) {
-         continue;
-      }
-
-      sort_quadrangle_points(calibration_quad_);
-
-      static std::vector<cv::Point2f> dst_points = {
-          cv::Point2f(0.0f, 0.0f), // TL
-          cv::Point2f(1.0f, 0.0f), // TR
-          cv::Point2f(0.0f, 1.0f), // BL
-          cv::Point2f(1.0f, 1.0f), // BR
-      };
-
-      perspective_transform_ = cv::getPerspectiveTransform(calibration_quad_, dst_points);
-      calibrated_ = true;
-      return true;
+   if (!found) {
+      return false;
    }
 
-   return false;
+   cv::Point2f tl = corners[0];
+   cv::Point2f tr = corners[kChessboardPatternSize.width - 1];
+   cv::Point2f bl = corners[corners.size() - kChessboardPatternSize.width];
+   cv::Point2f br = corners[corners.size() - 1];
+
+   std::vector<cv::Point2f> src_points = {tl, tr, bl, br};
+   static std::vector<cv::Point2f> dst_points = {
+       cv::Point2f(0.0f, 0.0f), // TL
+       cv::Point2f(1.0f, 0.0f), // TR
+       cv::Point2f(0.0f, 1.0f), // BL
+       cv::Point2f(1.0f, 1.0f), // BR
+   };
+
+   perspective_transform_ = cv::getPerspectiveTransform(src_points, dst_points);
+   calibrated_ = true;
+   return true;
 }
 
 void Perception::apply_calibration_transform(Detection &detection) {

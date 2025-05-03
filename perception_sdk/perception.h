@@ -57,7 +57,6 @@ private:
    std::vector<Detection> latest_detections_;
 
    std::atomic<bool> calibrated_{false};
-   std::vector<cv::Point2f> calibration_quad_;
    cv::Mat perspective_transform_;
 };
 
