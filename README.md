@@ -35,6 +35,11 @@ I started this project for two reasons:
 
 - Install `xxd`
 
-Windows & Linux:
+Windows:
 
 - Install the [Vulkan SDK](https://vulkan.lunarg.com/)
+
+Linux:
+
+- Install the [Vulkan SDK](https://vulkan.lunarg.com/)
+- Install `libx11`, `libxkbcommon`, the Wayland protocols package,
