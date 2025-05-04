@@ -1,6 +1,8 @@
 #include "player.h"
 
+#include <algorithm>
 #include <cmath>
+#include <numbers>
 
 #include "app.h"
 #include "math/vector.h"
@@ -41,7 +43,8 @@ void Player::update(float delta) {
    yaw_ -= delta_yaw * delta;
 
    float delta_pitch = app_.delta_mouse_y() / 2.0f;
-   pitch_ -= delta_pitch * delta;
+   auto pi = static_cast<float>(std::numbers::pi);
+   pitch_ = std::clamp(pitch_ - delta_pitch * delta, -pi / 2, pi / 2);
 
    if (input == Vec2{0, 0}) {
       return;
