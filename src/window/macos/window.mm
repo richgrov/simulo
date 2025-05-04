@@ -96,13 +96,10 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
    NSPoint locationInWindow = [event locationInWindow];
    NSPoint locationInView = [self convertPoint:locationInWindow fromView:nil];
 
-   int new_x = static_cast<int>(locationInView.x);
-   int new_y = static_cast<int>(self.frame.size.height - locationInView.y);
-
-   delta_mouse_x_ = new_x - mouse_x_;
-   delta_mouse_y_ = new_y - mouse_y_;
-   mouse_x_ = new_x;
-   mouse_y_ = new_y;
+   delta_mouse_x_ = event.deltaX;
+   delta_mouse_y_ = event.deltaY;
+   mouse_x_ = static_cast<int>(locationInView.x);
+   mouse_y_ = static_cast<int>(self.frame.size.height - locationInView.y);
 }
 
 - (void)mouseDragged:(NSEvent *)event {
@@ -209,6 +206,7 @@ Window::Window(const Gpu &gpu, const char *title) {
    [window center];
    window.title = [NSString stringWithUTF8String:title];
    window.isVisible = YES;
+   window.acceptsMouseMovedEvents = YES;
    [window makeKeyAndOrderFront:nil];
    window.releasedWhenClosed = NO;
 
@@ -263,8 +261,10 @@ void Window::set_capture_mouse(bool capture) {
 
    if (capture) {
       [NSCursor hide];
+      CGAssociateMouseAndMouseCursorPosition(false);
    } else {
       [NSCursor unhide];
+      CGAssociateMouseAndMouseCursorPosition(true);
    }
 }
 
