@@ -53,6 +53,14 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
    render_pipelines_.emplace_back(MaterialPipeline{
        .pipeline = Pipeline(gpu, pipeline_pixel_format, "mesh", "vertex_main2", "fragment_main2"),
    });
+
+   MTLDepthStencilDescriptor *depth_desc = [MTLDepthStencilDescriptor new];
+   depth_desc.depthCompareFunction = MTLCompareFunctionLessEqual;
+   depth_desc.depthWriteEnabled = YES;
+   depth_stencil_state_ = [gpu_.device() newDepthStencilStateWithDescriptor:depth_desc];
+   if (depth_stencil_state_ == nil) {
+      throw std::runtime_error("failed to create depth stencil state");
+   }
 }
 
 Renderer::~Renderer() {}
@@ -101,6 +109,8 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
 
       id<MTLRenderCommandEncoder> render_encoder =
           [cmd_buf renderCommandEncoderWithDescriptor:render_pass_desc];
+
+      [render_encoder setDepthStencilState:depth_stencil_state_];
 
       do_render_pipeline(pipelines_.mesh, (__bridge void *)render_encoder, world_view_projection);
       do_render_pipeline(pipelines_.ui, (__bridge void *)render_encoder, ui_view_projection);

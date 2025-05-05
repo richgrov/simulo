@@ -38,6 +38,7 @@ Pipeline::Pipeline(
       pipeline_desc.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
       pipeline_desc.colorAttachments[0].pixelFormat =
           static_cast<MTLPixelFormat>((NSUInteger)pixel_format);
+      pipeline_desc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
 
       NSError *err = nullptr;
       pipeline_state_ = [gpu.device() newRenderPipelineStateWithDescriptor:pipeline_desc

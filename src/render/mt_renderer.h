@@ -127,8 +127,10 @@ private:
 
 #ifdef __OBJC__
    CAMetalLayer *metal_layer_;
+   _Nonnull id<MTLDepthStencilState> depth_stencil_state_;
 #else
    void *metal_layer_;
+   void *depth_stencil_state_;
 #endif
 
    struct Material {
