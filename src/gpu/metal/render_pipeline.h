@@ -6,7 +6,7 @@
 #include <Metal/Metal.h>
 #endif
 
-namespace vkad {
+namespace simulo {
 
 class Pipeline {
 public:
@@ -38,4 +38,4 @@ private:
 #endif
 };
 
-} // namespace vkad
+} // namespace simulo

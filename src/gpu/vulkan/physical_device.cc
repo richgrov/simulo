@@ -9,7 +9,7 @@
 #include "status.h"
 #include "swapchain.h"
 
-using namespace vkad;
+using namespace simulo;
 
 PhysicalDevice::PhysicalDevice(const Instance &instance, VkSurfaceKHR surface) {
    uint32_t num_devices;

@@ -9,7 +9,7 @@
 #include "status.h"
 #include "util/memory.h"
 
-using namespace vkad;
+using namespace simulo;
 
 namespace {
 

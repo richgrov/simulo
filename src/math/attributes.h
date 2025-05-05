@@ -4,7 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-namespace vkad {
+namespace simulo {
 
 #define VKAD_ATTRIBUTE(index, type, member)                                                        \
    VkVertexInputAttributeDescription {                                                             \
@@ -12,4 +12,4 @@ namespace vkad {
       .offset = offsetof(type, member),                                                            \
    }
 
-} // namespace vkad
+} // namespace simulo

@@ -23,7 +23,7 @@
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include <xkbcommon/xkbcommon.h>
 
-using namespace vkad;
+using namespace simulo;
 
 namespace {
 

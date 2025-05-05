@@ -14,7 +14,7 @@
 #include "ui/ui.h"
 #include "window/window.h" // IWYU pragma: export
 
-namespace vkad {
+namespace simulo {
 
 enum class State;
 
@@ -121,4 +121,4 @@ private:
    float extrude_amount_;
 };
 
-} // namespace vkad
+} // namespace simulo

@@ -2,7 +2,7 @@
 #include "vendor/doctest.h"
 #include <numbers>
 
-using namespace vkad;
+using namespace simulo;
 
 TEST_CASE("Matrix operations") {
    SUBCASE("Default constructor initializes to zero") {

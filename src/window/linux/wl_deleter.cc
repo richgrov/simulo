@@ -3,7 +3,7 @@
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
 
-using namespace vkad;
+using namespace simulo;
 
 void WaylandDeleter::operator()(wl_display *display) {
    wl_display_disconnect(display);

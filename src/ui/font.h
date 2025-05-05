@@ -8,7 +8,7 @@
 #include "render/ui.h"
 #include "vendor/stb_truetype.h"
 
-namespace vkad {
+namespace simulo {
 
 class Font {
 public:
@@ -42,4 +42,4 @@ private:
    RenderImage image_handle_;
 };
 
-} // namespace vkad
+} // namespace simulo

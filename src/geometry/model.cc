@@ -1,7 +1,7 @@
 #include "model.h"
 #include "stl.h"
 
-using namespace vkad;
+using namespace simulo;
 
 static Vec3 swap_yz(Vec3 v) {
    return {v.x(), v.z(), v.y()};

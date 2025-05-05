@@ -4,7 +4,7 @@
 #import <Metal/Metal.h>
 #endif
 
-namespace vkad {
+namespace simulo {
 
 class Gpu {
 public:
@@ -31,4 +31,4 @@ private:
 #endif
 };
 
-} // namespace vkad
+} // namespace simulo

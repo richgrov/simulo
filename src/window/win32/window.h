@@ -10,7 +10,7 @@
 #include "gpu/vulkan/instance.h"
 #include "util/bitfield.h"
 
-namespace vkad {
+namespace simulo {
 
 LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 
@@ -104,4 +104,4 @@ inline std::unique_ptr<Window> create_window(const Instance &vk_instance, const 
    return std::make_unique<Window>(vk_instance, title);
 }
 
-} // namespace vkad
+} // namespace simulo

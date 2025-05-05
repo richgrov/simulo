@@ -6,7 +6,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-namespace vkad {
+namespace simulo {
 
 class Window {
 public:
@@ -54,4 +54,4 @@ public:
    virtual std::string_view typed_chars() const = 0;
 };
 
-} // namespace vkad
+} // namespace simulo

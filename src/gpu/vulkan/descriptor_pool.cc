@@ -4,7 +4,7 @@
 
 #include "status.h"
 
-using namespace vkad;
+using namespace simulo;
 
 DescriptorPool::DescriptorPool(
     VkDevice device, VkDescriptorSetLayout layout, const std::vector<VkDescriptorPoolSize> &sizes,

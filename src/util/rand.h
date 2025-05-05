@@ -2,10 +2,10 @@
 
 #include <random>
 
-namespace vkad {
+namespace simulo {
 
 static inline float randf() {
    return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
 }
 
-} // namespace vkad
+} // namespace simulo

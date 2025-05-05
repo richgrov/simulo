@@ -10,7 +10,7 @@
 #include "ui/text.h"
 #include "ui/widget.h"
 
-namespace vkad {
+namespace simulo {
 
 class Ui : WidgetVisitor {
 public:
@@ -43,4 +43,4 @@ private:
    std::vector<std::unique_ptr<Widget>> children_;
 };
 
-} // namespace vkad
+} // namespace simulo

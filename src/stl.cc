@@ -5,7 +5,7 @@
 
 #include "util/memory.h"
 
-using namespace vkad;
+using namespace simulo;
 
 namespace {
 
@@ -25,7 +25,7 @@ void write_traingle(const Triangle &tri, std::ostream &out) {
 
 } // namespace
 
-void vkad::write_stl(
+void simulo::write_stl(
     const std::string &name, const std::vector<Triangle> triangles, std::ostream &out
 ) {
    out << "solid " << name << "\n";

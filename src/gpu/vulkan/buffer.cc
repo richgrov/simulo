@@ -7,7 +7,7 @@
 #include "status.h"
 #include "util/memory.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Buffer::Buffer(
     size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memory_properties,

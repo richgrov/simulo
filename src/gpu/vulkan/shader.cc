@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-using namespace vkad;
+using namespace simulo;
 
 Shader::Shader(Device &device, std::span<uint8_t> code) : device_(device.handle()) {
    VkShaderModuleCreateInfo create_info = {

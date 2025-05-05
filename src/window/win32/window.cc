@@ -13,11 +13,11 @@
 
 #include "gpu/vulkan/status.h"
 
-using namespace vkad;
+using namespace simulo;
 
 namespace {
 
-const char *WIN32_CLASS_NAME = "vkad";
+const char *WIN32_CLASS_NAME = "simulo";
 
 static Window *get_window_class(HWND window) {
    LONG_PTR user_ptr = GetWindowLongPtr(window, GWLP_USERDATA);
@@ -55,7 +55,7 @@ VkSurfaceKHR create_surface(HWND window, VkInstance instance) {
 
 } // namespace
 
-LRESULT CALLBACK vkad::window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param) {
+LRESULT CALLBACK simulo::window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param) {
    switch (msg) {
    case WM_DESTROY:
       get_window_class(window)->open_ = false;

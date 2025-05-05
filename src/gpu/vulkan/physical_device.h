@@ -3,7 +3,7 @@
 #include "instance.h"
 #include <vulkan/vulkan_core.h>
 
-namespace vkad {
+namespace simulo {
 
 class PhysicalDevice {
 public:
@@ -40,4 +40,4 @@ private:
    uint32_t present_queue_;
 };
 
-} // namespace vkad
+} // namespace simulo

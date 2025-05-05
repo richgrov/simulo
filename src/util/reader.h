@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace vkad {
+namespace simulo {
 
 class Reader {
 public:
@@ -69,4 +69,4 @@ protected:
    size_t read_index_ = 0;
 };
 
-} // namespace vkad
+} // namespace simulo

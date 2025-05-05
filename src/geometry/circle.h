@@ -2,11 +2,11 @@
 
 #include "geometry/shape.h"
 
-namespace vkad {
+namespace simulo {
 
 class Circle : public Shape {
 public:
    Circle(float radius, int npoints);
 };
 
-} // namespace vkad
+} // namespace simulo

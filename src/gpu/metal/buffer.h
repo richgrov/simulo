@@ -8,7 +8,7 @@
 
 #include "gpu/gpu.h"
 
-namespace vkad {
+namespace simulo {
 
 class Buffer {
 public:
@@ -62,4 +62,4 @@ private:
    IndexType num_indices_;
 };
 
-} // namespace vkad
+} // namespace simulo

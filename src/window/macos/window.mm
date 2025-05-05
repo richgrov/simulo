@@ -9,7 +9,7 @@
 #include "gpu/gpu.h"
 #include "window/macos/keys.h"
 
-using namespace vkad;
+using namespace simulo;
 
 namespace {
 

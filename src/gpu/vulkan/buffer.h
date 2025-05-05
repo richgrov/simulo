@@ -5,7 +5,7 @@
 #include <cstring>
 #include <span>
 
-namespace vkad {
+namespace simulo {
 
 class Buffer {
 public:
@@ -139,4 +139,4 @@ private:
    void *mem_map_;
 };
 
-} // namespace vkad
+} // namespace simulo

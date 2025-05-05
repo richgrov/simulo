@@ -3,7 +3,7 @@
 #include "physical_device.h"
 #include <vulkan/vulkan_core.h>
 
-namespace vkad {
+namespace simulo {
 
 class Image {
 public:
@@ -52,4 +52,4 @@ private:
    VkImageLayout layout_;
 };
 
-} // namespace vkad
+} // namespace simulo

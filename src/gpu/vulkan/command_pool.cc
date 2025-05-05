@@ -4,7 +4,7 @@
 
 #include "status.h"
 
-using namespace vkad;
+using namespace simulo;
 
 void CommandPool::init(VkDevice device, uint32_t graphics_queue_family) {
    device_ = device;

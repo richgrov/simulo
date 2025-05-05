@@ -5,7 +5,7 @@
 
 #include "gpu/gpu.h"
 
-using namespace vkad;
+using namespace simulo;
 
 CommandQueue::CommandQueue(const Gpu &gpu) : command_queue_([gpu.device() newCommandQueue]) {
    if (command_queue_ == nullptr) {

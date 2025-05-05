@@ -5,7 +5,7 @@
 #include <cmath>
 #include <numbers>
 
-using namespace vkad;
+using namespace simulo;
 
 constexpr float kEpsilon = 0.000001;
 

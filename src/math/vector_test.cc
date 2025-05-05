@@ -1,7 +1,7 @@
 #include "math/vector.h"
 #include "vendor/doctest.h"
 
-using namespace vkad;
+using namespace simulo;
 
 TEST_CASE("Vector construction and basic operations") {
    SUBCASE("Default construction creates zero vector") {

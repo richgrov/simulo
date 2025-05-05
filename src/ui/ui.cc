@@ -6,7 +6,7 @@
 #include "res/arial.ttf.h"
 #include "util/assert.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Ui::Ui(Renderer &renderer)
     : renderer_(renderer), font_(std::span(res_arial_ttf, res_arial_ttf_len), 64) {

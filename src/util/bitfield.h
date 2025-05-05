@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-namespace vkad {
+namespace simulo {
 
 template <int Bits> class Bitfield {
    static constexpr size_t kNumBytes = (Bits + (8 - Bits % 8) % 8) / 8;
@@ -32,4 +32,4 @@ private:
    unsigned char bytes_[kNumBytes];
 };
 
-} // namespace vkad
+} // namespace simulo

@@ -6,7 +6,7 @@
 #include "render/renderer.h"
 #include "stl.h"
 
-namespace vkad {
+namespace simulo {
 
 class Model : public Mesh<ModelVertex> {
 public:
@@ -23,4 +23,4 @@ public:
    RenderMesh mesh_handle_;
 };
 
-} // namespace vkad
+} // namespace simulo

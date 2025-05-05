@@ -4,7 +4,7 @@
 
 #include "util/reader.h"
 
-namespace vkad {
+namespace simulo {
 
 class TtfReader : public Reader {
 public:
@@ -34,4 +34,4 @@ public:
    }
 };
 
-} // namespace vkad
+} // namespace simulo

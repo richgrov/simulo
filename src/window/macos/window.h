@@ -14,7 +14,7 @@
 #include "gpu/gpu.h"
 #include "util/bitfield.h"
 
-namespace vkad {
+namespace simulo {
 
 class Window {
 public:
@@ -88,4 +88,4 @@ inline std::unique_ptr<Window> create_window(const Gpu &gpu, const char *title) 
    return std::make_unique<Window>(gpu, title);
 }
 
-} // namespace vkad
+} // namespace simulo

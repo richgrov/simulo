@@ -24,7 +24,7 @@
 #include "mesh.h"
 #include "util/slab.h"
 
-namespace vkad {
+namespace simulo {
 
 enum RenderPipeline : int {};
 enum RenderMaterial : int {};
@@ -226,4 +226,4 @@ private:
    Pipelines pipeline_ids_;
 };
 
-}; // namespace vkad
+}; // namespace simulo

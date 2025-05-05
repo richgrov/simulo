@@ -8,7 +8,7 @@
 #include "util/os_detect.h"
 #include "vector.h"
 
-namespace vkad {
+namespace simulo {
 
 #ifdef VKAD_APPLE
 #define SIMULO_Y_AXIS 1
@@ -242,4 +242,4 @@ using Mat2 = Matrix<2, 2>;
 using Mat3 = Matrix<3, 3>;
 using Mat4 = Matrix<4, 4>;
 
-} // namespace vkad
+} // namespace simulo

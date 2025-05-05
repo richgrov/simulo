@@ -17,9 +17,9 @@
 #include <stdexcept>
 #include <string>
 
-using namespace vkad;
+using namespace simulo;
 
-enum class vkad::State {
+enum class simulo::State {
    STANDBY,
    CREATE_POLYGON_DEGREE,
    CREATE_POLYGON_RADIUS,
@@ -29,10 +29,10 @@ enum class vkad::State {
 App::App()
 #ifndef __APPLE__
     : vk_instance_(Window::vulkan_extensions()),
-      window_(create_window(vk_instance_, "vkad")),
+      window_(create_window(vk_instance_, "simulo")),
       renderer_(vk_instance_, window_->surface(), window_->width(), window_->height()),
 #else
-    : window_(create_window(gpu_, "vkad")),
+    : window_(create_window(gpu_, "simulo")),
       renderer_(gpu_, window_->layer_pixel_format(), window_->metal_layer()),
 #endif
       last_width_(window_->width()),

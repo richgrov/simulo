@@ -2,7 +2,7 @@
 #include "render/model.h"
 #include "render/renderer.h"
 
-using namespace vkad;
+using namespace simulo;
 
 namespace {
 

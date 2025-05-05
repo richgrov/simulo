@@ -3,7 +3,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-namespace vkad {
+namespace simulo {
 
 constexpr const char *kValidationLayers[] = {
     "VK_LAYER_KHRONOS_validation",
@@ -29,4 +29,4 @@ private:
    VkInstance instance_;
 };
 
-} // namespace vkad
+} // namespace simulo

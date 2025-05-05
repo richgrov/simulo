@@ -5,7 +5,7 @@
 #include "math/vector.h"
 #include "renderer.h"
 
-namespace vkad {
+namespace simulo {
 
 struct UiVertex {
    Vec3 pos;
@@ -22,4 +22,4 @@ struct UiUniform {
    }
 };
 
-} // namespace vkad
+} // namespace simulo

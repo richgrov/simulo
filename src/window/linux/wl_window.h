@@ -27,7 +27,7 @@ struct zwp_relative_pointer_v1;
 struct zwp_locked_pointer_v1;
 struct zwp_pointer_constraints_v1;
 
-namespace vkad {
+namespace simulo {
 
 class WaylandWindow : public Window {
 public:
@@ -134,4 +134,4 @@ private:
    bool mouse_captured_ = false;
 };
 
-} // namespace vkad
+} // namespace simulo

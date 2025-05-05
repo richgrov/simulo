@@ -4,7 +4,7 @@
 #include <span>
 #include <vector>
 
-namespace vkad {
+namespace simulo {
 
 struct ParsedImage {
    uint32_t width;
@@ -14,4 +14,4 @@ struct ParsedImage {
 
 ParsedImage parse_png(std::span<const uint8_t> data);
 
-} // namespace vkad
+} // namespace simulo

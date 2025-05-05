@@ -16,7 +16,7 @@
 #include "gpu/metal/command_queue.h"
 #include "math/vector.h"
 
-using namespace vkad;
+using namespace simulo;
 
 namespace {
 

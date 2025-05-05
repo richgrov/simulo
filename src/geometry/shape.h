@@ -5,7 +5,7 @@
 #include "math/vector.h"
 #include "model.h"
 
-namespace vkad {
+namespace simulo {
 
 class Shape {
 public:
@@ -21,4 +21,4 @@ protected:
    std::vector<Vec2> vertices_;
 };
 
-} // namespace vkad
+} // namespace simulo

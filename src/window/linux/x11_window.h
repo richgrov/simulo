@@ -13,9 +13,9 @@ struct _XDisplay;
 struct _XIC;
 #define XLIB_NUM_KEYS (255 - 8)
 
-namespace vkad {
+namespace simulo {
 
-class X11Window : public vkad::Window {
+class X11Window : public simulo::Window {
 public:
    explicit X11Window(const Instance &vk_instance, const char *title);
    ~X11Window();
@@ -93,4 +93,4 @@ private:
    unsigned long invisible_cursor_;
 };
 
-} // namespace vkad
+} // namespace simulo

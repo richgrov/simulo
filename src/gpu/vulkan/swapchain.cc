@@ -6,7 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-using namespace vkad;
+using namespace simulo;
 
 bool has_swapchain_support(VkPhysicalDevice device) {
    uint32_t num_extensions;

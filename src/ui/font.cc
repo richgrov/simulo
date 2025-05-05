@@ -12,7 +12,7 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "vendor/stb_truetype.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Font::Font(std::span<uint8_t> data, float height) : height_(height) {
    read_ttf(data);

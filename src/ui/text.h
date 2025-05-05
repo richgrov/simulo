@@ -4,7 +4,7 @@
 #include "ui/widget.h"
 #include <string>
 
-namespace vkad {
+namespace simulo {
 
 class Ui;
 
@@ -34,4 +34,4 @@ private:
    RenderObject render_object_;
 };
 
-} // namespace vkad
+} // namespace simulo

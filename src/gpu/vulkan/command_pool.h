@@ -4,7 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-namespace vkad {
+namespace simulo {
 
 class CommandPool {
 public:
@@ -24,4 +24,4 @@ private:
    VkCommandPool command_pool_;
 };
 
-} // namespace vkad
+} // namespace simulo

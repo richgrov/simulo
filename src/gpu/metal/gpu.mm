@@ -6,7 +6,7 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 
-using namespace vkad;
+using namespace simulo;
 
 Gpu::Gpu() : mt_device_(MTLCreateSystemDefaultDevice()) {
    if (mt_device_ == nullptr) {

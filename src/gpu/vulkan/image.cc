@@ -7,7 +7,7 @@
 
 #include "status.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Image::Image(
     const PhysicalDevice &physical_device, VkDevice device, VkImageUsageFlags usage,

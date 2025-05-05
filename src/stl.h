@@ -4,7 +4,7 @@
 #include <ostream>
 #include <vector>
 
-namespace vkad {
+namespace simulo {
 
 struct Triangle {
    Vec3 points[3];
@@ -13,4 +13,4 @@ struct Triangle {
 
 void write_stl(const std::string &name, const std::vector<Triangle> triangles, std::ostream &out);
 
-} // namespace vkad
+} // namespace simulo

@@ -3,7 +3,7 @@
 #include "math/matrix.h"
 #include "math/vector.h"
 
-namespace vkad {
+namespace simulo {
 
 class App;
 
@@ -37,4 +37,4 @@ private:
    float pitch_;
 };
 
-} // namespace vkad
+} // namespace simulo

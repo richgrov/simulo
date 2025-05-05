@@ -3,7 +3,7 @@
 #include "math/matrix.h"
 #include "render/renderer.h" // IWYU pragma: export
 
-namespace vkad {
+namespace simulo {
 
 class Text;
 
@@ -45,4 +45,4 @@ private:
    int scale_;
 };
 
-} // namespace vkad
+} // namespace simulo

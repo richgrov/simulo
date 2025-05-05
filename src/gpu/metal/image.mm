@@ -8,7 +8,7 @@
 
 #include "gpu/metal/gpu.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Image::Image(const Gpu &gpu, std::span<const uint8_t> data, int width, int height) {
    MTLTextureDescriptor *texture_desc = [[MTLTextureDescriptor alloc] init];

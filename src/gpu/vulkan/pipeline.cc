@@ -6,7 +6,7 @@
 #include "status.h"
 #include "util/memory.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Pipeline::Pipeline(
     VkDevice device, VkVertexInputBindingDescription vertex_binding,

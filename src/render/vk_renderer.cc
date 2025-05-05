@@ -21,7 +21,7 @@
 #include "ui.h"
 #include "util/memory.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Renderer::Renderer(
     Instance &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height

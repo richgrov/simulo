@@ -72,7 +72,7 @@ if (VULKAN)
     )
 endif()
 
-add_library(vkad_common
+add_library(simulo_common
    "entity/player.cc"
    "entity/player.h"
    "geometry/circle.cc"
@@ -187,43 +187,43 @@ function(embed_metal_shader target file)
     target_sources(${target} PUBLIC ${output})
 endfunction()
 
-target_include_directories(vkad_common PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(vkad_common libdeflate_static)
+target_include_directories(simulo_common PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(simulo_common libdeflate_static)
 
 # Vulkan
 if (WIN32)
-    target_link_directories(vkad_common PUBLIC "$ENV{VULKAN_SDK}/Lib")
-    target_link_libraries(vkad_common "vulkan-1.lib")
-    target_include_directories(vkad_common PUBLIC "$ENV{VULKAN_SDK}/Include")
+    target_link_directories(simulo_common PUBLIC "$ENV{VULKAN_SDK}/Lib")
+    target_link_libraries(simulo_common "vulkan-1.lib")
+    target_include_directories(simulo_common PUBLIC "$ENV{VULKAN_SDK}/Include")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_libraries(vkad_common libvulkan.so)
+    target_link_libraries(simulo_common libvulkan.so)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_include_directories(vkad_common PRIVATE ${X11_INCLUDE_DIR})
-    target_link_libraries(vkad_common ${X11_LIBRARIES} libXi.so)
+    target_include_directories(simulo_common PRIVATE ${X11_INCLUDE_DIR})
+    target_link_libraries(simulo_common ${X11_LIBRARIES} libXi.so)
 
-    target_include_directories(vkad_common PRIVATE ${WAYLAND_INCLUDE_DIRS})
-    target_link_libraries(vkad_common ${WAYLAND_LIBRARIES})
+    target_include_directories(simulo_common PRIVATE ${WAYLAND_INCLUDE_DIRS})
+    target_link_libraries(simulo_common ${WAYLAND_LIBRARIES})
 
-    target_include_directories(vkad_common PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
-    target_link_directories(vkad_common PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
-    target_link_libraries(vkad_common ${XKBCOMMON_LIBRARIES})
+    target_include_directories(simulo_common PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
+    target_link_directories(simulo_common PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
+    target_link_libraries(simulo_common ${XKBCOMMON_LIBRARIES})
 
-    generate_wayland_protocol(vkad_common /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
-    generate_wayland_protocol(vkad_common /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
-    generate_wayland_protocol(vkad_common /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml)
+    generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
+    generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
+    generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml)
 endif()
 
 if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    embed_vulkan_shader(vkad_common shader/text.vert)
-    embed_vulkan_shader(vkad_common shader/text.frag)
-    embed_vulkan_shader(vkad_common shader/model.vert)
-    embed_vulkan_shader(vkad_common shader/model.frag)
+    embed_vulkan_shader(simulo_common shader/text.vert)
+    embed_vulkan_shader(simulo_common shader/text.frag)
+    embed_vulkan_shader(simulo_common shader/model.vert)
+    embed_vulkan_shader(simulo_common shader/model.frag)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    embed_metal_shader(vkad_common shader/text.metal)
+    embed_metal_shader(simulo_common shader/text.metal)
 
-    target_link_libraries(vkad_common
+    target_link_libraries(simulo_common
         "-framework Foundation"
         "-framework AppKit"
         "-framework Metal"
@@ -232,30 +232,30 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 endif()
 
 
-embed_binary(vkad_common res/arial.ttf)
-target_compile_features(vkad_common PUBLIC cxx_std_20)
+embed_binary(simulo_common res/arial.ttf)
+target_compile_features(simulo_common PUBLIC cxx_std_20)
 
-add_executable(vkad "main.cc")
-target_link_libraries(vkad vkad_common)
-target_compile_features(vkad PUBLIC cxx_std_20)
-set_target_properties(vkad PROPERTIES
+add_executable(simulo "main.cc")
+target_link_libraries(simulo simulo_common)
+target_compile_features(simulo PUBLIC cxx_std_20)
+set_target_properties(simulo PROPERTIES
     MACOSX_BUNDLE TRUE
-    MACOSX_BUNDLE_GUI_IDENTIFIER "com.vkad.app"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.simulo.app"
 )
 
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVKAD_DEBUG")
 
 if (BUILD_TESTING)
-    add_executable(vkad_test
+    add_executable(simulo_test
         "test_main.cc"
         "math/angle_test.cc"
         "math/matrix_test.cc"
         "math/vector_test.cc"
     )
-    target_link_libraries(vkad_test vkad_common)
-    set_target_properties(vkad_test PROPERTIES
+    target_link_libraries(simulo_test simulo_common)
+    set_target_properties(simulo_test PROPERTIES
         MACOSX_BUNDLE TRUE
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.vkad.app"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.simulo.app"
     )
 endif()

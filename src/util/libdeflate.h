@@ -5,7 +5,7 @@
 #include <memory>
 #include <span>
 
-namespace vkad {
+namespace simulo {
 
 class Decompressor {
 public:
@@ -39,4 +39,4 @@ private:
    std::unique_ptr<libdeflate_decompressor, decltype(&libdeflate_free_decompressor)> decompressor_;
 };
 
-} // namespace vkad
+} // namespace simulo

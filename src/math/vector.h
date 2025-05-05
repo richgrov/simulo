@@ -12,7 +12,7 @@
 
 #include "util/assert.h"
 
-namespace vkad {
+namespace simulo {
 
 template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignment) Vector {
    Vector() : elements_() {}
@@ -183,4 +183,4 @@ using Vec2 = Vector<2>;
 using Vec3 = Vector<3, 16>;
 using Vec4 = Vector<4>;
 
-} // namespace vkad
+} // namespace simulo

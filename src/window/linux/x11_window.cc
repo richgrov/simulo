@@ -11,7 +11,7 @@
 #include "gpu/vulkan/instance.h"
 #include "gpu/vulkan/status.h"
 
-using namespace vkad;
+using namespace simulo;
 
 namespace {
 
@@ -82,7 +82,7 @@ Cursor create_invisible_cursor(Display *display, ::Window window) {
 
 } // namespace
 
-vkad::X11Window::X11Window(const Instance &vk_instance, const char *title)
+simulo::X11Window::X11Window(const Instance &vk_instance, const char *title)
     : vk_instance_(vk_instance),
       width_(1280),
       height_(720),
@@ -132,14 +132,14 @@ vkad::X11Window::X11Window(const Instance &vk_instance, const char *title)
    height_ = attrs.height;
 }
 
-vkad::X11Window::~X11Window() {
+simulo::X11Window::~X11Window() {
    XFreeCursor(display_, invisible_cursor_);
    vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
    XDestroyWindow(display_, window_);
    XCloseDisplay(display_);
 }
 
-bool vkad::X11Window::poll() {
+bool simulo::X11Window::poll() {
    prev_pressed_keys_ = pressed_keys_;
    std::memset(typed_chars_, 0, sizeof(typed_chars_));
    next_typed_letter_ = 0;
@@ -185,14 +185,14 @@ bool vkad::X11Window::poll() {
    return true;
 }
 
-void vkad::X11Window::set_capture_mouse(bool capture) {
+void simulo::X11Window::set_capture_mouse(bool capture) {
    mouse_captured_ = capture;
    XDefineCursor(display_, window_, capture ? invisible_cursor_ : None);
 }
 
-void vkad::X11Window::request_close() {}
+void simulo::X11Window::request_close() {}
 
-void vkad::X11Window::process_generic_event(XEvent &event) {
+void simulo::X11Window::process_generic_event(XEvent &event) {
    if (event.xcookie.extension != xi_opcode_ || event.xcookie.evtype != XI_RawMotion) {
       return;
    }
@@ -207,7 +207,7 @@ void vkad::X11Window::process_generic_event(XEvent &event) {
    XFreeEventData(display_, &event.xcookie);
 }
 
-void vkad::X11Window::process_char_input(_XEvent &event) {
+void simulo::X11Window::process_char_input(_XEvent &event) {
    KeySym keysym_unused;
    Status status_unused;
    int len = Xutf8LookupString(

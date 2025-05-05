@@ -4,7 +4,7 @@
 
 #include "physical_device.h"
 
-namespace vkad {
+namespace simulo {
 
 class Device {
 public:
@@ -36,4 +36,4 @@ private:
    VkQueue present_queue_;
 };
 
-} // namespace vkad
+} // namespace simulo

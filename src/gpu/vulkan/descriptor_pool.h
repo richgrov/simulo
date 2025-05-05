@@ -5,7 +5,7 @@
 #include "buffer.h"
 #include "image.h"
 
-namespace vkad {
+namespace simulo {
 
 struct DescriptorWrite {
    union {
@@ -106,4 +106,4 @@ private:
    VkDescriptorPool descriptor_pool_;
 };
 
-} // namespace vkad
+} // namespace simulo

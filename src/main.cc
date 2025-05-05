@@ -3,7 +3,7 @@
 
 #include "app.h"
 
-using namespace vkad;
+using namespace simulo;
 
 int main(int argc, char **argv) {
    try {

@@ -7,7 +7,7 @@
 #include "util/reader.h"
 #include "vendor/libdeflate/libdeflate.h"
 
-using namespace vkad;
+using namespace simulo;
 
 namespace {
 
@@ -78,7 +78,7 @@ uint8_t paeth(uint8_t prev, uint8_t above, uint8_t prev_above) {
 
 } // namespace
 
-ParsedImage vkad::parse_png(std::span<const uint8_t> data) {
+ParsedImage simulo::parse_png(std::span<const uint8_t> data) {
    Reader reader(data);
 
    if (uint64_t header = reader.read_u64(); header != PNG_HEADER) {

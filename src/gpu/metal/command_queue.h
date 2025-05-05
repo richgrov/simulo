@@ -6,7 +6,7 @@
 
 #include "gpu/gpu.h"
 
-namespace vkad {
+namespace simulo {
 
 class CommandQueue {
 public:
@@ -27,4 +27,4 @@ private:
 #endif
 };
 
-} // namespace vkad
+} // namespace simulo

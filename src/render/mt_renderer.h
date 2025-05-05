@@ -20,7 +20,7 @@
 #include "math/vector.h"
 #include "util/slab.h"
 
-namespace vkad {
+namespace simulo {
 
 enum RenderPipeline : int {};
 enum RenderMaterial : int {};
@@ -161,4 +161,4 @@ private:
    CommandQueue command_queue_;
 };
 
-} // namespace vkad
+} // namespace simulo

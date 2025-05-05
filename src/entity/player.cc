@@ -8,7 +8,7 @@
 #include "math/vector.h"
 #include "window/keys.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Player::Player(App &app) : app_(app), pos_{0, 1, 0}, pitch_(0), yaw_(0) {}
 

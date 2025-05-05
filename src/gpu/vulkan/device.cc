@@ -7,7 +7,7 @@
 #include "util/memory.h"
 #include "vulkan/vulkan_core.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Device::Device(const PhysicalDevice &physical_device) {
    std::set<uint32_t> unique_queue_families = {

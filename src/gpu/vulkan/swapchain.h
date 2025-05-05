@@ -3,7 +3,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-namespace vkad {
+namespace simulo {
 
 class Swapchain {
 public:
@@ -53,4 +53,4 @@ private:
    VkExtent2D extent_;
 };
 
-} // namespace vkad
+} // namespace simulo

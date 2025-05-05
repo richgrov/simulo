@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-namespace vkad {
+namespace simulo {
 
 static constexpr int kInvalidSlabKey = -1;
 
@@ -105,4 +105,4 @@ private:
    int next_available_;
 };
 
-} // namespace vkad
+} // namespace simulo

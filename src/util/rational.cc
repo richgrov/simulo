@@ -3,7 +3,7 @@
 #include <numeric>
 #include <stdexcept>
 
-using namespace vkad;
+using namespace simulo;
 
 Rational::Rational(int64_t numerator, int64_t denominator)
     : numerator_(numerator), denominator_(denominator) {

@@ -6,7 +6,7 @@
 
 #include "render/renderer.h"
 
-namespace vkad {
+namespace simulo {
 
 class Renderer;
 
@@ -43,4 +43,4 @@ protected:
    std::vector<Renderer::IndexBufferType> indices_;
 };
 
-} // namespace vkad
+} // namespace simulo

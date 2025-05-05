@@ -6,7 +6,7 @@
 
 #include "device.h"
 
-namespace vkad {
+namespace simulo {
 
 class Shader {
 public:
@@ -27,4 +27,4 @@ private:
    VkShaderModule module_;
 };
 
-} // namespace vkad
+} // namespace simulo

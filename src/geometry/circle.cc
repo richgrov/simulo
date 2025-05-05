@@ -3,7 +3,7 @@
 #include <cmath>
 #include <numbers>
 
-using namespace vkad;
+using namespace simulo;
 
 Circle::Circle(float radius, int npoints) {
    float arc = (std::numbers::pi * 2) / npoints;

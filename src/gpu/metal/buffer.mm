@@ -10,7 +10,7 @@
 #include "gpu/metal/gpu.h"
 #include "util/memory.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Buffer::Buffer(const Gpu &gpu, std::span<const uint8_t> data) {
    buffer_ = [gpu.device() newBufferWithBytes:data.data()

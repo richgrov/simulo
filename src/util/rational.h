@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace vkad {
+namespace simulo {
 
 class Rational {
 public:
@@ -28,4 +28,4 @@ private:
    int64_t denominator_;
 };
 
-} // namespace vkad
+} // namespace simulo

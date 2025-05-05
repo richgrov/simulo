@@ -6,7 +6,7 @@
 
 #include "shader.h"
 
-namespace vkad {
+namespace simulo {
 
 class Pipeline {
 public:
@@ -45,4 +45,4 @@ private:
    VkDevice device_;
 };
 
-} // namespace vkad
+} // namespace simulo

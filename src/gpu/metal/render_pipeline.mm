@@ -7,7 +7,7 @@
 
 #include "gpu/gpu.h"
 
-using namespace vkad;
+using namespace simulo;
 
 Pipeline::Pipeline(
     const Gpu &gpu, void *pixel_format, const char *label, const char *vertex_fn,
