@@ -79,7 +79,7 @@ public:
    }
 
    inline Mat4 ortho_matrix() const {
-      return Mat4::ortho(0, window_->width(), window_->height(), 0, -1, 1);
+      return Mat4::ortho(window_->width(), window_->height(), -1, 1);
    }
 
    inline Mat4 perspective_matrix() const {

@@ -10,6 +10,12 @@
 
 namespace vkad {
 
+#ifdef VKAD_APPLE
+#define SIMULO_Y_AXIS 1
+#else
+#define SIMULO_Y_AXIS -1
+#endif
+
 template <size_t N, size_t M> struct Matrix {
    Matrix() : cols_{} {}
 
@@ -37,17 +43,14 @@ template <size_t N, size_t M> struct Matrix {
       return result;
    }
 
-   static Matrix ortho(float left, float right, float top, float bottom, float near, float far) {
+   static Matrix ortho(float width, float height, float near, float far) {
+      float depth = far - near;
       // clang-format off
       return Matrix{
-          {2.0f / (right - left), 0,                     0,                   -(right+left) / (right-left)},
-#ifdef VKAD_APPLE
-          {0,                     2.0f / (top - bottom), 0,                   -(top+bottom) / (top-bottom)},
-#else
-          {0,                     2.0f / (top - bottom), 0,                   -(bottom+top) / (bottom-top)},
-#endif
-          {0,                     0,                     1.0f / (near - far), near/(near-far)},
-          {0,                     0,                     0,                   1},
+          {2.0f / width, 0,             0,            -1},
+          {0,            2.0f / height, 0,            -SIMULO_Y_AXIS},
+          {0,            0,             1.0f / depth, -near/depth},
+          {0,            0,             0,            1},
       };
       // clang-format on
    }
