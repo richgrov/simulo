@@ -31,15 +31,18 @@ I started this project for two reasons:
 - Refactor renderer to be more flexible
 - UI Framework
 
-# Setup
+# Prerequisites
 
-- Install `xxd`
+- `xxd`
+- OpenCV
 
 Windows:
 
-- Install the [Vulkan SDK](https://vulkan.lunarg.com/)
+- [Vulkan SDK](https://vulkan.lunarg.com/)
 
 Linux:
 
-- Install the [Vulkan SDK](https://vulkan.lunarg.com/)
-- Install `libx11`, `libxkbcommon`, the Wayland protocols package,
+- [Vulkan SDK](https://vulkan.lunarg.com/)
+- `libx11`
+- `libxkbcommon`
+- Wayland protocols
