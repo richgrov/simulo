@@ -32,16 +32,19 @@ struct MeshVertex {
 
 struct MeshOut {
 	simd::float4 pos [[position]];
+	float brightness;
 };
+
+constant const simd::float3 sun = simd::float3(1, 1, 1);
 
 vertex MeshOut vertex_main2(uint vert_id [[vertex_id]], constant MeshVertex* vertices, constant simd::float4x4 *transform) {
 	MeshOut out;
+	float brightness = dot(sun, vertices[vert_id].normal);
 	out.pos = transform[0] * simd::float4(vertices[vert_id].pos, 1.0);
+	out.brightness = (brightness / 4) + 0.75;
 	return out;
 }
 
 fragment float4 fragment_main2(MeshOut vert [[stage_in]], constant float3* color) {
-	return float4(color[0], 1.0);
+	return float4(color[0] * vert.brightness, 1.0);
 }
-
-
