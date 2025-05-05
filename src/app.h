@@ -83,7 +83,7 @@ public:
    }
 
    inline Mat4 perspective_matrix() const {
-      float aspect = static_cast<float>(window_->height()) / static_cast<float>(window_->width());
+      float aspect = static_cast<float>(window_->width()) / static_cast<float>(window_->height());
       return Mat4::perspective(aspect, deg_to_rad(70), 0.01, 100);
    }
 

@@ -57,13 +57,14 @@ template <size_t N, size_t M> struct Matrix {
 
    static Matrix perspective(float aspect, float fov, float near, float far) {
       float tan_fov = tanf(fov / 2);
-      float neg_depth = near - far;
+      float depth = far - near;
+
       // clang-format off
       return Matrix{
-          {1 / tan_fov * aspect, 0,            0,                 0},
-          {0,                    -1 / tan_fov, 0,                 0},
-          {0,                    0,            (far) / neg_depth, (near * far) / neg_depth},
-          {0,                    0,            -1,                0},
+          {1 / (aspect * tan_fov), 0,                       0,             0},
+          {0,                      SIMULO_Y_AXIS / tan_fov, 0,             0},
+          {0,                      0,                       far / depth,   -far * near / depth},
+          {0,                      0,                       1,             0},
       };
       // clang-format on
    }

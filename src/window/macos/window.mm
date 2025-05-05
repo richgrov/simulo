@@ -97,7 +97,7 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
    NSPoint locationInView = [self convertPoint:locationInWindow fromView:nil];
 
    delta_mouse_x_ = event.deltaX;
-   delta_mouse_y_ = event.deltaY;
+   delta_mouse_y_ = -event.deltaY;
    mouse_x_ = static_cast<int>(locationInView.x);
    mouse_y_ = static_cast<int>(self.frame.size.height - locationInView.y);
 }

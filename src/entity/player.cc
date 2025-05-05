@@ -23,11 +23,11 @@ void Player::update(float delta) {
       input.x() -= 1;
    }
 
-   if (app_.is_key_down(VKAD_KEY_W)) {
+   if (app_.is_key_down(VKAD_KEY_S)) {
       input.y() += 1;
    }
 
-   if (app_.is_key_down(VKAD_KEY_S)) {
+   if (app_.is_key_down(VKAD_KEY_W)) {
       input.y() -= 1;
    }
 
@@ -50,7 +50,7 @@ void Player::update(float delta) {
       return;
    }
 
-   float angle = atan2f(-input.y(), input.x()) - yaw_;
+   float angle = atan2f(-input.y(), input.x()) + yaw_;
    Vec2 move = Vec2{cosf(angle), sinf(angle)} * delta;
    pos_.x() += move.x();
    pos_.z() += move.y();

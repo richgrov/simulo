@@ -36,7 +36,7 @@ struct MeshOut {
 
 vertex MeshOut vertex_main2(uint vert_id [[vertex_id]], constant MeshVertex* vertices, constant simd::float4x4 *transform) {
 	MeshOut out;
-	out.pos = transform[vert_id] * simd::float4(vertices[vert_id].pos, 1.0);
+	out.pos = transform[0] * simd::float4(vertices[vert_id].pos, 1.0);
 	return out;
 }
 
