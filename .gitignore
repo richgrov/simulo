@@ -5,3 +5,5 @@
 *.stl
 
 src/res/*.h
+
+.aider*
