@@ -52,10 +52,6 @@ class Perception2d : public Node {
    GDCLASS(Perception2d, Node);
 
 public:
-   Perception2d() {
-      perception_.set_running(true);
-   }
-
    ~Perception2d() {
       perception_.set_running(false);
    }
@@ -72,6 +68,10 @@ public:
       }
 
       return result;
+   }
+
+   void _ready() override {
+      perception_.set_running(true);
    }
 
    bool is_calibrated() {

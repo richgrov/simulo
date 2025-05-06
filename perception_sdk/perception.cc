@@ -42,7 +42,7 @@ cv::Mat postprocess(const std::vector<cv::Mat> &outputs) {
 
 } // namespace
 
-Perception::Perception() : capture_(0), model_(get_pose_model()) {}
+Perception::Perception() : model_(get_pose_model()) {}
 
 float rescale(float f, float from_range, float to_range) {
    return f / from_range * to_range;
@@ -200,6 +200,7 @@ void Perception::set_running(bool run) {
    running_ = run;
 
    if (run) {
+      capture_.open(0);
       thread_ = std::thread([this] {
          while (running_) {
             detect();
