@@ -15,20 +15,20 @@ target_include_directories(perception_sdk
 )
 target_link_libraries(perception_sdk PUBLIC ${OpenCV_LIBS})
 
-function(embed_binary target file)
+function(embed_model target model)
+   string(REPLACE "-" "_" file_name ${model})
    add_custom_command(
-      OUTPUT ${file}.h
-      COMMAND xxd -i ${file} ${file}.h
-      DEPENDS ${file}
+      OUTPUT ${file_name}.h
+      COMMAND bash -c 'curl -sL https://simulo-cdn.tysonjenkins.dev/${model}.onnx | xxd -i -n ${file_name} > ${file_name}.h'
       WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
    )
 
-   target_sources(${target} PRIVATE ${file}.h)
+   target_sources(${target} PRIVATE ${file_name}.h)
 endfunction()
 
 target_compile_features(perception_sdk PUBLIC cxx_std_20)
 
-embed_binary(perception_sdk "onnx_exporter/yolo11n-pose.onnx")
+embed_model(perception_sdk yolo11n-pose)
 
 if (BUILD_TESTING)
    add_executable(perception_test "test.cc")
