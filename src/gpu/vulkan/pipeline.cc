@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "math/mat4.h"
+#include "math/matrix.h"
 #include "status.h"
 #include "util/memory.h"
 

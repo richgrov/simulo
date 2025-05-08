@@ -20,8 +20,7 @@
 #include "gpu/vulkan/pipeline.h"
 #include "gpu/vulkan/shader.h"
 #include "gpu/vulkan/swapchain.h"
-#include "math/mat4.h"
-#include "mesh.h"
+#include "math/matrix.h"
 #include "util/slab.h"
 
 namespace simulo {

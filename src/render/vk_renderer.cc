@@ -11,7 +11,7 @@
 #include "gpu/vulkan/pipeline.h"
 #include "gpu/vulkan/status.h"
 #include "gpu/vulkan/swapchain.h"
-#include "math/mat4.h"
+#include "math/matrix.h"
 #include "mesh.h"
 #include "model.h"
 #include "res/model.frag.h"
