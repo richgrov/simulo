@@ -7,8 +7,8 @@ add_library(perception_sdk
    "pose_model.h"
 )
 
-target_include_directories(perception_sdk 
-   PUBLIC 
+target_include_directories(perception_sdk
+   PUBLIC
       ${OpenCV_INCLUDE_DIRS}
    PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}
