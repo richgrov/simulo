@@ -1,4 +1,5 @@
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(Vulkan REQUIRED)
     find_package(X11 REQUIRED)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-protocols)
@@ -6,6 +7,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 if (WIN32)
+    find_package(Vulkan REQUIRED)
     set(PLATFORM_FILES ${PLATFORM_FILES}
         "window/win32/keys.h"
         "window/win32/window.cc"
@@ -191,12 +193,8 @@ target_include_directories(simulo_common PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(simulo_common libdeflate_static)
 
 # Vulkan
-if (WIN32)
-    target_link_directories(simulo_common PUBLIC "$ENV{VULKAN_SDK}/Lib")
-    target_link_libraries(simulo_common "vulkan-1.lib")
-    target_include_directories(simulo_common PUBLIC "$ENV{VULKAN_SDK}/Include")
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_libraries(simulo_common libvulkan.so)
+if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(simulo_common Vulkan::Vulkan)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
