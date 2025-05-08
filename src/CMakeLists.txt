@@ -189,7 +189,7 @@ function(embed_metal_shader target file)
     target_sources(${target} PUBLIC ${output})
 endfunction()
 
-target_include_directories(simulo_common PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_include_directories(simulo_common PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(simulo_common libdeflate_static)
 
 # Vulkan
