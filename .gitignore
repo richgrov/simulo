@@ -1,5 +1,6 @@
 .DS_Store
 
+.clangd
 /build/
 .cache/
 *.stl
