@@ -33,9 +33,9 @@ I started this project for two reasons:
 
 # Prerequisites
 
+- `curl`
 - `xxd`
 - OpenCV
-- Python (for exporting YOLO pose model)
 
 Windows:
 
@@ -47,12 +47,3 @@ Linux:
 - `libx11`
 - `libxkbcommon`
 - Wayland protocols
-
-# Building
-
-Before building with CMake, `cd` to `perception_sdk/onnx_exporter`:
-
-- Install dependencies in `requirements.txt`
-- Run `__main__.py`
-
-You may now build the project as normal
