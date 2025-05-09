@@ -3,7 +3,6 @@
 .clangd
 /build/
 .cache/
-*.stl
 
 src/res/*.h
 
