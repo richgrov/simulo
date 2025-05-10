@@ -26,7 +26,7 @@ static constexpr int kNumBoxes = 8400;
 static constexpr float kScoreThreshold = 0.7;
 static constexpr float kNmsThreshold = 0.5;
 
-static const cv::Size kChessboardPatternSize(9, 6);
+static const cv::Size kChessboardPatternSize(9, 4);
 
 // Given a vector of B*C*N, return a N*C matrix
 cv::Mat postprocess(const std::vector<cv::Mat> &outputs) {
@@ -101,8 +101,12 @@ void Perception::apply_calibration_transform(Detection &detection) {
    cv::perspectiveTransform(keypoints, transformed_keypoints, perspective_transform_);
 
    for (size_t i = 0; i < detection.points.size(); i++) {
-      detection.points[i].x = transformed_keypoints[i].x;
-      detection.points[i].y = transformed_keypoints[i].y;
+      float x_shrink = (kChessboardPatternSize.width - 1.f) / (kChessboardPatternSize.width + 1);
+      float y_shrink = (kChessboardPatternSize.height - 1.f) / (kChessboardPatternSize.height + 1);
+      int x_shift = 1.f / (kChessboardPatternSize.width + 1);
+      int y_shift = 1.f / (kChessboardPatternSize.height + 1);
+      detection.points[i].x = transformed_keypoints[i].x * x_shrink + x_shift;
+      detection.points[i].y = transformed_keypoints[i].y * y_shrink + y_shift;
    }
 }
 
