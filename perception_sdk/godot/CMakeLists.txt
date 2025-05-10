@@ -1,16 +1,25 @@
 add_subdirectory(godot-cpp)
 
-set(BASE_LIB_NAME "gdperception")
+if (WIN32)
+   set(GODOT_PLATFORM "windows")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+   set(GODOT_PLATFORM "macos")
+   set(GODOT_PREFIX "lib")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+   set(GODOT_PLATFORM "linux")
+else()
+   message(FATAL_ERROR "Unknown platform: ${CMAKE_SYSTEM_NAME}")
+endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-   set(GODOT_SUFFIX "macos.template_debug")
+   set(GODOT_CONFIG "template_debug")
 elseif(CMAKE_BUILD_TYPE MATCHES Release)
-   set(GODOT_SUFFIX "macos.template_release")
+   set(GODOT_CONFIG "template_release")
 else()
    message(FATAL_ERROR "Unknown build type: ${CMAKE_BUILD_TYPE}")
 endif()
 
-set(FULL_LIB_NAME "lib${BASE_LIB_NAME}.${GODOT_SUFFIX}")
+set(FULL_LIB_NAME "${GODOT_PREFIX}gdperception.${GODOT_PLATFORM}.${GODOT_CONFIG}")
 
 add_library(${FULL_LIB_NAME} SHARED
    "register_types.cc"
