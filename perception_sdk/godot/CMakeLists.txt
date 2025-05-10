@@ -41,3 +41,9 @@ install(
    FRAMEWORK DESTINATION bin
    RUNTIME DESTINATION bin
 )
+
+
+install(
+   FILES gdperception.gdextension
+   DESTINATION bin
+)
