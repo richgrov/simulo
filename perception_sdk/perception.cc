@@ -204,6 +204,10 @@ void Perception::set_running(bool run) {
    running_ = run;
 
    if (run) {
+      if (running_) {
+         return;
+      }
+
       capture_.open(0);
       thread_ = std::thread([this] {
          while (running_) {
@@ -213,6 +217,7 @@ void Perception::set_running(bool run) {
    } else {
       if (thread_.joinable()) {
          thread_.join();
+         capture_.release();
       }
    }
 }
