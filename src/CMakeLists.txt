@@ -1,21 +1,21 @@
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    find_package(Vulkan REQUIRED)
-    find_package(X11 REQUIRED)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-protocols)
-    pkg_check_modules(XKBCOMMON REQUIRED xkbcommon)
+   find_package(Vulkan REQUIRED)
+   find_package(X11 REQUIRED)
+   find_package(PkgConfig REQUIRED)
+   pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-protocols)
+   pkg_check_modules(XKBCOMMON REQUIRED xkbcommon)
 endif()
 
 if (WIN32)
-    find_package(Vulkan REQUIRED)
-    set(PLATFORM_FILES ${PLATFORM_FILES}
+   find_package(Vulkan REQUIRED)
+   set(PLATFORM_FILES ${PLATFORM_FILES}
         "window/win32/keys.h"
         "window/win32/window.cc"
         "window/win32/window.h"
     )
-    set(VULKAN TRUE)
+   set(VULKAN TRUE)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    set(PLATFORM_FILES ${PLATFORM_FILES}
+   set(PLATFORM_FILES ${PLATFORM_FILES}
         "gpu/metal/buffer.h"
         "gpu/metal/buffer.mm"
         "gpu/metal/command_queue.h"
@@ -32,7 +32,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         "window/macos/window.mm"
     )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(PLATFORM_FILES ${PLATFORM_FILES}
+   set(PLATFORM_FILES ${PLATFORM_FILES}
         "window/linux/keys.h"
         "window/linux/window.h"
         "window/linux/window_init.h"
@@ -43,11 +43,11 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         "window/linux/x11_window.cc"
         "window/linux/x11_window.h"
     )
-    set(VULKAN TRUE)
+   set(VULKAN TRUE)
 endif()
 
 if (VULKAN)
-    set(PLATFORM_FILES ${PLATFORM_FILES}
+   set(PLATFORM_FILES ${PLATFORM_FILES}
        "render/vk_renderer.cc"
        "render/vk_renderer.h"
        "gpu/vulkan/command_pool.cc"
@@ -124,69 +124,69 @@ add_library(simulo_common
 )
 
 function(generate_wayland_protocol target xml_path)
-    get_filename_component(protocol_name ${xml_path} NAME_WE)
-    set(header_output ${CMAKE_CURRENT_LIST_DIR}/window/linux/${protocol_name}-protocol.h)
-    set(c_output ${CMAKE_CURRENT_LIST_DIR}/window/linux/${protocol_name}-protocol.c)
+   get_filename_component(protocol_name ${xml_path} NAME_WE)
+   set(header_output ${CMAKE_CURRENT_LIST_DIR}/window/linux/${protocol_name}-protocol.h)
+   set(c_output ${CMAKE_CURRENT_LIST_DIR}/window/linux/${protocol_name}-protocol.c)
 
-    add_custom_command(
+   add_custom_command(
         OUTPUT ${header_output}
         COMMAND wayland-scanner client-header ${xml_path} ${header_output}
         DEPENDS ${xml_path}
     )
 
-    add_custom_command(
+   add_custom_command(
         OUTPUT ${c_output}
         COMMAND wayland-scanner private-code ${xml_path} ${c_output}
         DEPENDS ${xml_path}
     )
 
-    target_sources(${target} PRIVATE ${header_output} ${c_output})
+   target_sources(${target} PRIVATE ${header_output} ${c_output})
 endfunction()
 
 function(embed_binary target file)
-    add_custom_command(
+   add_custom_command(
         OUTPUT ${file}.h
         COMMAND xxd -i ${file} ${file}.h
         DEPENDS ${file}
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     )
 
-    target_sources(${target} PRIVATE ${file}.h)
+   target_sources(${target} PRIVATE ${file}.h)
 endfunction()
 
 function(embed_vulkan_shader target file)
-    string(REGEX REPLACE "[/.]" "_" c_array_name ${file})
-    get_filename_component(file_name ${file} NAME)
-    set(destination ${CMAKE_CURRENT_LIST_DIR}/res/${file_name}.h)
+   string(REGEX REPLACE "[/.]" "_" c_array_name ${file})
+   get_filename_component(file_name ${file} NAME)
+   set(destination ${CMAKE_CURRENT_LIST_DIR}/res/${file_name}.h)
 
-    add_custom_command(
+   add_custom_command(
         OUTPUT ${destination}
         COMMAND glslc ${file} -o - | xxd -i -n ${c_array_name} > ${destination}
         DEPENDS ${file}
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     )
 
-    target_sources(${target} PRIVATE ${destination})
+   target_sources(${target} PRIVATE ${destination})
 endfunction()
 
 function(embed_metal_shader target file)
-    get_filename_component(file_name ${file} NAME_WE)
-    set(output "${CMAKE_CURRENT_BINARY_DIR}/default.metallib")
-    
-    add_custom_command(
+   get_filename_component(file_name ${file} NAME_WE)
+   set(output "${CMAKE_CURRENT_BINARY_DIR}/default.metallib")
+
+   add_custom_command(
         OUTPUT ${output}
         COMMAND xcrun -sdk macosx metal -c ${file} -o ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.air
-        COMMAND xcrun -sdk macosx metallib ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.air -o ${output} 
+        COMMAND xcrun -sdk macosx metallib ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.air -o ${output}
         DEPENDS ${file}
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     )
 
-    # Add the metallib to the bundle's resources
-    set_source_files_properties(${output} PROPERTIES 
+   # Add the metallib to the bundle's resources
+   set_source_files_properties(${output} PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources"
         XCODE_EXPLICIT_FILE_TYPE "com.apple.metal-library"
     )
-    target_sources(${target} PUBLIC ${output})
+   target_sources(${target} PUBLIC ${output})
 endfunction()
 
 target_include_directories(simulo_common PUBLIC ${CMAKE_CURRENT_LIST_DIR})
@@ -194,34 +194,34 @@ target_link_libraries(simulo_common libdeflate_static)
 
 # Vulkan
 if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_libraries(simulo_common Vulkan::Vulkan)
+   target_link_libraries(simulo_common Vulkan::Vulkan)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_include_directories(simulo_common PRIVATE ${X11_INCLUDE_DIR})
-    target_link_libraries(simulo_common ${X11_LIBRARIES} libXi.so)
+   target_include_directories(simulo_common PRIVATE ${X11_INCLUDE_DIR})
+   target_link_libraries(simulo_common ${X11_LIBRARIES} libXi.so)
 
-    target_include_directories(simulo_common PRIVATE ${WAYLAND_INCLUDE_DIRS})
-    target_link_libraries(simulo_common ${WAYLAND_LIBRARIES})
+   target_include_directories(simulo_common PRIVATE ${WAYLAND_INCLUDE_DIRS})
+   target_link_libraries(simulo_common ${WAYLAND_LIBRARIES})
 
-    target_include_directories(simulo_common PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
-    target_link_directories(simulo_common PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
-    target_link_libraries(simulo_common ${XKBCOMMON_LIBRARIES})
+   target_include_directories(simulo_common PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
+   target_link_directories(simulo_common PRIVATE ${XKBCOMMON_LIBRARY_DIRS})
+   target_link_libraries(simulo_common ${XKBCOMMON_LIBRARIES})
 
-    generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
-    generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
-    generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml)
+   generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
+   generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
+   generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml)
 endif()
 
 if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    embed_vulkan_shader(simulo_common shader/text.vert)
-    embed_vulkan_shader(simulo_common shader/text.frag)
-    embed_vulkan_shader(simulo_common shader/model.vert)
-    embed_vulkan_shader(simulo_common shader/model.frag)
+   embed_vulkan_shader(simulo_common shader/text.vert)
+   embed_vulkan_shader(simulo_common shader/text.frag)
+   embed_vulkan_shader(simulo_common shader/model.vert)
+   embed_vulkan_shader(simulo_common shader/model.frag)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    embed_metal_shader(simulo_common shader/text.metal)
+   embed_metal_shader(simulo_common shader/text.metal)
 
-    target_link_libraries(simulo_common
+   target_link_libraries(simulo_common
         "-framework Foundation"
         "-framework AppKit"
         "-framework Metal"
@@ -245,14 +245,14 @@ set_target_properties(simulo PROPERTIES
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVKAD_DEBUG")
 
 if (BUILD_TESTING)
-    add_executable(simulo_test
+   add_executable(simulo_test
         "test_main.cc"
         "math/angle_test.cc"
         "math/matrix_test.cc"
         "math/vector_test.cc"
     )
-    target_link_libraries(simulo_test simulo_common)
-    set_target_properties(simulo_test PROPERTIES
+   target_link_libraries(simulo_test simulo_common)
+   set_target_properties(simulo_test PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.simulo.app"
     )
