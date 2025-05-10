@@ -13,6 +13,6 @@ endif()
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSIMULO_DEBUG")
 
-add_subdirectory(src/vendor/libdeflate)
+add_subdirectory(src/vendor/libdeflate EXCLUDE_FROM_ALL)
 add_subdirectory(perception_sdk)
 add_subdirectory(src)
