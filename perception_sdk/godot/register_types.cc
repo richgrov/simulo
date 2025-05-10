@@ -70,7 +70,7 @@ public:
       return result;
    }
 
-   void _ready() override {
+   void start() {
       perception_.set_running(true);
    }
 
@@ -81,6 +81,7 @@ public:
 protected:
    static void _bind_methods() {
       ClassDB::bind_method(D_METHOD("detect"), &Perception2d::detect);
+      ClassDB::bind_method(D_METHOD("start"), &Perception2d::start);
       ClassDB::bind_method(D_METHOD("is_calibrated"), &Perception2d::is_calibrated);
    }
 
@@ -95,8 +96,8 @@ void init_perception(ModuleInitializationLevel level) {
       return;
    }
 
-   GDREGISTER_RUNTIME_CLASS(Detection);
-   GDREGISTER_RUNTIME_CLASS(Perception2d);
+   GDREGISTER_CLASS(Detection);
+   GDREGISTER_CLASS(Perception2d);
 }
 
 extern "C" {
