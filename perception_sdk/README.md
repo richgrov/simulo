@@ -8,6 +8,22 @@
 
 ## Usage
 
+```gdscript
+extends Perception2d
+
+func _ready():
+    self.start()
+
+func _process(delta):
+    if not self.is_calibrated():
+        return
+
+    for detection in self.detect():
+        # left_hand_pos is a Vector2
+        var left_hand_pos = detection.get_keypoint(9)
+        # ...
+```
+
 ### Class `Perception2d`
 
 Create a **single** `Perception2d` node in your scene and use the following functions:
