@@ -11,7 +11,7 @@
 #include <godot_cpp/godot.hpp>
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include <godot_cpp/variant/variant.hpp>
+#include <godot_cpp/variant/vector2.hpp>
 
 #include "../perception.h"
 
@@ -25,17 +25,17 @@ class Detection : public RefCounted {
 public:
    Detection() {}
 
-   Variant get_keypoint(int keypoint_index) {
+   Vector2 get_keypoint(int keypoint_index) {
       if (keypoint_index < 0 || keypoint_index >= detection_.points.size()) {
          UtilityFunctions::push_error("keypoint index out of range");
-         return ERR_INVALID_PARAMETER;
+         return Vector2();
       }
 
       simulo::Perception::Keypoint kp = detection_.points[keypoint_index];
       DisplayServer *display = DisplayServer::get_singleton();
       if (display == nullptr) {
          UtilityFunctions::push_error("display server not initialized");
-         return ERR_CANT_ACQUIRE_RESOURCE;
+         return Vector2();
       }
 
       Vector2i window_size = display->window_get_size();
