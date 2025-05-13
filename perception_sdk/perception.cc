@@ -1,10 +1,12 @@
 #include "perception.h"
 
 #include <cassert>
+#include <cstring>
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
 
+#include <onnxruntime_cxx_api.h>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/core/types.hpp>
@@ -12,7 +14,6 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
-#include <thread>
 
 #include "pose_model.h"
 
@@ -23,26 +24,50 @@ namespace {
 static const cv::Size kInputImageSize(640, 640);
 static constexpr int kBoxChannels = 56;
 static constexpr int kNumBoxes = 8400;
+static const char *kModelInputNames[] = {"images"};
+static const char *kModelOutputNames[] = {"output0"};
+static const int64_t kModelInputShape[] = {1, 3, kInputImageSize.width, kInputImageSize.height};
+static const int64_t kModelOutputShape[] = {1, kBoxChannels, kNumBoxes};
 static constexpr float kScoreThreshold = 0.7;
 static constexpr float kNmsThreshold = 0.5;
 
 static const cv::Size kChessboardPatternSize(9, 4);
 
-// Given a vector of B*C*N, return a N*C matrix
-cv::Mat postprocess(const std::vector<cv::Mat> &outputs) {
-#ifdef SIMULO_DEBUG
-   assert(outputs.size() == 1);
-   assert(outputs[0].size[0] == 1);
-   assert(outputs[0].size[1] == kBoxChannels);
-   assert(outputs[0].size[2] == kNumBoxes);
+Ort::SessionOptions ort_session_options() {
+   Ort::SessionOptions opts;
+#ifdef __APPLE__
+   opts.AppendExecutionProvider("CoreML");
 #endif
-
-   return outputs[0].reshape(1, kBoxChannels).t();
+   return opts;
 }
+
+template <class T, size_t Width> class Array2d {
+public:
+   Array2d(const T *data) : data_{data} {}
+
+   T get(size_t x, size_t y) {
+      return data_[y * Width + x];
+   }
+
+private:
+   const T *data_;
+};
 
 } // namespace
 
-Perception::Perception() : model_(get_pose_model()) {}
+Perception::Perception()
+    : ort_session_{create_pose_session(ort_env_, ort_session_options())},
+      ort_mem_info_{Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU)},
+      ort_allocator_{ort_session_, ort_mem_info_},
+      ort_input_{Ort::Value::CreateTensor(
+          ort_allocator_, kModelInputShape, 4, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT
+      )},
+      ort_output_{Ort::Value::CreateTensor(
+          ort_allocator_, kModelOutputShape, 3, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT
+      )} {
+
+   std::cout << "ONNX Version: " << Ort::GetVersionString() << '\n';
+}
 
 float rescale(float f, float from_range, float to_range) {
    return f / from_range * to_range;
@@ -124,39 +149,38 @@ void Perception::detect() {
    cv::dnn::blobFromImage(
        capture_mat, blob, 1.0 / 255.0, kInputImageSize, cv::Scalar(), true, false
    );
-   model_.setInput(blob);
+   std::memcpy(ort_input_.GetTensorMutableData<float>(), blob.data, blob.total() * blob.elemSize());
 
-   static thread_local std::vector<cv::Mat> outputs;
-   model_.forward(outputs, model_.getUnconnectedOutLayersNames());
+   Ort::RunOptions run_opts;
+   ort_session_.Run(run_opts, kModelInputNames, &ort_input_, 1, kModelOutputNames, &ort_output_, 1);
 
-   cv::Mat output = postprocess(outputs);
+   Array2d<float, kNumBoxes> data(ort_output_.GetTensorData<float>());
 
    std::vector<cv::Rect> boxes;
    std::vector<float> scores;
    std::vector<std::vector<Keypoint>> detection_points;
 
    for (int box_idx = 0; box_idx < kNumBoxes; box_idx++) {
-      float *box_props = output.row(box_idx).ptr<float>();
-
-      float score = box_props[4];
+      // float *box_props = output.row(box_idx).ptr<float>();
+      float score = data.get(box_idx, 4);
       if (score < kScoreThreshold) {
          continue;
       }
 
       scores.push_back(score);
 
-      float x_center = box_props[0];
-      float y_center = box_props[1];
-      float width = box_props[2];
-      float height = box_props[3];
+      float x_center = data.get(box_idx, 0);
+      float y_center = data.get(box_idx, 1);
+      float width = data.get(box_idx, 2);
+      float height = data.get(box_idx, 3);
       boxes.emplace_back(x_center - 0.5f * width, y_center - 0.5f * height, width, height);
 
       std::vector<Keypoint> points;
       for (int keypoint_idx = 0; keypoint_idx < 17; keypoint_idx++) {
          points.emplace_back(Keypoint{
-             .x = box_props[5 + keypoint_idx * 3],
-             .y = box_props[5 + keypoint_idx * 3 + 1],
-             .visibility = box_props[5 + keypoint_idx * 3 + 2],
+             .x = data.get(box_idx, 5 + keypoint_idx * 3),
+             .y = data.get(box_idx, 5 + keypoint_idx * 3 + 1),
+             .visibility = data.get(box_idx, 5 + keypoint_idx * 3 + 2),
          });
       }
 

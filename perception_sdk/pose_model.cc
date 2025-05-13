@@ -6,13 +6,8 @@
 
 namespace simulo {
 
-cv::dnn::Net get_pose_model() {
-   cv::dnn::Net model =
-       cv::dnn::readNetFromONNX(reinterpret_cast<const char *>(yolo11n_pose), yolo11n_pose_len);
-
-   model.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
-   model.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
-   return model;
+Ort::Session create_pose_session(const Ort::Env &env, const Ort::SessionOptions &opts) {
+   return Ort::Session(env, yolo11n_pose, yolo11n_pose_len, opts);
 }
 
 } // namespace simulo

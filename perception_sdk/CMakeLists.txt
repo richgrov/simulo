@@ -1,4 +1,5 @@
 find_package(OpenCV REQUIRED)
+find_package(ONNXRuntime REQUIRED PATHS "./onnxruntime/lib/cmake" NO_DEFAULT_PATH)
 
 add_library(perception_sdk
    "perception.cc"
@@ -14,6 +15,7 @@ target_include_directories(perception_sdk
       ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_link_libraries(perception_sdk PUBLIC ${OpenCV_LIBS})
+target_link_libraries(perception_sdk PUBLIC onnxruntime::onnxruntime)
 
 function(embed_model target model)
    string(REPLACE "-" "_" file_name ${model})

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <opencv2/dnn.hpp>
+#include <onnxruntime_cxx_api.h>
 
 namespace simulo {
 
-cv::dnn::Net get_pose_model();
+Ort::Session create_pose_session(const Ort::Env &env, const Ort::SessionOptions &opts);
 
 } // namespace simulo
