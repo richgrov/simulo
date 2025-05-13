@@ -11,12 +11,30 @@ jobs:
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y curl xxd libopencv-dev libx11-dev libxkbcommon-dev wayland-protocols libvulkan-dev build-essential cmake
+      - name: Download ONNX Runtime
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: "microsoft/onnxruntime"
+          latest: true
+          preRelease: false
+          fileName: "onnxruntime-linux-x64-*.tgz"
+          out-file-path: "extern/onnxruntime"
+          extract: true
 
       - name: Configure project
-        run: cmake -S . -B build
+        run: cmake -S . -B build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install -DONNXRuntime_DIR=${{ github.workspace }}/extern/onnxruntime/lib/cmake/onnxruntime
 
       - name: Build project
         run: cmake --build build --config Release
 
       - name: Run tests
         run: ctest --test-dir build
+
+      - name: Install project
+        run: cmake --install build --config Release
+
+      - name: Upload install artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: simulo-install
+          path: install

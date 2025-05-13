@@ -36,6 +36,7 @@ I started this project for two reasons:
 - `curl`
 - `xxd`
 - OpenCV
+- ONNXRuntime
 
 Windows:
 
