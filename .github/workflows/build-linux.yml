@@ -16,14 +16,10 @@ jobs:
           version: "1.0"
 
       - name: Download ONNX Runtime
-        uses: robinraju/release-downloader@v1
-        with:
-          repository: "microsoft/onnxruntime"
-          latest: true
-          preRelease: false
-          fileName: "onnxruntime-linux-x64-*.tgz"
-          out-file-path: "extern/onnxruntime"
-          extract: true
+        run: |
+          mkdir -p extern/onnxruntime
+          curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
+          tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
 
       - name: Configure project
         run: cmake -S . -B build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install -DONNXRuntime_DIR=${{ github.workspace }}/extern/onnxruntime/lib/cmake/onnxruntime
