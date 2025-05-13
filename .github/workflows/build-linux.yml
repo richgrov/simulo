@@ -10,7 +10,11 @@ jobs:
           submodules: recursive
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y curl xxd libopencv-dev libx11-dev libxkbcommon-dev wayland-protocols libvulkan-dev build-essential cmake
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl xxd libopencv-dev libx11-dev libxkbcommon-dev wayland-protocols libvulkan-dev build-essential cmake
+          version: "1.0"
+
       - name: Download ONNX Runtime
         uses: robinraju/release-downloader@v1
         with:
