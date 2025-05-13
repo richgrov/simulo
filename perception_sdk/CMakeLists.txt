@@ -1,5 +1,4 @@
 find_package(OpenCV REQUIRED)
-find_package(ONNXRuntime REQUIRED PATHS "./onnxruntime/lib/cmake" NO_DEFAULT_PATH)
 
 add_library(perception_sdk
    "perception.cc"
@@ -8,6 +7,15 @@ add_library(perception_sdk
    "pose_model.h"
 )
 
+if (WIN32)
+   target_link_directories(perception_sdk PUBLIC ${ONNXRuntime_DIR}/lib)
+   target_link_libraries(perception_sdk PUBLIC onnxruntime)
+   target_include_directories(perception_sdk PUBLIC ${ONNXRuntime_DIR}/include)
+else()
+   find_package(ONNXRuntime REQUIRED)
+   target_link_libraries(perception_sdk PUBLIC onnxruntime::onnxruntime)
+endif()
+
 target_include_directories(perception_sdk
    PUBLIC
       ${OpenCV_INCLUDE_DIRS}
@@ -15,7 +23,6 @@ target_include_directories(perception_sdk
       ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_link_libraries(perception_sdk PUBLIC ${OpenCV_LIBS})
-target_link_libraries(perception_sdk PUBLIC onnxruntime::onnxruntime)
 
 function(embed_model target model)
    string(REPLACE "-" "_" file_name ${model})

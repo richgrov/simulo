@@ -6,6 +6,7 @@
 #include <shared_mutex>
 #include <stdexcept>
 
+#define ORT_NO_EXCEPTIONS
 #include <onnxruntime_cxx_api.h>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
