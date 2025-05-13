@@ -227,13 +227,13 @@ void Perception::detect() {
 }
 
 void Perception::set_running(bool run) {
+   if (running_ && run) {
+      return;
+   }
+
    running_ = run;
 
    if (run) {
-      if (running_) {
-         return;
-      }
-
       capture_.open(0);
       thread_ = std::thread([this] {
          while (running_) {
