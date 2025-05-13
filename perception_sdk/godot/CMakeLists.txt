@@ -19,7 +19,15 @@ else()
    message(FATAL_ERROR "Unknown build type: ${CMAKE_BUILD_TYPE}")
 endif()
 
-set(FULL_LIB_NAME "${GODOT_PREFIX}gdperception.${GODOT_PLATFORM}.${GODOT_CONFIG}")
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+   if (CMAKE_SIZEOF_VOID_P GREATER 4)
+      set(GODOT_ARCH ".x86_64")
+   else()
+      set(GODOT_ARCH ".x86_32")
+   endif()
+endif()
+
+set(FULL_LIB_NAME "${GODOT_PREFIX}gdperception.${GODOT_PLATFORM}.${GODOT_CONFIG}${GODOT_ARCH}")
 
 add_library(${FULL_LIB_NAME} SHARED
    "register_types.cc"
