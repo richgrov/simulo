@@ -142,7 +142,9 @@ void Perception::detect() {
    }
 
    if (!calibrated_) {
-      detect_calibration_marker(capture_mat);
+      if (!detect_calibration_marker(capture_mat)) {
+         return;
+      }
    }
 
    static thread_local cv::Mat blob;
