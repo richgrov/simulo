@@ -1,0 +1,22 @@
+name: Build on Linux
+on: [push]
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y curl xxd libopencv-dev libx11-dev libxkbcommon-dev wayland-protocols libvulkan-dev build-essential cmake
+
+      - name: Configure project
+        run: cmake -S . -B build
+
+      - name: Build project
+        run: cmake --build build --config Release
+
+      - name: Run tests
+        run: ctest --test-dir build
