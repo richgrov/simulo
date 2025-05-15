@@ -89,6 +89,10 @@ add_library(simulo_common
    "math/angle.h"
    "math/matrix.h"
    "math/vector.h"
+   "perception/perception.cc"
+   "perception/perception.h"
+   "perception/pose_model.cc"
+   "perception/pose_model.h"
    "render/model.h"
    "render/renderer.h"
    "render/ui.h"
@@ -154,6 +158,17 @@ function(embed_binary target file)
     )
 
    target_sources(${target} PRIVATE ${file}.h)
+endfunction()
+
+function(embed_model target model)
+   string(REPLACE "-" "_" file_name ${model})
+   add_custom_command(
+      OUTPUT perception/${file_name}.h
+      COMMAND bash -c 'curl -sL https://simulo-cdn.tysonjenkins.dev/${model}.onnx | xxd -i -n ${file_name} > perception/${file_name}.h'
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+   )
+
+   target_sources(${target} PRIVATE perception/${file_name}.h)
 endfunction()
 
 function(embed_vulkan_shader target file)
@@ -231,7 +246,6 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     )
 endif()
 
-
 embed_binary(simulo_common res/arial.ttf)
 target_compile_features(simulo_common PUBLIC cxx_std_20)
 
@@ -243,6 +257,25 @@ set_target_properties(simulo PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.simulo.app"
 )
 
+if (WIN32)
+   target_link_directories(simulo_common PUBLIC ${ONNXRuntime_DIR}/lib)
+   target_link_libraries(simulo_common onnxruntime)
+   target_include_directories(simulo_common PUBLIC ${ONNXRuntime_DIR}/include)
+else()
+   find_package(ONNXRuntime REQUIRED)
+   target_link_libraries(simulo_common onnxruntime::onnxruntime)
+endif()
+
+find_package(OpenCV REQUIRED)
+target_include_directories(simulo_common
+   PUBLIC
+      ${OpenCV_INCLUDE_DIRS}
+   PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(simulo_common ${OpenCV_LIBS})
+
+embed_model(simulo_common yolo11n-pose)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVKAD_DEBUG")
 
@@ -258,4 +291,11 @@ if (BUILD_TESTING)
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.simulo.app"
     )
+
+   if (BUILD_TESTING)
+      add_executable(perception_test "perception_test.cc")
+      target_link_libraries(perception_test simulo_common)
+   endif()
 endif()
+
+add_subdirectory(godot)

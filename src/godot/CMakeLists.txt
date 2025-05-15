@@ -33,7 +33,7 @@ add_library(${FULL_LIB_NAME} SHARED
    "register_types.cc"
 )
 
-target_link_libraries(${FULL_LIB_NAME} perception_sdk)
+target_link_libraries(${FULL_LIB_NAME} simulo_common)
 target_link_libraries(${FULL_LIB_NAME} godot-cpp)
 target_compile_features(${FULL_LIB_NAME} PUBLIC cxx_std_20)
 
@@ -49,7 +49,6 @@ install(
    FRAMEWORK DESTINATION bin
    RUNTIME DESTINATION bin
 )
-
 
 install(
    FILES gdperception.gdextension

@@ -13,7 +13,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/variant/vector2.hpp>
 
-#include "../perception.h"
+#include "perception/perception.h"
 
 using namespace godot;
 

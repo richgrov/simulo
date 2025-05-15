@@ -4,7 +4,6 @@
 [submodule "src/vendor/MigroGD"]
 	path = src/vendor/MigroGD
 	url = https://github.com/richgrov/MicroGD.git
-[submodule "perception_sdk/godot/godot-cpp"]
-	path = perception_sdk/godot/godot-cpp
-	url = https://github.com/godotengine/godot-cpp
-	branch = 4.4
+[submodule "src/godot/godot-cpp"]
+	path = src/godot/godot-cpp
+	url = https://github.com/godotengine/godot-cpp.git

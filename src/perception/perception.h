@@ -45,6 +45,8 @@ public:
       return calibrated_;
    }
 
+   void debug_window();
+
 private:
    void detect();
    bool detect_calibration_marker(cv::Mat &frame);
@@ -61,6 +63,7 @@ private:
    std::thread thread_;
 
    std::shared_mutex detection_lock_;
+   cv::Mat latest_frame_;
    std::vector<Detection> latest_detections_;
 
    std::atomic<bool> calibrated_{false};

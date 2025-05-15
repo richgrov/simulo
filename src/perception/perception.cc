@@ -90,6 +90,12 @@ bool Perception::detect_calibration_marker(cv::Mat &frame) {
    bool found =
        cv::findChessboardCornersSB(gray, kChessboardPatternSize, corners, cv::CALIB_CB_EXHAUSTIVE);
 
+   {
+      std::unique_lock lock(detection_lock_);
+      cv::Mat debug_frame = frame.clone();
+      cv::drawChessboardCorners(debug_frame, kChessboardPatternSize, corners, found);
+      latest_frame_ = debug_frame;
+   }
 
    if (!found) {
       return false;
@@ -247,4 +253,50 @@ void Perception::set_running(bool run) {
          capture_.release();
       }
    }
+}
+
+void Perception::debug_window() {
+   std::shared_lock lock(detection_lock_);
+
+   cv::Mat display = cv::Mat(1080, 1920, CV_8UC3, cv::Scalar(0, 0, 0)); // Start with black
+
+   if (!calibrated_) {
+      // Draw a chessboard pattern if not calibrated
+      int board_width = kChessboardPatternSize.width + 1;
+      int board_height = kChessboardPatternSize.height + 1;
+      int square_width = display.cols / board_width;
+      int square_height = display.rows / board_height;
+
+      for (int i = 0; i < board_height; ++i) {
+         for (int j = 0; j < board_width; ++j) {
+            if ((i + j) % 2 == 0) { // White squares
+               cv::Rect square(j * square_width, i * square_height, square_width, square_height);
+               cv::rectangle(display, square, cv::Scalar(255, 255, 255), cv::FILLED);
+            }
+         }
+      }
+   } else {
+      // Draw detections only if calibrated
+      for (const Detection &det : latest_detections_) {
+         for (Keypoint point : det.points) {
+            int x = point.x * display.cols;
+            int y = point.y * display.rows;
+            cv::circle(display, cv::Point(x, y), 8, cv::Scalar(255, 255, 255), -1);
+         }
+
+#define POINT(n) cv::Point(det.points[n].x *display.cols, det.points[n].y *display.rows)
+         cv::line(display, POINT(9), POINT(7), cv::Scalar(255, 255, 255), 4);
+         cv::line(display, POINT(7), POINT(5), cv::Scalar(255, 255, 255), 4);
+         cv::line(display, POINT(10), POINT(8), cv::Scalar(255, 255, 255), 4);
+         cv::line(display, POINT(8), POINT(6), cv::Scalar(255, 255, 255), 4);
+         cv::line(display, POINT(6), POINT(5), cv::Scalar(255, 255, 255), 4);
+      }
+   }
+
+   if (!latest_frame_.empty()) {
+      cv::imshow("Debug", latest_frame_);
+   }
+
+   cv::imshow("Display", display);
+   cv::pollKey();
 }
