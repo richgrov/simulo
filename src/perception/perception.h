@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <shared_mutex>
 #include <thread>
 #include <vector>
@@ -30,7 +31,7 @@ public:
       std::vector<Keypoint> points;
    };
 
-   Perception();
+   Perception(std::shared_ptr<const Ort::Env> ort_env, int id);
 
    ~Perception();
 
@@ -52,8 +53,9 @@ private:
    bool detect_calibration_marker(cv::Mat &frame);
    void apply_calibration_transform(Detection &detection);
 
+   int id_;
    cv::VideoCapture capture_;
-   Ort::Env ort_env_;
+   std::shared_ptr<const Ort::Env> ort_env_;
    Ort::Session ort_session_;
    Ort::MemoryInfo ort_mem_info_;
    Ort::Allocator ort_allocator_;

@@ -12,6 +12,7 @@
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/variant/vector2.hpp>
+#include <onnxruntime_cxx_api.h>
 
 #include "perception/perception.h"
 
@@ -54,6 +55,8 @@ class Perception2d : public Node {
    GDCLASS(Perception2d, Node);
 
 public:
+   Perception2d() : ort_env_{std::make_shared<const Ort::Env>()}, perception_{ort_env_, 0} {}
+
    ~Perception2d() {
       perception_.set_running(false);
    }
@@ -88,6 +91,7 @@ protected:
    }
 
 private:
+   std::shared_ptr<const Ort::Env> ort_env_;
    simulo::Perception perception_;
 };
 

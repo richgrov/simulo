@@ -56,8 +56,10 @@ private:
 
 } // namespace
 
-Perception::Perception()
-    : ort_session_{create_pose_session(ort_env_, ort_session_options())},
+Perception::Perception(std::shared_ptr<const Ort::Env> ort_env, int id)
+    : id_{id},
+      ort_env_{ort_env},
+      ort_session_{create_pose_session(*ort_env_.get(), ort_session_options())},
       ort_mem_info_{Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU)},
       ort_allocator_{ort_session_, ort_mem_info_},
       ort_input_{Ort::Value::CreateTensor(
