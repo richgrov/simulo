@@ -6,7 +6,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/vulkan/buffer.h"
-#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/gpu.h"
 #include "gpu/vulkan/physical_device.h"
 #include "gpu/vulkan/pipeline.h"
 #include "gpu/vulkan/status.h"
@@ -24,7 +24,7 @@
 using namespace simulo;
 
 Renderer::Renderer(
-    Instance &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
+    Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
 )
     : vk_instance_(vk_instance),
       physical_device_(vk_instance_, surface),

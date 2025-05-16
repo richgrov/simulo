@@ -1,6 +1,6 @@
 #include "wl_window.h"
 
-#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/gpu.h"
 #include "gpu/vulkan/status.h"
 #include "pointer-constraints-unstable-v1-protocol.h"
 #include "relative-pointer-unstable-v1-protocol.h"
@@ -76,7 +76,7 @@ VkSurfaceKHR create_surface(wl_display *display, wl_surface *surface, VkInstance
 
 } // namespace
 
-WaylandWindow::WaylandWindow(const Instance &vk_instance, const char *title)
+WaylandWindow::WaylandWindow(const Gpu &vk_instance, const char *title)
     : vk_instance_(vk_instance), xkb_ctx_(xkb_context_new(XKB_CONTEXT_NO_FLAGS)) {
 
 #define VERIFY_INIT(name)                                                                          \

@@ -5,7 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/gpu.h"
 #include "window.h"
 
 union _XEvent;
@@ -17,7 +17,7 @@ namespace simulo {
 
 class X11Window : public simulo::Window {
 public:
-   explicit X11Window(const Instance &vk_instance, const char *title);
+   explicit X11Window(const Gpu &vk_instance, const char *title);
    ~X11Window();
 
    virtual bool poll() override;
@@ -74,7 +74,7 @@ private:
    void process_generic_event(_XEvent &event);
    void process_char_input(_XEvent &event);
 
-   const Instance &vk_instance_;
+   const Gpu &vk_instance_;
    _XDisplay *display_;
    int xi_opcode_;
    _XIC *input_ctx_;

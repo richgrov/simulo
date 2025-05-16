@@ -132,7 +132,7 @@ LRESULT CALLBACK simulo::window_proc(HWND window, UINT msg, WPARAM w_param, LPAR
    return DefWindowProc(window, msg, w_param, l_param);
 }
 
-Window::Window(const Instance &vk_instance, const char *title)
+Window::Window(const Gpu &vk_instance, const char *title)
     : vk_instance_(vk_instance),
       open_(false),
       closing_(false),
@@ -175,11 +175,11 @@ Window::Window(const Instance &vk_instance, const char *title)
    open_ = true;
 
    register_raw_mouse_input(window_);
-   surface_ = create_surface(window_, vk_instance.handle());
+   surface_ = create_surface(window_, vk_instance.instance());
 }
 
 Window::~Window() {
-   vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
+   vkDestroySurfaceKHR(vk_instance_.instance(), surface_, nullptr);
 }
 
 bool Window::poll() {

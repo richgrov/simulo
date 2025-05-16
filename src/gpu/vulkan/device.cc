@@ -1,8 +1,9 @@
 #include "device.h"
 
 #include <set>
+#include <vector>
 
-#include "instance.h"
+#include "gpu.h"
 #include "status.h"
 #include "util/memory.h"
 #include "vulkan/vulkan_core.h"

@@ -92,11 +92,7 @@ private:
    bool process_input(const std::string &message);
    void add_prompt_text(const std::string &message);
 
-#ifdef __APPLE__
    Gpu gpu_;
-#else
-   Instance vk_instance_;
-#endif
    std::unique_ptr<Window> window_;
    Renderer renderer_;
 

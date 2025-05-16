@@ -82,7 +82,7 @@ Cursor create_invisible_cursor(Display *display, ::Window window) {
 
 } // namespace
 
-simulo::X11Window::X11Window(const Instance &vk_instance, const char *title)
+simulo::X11Window::X11Window(const Gpu &vk_instance, const char *title)
     : vk_instance_(vk_instance),
       width_(1280),
       height_(720),

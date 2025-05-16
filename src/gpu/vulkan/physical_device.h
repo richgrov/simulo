@@ -1,13 +1,13 @@
 #pragma once
 
-#include "instance.h"
+#include "gpu.h"
 #include <vulkan/vulkan_core.h>
 
 namespace simulo {
 
 class PhysicalDevice {
 public:
-   PhysicalDevice(const Instance &instance, VkSurfaceKHR surface);
+   PhysicalDevice(const Gpu &instance, VkSurfaceKHR surface);
 
    PhysicalDevice(const PhysicalDevice &other) = delete;
    PhysicalDevice &operator=(const PhysicalDevice &other) = delete;

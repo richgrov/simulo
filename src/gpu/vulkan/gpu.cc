@@ -1,4 +1,4 @@
-#include "instance.h"
+#include "gpu.h"
 
 #include <cstring>
 #include <format>
@@ -8,6 +8,10 @@
 
 #include "status.h"
 #include "util/memory.h"
+#include "util/os_detect.h"
+#ifdef VKAD_LINUX
+#include "window/linux/window.h"
+#endif
 
 using namespace simulo;
 
@@ -41,7 +45,7 @@ void ensure_validation_layers_supported() {
 
 } // namespace
 
-Instance::Instance(const std::vector<const char *> extensions) {
+Gpu::Gpu() {
    VkApplicationInfo app_info = {
        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
@@ -49,11 +53,20 @@ Instance::Instance(const std::vector<const char *> extensions) {
        .apiVersion = VK_API_VERSION_1_0,
    };
 
+   const char *extensions[] = {
+       "VK_KHR_surface",
+#ifdef VKAD_WINDOWS
+       "VK_KHR_win32_surface",
+#elif defined(VKAD_LINUX)
+       Window::running_on_wayland() ? "VK_KHR_wayland_surface" : "VK_KHR_xlib_surface",
+#endif
+   };
+
    VkInstanceCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
        .pApplicationInfo = &app_info,
-       .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
-       .ppEnabledExtensionNames = extensions.data(),
+       .enabledExtensionCount = static_cast<uint32_t>(VKAD_ARRAY_LEN(extensions)),
+       .ppEnabledExtensionNames = extensions,
    };
 
 #ifdef VKAD_DEBUG

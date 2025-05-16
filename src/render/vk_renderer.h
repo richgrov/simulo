@@ -14,8 +14,8 @@
 #include "gpu/vulkan/command_pool.h"
 #include "gpu/vulkan/descriptor_pool.h"
 #include "gpu/vulkan/device.h"
+#include "gpu/vulkan/gpu.h"
 #include "gpu/vulkan/image.h"
-#include "gpu/vulkan/instance.h"
 #include "gpu/vulkan/physical_device.h"
 #include "gpu/vulkan/pipeline.h"
 #include "gpu/vulkan/shader.h"
@@ -71,7 +71,7 @@ public:
    using IndexBufferType = VertexIndexBuffer::IndexType;
 
    explicit Renderer(
-       Instance &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
+       Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
    );
    ~Renderer();
 
@@ -200,7 +200,7 @@ private:
       RenderMaterial material_id;
    };
 
-   Instance &vk_instance_;
+   Gpu &vk_instance_;
    PhysicalDevice physical_device_;
    Device device_;
    Swapchain swapchain_;

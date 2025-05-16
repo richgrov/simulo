@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/gpu.h"
 #include "window/linux/window.h"
 #include "window/linux/wl_deleter.h"
 #include <bitset>
@@ -31,7 +31,7 @@ namespace simulo {
 
 class WaylandWindow : public Window {
 public:
-   WaylandWindow(const Instance &vk_instance, const char *title);
+   WaylandWindow(const Gpu &vk_instance, const char *title);
 
    ~WaylandWindow();
 
@@ -99,7 +99,7 @@ private:
 
    void process_utf8_keyboard_input(uint32_t evdev_key);
 
-   const Instance &vk_instance_;
+   const Gpu &vk_instance_;
    std::unique_ptr<wl_display, WaylandDeleter> display_;
    std::unique_ptr<wl_registry, WaylandDeleter> registry_;
    std::unique_ptr<wl_compositor, WaylandDeleter> compositor_;

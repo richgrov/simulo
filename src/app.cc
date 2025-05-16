@@ -27,12 +27,10 @@ enum class simulo::State {
 };
 
 App::App()
-#ifndef __APPLE__
-    : vk_instance_(Window::vulkan_extensions()),
-      window_(create_window(vk_instance_, "simulo")),
-      renderer_(vk_instance_, window_->surface(), window_->width(), window_->height()),
-#else
     : window_(create_window(gpu_, "simulo")),
+#ifndef __APPLE__
+      renderer_(gpu_, window_->surface(), window_->width(), window_->height()),
+#else
       renderer_(gpu_, window_->layer_pixel_format(), window_->metal_layer()),
 #endif
       last_width_(window_->width()),

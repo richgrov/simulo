@@ -2,12 +2,11 @@
 
 #include <memory>
 #include <string_view>
-#include <vector>
 
 #include <Windows.h>
 #include <vulkan/vulkan_core.h>
 
-#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/gpu.h"
 #include "util/bitfield.h"
 
 namespace simulo {
@@ -16,11 +15,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_par
 
 class Window {
 public:
-   static inline std::vector<const char *> vulkan_extensions() {
-      return {"VK_KHR_surface", "VK_KHR_win32_surface"};
-   }
-
-   explicit Window(const Instance &vk_instance, const char *title);
+   explicit Window(const Gpu &vk_instance, const char *title);
    ~Window();
 
    bool poll();
@@ -74,7 +69,7 @@ public:
    }
 
 private:
-   const Instance &vk_instance_;
+   const Gpu &vk_instance_;
    HWND window_;
    bool open_;
    bool closing_;
@@ -100,7 +95,7 @@ private:
    friend LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 };
 
-inline std::unique_ptr<Window> create_window(const Instance &vk_instance, const char *title) {
+inline std::unique_ptr<Window> create_window(const Gpu &vk_instance, const char *title) {
    return std::make_unique<Window>(vk_instance, title);
 }
 

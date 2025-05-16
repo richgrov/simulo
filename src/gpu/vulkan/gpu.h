@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace simulo {
@@ -10,18 +9,18 @@ constexpr const char *kValidationLayers[] = {
     //"VK_LAYER_LUNARG_api_dump",
 };
 
-class Instance {
+class Gpu {
 public:
-   Instance(const std::vector<const char *> extensions);
+   Gpu();
 
-   inline ~Instance() {
+   inline ~Gpu() {
       vkDestroyInstance(instance_, nullptr);
    }
 
-   Instance(const Instance &other) = delete;
-   Instance &operator=(const Instance &other) = delete;
+   Gpu(const Gpu &other) = delete;
+   Gpu &operator=(const Gpu &other) = delete;
 
-   inline VkInstance handle() const {
+   inline VkInstance instance() const {
       return instance_;
    }
 

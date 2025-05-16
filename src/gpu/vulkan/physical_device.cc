@@ -5,21 +5,21 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#include "instance.h"
+#include "gpu.h"
 #include "status.h"
 #include "swapchain.h"
 
 using namespace simulo;
 
-PhysicalDevice::PhysicalDevice(const Instance &instance, VkSurfaceKHR surface) {
+PhysicalDevice::PhysicalDevice(const Gpu &instance, VkSurfaceKHR surface) {
    uint32_t num_devices;
-   VKAD_VK(vkEnumeratePhysicalDevices(instance.handle(), &num_devices, nullptr));
+   VKAD_VK(vkEnumeratePhysicalDevices(instance.instance(), &num_devices, nullptr));
    if (num_devices == 0) {
       throw std::runtime_error("no physical devices");
    }
 
    std::vector<VkPhysicalDevice> devices(num_devices);
-   vkEnumeratePhysicalDevices(instance.handle(), &num_devices, devices.data());
+   vkEnumeratePhysicalDevices(instance.instance(), &num_devices, devices.data());
 
    for (const auto &device : devices) {
       if (!Swapchain::is_supported_on(device, surface)) {
