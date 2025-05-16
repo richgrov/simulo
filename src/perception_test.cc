@@ -1,5 +1,6 @@
 #include "perception/perception.h"
 
+#define ORT_NO_EXCEPTIONS
 #include <onnxruntime_cxx_api.h>
 #include <opencv2/imgcodecs.hpp>
 

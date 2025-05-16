@@ -12,6 +12,7 @@
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/variant/vector2.hpp>
+#define ORT_NO_EXCEPTIONS
 #include <onnxruntime_cxx_api.h>
 
 #include "perception/perception.h"
