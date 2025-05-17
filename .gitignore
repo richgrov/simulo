@@ -4,6 +4,7 @@
 /build/
 /dist/
 .cache/
+/target
 
 src/res/*.h
 src/perception/yolo11n_pose.h

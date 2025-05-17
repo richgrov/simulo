@@ -171,40 +171,6 @@ function(embed_model target model)
    target_sources(${target} PRIVATE perception/${file_name}.h)
 endfunction()
 
-function(embed_vulkan_shader target file)
-   string(REGEX REPLACE "[/.]" "_" c_array_name ${file})
-   get_filename_component(file_name ${file} NAME)
-   set(destination ${CMAKE_CURRENT_LIST_DIR}/res/${file_name}.h)
-
-   add_custom_command(
-        OUTPUT ${destination}
-        COMMAND glslc ${file} -o - | xxd -i -n ${c_array_name} > ${destination}
-        DEPENDS ${file}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    )
-
-   target_sources(${target} PRIVATE ${destination})
-endfunction()
-
-function(embed_metal_shader target file)
-   get_filename_component(file_name ${file} NAME_WE)
-   set(output "${CMAKE_CURRENT_BINARY_DIR}/default.metallib")
-
-   add_custom_command(
-        OUTPUT ${output}
-        COMMAND xcrun -sdk macosx metal -c ${file} -o ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.air
-        COMMAND xcrun -sdk macosx metallib ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.air -o ${output}
-        DEPENDS ${file}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    )
-
-   # Add the metallib to the bundle's resources
-   set_source_files_properties(${output} PROPERTIES
-        MACOSX_PACKAGE_LOCATION "Resources"
-        XCODE_EXPLICIT_FILE_TYPE "com.apple.metal-library"
-    )
-   target_sources(${target} PUBLIC ${output})
-endfunction()
 
 target_include_directories(simulo_common PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(simulo_common libdeflate_static)
@@ -228,22 +194,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
    generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml)
    generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
    generate_wayland_protocol(simulo_common /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml)
-endif()
-
-if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
-   embed_vulkan_shader(simulo_common shader/text.vert)
-   embed_vulkan_shader(simulo_common shader/text.frag)
-   embed_vulkan_shader(simulo_common shader/model.vert)
-   embed_vulkan_shader(simulo_common shader/model.frag)
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-   embed_metal_shader(simulo_common shader/text.metal)
-
-   target_link_libraries(simulo_common
-        "-framework Foundation"
-        "-framework AppKit"
-        "-framework Metal"
-        "-framework QuartzCore"
-    )
 endif()
 
 embed_binary(simulo_common res/arial.ttf)
