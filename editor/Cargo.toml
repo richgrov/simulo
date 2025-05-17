@@ -1,16 +1,17 @@
 [package]
 name = "editor"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 build = "build.rs"
 
 [dependencies]
-autocxx = "0.30.0"
+autocxx = "0.28.0"
 cxx = "1.0.158"
 
 [build-dependencies]
-autocxx-build = "0.30.0"
+autocxx-build = "0.28.0"
 bindgen = "0.71.1"
+miette = { version = "5", features = ["fancy"] }
 
 [package.metadata.bundle]
 identifier = "com.simulo.editor"

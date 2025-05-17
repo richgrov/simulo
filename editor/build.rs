@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-fn main() {
+fn main() -> miette::Result<()> {
     println!("cargo:rustc-link-search=build/macos-debug/src");
     println!("cargo:rustc-link-lib=simulo_common");
     println!("cargo:rustc-link-lib=framework=Foundation");
@@ -10,13 +10,13 @@ fn main() {
     println!("cargo:rustc-link-lib=framework=QuartzCore");
     let include_path = std::path::PathBuf::from("../src");
 
-    let mut b = autocxx_build::Builder::new("src/main.rs", &[&include_path])
-        .build()
-        .unwrap();
+    let mut b = autocxx_build::Builder::new("src/simulo_cc.rs", &[&include_path])
+        .extra_clang_args(&["-std=c++20", "-stdlib=libc++"])
+        .build()?;
 
-    b.flag_if_supported("-std=c++14").compile("autocxx-demo");
+    b.flag_if_supported("-std=c++20").compile("autocxx-demo");
 
-    println!("cargo:rerun-if-changed=src/main.rs");
+    println!("cargo:rerun-if-changed=src/simulo_cc.rs");
 
     let vulkan_shaders = [
         "shader/text.vert",
@@ -70,4 +70,6 @@ fn main() {
             .status()
             .expect("Failed to link metallib");
     }
+
+    Ok(())
 }
