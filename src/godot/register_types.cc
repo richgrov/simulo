@@ -56,14 +56,17 @@ class Perception2d : public Node {
    GDCLASS(Perception2d, Node);
 
 public:
-   Perception2d() : ort_env_{std::make_shared<const Ort::Env>()}, perception_{ort_env_, 0} {}
+   Perception2d() {
+      ensure_global_perception();
+   }
 
    ~Perception2d() {
-      perception_.set_running(false);
+      cleanup_global_perception();
    }
 
    Array detect() {
-      std::vector<simulo::Perception::Detection> detections = perception_.latest_detections();
+      std::vector<simulo::Perception::Detection> detections =
+          global_perception_->latest_detections();
 
       Array result;
       for (auto &&detection : detections) {
@@ -77,11 +80,11 @@ public:
    }
 
    void start() {
-      perception_.set_running(true);
+      perception_->set_running(true);
    }
 
    bool is_calibrated() {
-      return perception_.is_calibrated();
+      return global_perception_->is_calibrated();
    }
 
 protected:
@@ -92,11 +95,40 @@ protected:
    }
 
 private:
-   std::shared_ptr<const Ort::Env> ort_env_;
-   simulo::Perception perception_;
+   static std::shared_ptr<const Ort::Env> global_ort_env_;
+   static std::shared_ptr<simulo::Perception> global_perception_;
+   static int ref_count_;
+   static std::mutex mutex_;
+
+   static void ensure_global_perception() {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!global_perception_) {
+         global_ort_env_ = std::make_shared<const Ort::Env>();
+         global_perception_ = std::make_shared<simulo::Perception>(global_ort_env_, 0);
+      }
+      ref_count_++;
+   }
+
+   static void cleanup_global_perception() {
+      std::lock_guard<std::mutex> lock(mutex_);
+      ref_count_--;
+      if (ref_count_ <= 0) {
+         if (global_perception_) {
+            global_perception_->set_running(false);
+            global_perception_.reset();
+         }
+         global_ort_env_.reset();
+         ref_count_ = 0;
+      }
+   }
 };
 
 } // namespace godot
+
+std::shared_ptr<const Ort::Env> Perception2d::global_ort_env_ = nullptr;
+std::shared_ptr<simulo::Perception> Perception2d::global_perception_ = nullptr;
+int Perception2d::ref_count_ = 0;
+std::mutex Perception2d::mutex_;
 
 void init_perception(ModuleInitializationLevel level) {
    if (level != MODULE_INITIALIZATION_LEVEL_SCENE) {
