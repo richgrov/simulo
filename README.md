@@ -18,11 +18,6 @@ come with it.
 - Windows, X11, Wayland, and macOS windowing system from scratch
 - Custom math utilities (Matrix, Vector)
 
-I started this project for two reasons:
-
-- Lack of good CAD software on Linux
-- Learn the ins and outs of graphics development
-
 **TODO / Roadmap:**
 
 - Custom font renderer implementation
@@ -32,6 +27,14 @@ I started this project for two reasons:
 - UI Framework
 
 # Prerequisites
+
+**simulo is only supported on the following platforms:**
+
+- Windows: Vulkan & NVIDIA
+- macOS: Metal
+- Linux: Vulkan & NVIDIA
+
+**Dependencies:**
 
 - `curl`
 - `xxd`
