@@ -32,7 +32,7 @@ static const int64_t kModelOutputShape[] = {1, kBoxChannels, kNumBoxes};
 static constexpr float kScoreThreshold = 0.7;
 static constexpr float kNmsThreshold = 0.5;
 
-static const cv::Size kChessboardPatternSize(9, 4);
+static const cv::Size kChessboardPatternSize(9, 5);
 
 Ort::SessionOptions ort_session_options() {
    Ort::SessionOptions opts;
