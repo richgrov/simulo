@@ -199,6 +199,15 @@ endif()
 embed_binary(simulo_common res/arial.ttf)
 target_compile_features(simulo_common PUBLIC cxx_std_20)
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+   target_link_libraries(simulo_common
+        "-framework Foundation"
+        "-framework AppKit"
+        "-framework Metal"
+        "-framework QuartzCore"
+    )
+endif()
+
 add_executable(simulo "main.cc")
 target_link_libraries(simulo simulo_common)
 target_compile_features(simulo PUBLIC cxx_std_20)
