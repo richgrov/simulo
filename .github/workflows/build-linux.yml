@@ -12,7 +12,7 @@ jobs:
       - name: Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: curl xxd libopencv-dev libx11-dev libxkbcommon-dev wayland-protocols libvulkan-dev build-essential cmake
+          packages: curl xxd libopencv-dev libx11-dev libxkbcommon-dev libxi-dev wayland-protocols vulkan-sdk build-essential cmake
           version: "1.0"
 
       - name: Download ONNX Runtime
