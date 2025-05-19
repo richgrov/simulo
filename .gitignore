@@ -4,7 +4,8 @@
 /build/
 /dist/
 .cache/
-target
+.zig-cache/
+zig-out/
 
 src/res/*.h
 src/perception/yolo11n_pose.h
