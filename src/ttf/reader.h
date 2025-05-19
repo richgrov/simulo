@@ -26,7 +26,7 @@ public:
 
       int64_t result = 0;
       for (int i = 0; i < 8; ++i, ++read_index_) {
-         result |= static_cast<int64_t>(data_[read_index_]) << (8 - i) * 8;
+         result |= static_cast<int64_t>(data_[read_index_]) << (8 - (i + 1)) * 8;
       }
 
       auto seconds = std::chrono::seconds(result - (1970 - 1904) * 365 * 24 * 60 * 60);
