@@ -20,12 +20,14 @@ jobs:
           mkdir -p extern/onnxruntime
           curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
           tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
+          pwd
+          ls
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
 
       - name: Build project
-        run: zig build
+        run: zig build --search-prefix extern/onnxruntime
 
       - name: Upload install artifact
         uses: actions/upload-artifact@v4
