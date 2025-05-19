@@ -73,8 +73,8 @@ pub fn build(b: *std.Build) void {
         exe.linkFramework("Metal");
         exe.linkFramework("QuartzCore");
 
-        // Set bundle info
         exe.bundle_compiler_rt = true;
+        bundle(b, exe);
     } else if (os == .linux) {
         const linux_files = [_][]const u8{
             "src/window/linux/wl_deleter.cc",
@@ -227,4 +227,25 @@ pub fn build(b: *std.Build) void {
 
         b.installArtifact(perception_test);
     }
+}
+
+fn bundle(b: *std.Build, exe: *std.Build.Step.Compile) void {
+    const bundle_step = b.step("bundle", "Create macOS .app bundle");
+
+    const install_exe = b.addInstallArtifact(exe, .{
+        .dest_dir = .{
+            .override = .{
+                .custom = "simulo.app/Contents/MacOS",
+            },
+        },
+    });
+
+    const install_plist = b.addInstallFile(b.path("src/res/Info.plist"), "simulo.app/Contents/Info.plist");
+    const install_metallib = b.addInstallFile(b.path("default.metallib"), "simulo.app/Contents/Resources/default.metallib");
+
+    bundle_step.dependOn(&install_exe.step);
+    bundle_step.dependOn(&install_plist.step);
+    bundle_step.dependOn(&install_metallib.step);
+
+    b.default_step.dependOn(bundle_step);
 }
