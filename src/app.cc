@@ -1,4 +1,5 @@
 #include "app.h"
+#include "ffi.h"
 #include "geometry/circle.h"
 #include "geometry/model.h"
 #include "math/matrix.h"
@@ -25,6 +26,19 @@ enum class simulo::State {
    CREATE_POLYGON_RADIUS,
    EXTRUDE,
 };
+
+void run() {
+   try {
+      App app;
+
+      while (app.poll()) {
+         app.draw();
+         app.renderer().wait_idle();
+      }
+   } catch (const std::exception &ex) {
+      std::cerr << "unhandled exception: " << ex.what() << "\n";
+   }
+}
 
 App::App()
     : window_(create_window(gpu_, "simulo")),

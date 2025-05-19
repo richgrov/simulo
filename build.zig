@@ -4,43 +4,33 @@ const ArrayList = std.ArrayList;
 const mem = std.mem;
 const fs = std.fs;
 
-// Build script for simulo project, converted from CMake to Zig
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const is_windows = target.result.os.tag == .windows;
-    const is_macos = target.result.os.tag == .macos;
-    const is_linux = target.result.os.tag == .linux;
+    const os = target.result.os.tag;
+    const use_vulkan = os == .windows or os == .linux;
 
-    // Define a variable to indicate if we should use Vulkan
-    const use_vulkan = is_windows or is_linux;
-
-    // Create base exe
     const exe = b.addExecutable(.{
         .name = "simulo",
         .target = target,
         .optimize = optimize,
+        .root_source_file = b.path("src/main.zig"),
     });
 
-    // Add test executable if build testing is enabled
     const build_tests = b.option(bool, "build-tests", "Build test executables") orelse false;
 
-    // Add various flags
     if (optimize == .Debug) {
         exe.root_module.addCMacro("SIMULO_DEBUG", "");
         exe.root_module.addCMacro("VKAD_DEBUG", "");
     }
 
-    // Set up common include directories
     exe.addIncludePath(b.path("src"));
     exe.linkLibCpp();
 
-    // Add common source files
     var common_sources = ArrayList([]const u8).init(b.allocator);
     defer common_sources.deinit();
 
-    // Base source files from CMakeLists.txt
     const common_base_files = [_][]const u8{
         "src/entity/player.cc",
         "src/geometry/circle.cc",
@@ -61,22 +51,11 @@ pub fn build(b: *std.Build) void {
         common_sources.append(file) catch unreachable;
     }
 
-    // Add platform-specific source files
-    if (is_windows) {
-        // Windows platform sources
-        const windows_files = [_][]const u8{
-            "src/window/win32/window.cc",
-        };
-
-        for (windows_files) |file| {
-            common_sources.append(file) catch unreachable;
-        }
-
-        // Link to Vulkan
+    if (os == .windows) {
+        common_sources.append("src/window/win32/window.cc") catch unreachable;
         exe.linkSystemLibrary("vulkan-1");
         exe.linkSystemLibrary("onnxruntime");
-    } else if (is_macos) {
-        // macOS platform sources
+    } else if (os == .macos) {
         const macos_files = [_][]const u8{
             "src/gpu/metal/buffer.mm",
             "src/gpu/metal/command_queue.mm",
@@ -87,11 +66,8 @@ pub fn build(b: *std.Build) void {
             "src/window/macos/window.mm",
         };
 
-        for (macos_files) |file| {
-            common_sources.append(file) catch unreachable;
-        }
+        common_sources.appendSlice(&macos_files) catch unreachable;
 
-        // Link macOS frameworks
         exe.linkFramework("Foundation");
         exe.linkFramework("AppKit");
         exe.linkFramework("Metal");
@@ -99,33 +75,23 @@ pub fn build(b: *std.Build) void {
 
         // Set bundle info
         exe.bundle_compiler_rt = true;
-        exe.use_llvm = true;
-        // Don't use LLD for macOS as it doesn't support Mach-O format
-    } else if (is_linux) {
-        // Linux platform sources
+    } else if (os == .linux) {
         const linux_files = [_][]const u8{
             "src/window/linux/wl_deleter.cc",
             "src/window/linux/wl_window.cc",
             "src/window/linux/x11_window.cc",
         };
 
-        for (linux_files) |file| {
-            common_sources.append(file) catch unreachable;
-        }
+        common_sources.appendSlice(&linux_files) catch unreachable;
 
-        // Linux dependencies
         exe.linkSystemLibrary("vulkan");
         exe.linkSystemLibrary("X11");
         exe.linkSystemLibrary("Xi");
         exe.linkSystemLibrary("wayland-client");
         exe.linkSystemLibrary("wayland-protocols");
         exe.linkSystemLibrary("xkbcommon");
-
-        // Generate Wayland protocol files (simplified, actual implementation will need a custom build step)
-        // TODO: Implement generateWaylandProtocol function for Linux builds
     }
 
-    // Add Vulkan sources if needed
     if (use_vulkan) {
         const vulkan_files = [_][]const u8{
             "src/render/vk_renderer.cc",
@@ -141,24 +107,18 @@ pub fn build(b: *std.Build) void {
             "src/gpu/vulkan/buffer.cc",
         };
 
-        for (vulkan_files) |file| {
-            common_sources.append(file) catch unreachable;
-        }
+        common_sources.appendSlice(&vulkan_files) catch unreachable;
 
-        // Embed Vulkan shaders
-        if (is_windows or is_linux) {
-            // TODO: Implement embedVulkanShader function
-            const vulkan_shaders = [_][]const u8{
-                "src/shader/text.vert",
-                "src/shader/text.frag",
-                "src/shader/model.vert",
-                "src/shader/model.frag",
-            };
+        const vulkan_shaders = [_][]const u8{
+            "src/shader/text.vert",
+            "src/shader/text.frag",
+            "src/shader/model.vert",
+            "src/shader/model.frag",
+        };
 
-            for (vulkan_shaders) |_| {
-                //const shader_step = embedVulkanShader(b, exe, shader);
-                //exe.step.dependOn(&shader_step.step);
-            }
+        for (vulkan_shaders) |_| {
+            //const shader_step = embedVulkanShader(b, exe, shader);
+            //exe.step.dependOn(&shader_step.step);
         }
     }
 
@@ -176,21 +136,12 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    // Main source file
-    exe.addCSourceFile(.{
-        .file = b.path("src/main.cc"),
-        .flags = &[_][]const u8{"-std=c++20"},
-    });
-
-    // OpenCV, ONNXRuntime, and libdeflate dependencies (simplified, actual implementation may need pkg-config)
     exe.linkSystemLibrary("opencv4");
     exe.linkSystemLibrary("onnxruntime");
     exe.linkSystemLibrary("libdeflate");
 
-    // Set up the executable installation
     b.installArtifact(exe);
 
-    // Run command - allows `zig build run`
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
@@ -217,31 +168,21 @@ pub fn build(b: *std.Build) void {
             "src/math/vector_test.cc",
         };
 
-        for (test_files) |file| {
-            test_exe.addCSourceFile(.{
-                .file = b.path(file),
-                .flags = &[_][]const u8{"-std=c++20"},
-            });
-        }
+        test_exe.addCSourceFiles(.{
+            .files = &test_files,
+            .flags = &[_][]const u8{"-std=c++20"},
+        });
 
-        // Link with the common sources
-        for (common_sources.items) |file| {
-            if (std.mem.endsWith(u8, file, ".cc") or
-                std.mem.endsWith(u8, file, ".c") or
-                std.mem.endsWith(u8, file, ".mm"))
-            {
-                test_exe.addCSourceFile(.{
-                    .file = b.path(file),
-                    .flags = &[_][]const u8{"-std=c++20"},
-                });
-            }
-        }
+        test_exe.addCSourceFiles(.{
+            .files = common_sources.items,
+            .flags = &[_][]const u8{"-std=c++20"},
+        });
 
         test_exe.linkSystemLibrary("opencv4");
         test_exe.linkSystemLibrary("onnxruntime");
         test_exe.linkSystemLibrary("libdeflate");
 
-        if (is_macos) {
+        if (os == .macos) {
             test_exe.linkFramework("Foundation");
             test_exe.linkFramework("AppKit");
             test_exe.linkFramework("Metal");
@@ -268,24 +209,16 @@ pub fn build(b: *std.Build) void {
             .flags = &[_][]const u8{"-std=c++20"},
         });
 
-        // Link with the common sources
-        for (common_sources.items) |file| {
-            if (std.mem.endsWith(u8, file, ".cc") or
-                std.mem.endsWith(u8, file, ".c") or
-                std.mem.endsWith(u8, file, ".mm"))
-            {
-                perception_test.addCSourceFile(.{
-                    .file = b.path(file),
-                    .flags = &[_][]const u8{"-std=c++20"},
-                });
-            }
-        }
+        perception_test.addCSourceFiles(.{
+            .files = common_sources.items,
+            .flags = &[_][]const u8{"-std=c++20"},
+        });
 
         perception_test.linkSystemLibrary("opencv4");
         perception_test.linkSystemLibrary("onnxruntime");
         perception_test.linkSystemLibrary("libdeflate");
 
-        if (is_macos) {
+        if (os == .macos) {
             perception_test.linkFramework("Foundation");
             perception_test.linkFramework("AppKit");
             perception_test.linkFramework("Metal");
