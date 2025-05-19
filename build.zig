@@ -241,7 +241,12 @@ fn bundle(b: *std.Build, exe: *std.Build.Step.Compile) void {
     });
 
     const install_plist = b.addInstallFile(b.path("src/res/Info.plist"), "simulo.app/Contents/Info.plist");
+
+    const gen_air = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metal", "-c", "src/shader/text.metal", "-o", "text.air" });
+    const gen_metallib = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metallib", "text.air", "-o", "default.metallib" });
+    gen_metallib.step.dependOn(&gen_air.step);
     const install_metallib = b.addInstallFile(b.path("default.metallib"), "simulo.app/Contents/Resources/default.metallib");
+    install_metallib.step.dependOn(&gen_metallib.step);
 
     bundle_step.dependOn(&install_exe.step);
     bundle_step.dependOn(&install_plist.step);
