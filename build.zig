@@ -93,6 +93,7 @@ pub fn build(b: *std.Build) void {
         exe.linkSystemLibrary("vulkan");
         exe.linkSystemLibrary("X11");
         exe.linkSystemLibrary("Xi");
+        exe.linkSystemLibrary("wayland-client");
         exe.linkSystemLibrary("wayland-protocols");
         exe.linkSystemLibrary("xkbcommon");
     }
