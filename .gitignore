@@ -8,7 +8,6 @@
 zig-out/
 
 src/res/*.h
-src/perception/yolo11n_pose.h
 src/godot/*.os
 *.metallib
 *.air

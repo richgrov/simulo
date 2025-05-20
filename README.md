@@ -36,7 +36,6 @@ come with it.
 
 **Dependencies:**
 
-- `curl`
 - `xxd`
 - OpenCV
 - ONNXRuntime

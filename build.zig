@@ -38,7 +38,6 @@ pub fn build(b: *std.Build) void {
         "src/geometry/shape.cc",
         "src/image/png.cc",
         "src/perception/perception.cc",
-        "src/perception/pose_model.cc",
         "src/ttf/ttf.cc",
         "src/ui/font.cc",
         "src/ui/ui.cc",

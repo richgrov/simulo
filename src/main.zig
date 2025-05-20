@@ -2,6 +2,16 @@ const migration = @cImport({
     @cInclude("ffi.h");
 });
 
+const yolo11n_pose = @embedFile("perception/yolo11n-pose.onnx");
+
+pub export fn pose_model_bytes() *const u8 {
+    return &yolo11n_pose[0];
+}
+
+pub export fn pose_model_len() usize {
+    return yolo11n_pose.len;
+}
+
 pub fn main() !void {
     migration.run();
 }

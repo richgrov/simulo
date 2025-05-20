@@ -234,8 +234,6 @@ target_include_directories(simulo_common
 )
 target_link_libraries(simulo_common ${OpenCV_LIBS})
 
-embed_model(simulo_common yolo11n-pose)
-
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVKAD_DEBUG")
 
 if (BUILD_TESTING)

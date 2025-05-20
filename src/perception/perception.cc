@@ -16,7 +16,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 
-#include "pose_model.h"
+#include "ffi.h"
 
 using namespace simulo;
 
@@ -59,7 +59,9 @@ private:
 Perception::Perception(std::shared_ptr<const Ort::Env> ort_env, int id)
     : id_{id},
       ort_env_{ort_env},
-      ort_session_{create_pose_session(*ort_env_.get(), ort_session_options())},
+      ort_session_{
+          Ort::Session(*ort_env_.get(), pose_model_bytes(), pose_model_len(), ort_session_options())
+      },
       ort_mem_info_{Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU)},
       ort_allocator_{ort_session_, ort_mem_info_},
       ort_input_{Ort::Value::CreateTensor(
