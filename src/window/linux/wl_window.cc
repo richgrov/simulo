@@ -132,7 +132,7 @@ WaylandWindow::~WaylandWindow() {
    xdg_toplevel_destroy(xdg_toplevel_);
    xdg_surface_destroy(xdg_surface_);
    xdg_wm_base_destroy(xdg_base_);
-   vkDestroySurfaceKHR(vk_instance_.handle(), vk_surface_, nullptr);
+   vkDestroySurfaceKHR(vk_instance_.instance(), vk_surface_, nullptr);
 }
 
 bool WaylandWindow::poll() {
@@ -266,7 +266,7 @@ void WaylandWindow::init_surfaces() {
    };
    xdg_surface_add_listener(xdg_surface_, &xdg_surf_listener, this);
 
-   vk_surface_ = create_surface(display_.get(), surface_.get(), vk_instance_.handle());
+   vk_surface_ = create_surface(display_.get(), surface_.get(), vk_instance_.instance());
 }
 
 void WaylandWindow::init_toplevel(const char *title) {
