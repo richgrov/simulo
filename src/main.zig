@@ -5,11 +5,11 @@ const migration = @cImport({
 });
 
 const yolo11n_pose = @embedFile("perception/yolo11n-pose.onnx");
-const vulkan = builtin.target.os.tag != .windows and builtin.target.os.tag != .linux;
-const text_vert = if (vulkan) @embedFile("shader/text.vert") else 0;
-const text_frag = if (vulkan) @embedFile("shader/text.frag") else 0;
-const model_vert = if (vulkan) @embedFile("shader/model.vert") else 0;
-const model_frag = if (vulkan) @embedFile("shader/model.frag") else 0;
+const vulkan = builtin.target.os.tag == .windows or builtin.target.os.tag == .linux;
+const text_vert = if (vulkan) @embedFile("shader/text.vert") else &[_]u8{0};
+const text_frag = if (vulkan) @embedFile("shader/text.frag") else &[_]u8{0};
+const model_vert = if (vulkan) @embedFile("shader/model.vert") else &[_]u8{0};
+const model_frag = if (vulkan) @embedFile("shader/model.frag") else &[_]u8{0};
 const arial = @embedFile("res/arial.ttf");
 
 pub export fn pose_model_bytes() *const u8 {
