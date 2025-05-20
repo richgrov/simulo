@@ -8,7 +8,7 @@
 #define VK_USE_PLATFORM_XLIB_XHR
 #include <vulkan/vulkan_xlib.h>
 
-#include "gpu/vulkan/instance.h"
+#include "gpu/vulkan/gpu.h"
 #include "gpu/vulkan/status.h"
 
 using namespace simulo;
@@ -122,7 +122,7 @@ simulo::X11Window::X11Window(const Gpu &vk_instance, const char *title)
 
    invisible_cursor_ = create_invisible_cursor(display_, window_);
 
-   surface_ = create_surface(display_, window_, vk_instance.handle());
+   surface_ = create_surface(display_, window_, vk_instance.instance());
 
    // Manually query if size changed because ConfigureNotify is not guaranteed to be received on
    // startup.
@@ -134,7 +134,7 @@ simulo::X11Window::X11Window(const Gpu &vk_instance, const char *title)
 
 simulo::X11Window::~X11Window() {
    XFreeCursor(display_, invisible_cursor_);
-   vkDestroySurfaceKHR(vk_instance_.handle(), surface_, nullptr);
+   vkDestroySurfaceKHR(vk_instance_.instance(), surface_, nullptr);
    XDestroyWindow(display_, window_);
    XCloseDisplay(display_);
 }
