@@ -66,7 +66,7 @@ void read_glyf(Reader &file) {
 
 } // namespace
 
-void simulo::read_ttf(const std::span<uint8_t> data) {
+void simulo::read_ttf(const std::span<const uint8_t> data) {
    TtfReader file(data);
 
    uint32_t scaler_type = file.read_u32();

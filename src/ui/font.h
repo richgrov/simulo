@@ -12,7 +12,7 @@ namespace simulo {
 
 class Font {
 public:
-   Font(std::span<uint8_t> data, float height);
+   Font(std::span<const uint8_t> data, float height);
 
    void create_text(
        const std::string_view &text, std::vector<UiVertex> &vertices,

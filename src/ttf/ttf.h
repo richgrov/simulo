@@ -5,6 +5,6 @@
 
 namespace simulo {
 
-void read_ttf(const std::span<uint8_t> data);
+void read_ttf(const std::span<const uint8_t> data);
 
 } // namespace simulo

@@ -2,14 +2,13 @@
 
 #include <utility>
 
+#include "ffi.h"
 #include "render/renderer.h"
-#include "res/arial.ttf.h"
 #include "util/assert.h"
 
 using namespace simulo;
 
-Ui::Ui(Renderer &renderer)
-    : renderer_(renderer), font_(std::span(res_arial_ttf, res_arial_ttf_len), 64) {
+Ui::Ui(Renderer &renderer) : renderer_(renderer), font_(std::span(arial_bytes(), arial_len()), 64) {
 
    RenderImage font_texture =
        renderer.create_image(font_.image_data(), Font::kBitmapWidth, Font::kBitmapWidth);

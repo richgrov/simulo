@@ -10,6 +10,7 @@ const text_vert = if (vulkan) @embedFile("shader/text.vert") else 0;
 const text_frag = if (vulkan) @embedFile("shader/text.frag") else 0;
 const model_vert = if (vulkan) @embedFile("shader/model.vert") else 0;
 const model_frag = if (vulkan) @embedFile("shader/model.frag") else 0;
+const arial = @embedFile("res/arial.ttf");
 
 pub export fn pose_model_bytes() *const u8 {
     return &yolo11n_pose[0];
@@ -49,6 +50,14 @@ pub export fn model_fragment_bytes() *const u8 {
 
 pub export fn model_fragment_len() usize {
     return model_frag.len;
+}
+
+pub export fn arial_bytes() *const u8 {
+    return &arial[0];
+}
+
+pub export fn arial_len() usize {
+    return arial.len;
 }
 
 pub fn main() !void {

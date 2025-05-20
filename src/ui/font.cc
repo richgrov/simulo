@@ -14,7 +14,7 @@
 
 using namespace simulo;
 
-Font::Font(std::span<uint8_t> data, float height) : height_(height) {
+Font::Font(std::span<const uint8_t> data, float height) : height_(height) {
    read_ttf(data);
 
    stbtt_BakeFontBitmap(

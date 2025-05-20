@@ -12,6 +12,9 @@ void run(void);
 const unsigned char *pose_model_bytes(void);
 size_t pose_model_len(void);
 
+const unsigned char *arial_bytes(void);
+size_t arial_len(void);
+
 #if defined(VKAD_WINDOWS) || defined(VKAD_LINUX)
 const unsigned char *text_vertex_bytes(void);
 size_t text_vertex_len(void);
