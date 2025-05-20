@@ -50,6 +50,13 @@ pub fn build(b: *std.Build) void {
         common_sources.append(file) catch unreachable;
     }
 
+    if (use_vulkan) {
+        exe.step.dependOn(embedVkShader(b, "src/shader/text.vert"));
+        exe.step.dependOn(embedVkShader(b, "src/shader/text.frag"));
+        exe.step.dependOn(embedVkShader(b, "src/shader/model.vert"));
+        exe.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
+    }
+
     if (os == .windows) {
         common_sources.append("src/window/win32/window.cc") catch unreachable;
         exe.linkSystemLibrary("vulkan-1");
@@ -225,6 +232,12 @@ pub fn build(b: *std.Build) void {
 
         b.installArtifact(perception_test);
     }
+}
+
+fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
+    const out_file = file ++ ".spv";
+    const run = b.addSystemCommand(&[_][]const u8{ "glslc", file, "-o", out_file });
+    return &run.step;
 }
 
 fn bundle(b: *std.Build, exe: *std.Build.Step.Compile) void {

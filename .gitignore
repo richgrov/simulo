@@ -9,6 +9,7 @@ zig-out/
 
 src/res/*.h
 src/godot/*.os
+*.spv
 *.metallib
 *.air
 

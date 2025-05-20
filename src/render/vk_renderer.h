@@ -169,7 +169,7 @@ private:
    RenderPipeline create_pipeline(
        uint32_t vertex_size, VkDeviceSize uniform_size,
        const std::vector<VkVertexInputAttributeDescription> &attrs,
-       std::span<uint8_t> vertex_shader, std::span<uint8_t> fragment_shader,
+       std::span<const uint8_t> vertex_shader, std::span<const uint8_t> fragment_shader,
        const std::vector<VkDescriptorSetLayoutBinding> &bindings
    );
 

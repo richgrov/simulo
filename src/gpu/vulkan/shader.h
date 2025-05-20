@@ -10,7 +10,7 @@ namespace simulo {
 
 class Shader {
 public:
-   Shader(Device &device, std::span<uint8_t> code);
+   Shader(Device &device, std::span<const uint8_t> code);
    Shader(Shader &&other);
    Shader(const Shader &other) = delete;
 

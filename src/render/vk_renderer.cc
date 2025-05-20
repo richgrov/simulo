@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "ffi.h"
 #include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/gpu.h"
 #include "gpu/vulkan/physical_device.h"
@@ -14,10 +15,6 @@
 #include "math/matrix.h"
 #include "mesh.h"
 #include "model.h"
-#include "res/model.frag.h"
-#include "res/model.vert.h"
-#include "res/text.frag.h"
-#include "res/text.vert.h"
 #include "ui.h"
 #include "util/memory.h"
 
@@ -129,8 +126,8 @@ Renderer::Renderer(
                .offset = offsetof(UiVertex, tex_coord),
            },
        },
-       std::span(shader_text_vert, shader_text_vert_len),
-       std::span(shader_text_frag, shader_text_frag_len),
+       std::span(text_vertex_bytes(), text_vertex_len()),
+       std::span(text_fragment_bytes(), text_fragment_len()),
        {
            DescriptorPool::uniform_buffer_dynamic(0),
            DescriptorPool::combined_image_sampler(1),
@@ -153,8 +150,8 @@ Renderer::Renderer(
                .offset = offsetof(ModelVertex, norm),
            },
        },
-       std::span(shader_model_vert, shader_model_vert_len),
-       std::span(shader_model_frag, shader_model_frag_len),
+       std::span(model_vertex_bytes(), model_vertex_len()),
+       std::span(model_fragment_bytes(), model_fragment_len()),
        {DescriptorPool::uniform_buffer_dynamic(0)}
    );
 }
@@ -240,8 +237,9 @@ RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int h
 
 RenderPipeline Renderer::create_pipeline(
     uint32_t vertex_size, VkDeviceSize uniform_size,
-    const std::vector<VkVertexInputAttributeDescription> &attrs, std::span<uint8_t> vertex_shader,
-    std::span<uint8_t> fragment_shader, const std::vector<VkDescriptorSetLayoutBinding> &bindings
+    const std::vector<VkVertexInputAttributeDescription> &attrs,
+    std::span<const uint8_t> vertex_shader, std::span<const uint8_t> fragment_shader,
+    const std::vector<VkDescriptorSetLayoutBinding> &bindings
 ) {
    VkVertexInputBindingDescription binding = {
        .binding = 0,

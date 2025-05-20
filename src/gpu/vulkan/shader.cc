@@ -5,7 +5,7 @@
 
 using namespace simulo;
 
-Shader::Shader(Device &device, std::span<uint8_t> code) : device_(device.handle()) {
+Shader::Shader(Device &device, std::span<const uint8_t> code) : device_(device.handle()) {
    VkShaderModuleCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
        .codeSize = code.size(),
