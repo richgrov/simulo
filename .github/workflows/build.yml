@@ -1,7 +1,38 @@
 name: Build on Linux
 on: [push]
 jobs:
-  Build:
+  Build-Windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Choco help
+        uses: crazy-max/ghaction-chocolatey@v3
+        with:
+          args: install opencv
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "3.1.x"
+
+      - name: Install ONNXRuntime
+        run: dotnet add package Microsoft.ML.OnnxRuntime.Gpu
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+
+      - name: Build project
+        run: zig build --search-prefix extern/onnxruntime
+
+      - name: Upload install artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: install
+
+  Build-Linux:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
