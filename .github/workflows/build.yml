@@ -9,17 +9,13 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Choco help
-        uses: crazy-max/ghaction-chocolatey@v3
+      - name: Install dependencies
+        uses: johnwason/vcpkg-action@v6
         with:
-          args: install opencv
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "3.1.x"
-
-      - name: Install ONNXRuntime
-        run: dotnet add package Microsoft.ML.OnnxRuntime.Gpu
+          pkgs: opencv4 onnxruntime-gpu vulkan-sdk-components libdeflate
+          triplet: x64-windows-debug
+          token: ${{ github.token }}
+          github-binarycache: true
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
