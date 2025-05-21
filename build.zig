@@ -75,15 +75,20 @@ pub fn build(b: *std.Build) void {
         bundle(b, exe);
     } else if (os == .linux) {
         const linux_files = [_][]const u8{
-            "src/window/linux/pointer-constraints-unstable-v1-protocol.c",
-            "src/window/linux/relative-pointer-unstable-v1-protocol.c",
             "src/window/linux/wl_deleter.cc",
             "src/window/linux/wl_window.cc",
             "src/window/linux/x11_window.cc",
-            "src/window/linux/xdg-shell-protocol.c",
         };
 
         common_sources.appendSlice(&linux_files) catch unreachable;
+
+        exe.addCSourceFiles(.{
+            .files = &[_][]const u8{
+                "src/window/linux/pointer-constraints-unstable-v1-protocol.c",
+                "src/window/linux/relative-pointer-unstable-v1-protocol.c",
+                "src/window/linux/xdg-shell-protocol.c",
+            },
+        });
 
         exe.linkSystemLibrary("vulkan");
         exe.linkSystemLibrary("X11");
