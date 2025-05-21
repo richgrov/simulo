@@ -13,7 +13,7 @@ jobs:
         uses: johnwason/vcpkg-action@v6
         with:
           pkgs: opencv4 onnxruntime-gpu vulkan-sdk-components libdeflate
-          triplet: x64-windows-debug
+          triplet: x64-windows-static
           token: ${{ github.token }}
           github-binarycache: true
 
