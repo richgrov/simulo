@@ -50,17 +50,9 @@ pub fn build(b: *std.Build) void {
         common_sources.append(file) catch unreachable;
     }
 
-    if (use_vulkan) {
-        exe.step.dependOn(embedVkShader(b, "src/shader/text.vert"));
-        exe.step.dependOn(embedVkShader(b, "src/shader/text.frag"));
-        exe.step.dependOn(embedVkShader(b, "src/shader/model.vert"));
-        exe.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
-    }
-
     if (os == .windows) {
         common_sources.append("src/window/win32/window.cc") catch unreachable;
         exe.linkSystemLibrary("vulkan-1");
-        exe.linkSystemLibrary("onnxruntime");
     } else if (os == .macos) {
         const macos_files = [_][]const u8{
             "src/gpu/metal/buffer.mm",
@@ -115,26 +107,12 @@ pub fn build(b: *std.Build) void {
 
         common_sources.appendSlice(&vulkan_files) catch unreachable;
 
-        const vulkan_shaders = [_][]const u8{
-            "src/shader/text.vert",
-            "src/shader/text.frag",
-            "src/shader/model.vert",
-            "src/shader/model.frag",
-        };
-
-        for (vulkan_shaders) |_| {
-            //const shader_step = embedVulkanShader(b, exe, shader);
-            //exe.step.dependOn(&shader_step.step);
-        }
+        exe.step.dependOn(embedVkShader(b, "src/shader/text.vert"));
+        exe.step.dependOn(embedVkShader(b, "src/shader/text.frag"));
+        exe.step.dependOn(embedVkShader(b, "src/shader/model.vert"));
+        exe.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
     }
 
-    // Add common binary resources
-    //const arial_embed_step = embedBinary(b, exe, "src/res/arial.ttf"); exe.step.dependOn(&arial_embed_step.step);
-
-    // Add model embedding
-    //const model_embed_step = embedModel(b, exe, "yolo11n-pose"); exe.step.dependOn(&model_embed_step.step);
-
-    // Add the source files to the executable
     exe.addCSourceFiles(.{
         .files = common_sources.items,
         .flags = &[_][]const u8{
@@ -153,6 +131,7 @@ pub fn build(b: *std.Build) void {
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
+
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
