@@ -12,8 +12,16 @@ jobs:
       - name: Install dependencies
         uses: johnwason/vcpkg-action@v6
         with:
-          pkgs: opencv4 onnxruntime-gpu vulkan-sdk-components libdeflate
+          pkgs: opencv4 vulkan-sdk-components libdeflate
           triplet: x64-windows-static
+          token: ${{ github.token }}
+          github-binarycache: true
+
+      - name: Install onnxruntime
+        uses: johnwason/vcpkg-action@v6
+        with:
+          pkgs: onnxruntime-gpu
+          triplet: x64-windows
           token: ${{ github.token }}
           github-binarycache: true
 
