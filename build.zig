@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const os = target.result.os.tag;
-    const use_vulkan = os == .windows or os == .linux;
+    const engine = createEngine(b, optimize, target);
 
     const exe = b.addExecutable(.{
         .name = "simulo",
@@ -17,125 +17,16 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .root_source_file = b.path("src/main.zig"),
     });
+    setupExecutable(b, exe);
+    exe.root_module.addImport("engine", engine);
 
-    const build_tests = b.option(bool, "build-tests", "Build test executables") orelse false;
-
-    if (optimize == .Debug) {
-        exe.root_module.addCMacro("SIMULO_DEBUG", "");
-        exe.root_module.addCMacro("VKAD_DEBUG", "");
-    }
-
-    exe.addIncludePath(b.path("src"));
-    exe.linkLibCpp();
-
-    var common_sources = ArrayList([]const u8).init(b.allocator);
-    defer common_sources.deinit();
-
-    const common_base_files = [_][]const u8{
-        "src/entity/player.cc",
-        "src/geometry/circle.cc",
-        "src/geometry/model.cc",
-        "src/geometry/shape.cc",
-        "src/image/png.cc",
-        "src/perception/perception.cc",
-        "src/ttf/ttf.cc",
-        "src/ui/font.cc",
-        "src/ui/ui.cc",
-        "src/util/rational.cc",
-        "src/app.cc",
-        "src/stl.cc",
-    };
-
-    for (common_base_files) |file| {
-        common_sources.append(file) catch unreachable;
-    }
-
-    if (os == .windows) {
-        common_sources.append("src/window/win32/window.cc") catch unreachable;
-        exe.linkSystemLibrary("vulkan-1");
-    } else if (os == .macos) {
-        const macos_files = [_][]const u8{
-            "src/gpu/metal/buffer.mm",
-            "src/gpu/metal/command_queue.mm",
-            "src/gpu/metal/gpu.mm",
-            "src/gpu/metal/image.mm",
-            "src/gpu/metal/render_pipeline.mm",
-            "src/render/mt_renderer.mm",
-            "src/window/macos/window.mm",
-            "src/camera/macos_camera.mm",
-        };
-
-        common_sources.appendSlice(&macos_files) catch unreachable;
-
-        exe.linkFramework("Foundation");
-        exe.linkFramework("AppKit");
-        exe.linkFramework("Metal");
-        exe.linkFramework("QuartzCore");
-        exe.linkFramework("AVFoundation");
-        exe.linkFramework("CoreImage");
-        exe.linkFramework("CoreMedia");
-        exe.linkFramework("CoreVideo");
-
-        exe.bundle_compiler_rt = true;
-        bundle(b, exe);
-    } else if (os == .linux) {
-        const linux_files = [_][]const u8{
-            "src/window/linux/wl_deleter.cc",
-            "src/window/linux/wl_window.cc",
-            "src/window/linux/x11_window.cc",
-        };
-
-        common_sources.appendSlice(&linux_files) catch unreachable;
-
-        exe.addCSourceFiles(.{
-            .files = &[_][]const u8{
-                "src/window/linux/pointer-constraints-unstable-v1-protocol.c",
-                "src/window/linux/relative-pointer-unstable-v1-protocol.c",
-                "src/window/linux/xdg-shell-protocol.c",
-            },
-        });
-
-        exe.linkSystemLibrary("vulkan");
-        exe.linkSystemLibrary("X11");
-        exe.linkSystemLibrary("Xi");
-        exe.linkSystemLibrary("wayland-client");
-        exe.linkSystemLibrary("wayland-protocols");
-        exe.linkSystemLibrary("xkbcommon");
-    }
-
-    if (use_vulkan) {
-        const vulkan_files = [_][]const u8{
-            "src/render/vk_renderer.cc",
-            "src/gpu/vulkan/command_pool.cc",
-            "src/gpu/vulkan/descriptor_pool.cc",
-            "src/gpu/vulkan/device.cc",
-            "src/gpu/vulkan/gpu.cc",
-            "src/gpu/vulkan/image.cc",
-            "src/gpu/vulkan/pipeline.cc",
-            "src/gpu/vulkan/physical_device.cc",
-            "src/gpu/vulkan/shader.cc",
-            "src/gpu/vulkan/swapchain.cc",
-            "src/gpu/vulkan/buffer.cc",
-        };
-
-        common_sources.appendSlice(&vulkan_files) catch unreachable;
-
+    bundle(b, exe);
+    if (usesVulkan(os)) {
         exe.step.dependOn(embedVkShader(b, "src/shader/text.vert"));
         exe.step.dependOn(embedVkShader(b, "src/shader/text.frag"));
         exe.step.dependOn(embedVkShader(b, "src/shader/model.vert"));
         exe.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
     }
-
-    exe.addCSourceFiles(.{
-        .files = common_sources.items,
-        .flags = &[_][]const u8{
-            "-std=c++20",
-        },
-    });
-
-    exe.linkSystemLibrary("opencv4");
-    exe.linkSystemLibrary("onnxruntime");
-    exe.linkSystemLibrary("libdeflate");
 
     b.installArtifact(exe);
 
@@ -148,7 +39,7 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    // Test executable if enabled
+    const build_tests = b.option(bool, "build-tests", "Build test executables") orelse false;
     if (build_tests) {
         const test_exe = b.addExecutable(.{
             .name = "simulo_test",
@@ -168,11 +59,6 @@ pub fn build(b: *std.Build) void {
 
         test_exe.addCSourceFiles(.{
             .files = &test_files,
-            .flags = &[_][]const u8{"-std=c++20"},
-        });
-
-        test_exe.addCSourceFiles(.{
-            .files = common_sources.items,
             .flags = &[_][]const u8{"-std=c++20"},
         });
 
@@ -204,11 +90,6 @@ pub fn build(b: *std.Build) void {
         perception_test.linkLibCpp();
         perception_test.addCSourceFile(.{
             .file = b.path("src/perception_test.cc"),
-            .flags = &[_][]const u8{"-std=c++20"},
-        });
-
-        perception_test.addCSourceFiles(.{
-            .files = common_sources.items,
             .flags = &[_][]const u8{"-std=c++20"},
         });
 
@@ -261,4 +142,122 @@ fn bundle(b: *std.Build, exe: *std.Build.Step.Compile) void {
     bundle_step.dependOn(&install_metallib.step);
 
     b.default_step.dependOn(bundle_step);
+}
+
+fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Module {
+    const engine = b.addModule("engine", .{
+        .root_source_file = b.path("src/engine.zig"),
+        .target = target,
+    });
+    engine.addIncludePath(b.path("src/"));
+
+    if (optimize == .Debug) {
+        engine.addCMacro("SIMULO_DEBUG", "");
+        engine.addCMacro("VKAD_DEBUG", "");
+    }
+
+    var cpp_sources = ArrayList([]const u8).init(b.allocator);
+    defer cpp_sources.deinit();
+
+    cpp_sources.appendSlice(&[_][]const u8{
+        "src/entity/player.cc",
+        "src/geometry/circle.cc",
+        "src/geometry/model.cc",
+        "src/geometry/shape.cc",
+        "src/image/png.cc",
+        "src/perception/perception.cc",
+        "src/ttf/ttf.cc",
+        "src/ui/font.cc",
+        "src/ui/ui.cc",
+        "src/util/rational.cc",
+        "src/app.cc",
+        "src/stl.cc",
+    }) catch unreachable;
+
+    const os = target.result.os.tag;
+    if (os == .windows) {
+        cpp_sources.append("src/window/win32/window.cc") catch unreachable;
+        engine.linkSystemLibrary("vulkan-1", .{});
+    } else if (os == .macos) {
+        cpp_sources.appendSlice(&[_][]const u8{
+            "src/gpu/metal/buffer.mm",
+            "src/gpu/metal/command_queue.mm",
+            "src/gpu/metal/gpu.mm",
+            "src/gpu/metal/image.mm",
+            "src/gpu/metal/render_pipeline.mm",
+            "src/render/mt_renderer.mm",
+            "src/window/macos/window.mm",
+            "src/camera/macos_camera.mm",
+        }) catch unreachable;
+
+        engine.linkFramework("Foundation", .{});
+        engine.linkFramework("AppKit", .{});
+        engine.linkFramework("Metal", .{});
+        engine.linkFramework("QuartzCore", .{});
+        engine.linkFramework("AVFoundation", .{});
+        engine.linkFramework("CoreImage", .{});
+        engine.linkFramework("CoreMedia", .{});
+        engine.linkFramework("CoreVideo", .{});
+        //exe.bundle_compiler_rt = true;
+    } else if (os == .linux) {
+        cpp_sources.appendSlice(&[_][]const u8{
+            "src/window/linux/wl_deleter.cc",
+            "src/window/linux/wl_window.cc",
+            "src/window/linux/x11_window.cc",
+        }) catch unreachable;
+
+        engine.addCSourceFiles(.{
+            .files = &[_][]const u8{
+                "src/window/linux/pointer-constraints-unstable-v1-protocol.c",
+                "src/window/linux/relative-pointer-unstable-v1-protocol.c",
+                "src/window/linux/xdg-shell-protocol.c",
+            },
+        });
+
+        engine.linkSystemLibrary("vulkan", .{});
+        engine.linkSystemLibrary("X11", .{});
+        engine.linkSystemLibrary("Xi", .{});
+        engine.linkSystemLibrary("wayland-client", .{});
+        engine.linkSystemLibrary("wayland-protocols", .{});
+        engine.linkSystemLibrary("xkbcommon", .{});
+    }
+
+    const use_vulkan = os == .windows or os == .linux;
+    if (use_vulkan) {
+        cpp_sources.appendSlice(&[_][]const u8{
+            "src/render/vk_renderer.cc",
+            "src/gpu/vulkan/command_pool.cc",
+            "src/gpu/vulkan/descriptor_pool.cc",
+            "src/gpu/vulkan/device.cc",
+            "src/gpu/vulkan/gpu.cc",
+            "src/gpu/vulkan/image.cc",
+            "src/gpu/vulkan/pipeline.cc",
+            "src/gpu/vulkan/physical_device.cc",
+            "src/gpu/vulkan/shader.cc",
+            "src/gpu/vulkan/swapchain.cc",
+            "src/gpu/vulkan/buffer.cc",
+        }) catch unreachable;
+    }
+
+    engine.addCSourceFiles(.{
+        .files = cpp_sources.items,
+        .flags = &[_][]const u8{
+            "-std=c++20",
+        },
+    });
+
+    engine.linkSystemLibrary("opencv4", .{});
+    engine.linkSystemLibrary("onnxruntime", .{});
+    engine.linkSystemLibrary("libdeflate", .{});
+
+    return engine;
+}
+
+fn setupExecutable(b: *std.Build, mod: *std.Build.Step.Compile) void {
+    mod.linkLibCpp();
+    mod.addIncludePath(b.path("src"));
+}
+
+fn usesVulkan(os: std.Target.Os.Tag) bool {
+    return os == .windows or os == .linux;
 }
