@@ -15,9 +15,6 @@ extern "C" {
 
 void run(void);
 
-const unsigned char *pose_model_bytes(void);
-size_t pose_model_len(void);
-
 const unsigned char *arial_bytes(void);
 size_t arial_len(void);
 

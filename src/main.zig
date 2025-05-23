@@ -12,6 +12,8 @@ const migration = @cImport({
 pub fn main() !void {
     var camera = try Camera.init();
     defer camera.deinit();
+    var perception = try engine.Perception.init();
+    defer perception.deinit();
 
     migration.run();
 }
