@@ -1,4 +1,5 @@
 const builtin = @import("builtin");
+const Camera = @import("camera/camera.zig").Camera;
 
 const migration = @cImport({
     @cInclude("ffi.h");
@@ -61,6 +62,9 @@ pub export fn arial_len() usize {
 }
 
 pub fn main() !void {
+    var camera = try Camera.init();
+    defer camera.deinit();
+
     migration.run();
 }
 

@@ -1,7 +1,13 @@
 #pragma once
 
-#include "util/os_detect.h"
+#include <stdbool.h>
 #include <stddef.h>
+
+#include "util/os_detect.h"
+
+#if defined(VKAD_APPLE) && defined(__OBJC__)
+#include <AVFoundation/AVFoundation.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,6 +32,28 @@ size_t model_vertex_len(void);
 const unsigned char *model_fragment_bytes(void);
 size_t model_fragment_len(void);
 #endif
+
+#ifdef VKAD_APPLE
+
+#ifdef __OBJC__
+@class SimuloCameraDelegate;
+#endif
+
+typedef struct {
+#ifdef __OBJC__
+   AVCaptureSession *session;
+   SimuloCameraDelegate *delegate;
+#else
+   void *session;
+   void *delegate;
+#endif
+} Camera;
+
+#endif
+
+bool init_camera(Camera *camera);
+void destroy_camera(Camera *camera);
+const unsigned char *get_camera_frame(Camera *camera);
 
 #ifdef __cplusplus
 }

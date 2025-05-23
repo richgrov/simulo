@@ -62,6 +62,7 @@ pub fn build(b: *std.Build) void {
             "src/gpu/metal/render_pipeline.mm",
             "src/render/mt_renderer.mm",
             "src/window/macos/window.mm",
+            "src/camera/macos_camera.mm",
         };
 
         common_sources.appendSlice(&macos_files) catch unreachable;
@@ -70,6 +71,10 @@ pub fn build(b: *std.Build) void {
         exe.linkFramework("AppKit");
         exe.linkFramework("Metal");
         exe.linkFramework("QuartzCore");
+        exe.linkFramework("AVFoundation");
+        exe.linkFramework("CoreImage");
+        exe.linkFramework("CoreMedia");
+        exe.linkFramework("CoreVideo");
 
         exe.bundle_compiler_rt = true;
         bundle(b, exe);
@@ -216,6 +221,10 @@ pub fn build(b: *std.Build) void {
             perception_test.linkFramework("AppKit");
             perception_test.linkFramework("Metal");
             perception_test.linkFramework("QuartzCore");
+            perception_test.linkFramework("AVFoundation");
+            perception_test.linkFramework("CoreImage");
+            perception_test.linkFramework("CoreMedia");
+            perception_test.linkFramework("CoreVideo");
         }
 
         b.installArtifact(perception_test);
