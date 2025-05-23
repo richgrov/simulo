@@ -11,105 +11,39 @@ pub fn build(b: *std.Build) void {
     const os = target.result.os.tag;
     const engine = createEngine(b, optimize, target);
 
-    const exe = b.addExecutable(.{
+    const editor = b.addExecutable(.{
         .name = "simulo",
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("src/main.zig"),
     });
-    setupExecutable(b, exe);
-    exe.root_module.addImport("engine", engine);
+    setupExecutable(b, editor);
+    editor.root_module.addImport("engine", engine);
 
-    bundle(b, exe);
+    bundle(b, editor, "simulo");
     if (usesVulkan(os)) {
-        exe.step.dependOn(embedVkShader(b, "src/shader/text.vert"));
-        exe.step.dependOn(embedVkShader(b, "src/shader/text.frag"));
-        exe.step.dependOn(embedVkShader(b, "src/shader/model.vert"));
-        exe.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
+        editor.step.dependOn(embedVkShader(b, "src/shader/text.vert"));
+        editor.step.dependOn(embedVkShader(b, "src/shader/text.frag"));
+        editor.step.dependOn(embedVkShader(b, "src/shader/model.vert"));
+        editor.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
     }
 
-    b.installArtifact(exe);
-
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
-
-    const build_tests = b.option(bool, "build-tests", "Build test executables") orelse false;
-    if (build_tests) {
-        const test_exe = b.addExecutable(.{
-            .name = "simulo_test",
-            .target = target,
-            .optimize = optimize,
-        });
-        test_exe.addIncludePath(b.path("src"));
-        test_exe.linkLibCpp();
-
-        // Test files
-        const test_files = [_][]const u8{
-            "src/test_main.cc",
-            "src/math/angle_test.cc",
-            "src/math/matrix_test.cc",
-            "src/math/vector_test.cc",
-        };
-
-        test_exe.addCSourceFiles(.{
-            .files = &test_files,
-            .flags = &[_][]const u8{"-std=c++20"},
-        });
-
-        test_exe.linkSystemLibrary("opencv4");
-        test_exe.linkSystemLibrary("onnxruntime");
-        test_exe.linkSystemLibrary("libdeflate");
-
-        if (os == .macos) {
-            test_exe.linkFramework("Foundation");
-            test_exe.linkFramework("AppKit");
-            test_exe.linkFramework("Metal");
-            test_exe.linkFramework("QuartzCore");
-        }
-
-        b.installArtifact(test_exe);
-
-        const test_run_cmd = b.addRunArtifact(test_exe);
-        test_run_cmd.step.dependOn(b.getInstallStep());
-        const test_run_step = b.step("test", "Run tests");
-        test_run_step.dependOn(&test_run_cmd.step);
-
-        // Perception test
-        const perception_test = b.addExecutable(.{
-            .name = "perception_test",
-            .target = target,
-            .optimize = optimize,
-        });
-        perception_test.addIncludePath(b.path("src"));
-        perception_test.linkLibCpp();
-        perception_test.addCSourceFile(.{
-            .file = b.path("src/perception_test.cc"),
-            .flags = &[_][]const u8{"-std=c++20"},
-        });
-
-        perception_test.linkSystemLibrary("opencv4");
-        perception_test.linkSystemLibrary("onnxruntime");
-        perception_test.linkSystemLibrary("libdeflate");
-
-        if (os == .macos) {
-            perception_test.linkFramework("Foundation");
-            perception_test.linkFramework("AppKit");
-            perception_test.linkFramework("Metal");
-            perception_test.linkFramework("QuartzCore");
-            perception_test.linkFramework("AVFoundation");
-            perception_test.linkFramework("CoreImage");
-            perception_test.linkFramework("CoreMedia");
-            perception_test.linkFramework("CoreVideo");
-        }
-
-        b.installArtifact(perception_test);
-    }
+    const perception_test = b.addExecutable(.{
+        .name = "perception_test",
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("src/perception/perception.zig"),
+    });
+    perception_test.addIncludePath(b.path("src"));
+    perception_test.linkLibCpp();
+    perception_test.addCSourceFile(.{
+        .file = b.path("src/perception_test.cc"),
+        .flags = &[_][]const u8{"-std=c++20"},
+    });
+    perception_test.root_module.addImport("engine", engine);
+    perception_test.linkSystemLibrary("onnxruntime");
+    perception_test.linkSystemLibrary("opencv4");
+    bundle(b, perception_test, "perception");
 }
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
@@ -118,30 +52,26 @@ fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     return &run.step;
 }
 
-fn bundle(b: *std.Build, exe: *std.Build.Step.Compile) void {
-    const bundle_step = b.step("bundle", "Create macOS .app bundle");
-
+fn bundle(b: *std.Build, exe: *std.Build.Step.Compile, comptime name: []const u8) void {
     const install_exe = b.addInstallArtifact(exe, .{
         .dest_dir = .{
             .override = .{
-                .custom = "simulo.app/Contents/MacOS",
+                .custom = name ++ ".app/Contents/MacOS",
             },
         },
     });
 
-    const install_plist = b.addInstallFile(b.path("src/res/Info.plist"), "simulo.app/Contents/Info.plist");
+    const install_plist = b.addInstallFile(b.path("src/res/Info.plist"), name ++ ".app/Contents/Info.plist");
 
     const gen_air = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metal", "-c", "src/shader/text.metal", "-o", "text.air" });
     const gen_metallib = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metallib", "text.air", "-o", "default.metallib" });
     gen_metallib.step.dependOn(&gen_air.step);
-    const install_metallib = b.addInstallFile(b.path("default.metallib"), "simulo.app/Contents/Resources/default.metallib");
+    const install_metallib = b.addInstallFile(b.path("default.metallib"), name ++ ".app/Contents/Resources/default.metallib");
     install_metallib.step.dependOn(&gen_metallib.step);
 
-    bundle_step.dependOn(&install_exe.step);
-    bundle_step.dependOn(&install_plist.step);
-    bundle_step.dependOn(&install_metallib.step);
-
-    b.default_step.dependOn(bundle_step);
+    b.getInstallStep().dependOn(&install_exe.step);
+    b.getInstallStep().dependOn(&install_plist.step);
+    b.getInstallStep().dependOn(&install_metallib.step);
 }
 
 fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Module {
@@ -198,7 +128,6 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
         engine.linkFramework("CoreImage", .{});
         engine.linkFramework("CoreMedia", .{});
         engine.linkFramework("CoreVideo", .{});
-        //exe.bundle_compiler_rt = true;
     } else if (os == .linux) {
         cpp_sources.appendSlice(&[_][]const u8{
             "src/window/linux/wl_deleter.cc",
@@ -222,8 +151,7 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
         engine.linkSystemLibrary("xkbcommon", .{});
     }
 
-    const use_vulkan = os == .windows or os == .linux;
-    if (use_vulkan) {
+    if (usesVulkan(os)) {
         cpp_sources.appendSlice(&[_][]const u8{
             "src/render/vk_renderer.cc",
             "src/gpu/vulkan/command_pool.cc",

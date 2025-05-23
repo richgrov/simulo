@@ -11,7 +11,7 @@
 
 using namespace simulo;
 
-int main(int argc, char **argv) {
+extern "C" void perception_test_main() {
    /*if (true) {
       ProjectorDetector detector;
       cv::Mat image = cv::imread("image1.png");
@@ -27,11 +27,9 @@ int main(int argc, char **argv) {
       perception2.set_running(true);
 
       while (true) {
-         perception.debug_window();
+         perception1.debug_window();
       }
    } catch (const std::exception &e) {
       std::cerr << e.what() << std::endl;
-      return 1;
    }
-   return 0;
 }
