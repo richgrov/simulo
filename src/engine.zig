@@ -1,3 +1,4 @@
+const std = @import("std");
 const builtin = @import("builtin");
 
 const ort = @import("perception/onnxruntime.zig");
@@ -10,50 +11,96 @@ const model_vert = if (vulkan) @embedFile("shader/model.vert") else &[_]u8{0};
 const model_frag = if (vulkan) @embedFile("shader/model.frag") else &[_]u8{0};
 const arial = @embedFile("res/arial.ttf");
 
+fn errIfStatus(status: ort.OrtStatusPtr, ort_api: [*c]const ort.OrtApi) !void {
+    if (status) |s| {
+        const message = ort_api.*.GetErrorMessage.?(s);
+        std.log.err("Onnx error: {s}", .{message});
+        ort_api.*.ReleaseStatus.?(s);
+        return error.OnnxInitFailed;
+    }
+}
+
+fn createTensor(ort_api: [*c]const ort.OrtApi, ort_allocator: *ort.OrtAllocator, comptime shape: []const i64) !*ort.OrtValue {
+    var tensor: ?*ort.OrtValue = null;
+    try errIfStatus(
+        ort_api.*.CreateTensorAsOrtValue.?(
+            ort_allocator,
+            &shape[0],
+            shape.len,
+            ort.ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT,
+            &tensor,
+        ),
+        ort_api,
+    );
+    return tensor.?;
+}
+
 pub const Perception = struct {
     ort_api: [*c]const ort.OrtApi,
     ort_env: *ort.OrtEnv,
     ort_options: *ort.OrtSessionOptions,
     ort_session: *ort.OrtSession,
+    ort_memory_info: *ort.OrtMemoryInfo,
+    ort_allocator: *ort.OrtAllocator,
+    input_tensor: *ort.OrtValue,
+    output_tensor: *ort.OrtValue,
 
     pub fn init() !Perception {
         const ort_api = ort.OrtGetApiBase().*.GetApi.?(ort.ORT_API_VERSION);
-        var ort_env: ?*ort.OrtEnv = null;
-        var ort_options: ?*ort.OrtSessionOptions = null;
-        var ort_session: ?*ort.OrtSession = null;
 
-        if (ort_api.*.CreateEnv.?(ort.ORT_LOGGING_LEVEL_INFO, "ONNX", &ort_env)) |status| {
-            ort_api.*.ReleaseStatus.?(status);
-            return error.OnnxInitFailed;
-        }
+        var ort_env: ?*ort.OrtEnv = null;
+        try errIfStatus(ort_api.*.CreateEnv.?(ort.ORT_LOGGING_LEVEL_INFO, "ONNX", &ort_env), ort_api);
         errdefer ort_api.*.ReleaseEnv.?(ort_env);
 
-        if (ort_api.*.CreateSessionOptions.?(&ort_options)) |status| {
-            ort_api.*.ReleaseStatus.?(status);
-            return error.OnnxInitFailed;
-        }
+        var ort_options: ?*ort.OrtSessionOptions = null;
+        try errIfStatus(ort_api.*.CreateSessionOptions.?(&ort_options), ort_api);
         errdefer ort_api.*.ReleaseSessionOptions.?(ort_options);
 
         //ort_api.*.SessionOptionsAppendExecutionProvider(ort_options, ort.ORT_TENSORRT);
 
-        if (ort_api.*.CreateSessionFromArray.?(ort_env, &rtmo[0], rtmo.len, ort_options, &ort_session)) |status| {
-            ort_api.*.ReleaseStatus.?(status);
-            return error.OnnxInitFailed;
-        }
+        var ort_session: ?*ort.OrtSession = null;
+        try errIfStatus(
+            ort_api.*.CreateSessionFromArray.?(ort_env, &rtmo[0], rtmo.len, ort_options, &ort_session),
+            ort_api,
+        );
         errdefer ort_api.*.ReleaseSession.?(ort_session);
+
+        var ort_memory_info: ?*ort.OrtMemoryInfo = null;
+        try errIfStatus(
+            ort_api.*.CreateCpuMemoryInfo.?(ort.OrtDeviceAllocator, ort.OrtMemTypeCPU, &ort_memory_info),
+            ort_api,
+        );
+        errdefer ort_api.*.ReleaseMemoryInfo.?(ort_memory_info);
+
+        var ort_allocator: ?*ort.OrtAllocator = null;
+        try errIfStatus(ort_api.*.CreateAllocator.?(ort_session, ort_memory_info.?, &ort_allocator), ort_api);
+        errdefer ort_api.*.ReleaseAllocator.?(ort_allocator);
+
+        const input_tensor = try createTensor(ort_api, ort_allocator.?, &[_]i64{ 1, 3, 640, 640 });
+        errdefer ort_api.*.ReleaseValue.?(input_tensor);
+        const output_tensor = try createTensor(ort_api, ort_allocator.?, &[_]i64{ 1, 1000 });
+        errdefer ort_api.*.ReleaseValue.?(output_tensor);
 
         return Perception{
             .ort_api = ort_api,
             .ort_env = ort_env.?,
             .ort_options = ort_options.?,
             .ort_session = ort_session.?,
+            .ort_memory_info = ort_memory_info.?,
+            .ort_allocator = ort_allocator.?,
+            .input_tensor = input_tensor,
+            .output_tensor = output_tensor,
         };
     }
 
     pub fn deinit(self: *Perception) void {
-        self.ort_api.*.ReleaseEnv.?(self.ort_env);
-        self.ort_api.*.ReleaseSessionOptions.?(self.ort_options);
+        self.ort_api.*.ReleaseValue.?(self.input_tensor);
+        self.ort_api.*.ReleaseValue.?(self.output_tensor);
+        self.ort_api.*.ReleaseAllocator.?(self.ort_allocator);
+        self.ort_api.*.ReleaseMemoryInfo.?(self.ort_memory_info);
         self.ort_api.*.ReleaseSession.?(self.ort_session);
+        self.ort_api.*.ReleaseSessionOptions.?(self.ort_options);
+        self.ort_api.*.ReleaseEnv.?(self.ort_env);
     }
 };
 
