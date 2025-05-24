@@ -36,49 +36,46 @@ fn createTensor(ort_api: [*c]const ort.OrtApi, ort_allocator: *ort.OrtAllocator,
 }
 
 pub const Perception = struct {
-    ort_api: [*c]const ort.OrtApi,
+    ort_api: *const ort.OrtApi,
     ort_env: *ort.OrtEnv,
     ort_options: *ort.OrtSessionOptions,
     ort_session: *ort.OrtSession,
     ort_allocator: *ort.OrtAllocator,
     input_tensor: *ort.OrtValue,
-    output_tensor: *ort.OrtValue,
 
     pub fn init() !Perception {
-        const ort_api = ort.OrtGetApiBase().*.GetApi.?(ort.ORT_API_VERSION);
+        const ort_api: *const ort.OrtApi = ort.OrtGetApiBase().*.GetApi.?(ort.ORT_API_VERSION);
 
         var ort_env: ?*ort.OrtEnv = null;
-        try errIfStatus(ort_api.*.CreateEnv.?(ort.ORT_LOGGING_LEVEL_INFO, "ONNX", &ort_env), ort_api);
-        errdefer ort_api.*.ReleaseEnv.?(ort_env);
+        try errIfStatus(ort_api.CreateEnv.?(ort.ORT_LOGGING_LEVEL_WARNING, "ONNX", &ort_env), ort_api);
+        errdefer ort_api.ReleaseEnv.?(ort_env);
 
         var ort_options: ?*ort.OrtSessionOptions = null;
-        try errIfStatus(ort_api.*.CreateSessionOptions.?(&ort_options), ort_api);
-        errdefer ort_api.*.ReleaseSessionOptions.?(ort_options);
+        try errIfStatus(ort_api.CreateSessionOptions.?(&ort_options), ort_api);
+        errdefer ort_api.ReleaseSessionOptions.?(ort_options);
 
         //ort_api.*.SessionOptionsAppendExecutionProvider(ort_options, ort.ORT_TENSORRT);
 
         var ort_session: ?*ort.OrtSession = null;
         try errIfStatus(
-            ort_api.*.CreateSessionFromArray.?(ort_env, &rtmo[0], rtmo.len, ort_options, &ort_session),
+            ort_api.CreateSessionFromArray.?(ort_env, &rtmo[0], rtmo.len, ort_options, &ort_session),
             ort_api,
         );
-        errdefer ort_api.*.ReleaseSession.?(ort_session);
+        errdefer ort_api.ReleaseSession.?(ort_session);
 
         var ort_memory_info: ?*ort.OrtMemoryInfo = null;
         try errIfStatus(
-            ort_api.*.CreateCpuMemoryInfo.?(ort.OrtDeviceAllocator, ort.OrtMemTypeCPU, &ort_memory_info),
+            ort_api.CreateCpuMemoryInfo.?(ort.OrtDeviceAllocator, ort.OrtMemTypeCPU, &ort_memory_info),
             ort_api,
         );
-        defer ort_api.*.ReleaseMemoryInfo.?(ort_memory_info);
+        defer ort_api.ReleaseMemoryInfo.?(ort_memory_info);
 
         var ort_allocator: ?*ort.OrtAllocator = null;
-        try errIfStatus(ort_api.*.CreateAllocator.?(ort_session, ort_memory_info.?, &ort_allocator), ort_api);
-        errdefer ort_api.*.ReleaseAllocator.?(ort_allocator);
+        try errIfStatus(ort_api.CreateAllocator.?(ort_session, ort_memory_info.?, &ort_allocator), ort_api);
+        errdefer ort_api.ReleaseAllocator.?(ort_allocator);
 
         const input_tensor = try createTensor(ort_api, ort_allocator.?, &[_]i64{ 1, 3, 640, 640 });
-        errdefer ort_api.*.ReleaseValue.?(input_tensor);
-        const output_tensor = try createTensor(ort_api, ort_allocator.?, &[_]i64{ 1, 1000 });
-        errdefer ort_api.*.ReleaseValue.?(output_tensor);
+        errdefer ort_api.ReleaseValue.?(input_tensor);
 
         return Perception{
             .ort_api = ort_api,
@@ -87,17 +84,15 @@ pub const Perception = struct {
             .ort_session = ort_session.?,
             .ort_allocator = ort_allocator.?,
             .input_tensor = input_tensor,
-            .output_tensor = output_tensor,
         };
     }
 
     pub fn deinit(self: *Perception) void {
-        self.ort_api.*.ReleaseValue.?(self.input_tensor);
-        self.ort_api.*.ReleaseValue.?(self.output_tensor);
-        self.ort_api.*.ReleaseAllocator.?(self.ort_allocator);
-        self.ort_api.*.ReleaseSession.?(self.ort_session);
-        self.ort_api.*.ReleaseSessionOptions.?(self.ort_options);
-        self.ort_api.*.ReleaseEnv.?(self.ort_env);
+        self.ort_api.ReleaseValue.?(self.input_tensor);
+        self.ort_api.ReleaseAllocator.?(self.ort_allocator);
+        self.ort_api.ReleaseSession.?(self.ort_session);
+        self.ort_api.ReleaseSessionOptions.?(self.ort_options);
+        self.ort_api.ReleaseEnv.?(self.ort_env);
     }
 };
 
