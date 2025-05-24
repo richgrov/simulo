@@ -16,7 +16,7 @@ fn errIfStatus(status: ort.OrtStatusPtr, ort_api: [*c]const ort.OrtApi) !void {
         const message = ort_api.*.GetErrorMessage.?(s);
         std.log.err("Onnx error: {s}", .{message});
         ort_api.*.ReleaseStatus.?(s);
-        return error.OnnxInitFailed;
+        return error.OnnxError;
     }
 }
 
