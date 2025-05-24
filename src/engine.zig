@@ -40,7 +40,6 @@ pub const Perception = struct {
     ort_env: *ort.OrtEnv,
     ort_options: *ort.OrtSessionOptions,
     ort_session: *ort.OrtSession,
-    ort_memory_info: *ort.OrtMemoryInfo,
     ort_allocator: *ort.OrtAllocator,
     input_tensor: *ort.OrtValue,
     output_tensor: *ort.OrtValue,
@@ -70,7 +69,7 @@ pub const Perception = struct {
             ort_api.*.CreateCpuMemoryInfo.?(ort.OrtDeviceAllocator, ort.OrtMemTypeCPU, &ort_memory_info),
             ort_api,
         );
-        errdefer ort_api.*.ReleaseMemoryInfo.?(ort_memory_info);
+        defer ort_api.*.ReleaseMemoryInfo.?(ort_memory_info);
 
         var ort_allocator: ?*ort.OrtAllocator = null;
         try errIfStatus(ort_api.*.CreateAllocator.?(ort_session, ort_memory_info.?, &ort_allocator), ort_api);
@@ -86,7 +85,6 @@ pub const Perception = struct {
             .ort_env = ort_env.?,
             .ort_options = ort_options.?,
             .ort_session = ort_session.?,
-            .ort_memory_info = ort_memory_info.?,
             .ort_allocator = ort_allocator.?,
             .input_tensor = input_tensor,
             .output_tensor = output_tensor,
@@ -97,7 +95,6 @@ pub const Perception = struct {
         self.ort_api.*.ReleaseValue.?(self.input_tensor);
         self.ort_api.*.ReleaseValue.?(self.output_tensor);
         self.ort_api.*.ReleaseAllocator.?(self.ort_allocator);
-        self.ort_api.*.ReleaseMemoryInfo.?(self.ort_memory_info);
         self.ort_api.*.ReleaseSession.?(self.ort_session);
         self.ort_api.*.ReleaseSessionOptions.?(self.ort_options);
         self.ort_api.*.ReleaseEnv.?(self.ort_env);
