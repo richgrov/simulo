@@ -1,4 +1,5 @@
 #include <atomic>
+#include <cstring>
 #include <mutex>
 #include <vector>
 
@@ -20,9 +21,6 @@
     didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
            fromConnection:(AVCaptureConnection *)connection;
 - (const unsigned char *)latestImageBytes;
-- (int)latestImageWidth;
-- (int)latestImageHeight;
-- (int)latestImageBytesPerRow;
 - (bool)hasNewFrame;
 - (void)resetNewFrameFlag;
 @end
@@ -30,20 +28,15 @@
 @implementation SimuloCameraDelegate {
    std::vector<unsigned char> imageData;
    std::mutex imageMutex;
-   int imageWidth;
-   int imageHeight;
-   int imageBytesPerRow;
    std::atomic<bool> newFrameAvailable;
 }
 
 - (instancetype)init {
    self = [super init];
    if (self) {
-      imageWidth = 0;
-      imageHeight = 0;
-      imageBytesPerRow = 0;
       newFrameAvailable = false;
    }
+   imageData.resize(480 * 640 * 3);
    return self;
 }
 
@@ -54,63 +47,23 @@
    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
    CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
 
-   void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
+   auto baseAddress = reinterpret_cast<unsigned char *>(CVPixelBufferGetBaseAddress(imageBuffer));
    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
    size_t width = CVPixelBufferGetWidth(imageBuffer);
    size_t height = CVPixelBufferGetHeight(imageBuffer);
 
-   CIImage *ciImage = [CIImage imageWithCVImageBuffer:imageBuffer];
-
-   CIContext *context = [CIContext contextWithOptions:nil];
-   CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-
-   size_t newBytesPerRow = width * 4;
-   size_t dataSize = height * newBytesPerRow;
-
-   std::vector<unsigned char> tempBuffer(dataSize);
-
-   CGImageRef cgImage = [context createCGImage:ciImage fromRect:ciImage.extent];
-   CGContextRef cgContext = CGBitmapContextCreate(
-       tempBuffer.data(), width, height,
-       8, // 8 bits per component
-       newBytesPerRow, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host
-   );
-
-   CGContextDrawImage(cgContext, CGRectMake(0, 0, width, height), cgImage);
-
    {
       std::lock_guard<std::mutex> lock(imageMutex);
-      imageData = std::move(tempBuffer);
-      imageWidth = static_cast<int>(width);
-      imageHeight = static_cast<int>(height);
-      imageBytesPerRow = static_cast<int>(newBytesPerRow);
+      std::memcpy(imageData.data(), baseAddress, height * bytesPerRow);
       newFrameAvailable = true;
    }
 
-   CGContextRelease(cgContext);
-   CGImageRelease(cgImage);
-   CGColorSpaceRelease(colorSpace);
    CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
 }
 
 - (const unsigned char *)latestImageBytes {
    std::lock_guard<std::mutex> lock(imageMutex);
    return imageData.data();
-}
-
-- (int)latestImageWidth {
-   std::lock_guard<std::mutex> lock(imageMutex);
-   return imageWidth;
-}
-
-- (int)latestImageHeight {
-   std::lock_guard<std::mutex> lock(imageMutex);
-   return imageHeight;
-}
-
-- (int)latestImageBytesPerRow {
-   std::lock_guard<std::mutex> lock(imageMutex);
-   return imageBytesPerRow;
 }
 
 - (bool)hasNewFrame {
@@ -190,8 +143,9 @@ bool init_camera(Camera *camera) {
       AVCaptureVideoDataOutput *output = [[AVCaptureVideoDataOutput alloc] init];
       [output setAlwaysDiscardsLateVideoFrames:YES];
       [output setVideoSettings:@{
-         (id)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_128RGBAFloat),
-         (id)kCVPixelBufferMetalCompatibilityKey : @(YES)
+         (id)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_24RGB),
+         (id)kCVPixelBufferWidthKey : @(640),
+         (id)kCVPixelBufferHeightKey : @(480),
       }];
 
       camera->delegate = [[SimuloCameraDelegate alloc] init];
