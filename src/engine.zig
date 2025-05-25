@@ -1,6 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+pub const Camera = @import("camera/camera.zig").Camera;
+
 const ort = @import("perception/onnxruntime.zig");
 
 const rtmo = @embedFile("perception/rtmo-m.onnx");

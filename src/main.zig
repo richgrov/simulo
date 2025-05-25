@@ -1,5 +1,5 @@
 const engine = @import("engine");
-const Camera = @import("camera/camera.zig").Camera;
+const Camera = engine.Camera;
 
 comptime {
     _ = engine;
