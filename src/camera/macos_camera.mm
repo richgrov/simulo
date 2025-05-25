@@ -16,27 +16,31 @@
 #include "../ffi.h"
 
 @interface SimuloCameraDelegate : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate>
-- (instancetype)init;
+- (instancetype)init:(void *)out;
 - (void)captureOutput:(AVCaptureOutput *)output
     didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
            fromConnection:(AVCaptureConnection *)connection;
-- (const unsigned char *)latestImageBytes;
 - (bool)hasNewFrame;
 - (void)resetNewFrameFlag;
+- (void)lockFrame;
+- (void)unlockFrame;
+
 @end
 
 @implementation SimuloCameraDelegate {
-   std::vector<unsigned char> imageData;
+   void *out;
+   bool float_mode;
    std::mutex imageMutex;
    std::atomic<bool> newFrameAvailable;
 }
 
-- (instancetype)init {
+- (instancetype)init:(void *)out_ {
    self = [super init];
    if (self) {
       newFrameAvailable = false;
+      out = out_;
+      float_mode = false;
    }
-   imageData.resize(480 * 640 * 3);
    return self;
 }
 
@@ -54,16 +58,11 @@
 
    {
       std::lock_guard<std::mutex> lock(imageMutex);
-      std::memcpy(imageData.data(), baseAddress, height * bytesPerRow);
+      std::memcpy(out, baseAddress, height * bytesPerRow);
       newFrameAvailable = true;
    }
 
    CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
-}
-
-- (const unsigned char *)latestImageBytes {
-   std::lock_guard<std::mutex> lock(imageMutex);
-   return imageData.data();
 }
 
 - (bool)hasNewFrame {
@@ -72,6 +71,14 @@
 
 - (void)resetNewFrameFlag {
    newFrameAvailable.store(false);
+}
+
+- (void)lockFrame {
+   imageMutex.lock();
+}
+
+- (void)unlockFrame {
+   imageMutex.unlock();
 }
 
 @end
@@ -112,7 +119,7 @@ AVCaptureDevice *find_camera() {
 
 extern "C" {
 
-bool init_camera(Camera *camera) {
+bool init_camera(Camera *camera, unsigned char *out) {
    AVCaptureSession *captureSession;
 
    @autoreleasepool {
@@ -148,7 +155,7 @@ bool init_camera(Camera *camera) {
          (id)kCVPixelBufferHeightKey : @(480),
       }];
 
-      camera->delegate = [[SimuloCameraDelegate alloc] init];
+      camera->delegate = [[SimuloCameraDelegate alloc] init:out];
       dispatch_queue_t queue = dispatch_queue_create("com.simulo.cameraQueue", NULL);
       [output setSampleBufferDelegate:camera->delegate queue:queue];
 
@@ -171,8 +178,12 @@ void destroy_camera(Camera *camera) {
    camera->delegate = nil;
 }
 
-const unsigned char *get_camera_frame(Camera *camera) {
-   return [camera->delegate latestImageBytes];
+void lock_camera_frame(Camera *camera) {
+   [camera->delegate lockFrame];
+}
+
+void unlock_camera_frame(Camera *camera) {
+   [camera->delegate unlockFrame];
 }
 
 } // extern "C"

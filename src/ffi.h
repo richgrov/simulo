@@ -48,9 +48,10 @@ typedef struct {
 
 #endif
 
-bool init_camera(Camera *camera);
+bool init_camera(Camera *camera, unsigned char *out);
 void destroy_camera(Camera *camera);
-const unsigned char *get_camera_frame(Camera *camera);
+void lock_camera_frame(Camera *camera);
+void unlock_camera_frame(Camera *camera);
 
 #ifdef __cplusplus
 }
