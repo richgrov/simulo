@@ -56,7 +56,13 @@ pub const Perception = struct {
         try errIfStatus(ort_api.CreateSessionOptions.?(&ort_options), ort_api);
         errdefer ort_api.ReleaseSessionOptions.?(ort_options);
 
-        //ort_api.*.SessionOptionsAppendExecutionProvider(ort_options, ort.ORT_TENSORRT);
+        if (builtin.os.tag == .macos) {
+            const coreml: [:0]const u8 = "CoreML";
+            try errIfStatus(
+                ort_api.*.SessionOptionsAppendExecutionProvider.?(ort_options, coreml, null, null, 0),
+                ort_api,
+            );
+        }
 
         var ort_session: ?*ort.OrtSession = null;
         try errIfStatus(
