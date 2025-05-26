@@ -8,9 +8,9 @@ const ffi = @cImport({
 pub const MacOsCamera = struct {
     camera: ffi.Camera,
 
-    pub fn init(out: []u8) !MacOsCamera {
+    pub fn init(out: [*]u8) !MacOsCamera {
         var camera = ffi.Camera{};
-        const success = ffi.init_camera(&camera, &out[0]);
+        const success = ffi.init_camera(&camera, out);
         if (!success) {
             return error.CameraInitFailed;
         }
@@ -22,6 +22,10 @@ pub const MacOsCamera = struct {
 
     pub inline fn deinit(self: *MacOsCamera) void {
         ffi.destroy_camera(&self.camera);
+    }
+
+    pub inline fn setFloatMode(self: *MacOsCamera, out: [*]f32) void {
+        ffi.set_camera_float_mode(&self.camera, out);
     }
 
     pub inline fn lockFrame(self: *MacOsCamera) void {

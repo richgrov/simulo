@@ -22,6 +22,7 @@
            fromConnection:(AVCaptureConnection *)connection;
 - (bool)hasNewFrame;
 - (void)resetNewFrameFlag;
+- (void)setFloatMode:(float *)out;
 - (void)lockFrame;
 - (void)unlockFrame;
 
@@ -58,7 +59,23 @@
 
    {
       std::lock_guard<std::mutex> lock(imageMutex);
-      std::memcpy(out, baseAddress, height * bytesPerRow);
+      if (float_mode) {
+         // Convert from HxWxC uchar to CxHxW float
+         auto outf = reinterpret_cast<float *>(out);
+         size_t channel_size = height * width;
+         for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+               unsigned char *pixel = &baseAddress[y * width * 3 + x * 3];
+               size_t ch_stride = 640 * 640;
+               int new_y = (640 - 480) / 2 + y;
+               outf[ch_stride * 0 + new_y * width + x] = pixel[0];
+               outf[ch_stride * 1 + new_y * width + x] = pixel[1];
+               outf[ch_stride * 2 + new_y * width + x] = pixel[2];
+            }
+         }
+      } else {
+         std::memcpy(out, baseAddress, height * bytesPerRow);
+      }
       newFrameAvailable = true;
    }
 
@@ -71,6 +88,11 @@
 
 - (void)resetNewFrameFlag {
    newFrameAvailable.store(false);
+}
+
+- (void)setFloatMode:(float *)out_ {
+   float_mode = true;
+   out = out_;
 }
 
 - (void)lockFrame {
@@ -176,6 +198,10 @@ void destroy_camera(Camera *camera) {
    [camera->session stopRunning];
    camera->session = nil;
    camera->delegate = nil;
+}
+
+void set_camera_float_mode(Camera *camera, float *out) {
+   [camera->delegate setFloatMode:out];
 }
 
 void lock_camera_frame(Camera *camera) {

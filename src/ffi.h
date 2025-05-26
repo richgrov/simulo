@@ -50,6 +50,7 @@ typedef struct {
 
 bool init_camera(Camera *camera, unsigned char *out);
 void destroy_camera(Camera *camera);
+void set_camera_float_mode(Camera *camera, float *out);
 void lock_camera_frame(Camera *camera);
 void unlock_camera_frame(Camera *camera);
 
