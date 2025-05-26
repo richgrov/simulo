@@ -6,6 +6,8 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 
+#include "ffi.h"
+
 using namespace simulo;
 
 Gpu::Gpu() : mt_device_(MTLCreateSystemDefaultDevice()) {
@@ -24,4 +26,12 @@ Gpu::Gpu() : mt_device_(MTLCreateSystemDefaultDevice()) {
 Gpu::~Gpu() {
    [library_ release];
    [mt_device_ release];
+}
+
+Gpu *create_gpu(void) {
+   return new Gpu();
+}
+
+void destroy_gpu(Gpu *gpu) {
+   delete gpu;
 }

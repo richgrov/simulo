@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 pub const Camera = @import("camera/camera.zig").Camera;
+pub const Gpu = @import("gpu/gpu.zig").Gpu;
 
 const ort = @import("perception/onnxruntime.zig");
 
