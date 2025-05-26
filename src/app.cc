@@ -258,3 +258,11 @@ void App::add_prompt_text(const std::string &message) {
    text->set_size(text->font_size());
    ui_.add_child(std::move(text));
 }
+
+Renderer *create_renderer(Gpu *gpu, const Window *window) {
+   return new Renderer(*gpu, window->layer_pixel_format(), window->metal_layer());
+}
+
+void destroy_renderer(Renderer *renderer) {
+   delete renderer;
+}

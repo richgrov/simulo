@@ -92,8 +92,24 @@ void destroy_opencv_mat(OpenCvMat *mat);
 unsigned char *get_opencv_mat_data(OpenCvMat *mat);
 bool find_chessboard(OpenCvMat *mat, int pattern_width, int pattern_height);
 
-Renderer *create_renderer(void);
+Renderer *create_renderer(Gpu *gpu, const Window *window);
 void destroy_renderer(Renderer *renderer);
+uint32_t create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b);
+uint32_t create_mesh_material(Renderer *renderer, float r, float g, float b);
+uint32_t create_mesh(
+    Renderer *renderer, uint8_t *vertex_data, size_t vertex_size, uint16_t *index_data,
+    size_t index_count
+);
+void delete_mesh(Renderer *renderer, uint32_t mesh_id);
+uint32_t
+add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_t material_id);
+void delete_object(Renderer *renderer, uint32_t object_id);
+uint32_t create_image(Renderer *renderer, uint8_t *img_data, int width, int height);
+bool render(
+    Renderer *renderer, const float *ui_view_projection, const float *world_view_projection
+);
+void recreate_swapchain(Renderer *renderer);
+void wait_idle(Renderer *renderer);
 
 Gpu *create_gpu(void);
 void destroy_gpu(Gpu *gpu);
