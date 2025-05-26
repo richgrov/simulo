@@ -6,6 +6,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <objc/objc.h>
 
+#include "ffi.h"
 #include "gpu/gpu.h"
 #include "window/macos/keys.h"
 
@@ -313,4 +314,12 @@ bool Window::key_just_pressed(uint8_t key_code) const {
 
 std::string_view Window::typed_chars() const {
    return std::string_view(window_view_->typed_chars_, window_view_->next_typed_letter_);
+}
+
+Window *create_window(const Gpu *gpu, const char *title) {
+   return new Window(*gpu, title);
+}
+
+void destroy_window(Window *window) {
+   delete window;
 }

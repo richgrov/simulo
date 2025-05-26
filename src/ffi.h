@@ -64,9 +64,11 @@ using OpenCvMat = cv::Mat;
 namespace simulo {
 class Renderer;
 class Gpu;
+class Window;
 } // namespace simulo
 using Renderer = simulo::Renderer;
 using Gpu = simulo::Gpu;
+using Window = simulo::Window;
 
 #else
 
@@ -78,6 +80,9 @@ typedef struct SimuloRenderer Renderer;
 
 struct SimuloGpu;
 typedef struct SimuloGpu Gpu;
+
+struct SimuloWindow;
+typedef struct SimuloWindow Window;
 
 #endif
 
@@ -91,6 +96,9 @@ void destroy_renderer(Renderer *renderer);
 
 Gpu *create_gpu(void);
 void destroy_gpu(Gpu *gpu);
+
+Window *create_window(const Gpu *gpu, const char *title);
+void destroy_window(Window *window);
 
 #ifdef __cplusplus
 }

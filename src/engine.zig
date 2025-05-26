@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 
 pub const Camera = @import("camera/camera.zig").Camera;
 pub const Gpu = @import("gpu/gpu.zig").Gpu;
+pub const Window = @import("window/window.zig").Window;
 
 const ort = @import("perception/onnxruntime.zig");
 
