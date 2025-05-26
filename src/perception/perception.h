@@ -6,8 +6,6 @@
 #include <thread>
 #include <vector>
 
-#define ORT_NO_EXCEPTIONS
-#include <onnxruntime_cxx_api.h>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/dnn.hpp>
 #include <opencv2/videoio.hpp>
@@ -31,7 +29,7 @@ public:
       std::vector<Keypoint> points;
    };
 
-   Perception(std::shared_ptr<const Ort::Env> ort_env, int id);
+   Perception(int id) : id_{id} {}
 
    ~Perception();
 
@@ -55,12 +53,6 @@ private:
 
    int id_;
    cv::VideoCapture capture_;
-   std::shared_ptr<const Ort::Env> ort_env_;
-   Ort::Session ort_session_;
-   Ort::MemoryInfo ort_mem_info_;
-   Ort::Allocator ort_allocator_;
-   Ort::Value ort_input_;
-   Ort::Value ort_output_;
    std::atomic<bool> running_;
    std::thread thread_;
 

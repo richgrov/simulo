@@ -6,8 +6,6 @@
 #include <shared_mutex>
 #include <stdexcept>
 
-#define ORT_NO_EXCEPTIONS
-#include <onnxruntime_cxx_api.h>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/core/types.hpp>
@@ -34,14 +32,6 @@ static constexpr float kNmsThreshold = 0.5;
 
 static const cv::Size kChessboardPatternSize(9, 5);
 
-Ort::SessionOptions ort_session_options() {
-   Ort::SessionOptions opts;
-#ifdef __APPLE__
-   opts.AppendExecutionProvider("CoreML");
-#endif
-   return opts;
-}
-
 template <class T, size_t Width> class Array2d {
 public:
    Array2d(const T *data) : data_{data} {}
@@ -55,22 +45,6 @@ private:
 };
 
 } // namespace
-
-Perception::Perception(std::shared_ptr<const Ort::Env> ort_env, int id)
-    : id_{id},
-      ort_env_{ort_env},
-      ort_session_{Ort::Session(*ort_env_.get(), nullptr, 0, ort_session_options())},
-      ort_mem_info_{Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU)},
-      ort_allocator_{ort_session_, ort_mem_info_},
-      ort_input_{Ort::Value::CreateTensor(
-          ort_allocator_, kModelInputShape, 4, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT
-      )},
-      ort_output_{Ort::Value::CreateTensor(
-          ort_allocator_, kModelOutputShape, 3, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT
-      )} {
-
-   std::cout << "ONNX Version: " << Ort::GetVersionString() << '\n';
-}
 
 float rescale(float f, float from_range, float to_range) {
    return f / from_range * to_range;
@@ -144,96 +118,7 @@ void Perception::apply_calibration_transform(Detection &detection) {
    }
 }
 
-void Perception::detect() {
-   static thread_local cv::Mat capture_mat;
-   if (!capture_.read(capture_mat)) {
-      throw std::runtime_error("Could not read from camera");
-   }
-
-   if (!calibrated_) {
-      if (!detect_calibration_marker(capture_mat)) {
-         return;
-      }
-   }
-
-   static thread_local cv::Mat blob;
-   cv::dnn::blobFromImage(
-       capture_mat, blob, 1.0 / 255.0, kInputImageSize, cv::Scalar(), true, false
-   );
-   std::memcpy(ort_input_.GetTensorMutableData<float>(), blob.data, blob.total() * blob.elemSize());
-
-   Ort::RunOptions run_opts;
-   ort_session_.Run(run_opts, kModelInputNames, &ort_input_, 1, kModelOutputNames, &ort_output_, 1);
-
-   Array2d<float, kNumBoxes> data(ort_output_.GetTensorData<float>());
-
-   std::vector<cv::Rect> boxes;
-   std::vector<float> scores;
-   std::vector<std::vector<Keypoint>> detection_points;
-
-   for (int box_idx = 0; box_idx < kNumBoxes; box_idx++) {
-      // float *box_props = output.row(box_idx).ptr<float>();
-      float score = data.get(box_idx, 4);
-      if (score < kScoreThreshold) {
-         continue;
-      }
-
-      scores.push_back(score);
-
-      float x_center = data.get(box_idx, 0);
-      float y_center = data.get(box_idx, 1);
-      float width = data.get(box_idx, 2);
-      float height = data.get(box_idx, 3);
-      boxes.emplace_back(x_center - 0.5f * width, y_center - 0.5f * height, width, height);
-
-      std::vector<Keypoint> points;
-      for (int keypoint_idx = 0; keypoint_idx < 17; keypoint_idx++) {
-         points.emplace_back(Keypoint{
-             .x = data.get(box_idx, 5 + keypoint_idx * 3),
-             .y = data.get(box_idx, 5 + keypoint_idx * 3 + 1),
-             .visibility = data.get(box_idx, 5 + keypoint_idx * 3 + 2),
-         });
-      }
-
-      detection_points.push_back(points);
-   }
-
-   std::vector<int> filtered_indices;
-   cv::dnn::NMSBoxes(boxes, scores, kScoreThreshold, kNmsThreshold, filtered_indices);
-
-   std::vector<Detection> result{};
-   for (int i : filtered_indices) {
-      cv::Rect2i box = boxes[i];
-
-      float x = rescale(box.x, kInputImageSize.width, capture_mat.cols);
-      float y = rescale(box.y, kInputImageSize.height, capture_mat.rows);
-      float w = rescale(box.width, kInputImageSize.width, capture_mat.cols);
-      float h = rescale(box.height, kInputImageSize.height, capture_mat.rows);
-
-      for (auto &kp : detection_points[i]) {
-         kp.x = rescale(kp.x, kInputImageSize.width, capture_mat.cols);
-         kp.y = rescale(kp.y, kInputImageSize.height, capture_mat.rows);
-      }
-
-      Detection detection{
-          .x = x,
-          .y = y,
-          .width = w,
-          .height = h,
-          .confidence = scores[i],
-          .points = detection_points[i]
-      };
-
-      if (calibrated_) {
-         apply_calibration_transform(detection);
-      }
-
-      result.push_back(detection);
-   }
-
-   std::unique_lock lock(detection_lock_);
-   latest_detections_ = std::move(result);
-}
+void Perception::detect() {}
 
 void Perception::set_running(bool run) {
    if (running_ && run) {

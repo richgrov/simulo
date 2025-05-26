@@ -20,9 +20,8 @@ extern "C" void perception_test_main() {
    }*/
 
    try {
-      auto env = std::make_shared<const Ort::Env>();
-      Perception perception1(env, 0);
-      Perception perception2(env, 1);
+      Perception perception1(0);
+      Perception perception2(1);
       perception1.set_running(true);
       perception2.set_running(true);
 

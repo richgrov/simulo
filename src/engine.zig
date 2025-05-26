@@ -102,6 +102,61 @@ pub const Perception = struct {
         self.ort_api.ReleaseSessionOptions.?(self.ort_options);
         self.ort_api.ReleaseEnv.?(self.ort_env);
     }
+
+    pub fn run(self: *Perception, img_data: []const f32) !void {
+        var input_data: ?[*]f32 = null;
+        try errIfStatus(self.ort_api.GetTensorMutableData.?(self.input_tensor, @ptrCast(&input_data)), self.ort_api);
+        @memcpy(input_data.?, img_data);
+
+        var output_slice = [_]?*ort.OrtValue{ null, null };
+        try errIfStatus(self.ort_api.Run.?(
+            self.ort_session,
+            null,
+            &[_][*:0]const u8{"input"},
+            &[_]*ort.OrtValue{self.input_tensor},
+            1,
+            &[_][*:0]const u8{ "dets", "keypoints" },
+            2,
+            &output_slice,
+        ), self.ort_api);
+
+        const detections = output_slice[0].?;
+        const keypoints = output_slice[1].?;
+        defer self.ort_api.ReleaseValue.?(detections);
+        defer self.ort_api.ReleaseValue.?(keypoints);
+
+        const detect_dim = try self.get_tensor_shape(detections);
+        defer detect_dim.deinit();
+
+        const n_detections = detect_dim.items[1];
+        var detections_data: ?[*]f32 = null;
+        try errIfStatus(self.ort_api.GetTensorMutableData.?(detections, @ptrCast(&detections_data)), self.ort_api);
+
+        for (0..@intCast(n_detections)) |i| {
+            const x = detections_data.?[i * 5];
+            const y = detections_data.?[i * 5 + 1];
+            const w = detections_data.?[i * 5 + 2];
+            const h = detections_data.?[i * 5 + 3];
+            const score = detections_data.?[i * 5 + 4];
+
+            std.debug.print("Detection {d}: {d:.2} {d:.2} {d:.2} {d:.2} {d:.2}\n", .{ i, x, y, w, h, score });
+        }
+    }
+
+    fn get_tensor_shape(self: *Perception, tensor: *ort.OrtValue) !std.ArrayList(i64) {
+        var type_shape_info: ?*ort.OrtTensorTypeAndShapeInfo = null;
+        try errIfStatus(self.ort_api.GetTensorTypeAndShape.?(tensor, &type_shape_info), self.ort_api);
+        defer self.ort_api.ReleaseTensorTypeAndShapeInfo.?(type_shape_info);
+
+        var n_dimensions: usize = 0;
+        try errIfStatus(self.ort_api.GetDimensionsCount.?(type_shape_info, &n_dimensions), self.ort_api);
+
+        var dimensions = std.ArrayList(i64).init(std.heap.page_allocator);
+        try dimensions.resize(n_dimensions);
+        try errIfStatus(self.ort_api.GetDimensions.?(type_shape_info, dimensions.items.ptr, n_dimensions), self.ort_api);
+
+        return dimensions;
+    }
 };
 
 pub export fn text_vertex_bytes() *const u8 {

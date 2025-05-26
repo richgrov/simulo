@@ -18,5 +18,13 @@ pub fn main() !void {
 
     var perception = try engine.Perception.init();
     defer perception.deinit();
+
+    while (true) {
+        std.Thread.yield() catch {}; // temporary work around to prevent locking the frame permanently
+        camera.lockFrame();
+        defer camera.unlockFrame();
+        try perception.run(&fframe);
+    }
+
     std.debug.print("Hello, world!\n", .{});
 }
