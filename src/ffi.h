@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "util/os_detect.h"
 
@@ -99,6 +100,20 @@ void destroy_gpu(Gpu *gpu);
 
 Window *create_window(const Gpu *gpu, const char *title);
 void destroy_window(Window *window);
+bool poll_window(Window *window);
+void set_capture_mouse(Window *window, bool capture);
+void request_close_window(Window *window);
+int get_window_width(const Window *window);
+int get_window_height(const Window *window);
+int get_mouse_x(const Window *window);
+int get_mouse_y(const Window *window);
+int get_delta_mouse_x(const Window *window);
+int get_delta_mouse_y(const Window *window);
+bool is_left_clicking(const Window *window);
+bool is_key_down(const Window *window, uint8_t key_code);
+bool key_just_pressed(const Window *window, uint8_t key_code);
+const char *get_typed_chars(const Window *window);
+int get_typed_chars_length(const Window *window);
 
 #ifdef __cplusplus
 }
