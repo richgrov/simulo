@@ -16,6 +16,8 @@ const model_vert = if (vulkan) @embedFile("shader/model.vert") else &[_]u8{0};
 const model_frag = if (vulkan) @embedFile("shader/model.frag") else &[_]u8{0};
 const arial = @embedFile("res/arial.ttf");
 
+const detection_threshold = 0.5;
+
 fn errIfStatus(status: ort.OrtStatusPtr, ort_api: [*c]const ort.OrtApi) !void {
     if (status) |s| {
         const message = ort_api.*.GetErrorMessage.?(s);
@@ -162,27 +164,35 @@ pub const Perception = struct {
         var keypoints_data: [*]f32 = undefined;
         try errIfStatus(self.ort_api.GetTensorMutableData.?(keypoints, @ptrCast(&keypoints_data)), self.ort_api);
 
-        const dets_usize: usize = @intCast(n_detections);
-        for (0..@min(dets_usize, outDets.len)) |i| {
+        const n_detections_usize: usize = @intCast(n_detections);
+        var out_idx: usize = 0;
+        for (0..@min(n_detections_usize, outDets.len)) |i| {
             const x = detections_data[i * 5];
             const y = detections_data[i * 5 + 1];
             const w = detections_data[i * 5 + 2];
             const h = detections_data[i * 5 + 3];
             const score = detections_data[i * 5 + 4];
-            outDets[i].pos = @Vector(2, f32){ x, y };
-            outDets[i].size = @Vector(2, f32){ w, h };
-            outDets[i].score = score;
+
+            if (score < detection_threshold) {
+                continue;
+            }
+
+            outDets[out_idx].pos = @Vector(2, f32){ x, y };
+            outDets[out_idx].size = @Vector(2, f32){ w, h };
+            outDets[out_idx].score = score;
 
             for (0..17) |kp| {
                 const kp_x = keypoints_data[i * 17 * 3 + kp * 3];
                 const kp_y = keypoints_data[i * 17 * 3 + kp * 3 + 1];
                 const kp_score = keypoints_data[i * 17 * 3 + kp * 3 + 2];
-                outDets[i].keypoints[kp].pos = @Vector(2, f32){ kp_x, kp_y };
-                outDets[i].keypoints[kp].score = kp_score;
+                outDets[out_idx].keypoints[kp].pos = @Vector(2, f32){ kp_x, kp_y };
+                outDets[out_idx].keypoints[kp].score = kp_score;
             }
+
+            out_idx += 1;
         }
 
-        return n_detections;
+        return out_idx;
     }
 
     fn get_tensor_shape(self: *Perception, tensor: *ort.OrtValue) !std.ArrayList(i64) {
