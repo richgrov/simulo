@@ -46,8 +46,6 @@ fn perception_loop() !void {
     while (true) {
         const frame_idx = camera.swapBuffers();
 
-        std.log.info("{any} {any}", .{ std.time.milliTimestamp(), calibrated });
-
         if (!calibrated) {
             if (ffi.find_chessboard(calibration_frames[frame_idx], chessboardWidth, chessboardHeight, transform)) {
                 camera.setFloatMode([2][*]f32{
