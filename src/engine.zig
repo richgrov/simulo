@@ -40,6 +40,18 @@ fn createTensor(ort_api: [*c]const ort.OrtApi, ort_allocator: *ort.OrtAllocator,
     return tensor.?;
 }
 
+pub const Keypoint = struct {
+    pos: @Vector(2, f32),
+    score: f32,
+};
+
+pub const Detection = struct {
+    pos: @Vector(2, f32),
+    size: @Vector(2, f32),
+    score: f32,
+    keypoints: [17]Keypoint,
+};
+
 pub const Perception = struct {
     ort_api: *const ort.OrtApi,
     ort_env: *ort.OrtEnv,
@@ -106,7 +118,7 @@ pub const Perception = struct {
         self.ort_api.ReleaseEnv.?(self.ort_env);
     }
 
-    pub fn run(self: *Perception, img_data: []const f32) !void {
+    pub fn run(self: *Perception, img_data: []const f32, outDets: []Detection) !i64 {
         var input_data: ?[*]f32 = null;
         try errIfStatus(self.ort_api.GetTensorMutableData.?(self.input_tensor, @ptrCast(&input_data)), self.ort_api);
         @memcpy(input_data.?, img_data);
@@ -132,18 +144,33 @@ pub const Perception = struct {
         defer detect_dim.deinit();
 
         const n_detections = detect_dim.items[1];
-        var detections_data: ?[*]f32 = null;
+        var detections_data: [*]f32 = undefined;
         try errIfStatus(self.ort_api.GetTensorMutableData.?(detections, @ptrCast(&detections_data)), self.ort_api);
 
-        for (0..@intCast(n_detections)) |i| {
-            const x = detections_data.?[i * 5];
-            const y = detections_data.?[i * 5 + 1];
-            const w = detections_data.?[i * 5 + 2];
-            const h = detections_data.?[i * 5 + 3];
-            const score = detections_data.?[i * 5 + 4];
+        var keypoints_data: [*]f32 = undefined;
+        try errIfStatus(self.ort_api.GetTensorMutableData.?(keypoints, @ptrCast(&keypoints_data)), self.ort_api);
 
-            std.debug.print("Detection {d}: {d:.2} {d:.2} {d:.2} {d:.2} {d:.2}\n", .{ i, x, y, w, h, score });
+        const dets_usize: usize = @intCast(n_detections);
+        for (0..@min(dets_usize, outDets.len)) |i| {
+            const x = detections_data[i * 5];
+            const y = detections_data[i * 5 + 1];
+            const w = detections_data[i * 5 + 2];
+            const h = detections_data[i * 5 + 3];
+            const score = detections_data[i * 5 + 4];
+            outDets[i].pos = @Vector(2, f32){ x, y };
+            outDets[i].size = @Vector(2, f32){ w, h };
+            outDets[i].score = score;
+
+            for (0..17) |kp| {
+                const kp_x = keypoints_data[i * 17 * 3 + kp * 3];
+                const kp_y = keypoints_data[i * 17 * 3 + kp * 3 + 1];
+                const kp_score = keypoints_data[i * 17 * 3 + kp * 3 + 2];
+                outDets[i].keypoints[kp].pos = @Vector(2, f32){ kp_x, kp_y };
+                outDets[i].keypoints[kp].score = kp_score;
+            }
         }
+
+        return n_detections;
     }
 
     fn get_tensor_shape(self: *Perception, tensor: *ort.OrtValue) !std.ArrayList(i64) {

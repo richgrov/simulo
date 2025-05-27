@@ -36,10 +36,6 @@ pub fn build(b: *std.Build) void {
     });
     perception_test.addIncludePath(b.path("src"));
     perception_test.linkLibCpp();
-    perception_test.addCSourceFile(.{
-        .file = b.path("src/perception_test.cc"),
-        .flags = &[_][]const u8{"-std=c++20"},
-    });
     perception_test.root_module.addImport("engine", engine);
     perception_test.linkSystemLibrary("onnxruntime");
     perception_test.linkSystemLibrary("opencv4");
