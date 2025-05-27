@@ -1,4 +1,4 @@
-name: Build on Linux
+name: Build
 on: [push]
 jobs:
   Build-Windows:
@@ -30,6 +30,51 @@ jobs:
 
       - name: Build project
         run: zig build --search-prefix extern/onnxruntime
+
+      - name: Upload install artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: install
+
+  Build-Macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Update Homebrew
+        run: |
+          brew update --preinstall
+          cat "$(brew --repository)/Library/Taps/homebrew/homebrew-core/Formula/foo.rb" > .github/brew-formulae
+
+      - name: Configure Homebrew cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/Library/Caches/Homebrew/foo--*
+            ~/Library/Caches/Homebrew/downloads/*--foo-*
+          key: brew-${{ hashFiles('.github/brew-formulae') }}
+          restore-keys: brew-
+
+      - name: Install Homebrew dependencies
+        run: |
+          env HOMEBREW_NO_AUTO_UPDATE=1 brew install opencv
+
+      - name: Download ONNX Runtime
+        run: |
+          mkdir -p extern/onnxruntime
+          curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
+          tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
+          pwd
+          ls
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+
+      - name: Build project
+        run: zig build bundle
 
       - name: Upload install artifact
         uses: actions/upload-artifact@v4
