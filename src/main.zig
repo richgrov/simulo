@@ -1,5 +1,6 @@
+const std = @import("std");
+
 const engine = @import("engine");
-const Camera = engine.Camera;
 
 comptime {
     _ = engine;
@@ -10,9 +11,6 @@ const migration = @cImport({
 });
 
 pub fn main() !void {
-    var perception = try engine.Perception.init();
-    defer perception.deinit();
-
     migration.run();
 }
 
@@ -21,10 +19,6 @@ test "simple test" {
     defer list.deinit(); // Try commenting this out and see if zig detects the memory leak!
     try list.append(42);
     try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-test "use other module" {
-    try std.testing.expectEqual(@as(i32, 150), lib.add(100, 50));
 }
 
 test "fuzz example" {
@@ -37,8 +31,3 @@ test "fuzz example" {
     };
     try std.testing.fuzz(Context{}, Context.testOne, .{});
 }
-
-const std = @import("std");
-
-/// This imports the separate module containing `root.zig`. Take a look in `build.zig` for details.
-const lib = @import("engine_lib");

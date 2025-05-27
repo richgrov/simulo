@@ -40,8 +40,8 @@ fn perception_loop() !void {
     });
     defer camera.deinit();
 
-    var perception = try engine.Perception.init();
-    defer perception.deinit();
+    var inference = try engine.Inference.init();
+    defer inference.deinit();
 
     while (true) {
         const frame_idx = camera.swapBuffers();
@@ -49,8 +49,8 @@ fn perception_loop() !void {
         if (!calibrated) {
             if (ffi.find_chessboard(calibration_frames[frame_idx], chessboardWidth, chessboardHeight, transform)) {
                 camera.setFloatMode([2][*]f32{
-                    perception.input_buffers[0],
-                    perception.input_buffers[1],
+                    inference.input_buffers[0],
+                    inference.input_buffers[1],
                 });
                 calibrated = true;
                 std.log.info("Calibrated", .{});
@@ -58,19 +58,26 @@ fn perception_loop() !void {
             continue;
         }
 
-        const n_dets = try perception.run(frame_idx, &detections);
-        const none = std.math.maxInt(usize);
-        var best_det: usize = none;
-        for (0..@intCast(n_dets)) |i| {
-            const det = detections[i];
-            if (best_det == none or det.score > detections[best_det].score) {
-                best_det = i;
-            }
-        }
+        const n_dets = try inference.run(frame_idx, &detections);
+        for (0..n_dets) |i| {
+            const det = &detections[i];
+            std.log.info("Detection {any} x={d:.2}, y={d:.2}, w={d:.2}, h={d:.2}, s={d:.2}", .{
+                i,
+                det.pos[0],
+                det.pos[1],
+                det.size[0],
+                det.size[1],
+                det.score,
+            });
 
-        if (best_det != none) {
-            const hand = detections[best_det].keypoints[9];
-            std.log.info("{d:.2} {d:.2}", .{ hand.pos[0], hand.pos[1] });
+            for (0..det.keypoints.len) |k| {
+                std.log.info(" {any} {d:.2}, {d:.2}, {d:.2}", .{
+                    k,
+                    det.keypoints[k].pos[0],
+                    det.keypoints[k].pos[1],
+                    det.keypoints[k].score,
+                });
+            }
         }
     }
 }

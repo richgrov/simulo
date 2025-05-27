@@ -91,7 +91,7 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
         "src/geometry/model.cc",
         "src/geometry/shape.cc",
         "src/image/png.cc",
-        "src/perception/perception.cc",
+        "src/inference/calibrate.cc",
         "src/ttf/ttf.cc",
         "src/ui/font.cc",
         "src/ui/ui.cc",
