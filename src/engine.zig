@@ -58,7 +58,8 @@ pub const Perception = struct {
     ort_options: *ort.OrtSessionOptions,
     ort_session: *ort.OrtSession,
     ort_allocator: *ort.OrtAllocator,
-    input_tensor: *ort.OrtValue,
+    input_tensors: [2]*ort.OrtValue,
+    input_buffers: [2][*]f32,
 
     pub fn init() !Perception {
         const ort_api: *const ort.OrtApi = ort.OrtGetApiBase().*.GetApi.?(ort.ORT_API_VERSION);
@@ -97,8 +98,20 @@ pub const Perception = struct {
         try errIfStatus(ort_api.CreateAllocator.?(ort_session, ort_memory_info.?, &ort_allocator), ort_api);
         errdefer ort_api.ReleaseAllocator.?(ort_allocator);
 
-        const input_tensor = try createTensor(ort_api, ort_allocator.?, &[_]i64{ 1, 3, 640, 640 });
-        errdefer ort_api.ReleaseValue.?(input_tensor);
+        var input_tensors: [2]*ort.OrtValue = undefined;
+        var input_buffers: [2][*]f32 = undefined;
+        for (0..2) |i| {
+            const input_tensor = try createTensor(ort_api, ort_allocator.?, &[_]i64{ 1, 3, 640, 640 });
+            errdefer ort_api.ReleaseValue.?(input_tensor);
+            input_tensors[i] = input_tensor;
+
+            var input_data: ?[*]f32 = null;
+            try errIfStatus(ort_api.GetTensorMutableData.?(input_tensor, @ptrCast(&input_data)), ort_api);
+            input_buffers[i] = input_data.?;
+            for (0..640 * 640 * 3) |j| {
+                input_data.?[j] = 114;
+            }
+        }
 
         return Perception{
             .ort_api = ort_api,
@@ -106,29 +119,28 @@ pub const Perception = struct {
             .ort_options = ort_options.?,
             .ort_session = ort_session.?,
             .ort_allocator = ort_allocator.?,
-            .input_tensor = input_tensor,
+            .input_tensors = input_tensors,
+            .input_buffers = input_buffers,
         };
     }
 
     pub fn deinit(self: *Perception) void {
-        self.ort_api.ReleaseValue.?(self.input_tensor);
+        for (self.input_tensors) |input_tensor| {
+            self.ort_api.ReleaseValue.?(input_tensor);
+        }
         self.ort_api.ReleaseAllocator.?(self.ort_allocator);
         self.ort_api.ReleaseSession.?(self.ort_session);
         self.ort_api.ReleaseSessionOptions.?(self.ort_options);
         self.ort_api.ReleaseEnv.?(self.ort_env);
     }
 
-    pub fn run(self: *Perception, img_data: []const f32, outDets: []Detection) !i64 {
-        var input_data: ?[*]f32 = null;
-        try errIfStatus(self.ort_api.GetTensorMutableData.?(self.input_tensor, @ptrCast(&input_data)), self.ort_api);
-        @memcpy(input_data.?, img_data);
-
+    pub fn run(self: *Perception, input_idx: usize, outDets: []Detection) !usize {
         var output_slice = [_]?*ort.OrtValue{ null, null };
         try errIfStatus(self.ort_api.Run.?(
             self.ort_session,
             null,
             &[_][*:0]const u8{"input"},
-            &[_]*ort.OrtValue{self.input_tensor},
+            &[_]*ort.OrtValue{self.input_tensors[input_idx]},
             1,
             &[_][*:0]const u8{ "dets", "keypoints" },
             2,

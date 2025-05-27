@@ -22,35 +22,45 @@ const UiVertex = struct {
 fn perception_loop() !void {
     var detections: [20]engine.Detection = undefined;
     const transform = ffi.create_opencv_mat(3, 3);
-    const bframe = ffi.create_opencv_mat(480, 640);
-    defer ffi.destroy_opencv_mat(bframe);
-    var fframe: [640 * 640 * 3]f32 = undefined;
-    @memset(&fframe, 114);
+
+    const calibration_frames = [2]*ffi.OpenCvMat{
+        ffi.create_opencv_mat(480, 640).?,
+        ffi.create_opencv_mat(480, 640).?,
+    };
+
+    defer ffi.destroy_opencv_mat(calibration_frames[0]);
+    defer ffi.destroy_opencv_mat(calibration_frames[1]);
+    defer ffi.destroy_opencv_mat(transform);
+
     var calibrated = false;
 
-    var camera = try engine.Camera.init(@ptrCast(ffi.get_opencv_mat_data(bframe)));
+    var camera = try engine.Camera.init([2][*]u8{
+        ffi.get_opencv_mat_data(calibration_frames[0]),
+        ffi.get_opencv_mat_data(calibration_frames[1]),
+    });
     defer camera.deinit();
 
     var perception = try engine.Perception.init();
     defer perception.deinit();
 
     while (true) {
-        std.Thread.yield() catch {}; // temporary work around to prevent locking the frame permanently
-        camera.lockFrame();
-        defer camera.unlockFrame();
+        const frame_idx = camera.swapBuffers();
 
         std.log.info("{any} {any}", .{ std.time.milliTimestamp(), calibrated });
 
         if (!calibrated) {
-            if (ffi.find_chessboard(bframe, chessboardWidth, chessboardHeight, transform)) {
-                camera.setFloatMode(&fframe);
+            if (ffi.find_chessboard(calibration_frames[frame_idx], chessboardWidth, chessboardHeight, transform)) {
+                camera.setFloatMode([2][*]f32{
+                    perception.input_buffers[0],
+                    perception.input_buffers[1],
+                });
                 calibrated = true;
                 std.log.info("Calibrated", .{});
             }
             continue;
         }
 
-        const n_dets = try perception.run(&fframe, &detections);
+        const n_dets = try perception.run(frame_idx, &detections);
         const none = std.math.maxInt(usize);
         var best_det: usize = none;
         for (0..@intCast(n_dets)) |i| {

@@ -1,3 +1,4 @@
+#include <array>
 #include <atomic>
 #include <cstring>
 #include <mutex>
@@ -16,31 +17,26 @@
 #include "../ffi.h"
 
 @interface SimuloCameraDelegate : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate>
-- (instancetype)init:(void *)out;
+- (instancetype)init:(std::array<void *, 2>)buffers_;
 - (void)captureOutput:(AVCaptureOutput *)output
     didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
            fromConnection:(AVCaptureConnection *)connection;
-- (bool)hasNewFrame;
-- (void)resetNewFrameFlag;
-- (void)setFloatMode:(float *)out;
-- (void)lockFrame;
-- (void)unlockFrame;
+- (void)setFloatMode:(std::array<void *, 2>)buffers_;
+- (int)swapBuffers;
 
 @end
 
 @implementation SimuloCameraDelegate {
-   void *out;
-   bool float_mode;
-   std::mutex imageMutex;
-   std::atomic<bool> newFrameAvailable;
+   std::array<void *, 2> buffers;
+   std::atomic_bool float_mode;
+   std::atomic_bool buffer_written;
+   std::atomic_int buffer;
 }
 
-- (instancetype)init:(void *)out_ {
+- (instancetype)init:(std::array<void *, 2>)buffers_ {
    self = [super init];
    if (self) {
-      newFrameAvailable = false;
-      out = out_;
-      float_mode = false;
+      buffers = buffers_;
    }
    return self;
 }
@@ -48,6 +44,10 @@
 - (void)captureOutput:(AVCaptureOutput *)output
     didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
            fromConnection:(AVCaptureConnection *)connection {
+
+   if (buffer_written) {
+      return;
+   }
 
    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
    CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
@@ -57,50 +57,43 @@
    size_t width = CVPixelBufferGetWidth(imageBuffer);
    size_t height = CVPixelBufferGetHeight(imageBuffer);
 
-   {
-      std::lock_guard<std::mutex> lock(imageMutex);
-      if (float_mode) {
-         // Convert from HxWxC uchar to CxHxW float
-         auto outf = reinterpret_cast<float *>(out);
-         size_t channel_size = height * width;
-         for (int y = 0; y < height; ++y) {
-            for (int x = 0; x < width; ++x) {
-               unsigned char *pixel = &baseAddress[y * width * 3 + x * 3];
-               size_t ch_stride = 640 * 640;
-               int new_y = (640 - 480) / 2 + y;
-               outf[ch_stride * 0 + new_y * width + x] = pixel[0];
-               outf[ch_stride * 1 + new_y * width + x] = pixel[1];
-               outf[ch_stride * 2 + new_y * width + x] = pixel[2];
-            }
+   int buf_idx = buffer % 2;
+
+   if (float_mode) {
+      // Convert from HxWxC uchar to CxHxW float
+      auto outf = reinterpret_cast<float *>(buffers[buf_idx]);
+      size_t channel_size = height * width;
+      for (int y = 0; y < height; ++y) {
+         for (int x = 0; x < width; ++x) {
+            unsigned char *pixel = &baseAddress[y * width * 3 + x * 3];
+            size_t ch_stride = 640 * 640;
+            int new_y = (640 - 480) / 2 + y;
+            outf[ch_stride * 0 + new_y * width + x] = pixel[0];
+            outf[ch_stride * 1 + new_y * width + x] = pixel[1];
+            outf[ch_stride * 2 + new_y * width + x] = pixel[2];
          }
-      } else {
-         std::memcpy(out, baseAddress, height * bytesPerRow);
       }
-      newFrameAvailable = true;
+   } else {
+      std::memcpy(buffers[buf_idx], baseAddress, height * bytesPerRow);
    }
+
+   buffer_written = true;
+   buffer_written.notify_one();
 
    CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
 }
 
-- (bool)hasNewFrame {
-   return newFrameAvailable.load();
-}
-
-- (void)resetNewFrameFlag {
-   newFrameAvailable.store(false);
-}
-
-- (void)setFloatMode:(float *)out_ {
+- (void)setFloatMode:(std::array<void *, 2>)buffers_ {
    float_mode = true;
-   out = out_;
+   buffers = buffers_;
 }
 
-- (void)lockFrame {
-   imageMutex.lock();
-}
-
-- (void)unlockFrame {
-   imageMutex.unlock();
+- (int)swapBuffers {
+   buffer_written.wait(false);
+   int ready_buf = buffer % 2;
+   buffer++;
+   buffer_written = false;
+   return ready_buf;
 }
 
 @end
@@ -141,7 +134,7 @@ AVCaptureDevice *find_camera() {
 
 extern "C" {
 
-bool init_camera(Camera *camera, unsigned char *out) {
+bool init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf_b) {
    AVCaptureSession *captureSession;
 
    @autoreleasepool {
@@ -177,7 +170,7 @@ bool init_camera(Camera *camera, unsigned char *out) {
          (id)kCVPixelBufferHeightKey : @(480),
       }];
 
-      camera->delegate = [[SimuloCameraDelegate alloc] init:out];
+      camera->delegate = [[SimuloCameraDelegate alloc] init:std::array<void *, 2>{buf_a, buf_b}];
       dispatch_queue_t queue = dispatch_queue_create("com.simulo.cameraQueue", NULL);
       [output setSampleBufferDelegate:camera->delegate queue:queue];
 
@@ -200,16 +193,12 @@ void destroy_camera(Camera *camera) {
    camera->delegate = nil;
 }
 
-void set_camera_float_mode(Camera *camera, float *out) {
-   [camera->delegate setFloatMode:out];
+void set_camera_float_mode(Camera *camera, float *buf_a, float *buf_b) {
+   [camera->delegate setFloatMode:std::array<void *, 2>{buf_a, buf_b}];
 }
 
-void lock_camera_frame(Camera *camera) {
-   [camera->delegate lockFrame];
-}
-
-void unlock_camera_frame(Camera *camera) {
-   [camera->delegate unlockFrame];
+int swap_camera_buffers(Camera *camera) {
+   return [camera->delegate swapBuffers];
 }
 
 } // extern "C"
