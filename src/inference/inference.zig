@@ -2,6 +2,9 @@ const builtin = @import("builtin");
 const std = @import("std");
 
 const ort = @import("onnxruntime.zig");
+const ffi = @cImport({
+    @cInclude("ffi.h");
+});
 
 const rtmo = @embedFile("rtmo-m.onnx");
 

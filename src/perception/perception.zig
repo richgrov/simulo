@@ -19,9 +19,15 @@ const UiVertex = struct {
     tex_coord: Vec2,
 };
 
+fn perspective_transform(x: f32, y: f32, transform: *ffi.OpenCvMat) @Vector(2, f32) {
+    const real_y = (y - (640 - 480) / 2);
+    const res = ffi.perspective_transform(x, real_y, transform);
+    return @Vector(2, f32){ res.x, res.y };
+}
+
 fn perception_loop() !void {
     var detections: [20]engine.Detection = undefined;
-    const transform = ffi.create_opencv_mat(3, 3);
+    const transform = ffi.create_opencv_mat(3, 3).?;
 
     const calibration_frames = [2]*ffi.OpenCvMat{
         ffi.create_opencv_mat(480, 640).?,
@@ -61,20 +67,23 @@ fn perception_loop() !void {
         const n_dets = try inference.run(frame_idx, &detections);
         for (0..n_dets) |i| {
             const det = &detections[i];
+            const pos = perspective_transform(det.pos[0], det.pos[1], transform);
+            const size = perspective_transform(det.size[0], det.size[1], transform);
             std.log.info("Detection {any} x={d:.2}, y={d:.2}, w={d:.2}, h={d:.2}, s={d:.2}", .{
                 i,
-                det.pos[0],
-                det.pos[1],
-                det.size[0],
-                det.size[1],
+                pos[0],
+                pos[1],
+                size[0],
+                size[1],
                 det.score,
             });
 
             for (0..det.keypoints.len) |k| {
+                const kp_pos = perspective_transform(det.keypoints[k].pos[0], det.keypoints[k].pos[1], transform);
                 std.log.info(" {any} {d:.2}, {d:.2}, {d:.2}", .{
                     k,
-                    det.keypoints[k].pos[0],
-                    det.keypoints[k].pos[1],
+                    kp_pos[0],
+                    kp_pos[1],
                     det.keypoints[k].score,
                 });
             }

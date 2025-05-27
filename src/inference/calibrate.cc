@@ -55,8 +55,8 @@ bool find_chessboard(
    return true;
 }
 
-FfiVec2 perspective_transform(FfiVec2 point, OpenCvMat *transform) {
-   std::vector<cv::Point2f> keypoints = {{point.x, point.y}};
+FfiVec2 perspective_transform(float x, float y, OpenCvMat *transform) {
+   std::vector<cv::Point2f> keypoints = {{x, y}};
    std::vector<cv::Point2f> transformed_keypoints;
    cv::perspectiveTransform(keypoints, transformed_keypoints, *transform);
    return {transformed_keypoints[0].x, transformed_keypoints[0].y};

@@ -97,7 +97,7 @@ unsigned char *get_opencv_mat_data(OpenCvMat *mat);
 bool find_chessboard(
     OpenCvMat *mat, int pattern_width, int pattern_height, OpenCvMat *out_transform
 );
-FfiVec2 perspective_transform(FfiVec2 point, OpenCvMat *transform);
+FfiVec2 perspective_transform(float x, float y, OpenCvMat *transform);
 
 Renderer *create_renderer(Gpu *gpu, const Window *window);
 void destroy_renderer(Renderer *renderer);
