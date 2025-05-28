@@ -1,6 +1,8 @@
+const std = @import("std");
+
 const engine = @import("engine");
 
-const gd = @cImport({
+pub const gd = @cImport({
     @cInclude("godot/godot-cpp/gdextension/gdextension_interface.h");
 });
 
@@ -8,123 +10,140 @@ comptime {
     _ = engine;
 }
 
-var variant_get_ptr_destructor: gd.GDExtensionInterfaceVariantGetPtrDestructor = undefined;
-var classdb_construct_object: gd.GDExtensionInterfaceClassdbConstructObject = undefined;
-var classdb_register_extension_class2: gd.GDExtensionInterfaceClassdbRegisterExtensionClass2 = undefined;
-var string_name_new_with_latin1_chars: gd.GDExtensionInterfaceStringNameNewWithLatin1Chars = undefined;
-var object_set_instance: gd.GDExtensionInterfaceObjectSetInstance = undefined;
-var object_set_instance_binding: gd.GDExtensionInterfaceObjectSetInstanceBinding = undefined;
-var mem_alloc: gd.GDExtensionInterfaceMemAlloc = undefined;
-var mem_free: gd.GDExtensionInterfaceMemFree = undefined;
-var string_name_destructor: gd.GDExtensionPtrDestructor = undefined;
-
-const GdPerception = struct {
-    object: gd.GDExtensionObjectPtr,
-};
-
-const gd_perception_callbacks = gd.GDExtensionInstanceBindingCallbacks{
-    .create_callback = null,
-    .free_callback = null,
-    .reference_callback = null,
-};
-
-var gd_class_library: ?*anyopaque = undefined;
-
-fn createPerception2d(data: ?*anyopaque) callconv(.C) gd.GDExtensionObjectPtr {
-    _ = data;
-
-    var parent_class_name: StringName = undefined;
-    string_name_new_with_latin1_chars.?(&parent_class_name, "Node2D", 0);
-    defer string_name_destructor.?(&parent_class_name);
-    const object: gd.GDExtensionObjectPtr = classdb_construct_object.?(&parent_class_name);
-
-    var gd_perception: *GdPerception = @alignCast(@ptrCast(mem_alloc.?(@sizeOf(GdPerception)).?));
-    gd_perception.object = object;
-
-    var class_name: StringName = undefined;
-    string_name_new_with_latin1_chars.?(&class_name, "Perception2D", 0);
-    defer string_name_destructor.?(&class_name);
-
-    object_set_instance.?(object, &class_name, gd_perception);
-    object_set_instance_binding.?(object, gd_class_library, gd_perception, &gd_perception_callbacks);
-
-    return object;
-}
-
-fn freePerception2d(data: ?*anyopaque, instance: gd.GDExtensionClassInstancePtr) callconv(.C) void {
-    _ = data;
-
-    if (instance == null) {
-        return;
-    }
-    const gd_perception: *GdPerception = @alignCast(@ptrCast(instance));
-    mem_free.?(gd_perception);
-}
-
-fn initModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callconv(.C) void {
-    _ = data;
-    _ = level;
-}
-
-fn deinitModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callconv(.C) void {
-    _ = data;
-    _ = level;
-}
-
+const String = usize;
 const StringName = usize;
 
-export fn perception_extension_init(
-    get_proc_address: gd.GDExtensionInterfaceGetProcAddress,
-    lib: gd.GDExtensionClassLibraryPtr,
-    init: *gd.GDExtensionInitialization,
-) callconv(.C) void {
+const PropertyUsage = enum(u32) {
+    none = 0,
+    storage = 2,
+    editor = 4,
+    default = .storage | .editor,
+};
+
+pub var variant_get_ptr_destructor: gd.GDExtensionInterfaceVariantGetPtrDestructor = undefined;
+pub var classdb_construct_object: gd.GDExtensionInterfaceClassdbConstructObject = undefined;
+pub var classdb_register_extension_class2: gd.GDExtensionInterfaceClassdbRegisterExtensionClass2 = undefined;
+pub var classdb_register_extension_class_method: gd.GDExtensionInterfaceClassdbRegisterExtensionClassMethod = undefined;
+pub var object_set_instance: gd.GDExtensionInterfaceObjectSetInstance = undefined;
+pub var object_set_instance_binding: gd.GDExtensionInterfaceObjectSetInstanceBinding = undefined;
+pub var mem_alloc: gd.GDExtensionInterfaceMemAlloc = undefined;
+pub var mem_free: gd.GDExtensionInterfaceMemFree = undefined;
+pub var string_new_with_utf8_chars: gd.GDExtensionInterfaceStringNewWithUtf8Chars = undefined;
+pub var string_name_new_with_latin1_chars: gd.GDExtensionInterfaceStringNameNewWithLatin1Chars = undefined;
+pub var string_destructor: gd.GDExtensionPtrDestructor = undefined;
+pub var string_name_destructor: gd.GDExtensionPtrDestructor = undefined;
+
+pub var class_lib: ?*anyopaque = undefined;
+
+pub fn initFunctions(get_proc_address: gd.GDExtensionInterfaceGetProcAddress, lib: gd.GDExtensionClassLibraryPtr) void {
     const getProcAddress = get_proc_address.?;
     variant_get_ptr_destructor = @ptrCast(getProcAddress("variant_get_ptr_destructor"));
     classdb_construct_object = @ptrCast(getProcAddress("classdb_construct_object"));
     classdb_register_extension_class2 = @ptrCast(getProcAddress("classdb_register_extension_class2"));
-    string_name_new_with_latin1_chars = @ptrCast(getProcAddress("string_name_new_with_latin1_chars"));
+    classdb_register_extension_class_method = @ptrCast(getProcAddress("classdb_register_extension_class_method"));
     object_set_instance = @ptrCast(getProcAddress("object_set_instance"));
     object_set_instance_binding = @ptrCast(getProcAddress("object_set_instance_binding"));
     mem_alloc = @ptrCast(getProcAddress("mem_alloc"));
     mem_free = @ptrCast(getProcAddress("mem_free"));
+    string_new_with_utf8_chars = @ptrCast(getProcAddress("string_new_with_utf8_chars"));
+    string_name_new_with_latin1_chars = @ptrCast(getProcAddress("string_name_new_with_latin1_chars"));
+    string_destructor = variant_get_ptr_destructor.?(gd.GDEXTENSION_VARIANT_TYPE_STRING);
     string_name_destructor = variant_get_ptr_destructor.?(gd.GDEXTENSION_VARIANT_TYPE_STRING_NAME);
 
-    gd_class_library = lib;
+    class_lib = lib;
+}
 
-    var class_name: StringName = undefined;
-    string_name_new_with_latin1_chars.?(&class_name, "Perception2D", 0);
-    defer string_name_destructor.?(&class_name);
-    var parent_class_name: StringName = undefined;
-    string_name_new_with_latin1_chars.?(&parent_class_name, "Node2D", 0);
-    defer string_name_destructor.?(&parent_class_name);
+pub fn createString(utf8: []const u8) String {
+    const string: *String = mem_alloc(@sizeOf(String));
+    string_new_with_utf8_chars(string, utf8);
+    return string;
+}
 
-    const class_info = gd.GDExtensionClassCreationInfo2{
-        .is_virtual = 0,
-        .is_abstract = 0,
-        .is_exposed = 1,
-        .set_func = null,
-        .get_func = null,
-        .get_property_list_func = null,
-        .free_property_list_func = null,
-        .property_can_revert_func = null,
-        .property_get_revert_func = null,
-        .validate_property_func = null,
-        .notification_func = null,
-        .to_string_func = null,
-        .reference_func = null,
-        .unreference_func = null,
-        .create_instance_func = createPerception2d,
-        .free_instance_func = freePerception2d,
-        .recreate_instance_func = null,
-        .get_virtual_func = null,
-        .get_virtual_call_data_func = null,
-        .call_virtual_with_data_func = null,
-        .get_rid_func = null,
-        .class_userdata = null,
+pub fn createStringName(latin1: []const u8) StringName {
+    var string_name: StringName = undefined;
+    string_name_new_with_latin1_chars.?(&string_name, @ptrCast(latin1), 0);
+    return string_name;
+}
+
+pub fn registerMethod(class_name: []const u8, method_name: []const u8, comptime function: anytype) void {
+    var class_str = createStringName(class_name);
+    defer string_name_destructor.?(&class_str);
+
+    var method_str = createStringName(method_name);
+    defer string_name_destructor.?(&method_str);
+
+    const func_info = @typeInfo(@TypeOf(function));
+    const params = func_info.@"fn".params;
+    const return_ty = func_info.@"fn".return_type.?;
+    const has_return = switch (@typeInfo(return_ty)) {
+        std.builtin.Type.void => false,
+        else => true,
     };
-    classdb_register_extension_class2.?(lib, &class_name, &parent_class_name, &class_info);
 
-    init.initialize = initModule;
-    init.deinitialize = deinitModule;
-    init.minimum_initialization_level = gd.GDEXTENSION_INITIALIZATION_SCENE;
+    var return_info: ?*gd.GDExtensionPropertyInfo = null;
+    if (has_return) {
+        return_info = gd.GDExtensionPropertyInfo{
+            .name = createStringName(""),
+            .type = switch (return_ty) {
+                std.builtin.Type.Struct => gd.GDEXTENSION_VARIANT_TYPE_OBJECT,
+                else => @compileError("return type " ++ @typeName(return_ty) ++ " not supported"),
+            },
+            .hint = 0,
+            .hint_string = createString(""),
+            .class_name = createString(""),
+            .usage = PropertyUsage.default,
+        };
+    }
+
+    defer if (has_return) {
+        string_name_destructor.?(&return_info.name);
+        string_destructor.?(&return_info.hint_string);
+        string_destructor.?(&return_info.class_name);
+    };
+
+    const Functions = struct {
+        fn ptrfunc(
+            data: ?*anyopaque,
+            instance: gd.GDExtensionClassInstancePtr,
+            args: [*c]const gd.GDExtensionConstTypePtr,
+            ret: gd.GDExtensionTypePtr,
+        ) callconv(.C) void {
+            _ = data;
+            _ = instance;
+            _ = args;
+            _ = ret;
+            function();
+        }
+
+        fn func(
+            data: ?*anyopaque,
+            instance: gd.GDExtensionClassInstancePtr,
+            argv: [*c]const gd.GDExtensionConstVariantPtr,
+            argc: gd.GDExtensionInt,
+            ret: gd.GDExtensionVariantPtr,
+            ret_error: [*c]gd.GDExtensionCallError,
+        ) callconv(.C) void {
+            _ = data;
+            _ = instance;
+            _ = argv;
+            _ = argc;
+            _ = ret;
+            _ = ret_error;
+            function();
+        }
+    };
+
+    const method_info = gd.GDExtensionClassMethodInfo{
+        .name = &method_str,
+        .method_userdata = @constCast(@ptrCast(&function)),
+        .call_func = Functions.func,
+        .ptrcall_func = Functions.ptrfunc,
+        .method_flags = gd.GDEXTENSION_METHOD_FLAGS_DEFAULT,
+        .has_return_value = if (has_return) 1 else 0,
+        .return_value_info = return_info,
+        .arguments_metadata = gd.GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE,
+        .argument_count = @intCast(params.len),
+    };
+
+    classdb_register_extension_class_method.?(class_lib, &class_str, &method_info);
 }
