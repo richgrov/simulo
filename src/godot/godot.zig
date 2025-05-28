@@ -1,4 +1,5 @@
 const std = @import("std");
+const Type = std.builtin.Type;
 
 const engine = @import("engine");
 
@@ -18,6 +19,7 @@ const PropertyUsageStorage = 2;
 const PropertyUsageEditor = 4;
 const PropertyUsageDefault = PropertyUsageStorage | PropertyUsageEditor;
 
+pub var get_variant_from_type_constructor: gd.GDExtensionInterfaceGetVariantFromTypeConstructor = undefined;
 pub var variant_get_ptr_destructor: gd.GDExtensionInterfaceVariantGetPtrDestructor = undefined;
 pub var classdb_construct_object2: gd.GDExtensionInterfaceClassdbConstructObject2 = undefined;
 pub var classdb_register_extension_class2: gd.GDExtensionInterfaceClassdbRegisterExtensionClass2 = undefined;
@@ -28,6 +30,9 @@ pub var mem_alloc: gd.GDExtensionInterfaceMemAlloc = undefined;
 pub var mem_free: gd.GDExtensionInterfaceMemFree = undefined;
 pub var string_new_with_utf8_chars: gd.GDExtensionInterfaceStringNewWithUtf8Chars = undefined;
 pub var string_name_new_with_latin1_chars: gd.GDExtensionInterfaceStringNameNewWithLatin1Chars = undefined;
+pub var float_constructor: gd.GDExtensionVariantFromTypeConstructorFunc = undefined;
+pub var object_constructor: gd.GDExtensionVariantFromTypeConstructorFunc = undefined;
+pub var vector2_constructor: gd.GDExtensionVariantFromTypeConstructorFunc = undefined;
 pub var string_destructor: gd.GDExtensionPtrDestructor = undefined;
 pub var string_name_destructor: gd.GDExtensionPtrDestructor = undefined;
 
@@ -41,6 +46,7 @@ const gd_callbacks = gd.GDExtensionInstanceBindingCallbacks{
 
 pub fn initFunctions(get_proc_address: gd.GDExtensionInterfaceGetProcAddress, lib: gd.GDExtensionClassLibraryPtr) void {
     const getProcAddress = get_proc_address.?;
+    get_variant_from_type_constructor = @ptrCast(getProcAddress("get_variant_from_type_constructor"));
     variant_get_ptr_destructor = @ptrCast(getProcAddress("variant_get_ptr_destructor"));
     classdb_construct_object2 = @ptrCast(getProcAddress("classdb_construct_object2"));
     classdb_register_extension_class2 = @ptrCast(getProcAddress("classdb_register_extension_class2"));
@@ -51,6 +57,9 @@ pub fn initFunctions(get_proc_address: gd.GDExtensionInterfaceGetProcAddress, li
     mem_free = @ptrCast(getProcAddress("mem_free"));
     string_new_with_utf8_chars = @ptrCast(getProcAddress("string_new_with_utf8_chars"));
     string_name_new_with_latin1_chars = @ptrCast(getProcAddress("string_name_new_with_latin1_chars"));
+    float_constructor = get_variant_from_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_FLOAT);
+    object_constructor = get_variant_from_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_OBJECT);
+    vector2_constructor = get_variant_from_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_VECTOR2);
     string_destructor = variant_get_ptr_destructor.?(gd.GDEXTENSION_VARIANT_TYPE_STRING);
     string_name_destructor = variant_get_ptr_destructor.?(gd.GDEXTENSION_VARIANT_TYPE_STRING_NAME);
 
@@ -152,10 +161,17 @@ pub fn registerClass(
         };
 
         const return_ty = func_info.return_type.?;
-        const return_type =
+        const return_type: ?c_uint =
             switch (@typeInfo(return_ty)) {
-                std.builtin.Type.void => null,
+                Type.void => null,
+
+                Type.float => |float| if (float.bits == 64)
+                    gd.GDEXTENSION_VARIANT_TYPE_FLOAT
+                else
+                    @compileError("only 64-bit float return types are supported"),
+
                 std.builtin.Type.@"struct" => gd.GDEXTENSION_VARIANT_TYPE_OBJECT,
+
                 else => @compileError("return type " ++ @typeName(return_ty) ++ " not supported"),
             };
 
@@ -169,8 +185,12 @@ pub fn registerClass(
                 _ = data;
                 _ = instance;
                 _ = args;
-                _ = ret;
-                func();
+                if (return_type) |_| {
+                    const ret_ptr: *return_ty = @alignCast(@ptrCast(ret));
+                    ret_ptr.* = func();
+                } else {
+                    func();
+                }
             }
 
             fn call(
@@ -185,9 +205,17 @@ pub fn registerClass(
                 _ = instance;
                 _ = argv;
                 _ = argc;
-                _ = ret;
                 _ = ret_error;
-                func();
+                switch (@typeInfo(return_ty)) {
+                    Type.void => {
+                        func();
+                    },
+                    Type.float => {
+                        const result = func();
+                        float_constructor.?(ret, @constCast(@ptrCast(&result)));
+                    },
+                    else => unreachable,
+                }
             }
         };
 

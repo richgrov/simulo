@@ -1,6 +1,14 @@
 const godot = @import("godot.zig");
 const gd = godot.gd;
 
+const Detection = struct {
+    object: gd.GDExtensionObjectPtr,
+
+    pub fn confidence() f64 {
+        return 1.69;
+    }
+};
+
 const Perception2D = struct {
     object: gd.GDExtensionObjectPtr,
 
@@ -13,6 +21,7 @@ fn initModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callc
     }
     _ = data;
 
+    godot.registerClass(Detection, "Node");
     godot.registerClass(Perception2D, "Node2D");
 }
 
