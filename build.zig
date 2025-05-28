@@ -20,7 +20,7 @@ pub fn build(b: *std.Build) void {
     setupExecutable(b, editor);
     editor.root_module.addImport("engine", engine);
 
-    bundle(b, editor, "simulo");
+    bundleExe(b, editor, "simulo");
     if (usesVulkan(os)) {
         editor.step.dependOn(embedVkShader(b, "src/shader/text.vert"));
         editor.step.dependOn(embedVkShader(b, "src/shader/text.frag"));
@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) void {
     perception_test.root_module.addImport("engine", engine);
     perception_test.linkSystemLibrary("onnxruntime");
     perception_test.linkSystemLibrary("opencv4");
-    bundle(b, perception_test, "perception");
+    bundleExe(b, perception_test, "perception");
 }
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
@@ -48,7 +48,7 @@ fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     return &run.step;
 }
 
-fn bundle(b: *std.Build, exe: *std.Build.Step.Compile, comptime name: []const u8) void {
+fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, comptime name: []const u8) void {
     const install_exe = b.addInstallArtifact(exe, .{
         .dest_dir = .{
             .override = .{
