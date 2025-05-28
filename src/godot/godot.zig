@@ -19,7 +19,7 @@ const PropertyUsageEditor = 4;
 const PropertyUsageDefault = PropertyUsageStorage | PropertyUsageEditor;
 
 pub var variant_get_ptr_destructor: gd.GDExtensionInterfaceVariantGetPtrDestructor = undefined;
-pub var classdb_construct_object: gd.GDExtensionInterfaceClassdbConstructObject = undefined;
+pub var classdb_construct_object2: gd.GDExtensionInterfaceClassdbConstructObject2 = undefined;
 pub var classdb_register_extension_class2: gd.GDExtensionInterfaceClassdbRegisterExtensionClass2 = undefined;
 pub var classdb_register_extension_class_method: gd.GDExtensionInterfaceClassdbRegisterExtensionClassMethod = undefined;
 pub var object_set_instance: gd.GDExtensionInterfaceObjectSetInstance = undefined;
@@ -33,10 +33,16 @@ pub var string_name_destructor: gd.GDExtensionPtrDestructor = undefined;
 
 pub var class_lib: ?*anyopaque = undefined;
 
+const gd_callbacks = gd.GDExtensionInstanceBindingCallbacks{
+    .create_callback = null,
+    .free_callback = null,
+    .reference_callback = null,
+};
+
 pub fn initFunctions(get_proc_address: gd.GDExtensionInterfaceGetProcAddress, lib: gd.GDExtensionClassLibraryPtr) void {
     const getProcAddress = get_proc_address.?;
     variant_get_ptr_destructor = @ptrCast(getProcAddress("variant_get_ptr_destructor"));
-    classdb_construct_object = @ptrCast(getProcAddress("classdb_construct_object"));
+    classdb_construct_object2 = @ptrCast(getProcAddress("classdb_construct_object2"));
     classdb_register_extension_class2 = @ptrCast(getProcAddress("classdb_register_extension_class2"));
     classdb_register_extension_class_method = @ptrCast(getProcAddress("classdb_register_extension_class_method"));
     object_set_instance = @ptrCast(getProcAddress("object_set_instance"));
@@ -65,9 +71,7 @@ pub fn createStringName(latin1: []const u8) StringName {
 
 pub fn registerClass(
     Class: type,
-    parent: []const u8,
-    on_create: gd.GDExtensionClassCreateInstance,
-    on_destroy: gd.GDExtensionClassFreeInstance,
+    comptime parent: []const u8,
 ) void {
     const qualified_name = @typeName(Class);
     const dot_index = comptime std.mem.lastIndexOf(u8, qualified_name, ".") orelse 0;
@@ -77,6 +81,37 @@ pub fn registerClass(
     defer string_name_destructor.?(&class_name);
     var parent_class_name = createStringName(parent);
     defer string_name_destructor.?(&parent_class_name);
+
+    const Lifecycle = struct {
+        fn create(data: ?*anyopaque) callconv(.C) gd.GDExtensionObjectPtr {
+            _ = data;
+
+            var parent_class = createStringName(parent);
+            defer string_name_destructor.?(&parent_class);
+            const object: gd.GDExtensionObjectPtr = classdb_construct_object2.?(&parent_class);
+
+            var self: *Class = @alignCast(@ptrCast(mem_alloc.?(@sizeOf(Class)).?));
+            self.object = object;
+
+            var class = createStringName(struct_name);
+            defer string_name_destructor.?(&class);
+            object_set_instance.?(object, &class, self);
+            object_set_instance_binding.?(object, class_lib, self, &gd_callbacks);
+
+            return object;
+        }
+
+        fn free(data: ?*anyopaque, instance: gd.GDExtensionClassInstancePtr) callconv(.C) void {
+            _ = data;
+
+            if (instance == null) {
+                return;
+            }
+
+            const gd_perception: *Class = @alignCast(@ptrCast(instance));
+            mem_free.?(gd_perception);
+        }
+    };
 
     const class_info = gd.GDExtensionClassCreationInfo2{
         .is_virtual = 0,
@@ -93,8 +128,8 @@ pub fn registerClass(
         .to_string_func = null,
         .reference_func = null,
         .unreference_func = null,
-        .create_instance_func = on_create,
-        .free_instance_func = on_destroy,
+        .create_instance_func = Lifecycle.create,
+        .free_instance_func = Lifecycle.free,
         .recreate_instance_func = null,
         .get_virtual_func = null,
         .get_virtual_call_data_func = null,
