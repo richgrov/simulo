@@ -28,7 +28,6 @@ fn createPerception2d(data: ?*anyopaque) callconv(.C) gd.GDExtensionObjectPtr {
 
     godot.object_set_instance.?(object, &class_name, gd_perception);
     godot.object_set_instance_binding.?(object, godot.class_lib, gd_perception, &gd_perception_callbacks);
-    godot.registerMethod("Perception2D", "detect", GdPerception.detect);
 
     return object;
 }
@@ -44,21 +43,10 @@ fn freePerception2d(data: ?*anyopaque, instance: gd.GDExtensionClassInstancePtr)
 }
 
 fn initModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callconv(.C) void {
+    if (level != gd.GDEXTENSION_INITIALIZATION_SCENE) {
+        return;
+    }
     _ = data;
-    _ = level;
-}
-
-fn deinitModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callconv(.C) void {
-    _ = data;
-    _ = level;
-}
-
-export fn perception_extension_init(
-    get_proc_address: gd.GDExtensionInterfaceGetProcAddress,
-    lib: gd.GDExtensionClassLibraryPtr,
-    init: *gd.GDExtensionInitialization,
-) callconv(.C) void {
-    godot.initFunctions(get_proc_address, lib);
 
     var class_name = godot.createStringName("Perception2D");
     defer godot.string_name_destructor.?(&class_name);
@@ -89,7 +77,21 @@ export fn perception_extension_init(
         .get_rid_func = null,
         .class_userdata = null,
     };
-    godot.classdb_register_extension_class2.?(lib, &class_name, &parent_class_name, &class_info);
+    godot.classdb_register_extension_class2.?(godot.class_lib, &class_name, &parent_class_name, &class_info);
+    godot.registerMethod("Perception2D", "detect", GdPerception.detect);
+}
+
+fn deinitModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callconv(.C) void {
+    _ = data;
+    _ = level;
+}
+
+export fn perception_extension_init(
+    get_proc_address: gd.GDExtensionInterfaceGetProcAddress,
+    lib: gd.GDExtensionClassLibraryPtr,
+    init: *gd.GDExtensionInitialization,
+) callconv(.C) void {
+    godot.initFunctions(get_proc_address, lib);
 
     init.initialize = initModule;
     init.deinitialize = deinitModule;
