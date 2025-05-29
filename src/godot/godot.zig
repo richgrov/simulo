@@ -157,7 +157,7 @@ pub fn registerClass(
         const func = @field(Class, func_decl.name);
         const func_info = switch (@typeInfo(@TypeOf(func))) {
             std.builtin.Type.@"fn" => |f| f,
-            else => @compileError("can't register non-struct"),
+            else => continue,
         };
 
         const return_ty = func_info.return_type.?;
