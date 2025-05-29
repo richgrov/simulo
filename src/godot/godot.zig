@@ -20,21 +20,28 @@ const PropertyUsageEditor = 4;
 const PropertyUsageDefault = PropertyUsageStorage | PropertyUsageEditor;
 
 pub var get_variant_from_type_constructor: gd.GDExtensionInterfaceGetVariantFromTypeConstructor = undefined;
+pub var get_variant_to_type_constructor: gd.GDExtensionInterfaceGetVariantToTypeConstructor = undefined;
 pub var variant_get_ptr_destructor: gd.GDExtensionInterfaceVariantGetPtrDestructor = undefined;
 pub var classdb_construct_object2: gd.GDExtensionInterfaceClassdbConstructObject2 = undefined;
 pub var classdb_register_extension_class2: gd.GDExtensionInterfaceClassdbRegisterExtensionClass2 = undefined;
 pub var classdb_register_extension_class_method: gd.GDExtensionInterfaceClassdbRegisterExtensionClassMethod = undefined;
 pub var object_set_instance: gd.GDExtensionInterfaceObjectSetInstance = undefined;
 pub var object_set_instance_binding: gd.GDExtensionInterfaceObjectSetInstanceBinding = undefined;
+pub var object_get_instance_binding: gd.GDExtensionInterfaceObjectGetInstanceBinding = undefined;
 pub var mem_alloc: gd.GDExtensionInterfaceMemAlloc = undefined;
 pub var mem_free: gd.GDExtensionInterfaceMemFree = undefined;
 pub var string_new_with_utf8_chars: gd.GDExtensionInterfaceStringNewWithUtf8Chars = undefined;
 pub var string_name_new_with_latin1_chars: gd.GDExtensionInterfaceStringNameNewWithLatin1Chars = undefined;
+pub var int_constructor: gd.GDExtensionVariantFromTypeConstructorFunc = undefined;
+pub var bool_constructor: gd.GDExtensionVariantFromTypeConstructorFunc = undefined;
 pub var float_constructor: gd.GDExtensionVariantFromTypeConstructorFunc = undefined;
 pub var object_constructor: gd.GDExtensionVariantFromTypeConstructorFunc = undefined;
 pub var vector2_constructor: gd.GDExtensionVariantFromTypeConstructorFunc = undefined;
 pub var string_destructor: gd.GDExtensionPtrDestructor = undefined;
 pub var string_name_destructor: gd.GDExtensionPtrDestructor = undefined;
+pub var variant_to_float: gd.GDExtensionTypeFromVariantConstructorFunc = undefined;
+pub var variant_to_int: gd.GDExtensionTypeFromVariantConstructorFunc = undefined;
+pub var variant_to_vector2: gd.GDExtensionTypeFromVariantConstructorFunc = undefined;
 
 pub var class_lib: ?*anyopaque = undefined;
 
@@ -47,21 +54,28 @@ const gd_callbacks = gd.GDExtensionInstanceBindingCallbacks{
 pub fn initFunctions(get_proc_address: gd.GDExtensionInterfaceGetProcAddress, lib: gd.GDExtensionClassLibraryPtr) void {
     const getProcAddress = get_proc_address.?;
     get_variant_from_type_constructor = @ptrCast(getProcAddress("get_variant_from_type_constructor"));
+    get_variant_to_type_constructor = @ptrCast(getProcAddress("get_variant_to_type_constructor"));
     variant_get_ptr_destructor = @ptrCast(getProcAddress("variant_get_ptr_destructor"));
     classdb_construct_object2 = @ptrCast(getProcAddress("classdb_construct_object2"));
     classdb_register_extension_class2 = @ptrCast(getProcAddress("classdb_register_extension_class2"));
     classdb_register_extension_class_method = @ptrCast(getProcAddress("classdb_register_extension_class_method"));
     object_set_instance = @ptrCast(getProcAddress("object_set_instance"));
     object_set_instance_binding = @ptrCast(getProcAddress("object_set_instance_binding"));
+    object_get_instance_binding = @ptrCast(getProcAddress("object_get_instance_binding"));
     mem_alloc = @ptrCast(getProcAddress("mem_alloc"));
     mem_free = @ptrCast(getProcAddress("mem_free"));
     string_new_with_utf8_chars = @ptrCast(getProcAddress("string_new_with_utf8_chars"));
     string_name_new_with_latin1_chars = @ptrCast(getProcAddress("string_name_new_with_latin1_chars"));
+    bool_constructor = get_variant_from_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_BOOL);
+    int_constructor = get_variant_from_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_INT);
     float_constructor = get_variant_from_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_FLOAT);
     object_constructor = get_variant_from_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_OBJECT);
     vector2_constructor = get_variant_from_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_VECTOR2);
     string_destructor = variant_get_ptr_destructor.?(gd.GDEXTENSION_VARIANT_TYPE_STRING);
     string_name_destructor = variant_get_ptr_destructor.?(gd.GDEXTENSION_VARIANT_TYPE_STRING_NAME);
+    variant_to_float = get_variant_to_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_FLOAT);
+    variant_to_int = get_variant_to_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_INT);
+    variant_to_vector2 = get_variant_to_type_constructor.?(gd.GDEXTENSION_VARIANT_TYPE_VECTOR2);
 
     class_lib = lib;
 }
@@ -76,6 +90,42 @@ pub fn createStringName(latin1: []const u8) StringName {
     var string_name: StringName = undefined;
     string_name_new_with_latin1_chars.?(&string_name, @ptrCast(latin1), 0);
     return string_name;
+}
+
+fn typeToGd(ty: type) ?gd.GDExtensionVariantType {
+    return switch (@typeInfo(ty)) {
+        .void => null,
+
+        .bool => gd.GDEXTENSION_VARIANT_TYPE_BOOL,
+
+        .float => |float| if (float.bits == 64)
+            gd.GDEXTENSION_VARIANT_TYPE_FLOAT
+        else
+            @compileError("only 64-bit float types are supported"),
+
+        .int => gd.GDEXTENSION_VARIANT_TYPE_INT,
+
+        .@"struct" => gd.GDEXTENSION_VARIANT_TYPE_OBJECT,
+
+        .vector => |v| getGdVectorType(v),
+
+        else => @compileError("type " ++ @typeName(ty) ++ " not supported"),
+    };
+}
+
+fn getGdVectorType(v: std.builtin.Type.Vector) gd.GDExtensionVariantType {
+    const isInt = switch (@typeInfo(v.child)) {
+        .int => true,
+        .float => |f| if (f.bits == 32) false else @compileError("only 32-bit float vectors are supported"),
+        else => @compileError("vector type " ++ @typeName(v.child) ++ " not supported"),
+    };
+
+    return switch (v.len) {
+        2 => if (isInt) gd.GDEXTENSION_VARIANT_TYPE_VECTOR2I else gd.GDEXTENSION_VARIANT_TYPE_VECTOR2,
+        3 => if (isInt) gd.GDEXTENSION_VARIANT_TYPE_VECTOR3I else gd.GDEXTENSION_VARIANT_TYPE_VECTOR3,
+        4 => if (isInt) gd.GDEXTENSION_VARIANT_TYPE_VECTOR4I else gd.GDEXTENSION_VARIANT_TYPE_VECTOR4,
+        else => @compileError("vector type " ++ @typeName(v.child) ++ " not supported"),
+    };
 }
 
 pub fn registerClass(
@@ -161,19 +211,23 @@ pub fn registerClass(
         };
 
         const return_ty = func_info.return_type.?;
-        const return_type: ?c_uint =
-            switch (@typeInfo(return_ty)) {
-                Type.void => null,
+        const return_type = comptime typeToGd(return_ty);
 
-                Type.float => |float| if (float.bits == 64)
-                    gd.GDEXTENSION_VARIANT_TYPE_FLOAT
-                else
-                    @compileError("only 64-bit float return types are supported"),
+        const zig_param_count = func_info.params.len;
+        var param_types: [zig_param_count - 1]gd.GDExtensionVariantType = undefined;
 
-                std.builtin.Type.@"struct" => gd.GDEXTENSION_VARIANT_TYPE_OBJECT,
+        inline for (1..zig_param_count) |i| {
+            const param_type = func_info.params[i].type.?;
+            param_types[i - 1] = typeToGd(param_type).?;
+        }
 
-                else => @compileError("return type " ++ @typeName(return_ty) ++ " not supported"),
-            };
+        comptime var field_types: [zig_param_count]type = undefined;
+        field_types[0] = *Class;
+        inline for (1..zig_param_count) |i| {
+            field_types[i] = func_info.params[i].type.?;
+        }
+
+        const ArgType = std.meta.Tuple(&field_types);
 
         const Functions = struct {
             fn ptrcall(
@@ -183,13 +237,22 @@ pub fn registerClass(
                 ret: gd.GDExtensionTypePtr,
             ) callconv(.C) void {
                 _ = data;
-                _ = instance;
-                _ = args;
+                const self: *Class = @alignCast(@ptrCast(instance));
+
+                var zig_args: ArgType = undefined;
+                zig_args[0] = self;
+
+                inline for (1..zig_param_count) |i| {
+                    const arg_ptr = @as(*const func_info.params[i].type.?, @ptrCast(@alignCast(args[i - 1])));
+                    zig_args[i] = arg_ptr.*;
+                }
+
                 if (return_type) |_| {
+                    const result = @call(.auto, func, zig_args);
                     const ret_ptr: *return_ty = @alignCast(@ptrCast(ret));
-                    ret_ptr.* = func();
+                    ret_ptr.* = result;
                 } else {
-                    func();
+                    @call(.auto, func, zig_args);
                 }
             }
 
@@ -202,19 +265,54 @@ pub fn registerClass(
                 ret_error: [*c]gd.GDExtensionCallError,
             ) callconv(.C) void {
                 _ = data;
-                _ = instance;
-                _ = argv;
-                _ = argc;
-                _ = ret_error;
-                switch (@typeInfo(return_ty)) {
-                    Type.void => {
-                        func();
-                    },
-                    Type.float => {
-                        const result = func();
-                        float_constructor.?(ret, @constCast(@ptrCast(&result)));
-                    },
-                    else => unreachable,
+
+                if (argc < zig_param_count - 1) {
+                    ret_error.*.@"error" = gd.GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+                    ret_error.*.expected = zig_param_count;
+                    return;
+                }
+
+                if (argc > zig_param_count - 1) {
+                    ret_error.*.@"error" = gd.GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
+                    ret_error.*.expected = zig_param_count;
+                    return;
+                }
+
+                const self: *Class = @alignCast(@ptrCast(instance));
+
+                var zig_args: ArgType = undefined;
+                zig_args[0] = self;
+
+                inline for (1..zig_param_count) |i| {
+                    const param_type = func_info.params[i].type.?;
+
+                    const variant_to_type = switch (@typeInfo(param_type)) {
+                        .float => variant_to_float.?,
+                        .int => variant_to_int.?,
+                        .vector => |v| switch (v.len) {
+                            2 => variant_to_vector2.?,
+                            else => @panic("Vector type not supported"),
+                        },
+                        else => @panic("Unsupported parameter type"),
+                    };
+
+                    var arg_value: param_type = undefined;
+                    const arg_ptr: gd.GDExtensionVariantPtr = @constCast(argv[i - 1]);
+                    variant_to_type(@ptrCast(&arg_value), arg_ptr);
+                    zig_args[i] = arg_value;
+                }
+
+                if (return_type) |ty| {
+                    const result = @call(.auto, func, zig_args);
+                    switch (ty) {
+                        gd.GDEXTENSION_VARIANT_TYPE_BOOL => bool_constructor.?(ret, @constCast(@ptrCast(&result))),
+                        gd.GDEXTENSION_VARIANT_TYPE_FLOAT => float_constructor.?(ret, @constCast(@ptrCast(&result))),
+                        gd.GDEXTENSION_VARIANT_TYPE_INT => int_constructor.?(ret, @constCast(@ptrCast(&result))),
+                        gd.GDEXTENSION_VARIANT_TYPE_VECTOR2 => vector2_constructor.?(ret, @constCast(@ptrCast(&result))),
+                        else => @panic("Unsupported return type in call()"),
+                    }
+                } else {
+                    @call(.auto, func, zig_args);
                 }
             }
         };
@@ -225,6 +323,7 @@ pub fn registerClass(
             return_type,
             Functions.call,
             Functions.ptrcall,
+            &param_types,
         );
     }
 }
@@ -232,9 +331,10 @@ pub fn registerClass(
 pub fn registerMethod(
     class_name: []const u8,
     method_name: []const u8,
-    return_ty: ?c_uint,
+    return_ty: ?gd.GDExtensionVariantType,
     call: gd.GDExtensionClassMethodCall,
     ptrcall: gd.GDExtensionClassMethodPtrCall,
+    argument_types: []const gd.GDExtensionVariantType,
 ) void {
     var class_str = createStringName(class_name);
     defer string_name_destructor.?(&class_str);
@@ -266,6 +366,37 @@ pub fn registerMethod(
         string_destructor.?(&gd_class_name);
     };
 
+    var arg_info_list: [16]gd.GDExtensionPropertyInfo = undefined;
+    var arg_info_name_list: [16]StringName = undefined;
+    var arg_info_hint_list: [16]String = undefined;
+    var arg_info_class_list: [16]String = undefined;
+    var arg_meta: [16]gd.GDExtensionClassMethodArgumentMetadata = undefined;
+
+    for (argument_types, 0..) |arg_ty, i| {
+        arg_info_name_list[i] = createStringName("");
+        arg_info_hint_list[i] = createString("");
+        arg_info_class_list[i] = createString("");
+
+        arg_info_list[i] = gd.GDExtensionPropertyInfo{
+            .name = &arg_info_name_list[i],
+            .type = arg_ty,
+            .hint = 0,
+            .hint_string = &arg_info_hint_list[i],
+            .class_name = &arg_info_class_list[i],
+            .usage = PropertyUsageDefault,
+        };
+
+        arg_meta[i] = gd.GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE;
+    }
+
+    defer {
+        for (0..argument_types.len) |i| {
+            string_name_destructor.?(&arg_info_name_list[i]);
+            string_destructor.?(&arg_info_hint_list[i]);
+            string_destructor.?(&arg_info_class_list[i]);
+        }
+    }
+
     const method_info = gd.GDExtensionClassMethodInfo{
         .name = &method_str,
         .method_userdata = null,
@@ -274,8 +405,9 @@ pub fn registerMethod(
         .method_flags = gd.GDEXTENSION_METHOD_FLAGS_DEFAULT,
         .has_return_value = if (return_ty) |_| 1 else 0,
         .return_value_info = if (return_ty) |_| &return_info else null,
-        .arguments_metadata = gd.GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE,
-        .argument_count = 0,
+        .arguments_metadata = &arg_meta,
+        .argument_count = @intCast(argument_types.len),
+        .arguments_info = if (argument_types.len > 0) &arg_info_list else null,
     };
 
     classdb_register_extension_class_method.?(class_lib, &class_str, &method_info);
