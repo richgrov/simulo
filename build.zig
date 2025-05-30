@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+
 const ArrayList = std.ArrayList;
 const mem = std.mem;
 const fs = std.fs;
@@ -10,6 +11,19 @@ pub fn build(b: *std.Build) void {
 
     const os = target.result.os.tag;
     const engine = createEngine(b, optimize, target);
+
+    const godot_lib = b.addSharedLibrary(.{
+        .name = "gdperception",
+        .root_source_file = b.path("src/godot/extension.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    godot_lib.root_module.addImport("engine", engine);
+    godot_lib.addIncludePath(b.path("src"));
+    godot_lib.linkLibCpp();
+    godot_lib.linkSystemLibrary("onnxruntime");
+    godot_lib.linkSystemLibrary("opencv4");
+    bundleFramework(b, godot_lib, "gdperception");
 
     const editor = b.addExecutable(.{
         .name = "simulo",
@@ -68,6 +82,18 @@ fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, comptime name: []const
     b.getInstallStep().dependOn(&install_exe.step);
     b.getInstallStep().dependOn(&install_plist.step);
     b.getInstallStep().dependOn(&install_metallib.step);
+}
+
+fn bundleFramework(b: *std.Build, lib: *std.Build.Step.Compile, comptime name: []const u8) void {
+    const install_framework = b.addInstallArtifact(lib, .{
+        .dest_dir = .{
+            .override = .{
+                .custom = name ++ ".framework/Versions/A",
+            },
+        },
+    });
+
+    b.getInstallStep().dependOn(&install_framework.step);
 }
 
 fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Module {
