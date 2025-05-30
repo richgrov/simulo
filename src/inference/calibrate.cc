@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/core/types.hpp>
@@ -18,7 +20,7 @@ unsigned char *get_opencv_mat_data(OpenCvMat *mat) {
 }
 
 bool find_chessboard(
-    OpenCvMat *mat, int pattern_width, int pattern_height, OpenCvMat *out_transform
+    OpenCvMat *mat, int pattern_width, int pattern_height, FfiMat3 *out_transform
 ) {
    cv::Mat &frame = *mat;
 
@@ -51,13 +53,7 @@ bool find_chessboard(
        // clang-format on
    };
 
-   *out_transform = cv::getPerspectiveTransform(src_points, dst_points);
+   cv::Mat transform = cv::getPerspectiveTransform(src_points, dst_points);
+   std::memcpy(out_transform->data, transform.data, sizeof(FfiMat3));
    return true;
-}
-
-FfiVec2 perspective_transform(float x, float y, OpenCvMat *transform) {
-   std::vector<cv::Point2f> keypoints = {{x, y}};
-   std::vector<cv::Point2f> transformed_keypoints;
-   cv::perspectiveTransform(keypoints, transformed_keypoints, *transform);
-   return {transformed_keypoints[0].x, transformed_keypoints[0].y};
 }

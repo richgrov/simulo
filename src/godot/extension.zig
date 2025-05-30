@@ -13,10 +13,22 @@ pub const Vec2 = @Vector(2, f32);
 const chessboardWidth = 7;
 const chessboardHeight = 4;
 
-fn perspective_transform(x: f32, y: f32, transform: *ffi.OpenCvMat) @Vector(2, f32) {
+fn dot(v1: @Vector(3, f64), v2: @Vector(3, f64)) f64 {
+    return @reduce(.Add, v1 * v2);
+}
+
+fn matmul(mat: *const ffi.FfiMat3, vec: @Vector(3, f64)) @Vector(3, f64) {
+    return @Vector(3, f64){
+        dot(@Vector(3, f64){ mat.data[0], mat.data[1], mat.data[2] }, vec),
+        dot(@Vector(3, f64){ mat.data[3], mat.data[4], mat.data[5] }, vec),
+        dot(@Vector(3, f64){ mat.data[6], mat.data[7], mat.data[8] }, vec),
+    };
+}
+
+fn perspective_transform(x: f32, y: f32, transform: *const ffi.FfiMat3) @Vector(2, f32) {
     const real_y = (y - (640 - 480) / 2);
-    const res = ffi.perspective_transform(x, real_y, transform);
-    return @Vector(2, f32){ res.x, res.y };
+    const res = matmul(transform, @Vector(3, f64){ x, real_y, 1 });
+    return @Vector(2, f32){ @floatCast(res[0] / res[2]), @floatCast(res[1] / res[2]) };
 }
 
 const Perception = struct {
@@ -84,8 +96,7 @@ const Perception = struct {
         self.mutex.unlock();
         var local_calibrated = false;
 
-        const transform = ffi.create_opencv_mat(3, 3).?;
-        defer ffi.destroy_opencv_mat(transform);
+        var transform = ffi.FfiMat3{};
 
         while (true) {
             self.mutex.lock();
@@ -99,7 +110,7 @@ const Perception = struct {
             const frame_idx = camera.swapBuffers();
 
             if (!local_calibrated) {
-                if (ffi.find_chessboard(calibration_frames[frame_idx], chessboardWidth, chessboardHeight, transform)) {
+                if (ffi.find_chessboard(calibration_frames[frame_idx], chessboardWidth, chessboardHeight, &transform)) {
                     camera.setFloatMode([2][*]f32{
                         inference.input_buffers[0],
                         inference.input_buffers[1],
@@ -123,12 +134,12 @@ const Perception = struct {
             for (0..n_dets) |i| {
                 const det = &local_detections[i];
 
-                transformed_detections[i].pos = perspective_transform(det.pos[0], det.pos[1], transform);
-                transformed_detections[i].size = perspective_transform(det.size[0], det.size[1], transform);
+                transformed_detections[i].pos = perspective_transform(det.pos[0], det.pos[1], &transform);
+                transformed_detections[i].size = perspective_transform(det.size[0], det.size[1], &transform);
 
                 for (0..det.keypoints.len) |k| {
                     const kp = det.keypoints[k];
-                    const kp_pos = perspective_transform(kp.pos[0], kp.pos[1], transform);
+                    const kp_pos = perspective_transform(kp.pos[0], kp.pos[1], &transform);
                     transformed_detections[i].keypoints[k].pos = kp_pos;
                     transformed_detections[i].keypoints[k].score = @floatCast(kp.score);
                 }

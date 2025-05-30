@@ -87,17 +87,13 @@ typedef struct SimuloWindow Window;
 #endif
 
 typedef struct {
-   float x;
-   float y;
-} FfiVec2;
+   double data[9];
+} FfiMat3;
 
 OpenCvMat *create_opencv_mat(int rows, int cols);
 void destroy_opencv_mat(OpenCvMat *mat);
 unsigned char *get_opencv_mat_data(OpenCvMat *mat);
-bool find_chessboard(
-    OpenCvMat *mat, int pattern_width, int pattern_height, OpenCvMat *out_transform
-);
-FfiVec2 perspective_transform(float x, float y, OpenCvMat *transform);
+bool find_chessboard(OpenCvMat *mat, int pattern_width, int pattern_height, FfiMat3 *out_transform);
 
 Renderer *create_renderer(Gpu *gpu, const Window *window);
 void destroy_renderer(Renderer *renderer);
