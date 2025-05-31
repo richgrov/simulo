@@ -9,6 +9,9 @@ pub const Inference = inference.Inference;
 pub const Detection = inference.Detection;
 pub const Keypoint = inference.Keypoint;
 
+const pose = @import("inference/pose.zig");
+pub const PoseDetector = pose.PoseDetector;
+
 pub const Renderer = @import("render/renderer.zig").Renderer;
 pub const Window = @import("window/window.zig").Window;
 

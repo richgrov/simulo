@@ -1,5 +1,6 @@
-const engine = @import("engine");
 const std = @import("std");
+
+const engine = @import("engine");
 
 comptime {
     _ = engine;
@@ -8,9 +9,6 @@ const ffi = @cImport({
     @cInclude("ffi.h");
 });
 
-const chessboardWidth = 7;
-const chessboardHeight = 4;
-
 const Vec2 = @Vector(2, f32);
 const Vec3 = @Vector(3, f32);
 
@@ -18,89 +16,6 @@ const UiVertex = struct {
     position: Vec3,
     tex_coord: Vec2,
 };
-
-fn dot(v1: @Vector(3, f64), v2: @Vector(3, f64)) f64 {
-    return @reduce(.Add, v1 * v2);
-}
-
-fn matmul(mat: *const ffi.FfiMat3, vec: @Vector(3, f64)) @Vector(3, f64) {
-    return @Vector(3, f64){
-        dot(@Vector(3, f64){ mat.data[0], mat.data[1], mat.data[2] }, vec),
-        dot(@Vector(3, f64){ mat.data[3], mat.data[4], mat.data[5] }, vec),
-        dot(@Vector(3, f64){ mat.data[6], mat.data[7], mat.data[8] }, vec),
-    };
-}
-
-fn perspective_transform(x: f32, y: f32, transform: *const ffi.FfiMat3) @Vector(2, f32) {
-    const real_y = (y - (640 - 480) / 2);
-    const res = matmul(transform, @Vector(3, f64){ x, real_y, 1 });
-    return @Vector(2, f32){ @floatCast(res[0] / res[2]), @floatCast(res[1] / res[2]) };
-}
-
-fn perception_loop() !void {
-    var detections: [20]engine.Detection = undefined;
-    var transform = ffi.FfiMat3{};
-
-    const calibration_frames = [2]*ffi.OpenCvMat{
-        ffi.create_opencv_mat(480, 640).?,
-        ffi.create_opencv_mat(480, 640).?,
-    };
-
-    defer ffi.destroy_opencv_mat(calibration_frames[0]);
-    defer ffi.destroy_opencv_mat(calibration_frames[1]);
-
-    var calibrated = false;
-
-    var camera = try engine.Camera.init([2][*]u8{
-        ffi.get_opencv_mat_data(calibration_frames[0]),
-        ffi.get_opencv_mat_data(calibration_frames[1]),
-    });
-    defer camera.deinit();
-
-    var inference = try engine.Inference.init();
-    defer inference.deinit();
-
-    while (true) {
-        const frame_idx = camera.swapBuffers();
-
-        if (!calibrated) {
-            if (ffi.find_chessboard(calibration_frames[frame_idx], chessboardWidth, chessboardHeight, &transform)) {
-                camera.setFloatMode([2][*]f32{
-                    inference.input_buffers[0],
-                    inference.input_buffers[1],
-                });
-                calibrated = true;
-                std.log.info("Calibrated", .{});
-            }
-            continue;
-        }
-
-        const n_dets = try inference.run(frame_idx, &detections);
-        for (0..n_dets) |i| {
-            const det = &detections[i];
-            const pos = perspective_transform(det.pos[0], det.pos[1], &transform);
-            const size = perspective_transform(det.size[0], det.size[1], &transform);
-            std.log.info("Detection {any} x={d:.2}, y={d:.2}, w={d:.2}, h={d:.2}, s={d:.2}", .{
-                i,
-                pos[0],
-                pos[1],
-                size[0],
-                size[1],
-                det.score,
-            });
-
-            for (0..det.keypoints.len) |k| {
-                const kp_pos = perspective_transform(det.keypoints[k].pos[0], det.keypoints[k].pos[1], &transform);
-                std.log.info(" {any} {d:.2}, {d:.2}, {d:.2}", .{
-                    k,
-                    kp_pos[0],
-                    kp_pos[1],
-                    det.keypoints[k].score,
-                });
-            }
-        }
-    }
-}
 
 pub fn main() !void {
     const gpu = engine.Gpu.init();
@@ -151,11 +66,27 @@ pub fn main() !void {
         0.0, 0.0, 0.0, 1.0,
     };
 
-    const thread = try std.Thread.spawn(.{}, perception_loop, .{});
-    defer thread.join();
+    var detector = engine.PoseDetector.init();
+    detector.start() catch unreachable;
+    defer detector.stop();
 
     while (window.poll()) {
         _ = renderer.render(mvp, mvp);
         std.time.sleep(std.time.ns_per_ms);
+
+        while (detector.nextDetection()) |detection| {
+            std.log.info("Detection x={d:.2}, y={d:.2}, w={d:.2}, h={d:.2}, s={d:.2}", .{
+                detection.pos[0],
+                detection.pos[1],
+                detection.size[0],
+                detection.size[1],
+                detection.score,
+            });
+
+            for (0..detection.keypoints.len) |k| {
+                const kp = detection.keypoints[k];
+                std.log.info("  {any} {d:.2}, {d:.2}, {d:.2}", .{ k, kp.pos[0], kp.pos[1], kp.score });
+            }
+        }
     }
 }
