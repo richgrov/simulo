@@ -24,7 +24,7 @@ pub fn Spsc(comptime T: type, comptime capacity: usize) type {
             }
 
             self.data[insert_at] = item;
-            @atomicStore(usize, &self.tail, next_tail, .seq_cst);
+            @atomicStore(usize, &self.tail, next_tail, .release);
         }
 
         pub fn tryDequeue(self: *Self) ?T {
@@ -34,16 +34,16 @@ pub fn Spsc(comptime T: type, comptime capacity: usize) type {
             }
 
             const value = self.data[read_from];
-            @atomicStore(usize, &self.head, (read_from + 1) % capacity, .seq_cst);
+            @atomicStore(usize, &self.head, (read_from + 1) % capacity, .release);
             return value;
         }
 
         fn getHead(self: *Self) usize {
-            return @atomicLoad(usize, &self.head, .seq_cst);
+            return @atomicLoad(usize, &self.head, .acquire);
         }
 
         fn getTail(self: *Self) usize {
-            return @atomicLoad(usize, &self.tail, .seq_cst);
+            return @atomicLoad(usize, &self.tail, .acquire);
         }
     };
 }
