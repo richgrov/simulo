@@ -218,6 +218,12 @@ uint32_t create_image(Renderer *renderer, uint8_t *img_data, int width, int heig
    return static_cast<uint32_t>(renderer->create_image(data_span, width, height));
 }
 
+void set_object_transform(Renderer *renderer, uint32_t object_id, const float *transform) {
+   Mat4 mat4_transform;
+   std::memcpy(&mat4_transform, transform, sizeof(Mat4));
+   renderer->set_object_transform(static_cast<RenderObject>(object_id), mat4_transform);
+}
+
 bool render(
     Renderer *renderer, const float *ui_view_projection, const float *world_view_projection
 ) {

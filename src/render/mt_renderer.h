@@ -105,6 +105,10 @@ public:
 
    void delete_object(RenderObject object);
 
+   void set_object_transform(RenderObject object_id, const Mat4 &transform) {
+      instances_.get(static_cast<int>(object_id)).transform = transform;
+   }
+
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height) {
       int id = images_.emplace(gpu_, img_data, width, height);
       return static_cast<RenderImage>(id);

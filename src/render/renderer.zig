@@ -1,10 +1,12 @@
+const std = @import("std");
+
 const ffi = @cImport({
     @cInclude("ffi.h");
 });
 
 const Gpu = @import("../gpu/gpu.zig").Gpu;
 const Window = @import("../window/window.zig").Window;
-const std = @import("std");
+const Mat4 = @import("../math/matrix.zig").Mat4;
 
 pub const PipelineHandle = struct { id: u32 };
 pub const MaterialHandle = struct { id: u32 };
@@ -44,9 +46,13 @@ pub const Renderer = struct {
         ffi.delete_mesh(self.handle, mesh.id);
     }
 
-    pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: [16]f32, material: MaterialHandle) ObjectHandle {
-        const id = ffi.add_object(self.handle, mesh.id, &transform[0], material.id);
+    pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle) ObjectHandle {
+        const id = ffi.add_object(self.handle, mesh.id, transform.ptr(), material.id);
         return ObjectHandle{ .id = id };
+    }
+
+    pub fn setObjectTransform(self: *Renderer, object: ObjectHandle, transform: Mat4) void {
+        ffi.set_object_transform(self.handle, object.id, transform.ptr());
     }
 
     pub fn deleteObject(self: *Renderer, object: ObjectHandle) void {
@@ -58,8 +64,8 @@ pub const Renderer = struct {
         return ImageHandle{ .id = id };
     }
 
-    pub fn render(self: *Renderer, ui_view_projection: [16]f32, world_view_projection: [16]f32) bool {
-        return ffi.render(self.handle, &ui_view_projection, &world_view_projection);
+    pub fn render(self: *Renderer, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) bool {
+        return ffi.render(self.handle, ui_view_projection.ptr(), world_view_projection.ptr());
     }
 
     pub fn recreateSwapchain(self: *Renderer) void {

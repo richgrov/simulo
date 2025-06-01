@@ -108,6 +108,7 @@ uint32_t
 add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_t material_id);
 void delete_object(Renderer *renderer, uint32_t object_id);
 uint32_t create_image(Renderer *renderer, uint8_t *img_data, int width, int height);
+void set_object_transform(Renderer *renderer, uint32_t object_id, const float *transform);
 bool render(
     Renderer *renderer, const float *ui_view_projection, const float *world_view_projection
 );

@@ -11,6 +11,7 @@ const ffi = @cImport({
 
 const Vec2 = @Vector(2, f32);
 const Vec3 = @Vector(3, f32);
+const Mat4 = engine.math.Mat4;
 
 const UiVertex = struct {
     position: Vec3,
@@ -44,34 +45,25 @@ pub fn main() !void {
     const material = renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
 
     const vertices = [_]UiVertex{
-        .{ .position = .{ -1.0, -1.0, 0.0 }, .tex_coord = .{ 0.0, 0.0 } },
-        .{ .position = .{ 1.0, -1.0, 0.0 }, .tex_coord = .{ 1.0, 0.0 } },
+        .{ .position = .{ 0.0, 0.0, 0.0 }, .tex_coord = .{ 0.0, 0.0 } },
+        .{ .position = .{ 1.0, 0.0, 0.0 }, .tex_coord = .{ 1.0, 0.0 } },
         .{ .position = .{ 1.0, 1.0, 0.0 }, .tex_coord = .{ 1.0, 1.0 } },
-        .{ .position = .{ -1.0, 1.0, 0.0 }, .tex_coord = .{ 0.0, 1.0 } },
+        .{ .position = .{ 0.0, 1.0, 0.0 }, .tex_coord = .{ 0.0, 1.0 } },
     };
     const mesh = renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
-
-    const transform = [16]f32{
-        1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0,
-    };
-    _ = renderer.addObject(mesh, transform, material);
-
-    const mvp = [16]f32{
-        1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0,
-    };
+    const chessboard = renderer.addObject(mesh, Mat4.identity(), material);
 
     var detector = engine.PoseDetector.init();
     detector.start() catch unreachable;
     defer detector.stop();
 
     while (window.poll()) {
-        _ = renderer.render(mvp, mvp);
+        const width: f32 = @floatFromInt(window.getWidth());
+        const height: f32 = @floatFromInt(window.getHeight());
+        const mvp = Mat4.ortho(width, height, -1.0, 1.0);
+        renderer.setObjectTransform(chessboard, Mat4.scale(.{ width, height, 1.0 }));
+
+        _ = renderer.render(&mvp, &mvp);
         std.time.sleep(std.time.ns_per_ms);
 
         while (detector.nextDetection()) |detection| {

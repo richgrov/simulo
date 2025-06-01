@@ -12,6 +12,8 @@ pub const Keypoint = inference.Keypoint;
 const pose = @import("inference/pose.zig");
 pub const PoseDetector = pose.PoseDetector;
 
+pub const math = @import("math/matrix.zig");
+
 pub const Renderer = @import("render/renderer.zig").Renderer;
 pub const Window = @import("window/window.zig").Window;
 
