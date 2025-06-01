@@ -48,12 +48,35 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             };
         }
 
+        pub fn fromRowMajorPtr(p: [*]const T) Self {
+            var result: Self = undefined;
+            for (0..rows) |r| {
+                for (0..cols) |c| {
+                    std.debug.print("{d}\n", .{p[c * cols + r]});
+                    result.data[c][r] = p[c * cols + r];
+                }
+            }
+            return result;
+        }
+
         pub fn matmul(self: *const Self, other: *const Self) Matrix(T, rows, cols) {
             var result: Matrix(T, rows, cols) = undefined;
             for (0..rows) |r| {
                 for (0..cols) |c| {
                     result.data[c][r] = @reduce(.Add, self.row(r) * other.column(c));
                 }
+            }
+            return result;
+        }
+
+        pub fn vecmul(self: *const Self, v: @Vector(rows, T)) @Vector(rows, T) {
+            if (rows != cols) {
+                @compileError("square matrix required for vector multiplication");
+            }
+
+            var result: @Vector(cols, T) = undefined;
+            for (0..rows) |r| {
+                result[r] = @reduce(.Add, self.row(r) * v);
             }
             return result;
         }
@@ -80,4 +103,5 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
     };
 }
 
+pub const DMat3 = Matrix(f64, 3, 3);
 pub const Mat4 = Matrix(f32, 4, 4);

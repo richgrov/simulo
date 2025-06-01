@@ -6,6 +6,7 @@ const Inference = inf.Inference;
 
 const Camera = @import("../camera/camera.zig").Camera;
 const Spsc = @import("../util/spsc_ring.zig").Spsc;
+const DMat3 = @import("../math/matrix.zig").DMat3;
 
 const ffi = @cImport({
     @cInclude("ffi.h");
@@ -15,21 +16,9 @@ const CHESSBOARD_WIDTH = 7;
 const CHESSBOARD_HEIGHT = 4;
 const DETECTION_CAPACITY = 20;
 
-fn dot(v1: @Vector(3, f64), v2: @Vector(3, f64)) f64 {
-    return @reduce(.Add, v1 * v2);
-}
-
-fn matmul(mat: *const ffi.FfiMat3, vec: @Vector(3, f64)) @Vector(3, f64) {
-    return @Vector(3, f64){
-        dot(@Vector(3, f64){ mat.data[0], mat.data[1], mat.data[2] }, vec),
-        dot(@Vector(3, f64){ mat.data[3], mat.data[4], mat.data[5] }, vec),
-        dot(@Vector(3, f64){ mat.data[6], mat.data[7], mat.data[8] }, vec),
-    };
-}
-
-fn perspective_transform(x: f32, y: f32, transform: *const ffi.FfiMat3) @Vector(2, f32) {
+fn perspective_transform(x: f32, y: f32, transform: *const DMat3) @Vector(2, f32) {
     const real_y = (y - (640 - 480) / 2);
-    const res = matmul(transform, @Vector(3, f64){ x, real_y, 1 });
+    const res = transform.vecmul(.{ @floatCast(x), @floatCast(real_y), 1 });
     return @Vector(2, f32){ @floatCast(res[0] / res[2]), @floatCast(res[1] / res[2]) };
 }
 
@@ -63,7 +52,7 @@ pub const PoseDetector = struct {
     }
 
     fn run(self: *PoseDetector) !void {
-        var transform = ffi.FfiMat3{};
+        var transform: DMat3 = undefined;
 
         const calibration_frames = [2]*ffi.OpenCvMat{
             ffi.create_opencv_mat(480, 640).?,
@@ -88,12 +77,14 @@ pub const PoseDetector = struct {
             const frame_idx = camera.swapBuffers();
 
             if (!calibrated) {
-                if (ffi.find_chessboard(calibration_frames[frame_idx], CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT, &transform)) {
+                var transform_out: ffi.FfiMat3 = undefined;
+                if (ffi.find_chessboard(calibration_frames[frame_idx], CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT, &transform_out)) {
                     camera.setFloatMode([2][*]f32{
                         inference.input_buffers[0],
                         inference.input_buffers[1],
                     });
                     calibrated = true;
+                    transform = DMat3.fromRowMajorPtr(&transform_out.data);
                 }
                 continue;
             }
