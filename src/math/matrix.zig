@@ -7,7 +7,7 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
     return struct {
         const Self = @This();
 
-        data: [rows]@Vector(cols, T),
+        data: [cols]@Vector(rows, T),
 
         pub fn identity() Self {
             if (rows != cols) {
@@ -48,24 +48,24 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             };
         }
 
-        pub fn mul(self: *const Self, other: *const Self) Matrix(T, rows, cols) {
+        pub fn matmul(self: *const Self, other: *const Self) Matrix(T, rows, cols) {
             var result: Matrix(T, rows, cols) = undefined;
             for (0..rows) |r| {
                 for (0..cols) |c| {
-                    result.data[r][c] = @reduce(.Add, self.row(r) * other.column(c));
+                    result.data[c][r] = @reduce(.Add, self.row(r) * other.column(c));
                 }
             }
             return result;
         }
 
-        pub fn row(self: *const Self, row_idx: usize) @Vector(cols, T) {
-            return self.data[row_idx];
+        pub fn column(self: *const Self, column_idx: usize) @Vector(rows, T) {
+            return self.data[column_idx];
         }
 
-        pub fn column(self: *const Self, col_idx: usize) @Vector(rows, T) {
-            var result: @Vector(rows, T) = undefined;
-            for (0..rows) |i| {
-                result[i] = self.data[i][col_idx];
+        pub fn row(self: *const Self, row_idx: usize) @Vector(cols, T) {
+            var result: @Vector(cols, T) = undefined;
+            for (0..cols) |c| {
+                result[c] = self.data[row_idx][c];
             }
             return result;
         }
