@@ -50,7 +50,7 @@ jobs:
           cat "$(brew --repository)/Library/Taps/homebrew/homebrew-core/Formula/foo.rb" > .github/brew-formulae
 
       - name: Configure Homebrew cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/Library/Caches/Homebrew/foo--*
