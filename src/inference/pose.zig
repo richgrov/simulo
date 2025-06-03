@@ -22,7 +22,12 @@ fn perspective_transform(x: f32, y: f32, transform: *const DMat3) @Vector(2, f32
     return @Vector(2, f32){ @floatCast(res[0] / res[2]), @floatCast(res[1] / res[2]) };
 }
 
-const DetectionSpsc = Spsc(Detection, DETECTION_CAPACITY * 8);
+pub const PoseEvent = struct {
+    id: u32,
+    detection: ?Detection,
+};
+
+const DetectionSpsc = Spsc(PoseEvent, DETECTION_CAPACITY * 8);
 
 pub const PoseDetector = struct {
     output: DetectionSpsc,
@@ -47,7 +52,7 @@ pub const PoseDetector = struct {
         self.thread.join();
     }
 
-    pub fn nextDetection(self: *PoseDetector) ?Detection {
+    pub fn nextEvent(self: *PoseDetector) ?PoseEvent {
         return self.output.tryDequeue();
     }
 
@@ -104,7 +109,7 @@ pub const PoseDetector = struct {
                     det.keypoints[k].score = @floatCast(kp.score);
                 }
 
-                self.output.enqueue(det) catch {
+                self.output.enqueue(PoseEvent{ .id = 0, .detection = det }) catch {
                     std.log.warn("Detection processing queue full", .{});
                 };
             }

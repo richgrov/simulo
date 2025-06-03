@@ -66,7 +66,10 @@ pub fn main() !void {
         _ = renderer.render(&mvp, &mvp);
         std.time.sleep(std.time.ns_per_ms);
 
-        while (detector.nextDetection()) |detection| {
+        while (detector.nextEvent()) |event| {
+            calibrated = true;
+
+            const detection = event.detection orelse continue;
             std.log.info("Detection x={d:.2}, y={d:.2}, w={d:.2}, h={d:.2}, s={d:.2}", .{
                 detection.pos[0],
                 detection.pos[1],
