@@ -62,6 +62,18 @@ jobs:
       - name: Build project
         run: zig build install --search-prefix extern/onnxruntime
 
+      - name: Create self-signed certificate
+        run: |
+          security create-keychain -p "temp" build.keychain
+          security unlock-keychain -p "temp" build.keychain
+          openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=SimuloGithubActions"
+          security import cert.pem -k build.keychain
+
+      - name: Sign Simulo executable
+        run: |
+          codesign --force --deep --sign "SimuloGithubActions" zig-out/simulo.app/Contents/MacOS/simulo
+          codesign --force --deep --sign "SimuloGithubActions" zig-out/perception.app/Contents/MacOS/perception
+
       - name: Upload install artifact
         uses: actions/upload-artifact@v4
         with:
