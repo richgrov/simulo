@@ -52,7 +52,6 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             var result: Self = undefined;
             for (0..rows) |r| {
                 for (0..cols) |c| {
-                    std.debug.print("{d}\n", .{p[c * cols + r]});
                     result.data[c][r] = p[c * cols + r];
                 }
             }
