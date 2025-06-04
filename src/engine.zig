@@ -17,6 +17,8 @@ pub const math = @import("math/matrix.zig");
 pub const Renderer = @import("render/renderer.zig").Renderer;
 pub const Window = @import("window/window.zig").Window;
 
+pub const Scripting = @import("scripting/scripting.zig").Scripting;
+
 const vulkan = builtin.target.os.tag == .windows or builtin.target.os.tag == .linux;
 const text_vert = if (vulkan) @embedFile("shader/text.vert") else &[_]u8{0};
 const text_frag = if (vulkan) @embedFile("shader/text.frag") else &[_]u8{0};

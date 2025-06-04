@@ -196,6 +196,10 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
         },
     });
 
+    engine.addCSourceFile(.{
+        .file = b.path("src/vendor/pocketpy/pocketpy.c"),
+    });
+
     engine.linkSystemLibrary("opencv4", .{});
     engine.linkSystemLibrary("onnxruntime", .{});
     engine.linkSystemLibrary("libdeflate", .{});
