@@ -53,18 +53,27 @@ pub fn main() !void {
     const mesh = renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
     const chessboard = renderer.addObject(mesh, Mat4.identity(), material);
 
+    const target_mesh = renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
+    const target = renderer.addObject(target_mesh, Mat4.identity(), material);
+
     var detector = engine.PoseDetector.init();
     detector.start() catch unreachable;
     defer detector.stop();
 
+    var calibrated = false;
+
     while (window.poll()) {
         const width: f32 = @floatFromInt(window.getWidth());
         const height: f32 = @floatFromInt(window.getHeight());
-        const mvp = Mat4.ortho(width, height, -1.0, 1.0);
-        renderer.setObjectTransform(chessboard, Mat4.scale(.{ width, height, 1.0 }));
 
+        if (calibrated) {
+            renderer.setObjectTransform(chessboard, Mat4.scale(.{ 0.0, 0.0, 1.0 }));
+        } else {
+            renderer.setObjectTransform(chessboard, Mat4.scale(.{ width, height, 1.0 }));
+        }
+
+        const mvp = Mat4.ortho(width, height, -1.0, 1.0);
         _ = renderer.render(&mvp, &mvp);
-        std.time.sleep(std.time.ns_per_ms);
 
         while (detector.nextEvent()) |event| {
             calibrated = true;
@@ -82,6 +91,11 @@ pub fn main() !void {
                 const kp = detection.keypoints[k];
                 std.log.info("  {any} {d:.2}, {d:.2}, {d:.2}", .{ k, kp.pos[0], kp.pos[1], kp.score });
             }
+
+            const hand = detection.keypoints[9].pos;
+            renderer.setObjectTransform(target, Mat4.scale(.{ hand[0] * width, (1.0 - hand[1]) * height, 1.0 }));
         }
+
+        std.time.sleep(std.time.ns_per_ms);
     }
 }

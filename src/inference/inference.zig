@@ -39,9 +39,13 @@ pub const Keypoint = struct {
     score: f32,
 };
 
-pub const Detection = struct {
+pub const Box = struct {
     pos: @Vector(2, f32),
     size: @Vector(2, f32),
+};
+
+pub const Detection = struct {
+    box: Box,
     score: f32,
     keypoints: [17]Keypoint,
 };
@@ -159,18 +163,19 @@ pub const Inference = struct {
         const n_detections_usize: usize = @intCast(n_detections);
         var out_idx: usize = 0;
         for (0..@min(n_detections_usize, outDets.len)) |i| {
-            const x = detections_data[i * 5];
-            const y = detections_data[i * 5 + 1];
-            const w = detections_data[i * 5 + 2];
-            const h = detections_data[i * 5 + 3];
+            const x1 = detections_data[i * 5];
+            const y1 = detections_data[i * 5 + 1];
+            const x2 = detections_data[i * 5 + 2];
+            const y2 = detections_data[i * 5 + 3];
             const score = detections_data[i * 5 + 4];
 
             if (score < detection_threshold) {
                 continue;
             }
 
-            outDets[out_idx].pos = @Vector(2, f32){ x, y };
-            outDets[out_idx].size = @Vector(2, f32){ w, h };
+            const size = @Vector(2, f32){ x2 - x1, y2 - y1 };
+            outDets[out_idx].box.pos = @Vector(2, f32){ x1, y1 };
+            outDets[out_idx].box.size = size;
             outDets[out_idx].score = score;
 
             for (0..17) |kp| {

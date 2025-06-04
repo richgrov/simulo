@@ -42,18 +42,18 @@ pub fn build(b: *std.Build) void {
         editor.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
     }
 
-    const perception_test = b.addExecutable(.{
-        .name = "perception_test",
+    const runtime = b.addExecutable(.{
+        .name = "runtime",
         .target = target,
         .optimize = optimize,
-        .root_source_file = b.path("src/perception/perception.zig"),
+        .root_source_file = b.path("src/runtime/runtime.zig"),
     });
-    perception_test.addIncludePath(b.path("src"));
-    perception_test.linkLibCpp();
-    perception_test.root_module.addImport("engine", engine);
-    perception_test.linkSystemLibrary("onnxruntime");
-    perception_test.linkSystemLibrary("opencv4");
-    bundleExe(b, perception_test, "perception");
+    runtime.addIncludePath(b.path("src"));
+    runtime.linkLibCpp();
+    runtime.root_module.addImport("engine", engine);
+    runtime.linkSystemLibrary("onnxruntime");
+    runtime.linkSystemLibrary("opencv4");
+    bundleExe(b, runtime, "runtime");
 }
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {

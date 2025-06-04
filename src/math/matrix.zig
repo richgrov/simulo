@@ -67,7 +67,7 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             var result: Self = undefined;
             for (0..rows) |r| {
                 for (0..cols) |c| {
-                    result.data[c][r] = p[c * cols + r];
+                    result.data[r][c] = p[c * cols + r];
                 }
             }
             return result;
@@ -102,7 +102,7 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
         pub fn row(self: *const Self, row_idx: usize) @Vector(cols, T) {
             var result: @Vector(cols, T) = undefined;
             for (0..cols) |c| {
-                result[c] = self.data[row_idx][c];
+                result[c] = self.data[c][row_idx];
             }
             return result;
         }
