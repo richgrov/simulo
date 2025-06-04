@@ -33,6 +33,21 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             };
         }
 
+        pub fn translate(v: @Vector(rows - 1, f32)) Matrix(f32, rows, rows) {
+            if (rows != cols) {
+                @compileError("matrix must be square to translate");
+            }
+
+            return .{
+                .data = [_]@Vector(rows, f32){
+                    .{ 1, 0, 0, 0 },
+                    .{ 0, 1, 0, 0 },
+                    .{ 0, 0, 1, 0 },
+                    .{ v[0], v[1], v[2], 1 },
+                },
+            };
+        }
+
         pub fn scale(v: @Vector(rows - 1, f32)) Matrix(f32, rows, rows) {
             if (rows != cols) {
                 @compileError("matrix must be square to scale");
