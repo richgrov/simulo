@@ -8,14 +8,14 @@ const Gpu = @import("../gpu/gpu.zig").Gpu;
 const Window = @import("../window/window.zig").Window;
 const Mat4 = @import("../math/matrix.zig").Mat4;
 
-pub const PipelineHandle = struct { id: u32 };
-pub const MaterialHandle = struct { id: u32 };
-pub const MeshHandle = struct { id: u32 };
-pub const ObjectHandle = struct { id: u32 };
-pub const ImageHandle = struct { id: u32 };
-
 pub const Renderer = struct {
     handle: *ffi.Renderer,
+
+    pub const PipelineHandle = struct { id: u32 };
+    pub const MaterialHandle = struct { id: u32 };
+    pub const MeshHandle = struct { id: u32 };
+    pub const ObjectHandle = struct { id: u32 };
+    pub const ImageHandle = struct { id: u32 };
 
     pub fn init(gpu: *const Gpu, window: *const Window) Renderer {
         return Renderer{
