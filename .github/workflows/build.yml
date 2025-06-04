@@ -67,6 +67,7 @@ jobs:
           security create-keychain -p "temp" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "temp" build.keychain
+          security list-keychains -d user -s build.keychain
           openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=SimuloGithubActions"
           openssl pkcs12 -export -out cert.p12 -inkey key.pem -in cert.pem -passout pass:temp
           security import cert.p12 -k build.keychain -P temp -T /usr/bin/codesign
@@ -74,8 +75,8 @@ jobs:
 
       - name: Sign Simulo executable
         run: |
-          codesign --force --deep --sign "SimuloGithubActions" zig-out/simulo.app/Contents/MacOS/simulo
-          codesign --force --deep --sign "SimuloGithubActions" zig-out/perception.app/Contents/MacOS/perception
+          codesign --force --deep --keychain build.keychain --sign "SimuloGithubActions" zig-out/simulo.app/Contents/MacOS/simulo
+          codesign --force --deep --keychain build.keychain --sign "SimuloGithubActions" zig-out/perception.app/Contents/MacOS/perception
 
       - name: Upload install artifact
         uses: actions/upload-artifact@v4
