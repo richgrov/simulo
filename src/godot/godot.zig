@@ -2,6 +2,7 @@ const std = @import("std");
 const Type = std.builtin.Type;
 
 const engine = @import("engine");
+const reflect = @import("../util/reflect.zig");
 
 pub const gd = @cImport({
     @cInclude("godot/godot-cpp/gdextension/gdextension_interface.h");
@@ -221,13 +222,7 @@ pub fn registerClass(
             param_types[i - 1] = typeToGd(param_type).?;
         }
 
-        comptime var field_types: [zig_param_count]type = undefined;
-        field_types[0] = *Class;
-        inline for (1..zig_param_count) |i| {
-            field_types[i] = func_info.params[i].type.?;
-        }
-
-        const ArgType = std.meta.Tuple(&field_types);
+        const ArgType = reflect.functionParamsIntoTuple(func_info.params);
 
         const Functions = struct {
             fn ptrcall(
