@@ -19,6 +19,8 @@ pub const Window = @import("window/window.zig").Window;
 
 pub const Scripting = @import("scripting/scripting.zig").Scripting;
 
+pub const utils = @import("util/util.zig");
+
 const vulkan = builtin.target.os.tag == .windows or builtin.target.os.tag == .linux;
 const text_vert = if (vulkan) @embedFile("shader/text.vert") else &[_]u8{0};
 const text_frag = if (vulkan) @embedFile("shader/text.frag") else &[_]u8{0};
