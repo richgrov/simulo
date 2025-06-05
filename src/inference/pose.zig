@@ -117,13 +117,13 @@ pub const PoseDetector = struct {
                 };
 
                 const transformed_pos = perspective_transform(det.box.pos[0], det.box.pos[1], &transform);
-                det.box.pos = .{ 1 - transformed_pos[0], transformed_pos[1] };
+                det.box.pos = .{ transformed_pos[0], 1 - transformed_pos[1] };
                 det.box.size = perspective_transform(det.box.size[0], det.box.size[1], &transform);
 
                 for (0..det.keypoints.len) |k| {
                     const kp = det.keypoints[k];
                     const transformed_kp_pos = perspective_transform(kp.pos[0], kp.pos[1], &transform);
-                    const kp_pos = .{ 1 - transformed_kp_pos[0], transformed_kp_pos[1] };
+                    const kp_pos = .{ transformed_kp_pos[0], 1 - transformed_kp_pos[1] };
                     det.keypoints[k].pos = kp_pos;
                     det.keypoints[k].score = @floatCast(kp.score);
                 }
