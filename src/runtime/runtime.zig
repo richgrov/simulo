@@ -28,11 +28,12 @@ pub fn createChessboard(renderer: *engine.Renderer) engine.Renderer.ImageHandle 
     return renderer.createImage(&checkerboard, 1280, 800);
 }
 
-pub fn main() !void {
-    const scripting = engine.Scripting.init();
-    defer scripting.deinit();
-    scripting.defineModule("simulo");
+fn registerHandler(user_ptr: *anyopaque, callback: engine.Scripting.Function) void {
+    var event_handlers: *std.ArrayList(engine.Scripting.Function) = @alignCast(@ptrCast(user_ptr));
+    event_handlers.append(callback) catch unreachable;
+}
 
+pub fn main() !void {
     var dba = std.heap.DebugAllocator(.{}).init;
     defer {
         if (dba.deinit() == .leak) {
@@ -40,6 +41,15 @@ pub fn main() !void {
         }
     }
     const allocator = dba.allocator();
+
+    var event_handlers = std.ArrayList(engine.Scripting.Function).init(allocator);
+    defer event_handlers.deinit();
+
+    const scripting = engine.Scripting.init(&event_handlers);
+    defer scripting.deinit();
+    const module = scripting.defineModule("simulo");
+    const func = scripting.createFunction(registerHandler);
+    scripting.defineFunction(module, "test", func);
 
     var args = try std.process.argsWithAllocator(allocator);
     args.deinit();
@@ -57,6 +67,10 @@ pub fn main() !void {
     defer allocator.free(script_file);
 
     try scripting.run(script_file, script_path);
+
+    for (event_handlers.items) |handler| {
+        scripting.callFunction(&handler);
+    }
 
     const gpu = engine.Gpu.init();
     defer gpu.deinit();
