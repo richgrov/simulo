@@ -18,6 +18,7 @@ pub const Scripting = struct {
 
     pub fn run(_: *const Scripting, src: []const u8, file: []const u8) !void {
         if (!pocketpy.py_exec(@ptrCast(src), @ptrCast(file), pocketpy.EXEC_MODE, null)) {
+            pocketpy.py_printexc();
             return error.PythonError;
         }
     }
