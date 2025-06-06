@@ -75,6 +75,12 @@ const Runtime = struct {
         runtime.event_handlers.append(callback) catch unreachable;
     }
 
+    fn callEvent(self: *Runtime) void {
+        for (self.event_handlers.items()) |handler| {
+            self.scripting.callFunction(&handler);
+        }
+    }
+
     fn run(self: *Runtime) !void {
         try self.pose_detector.start();
 
@@ -97,6 +103,8 @@ const Runtime = struct {
 
     fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
         while (self.pose_detector.nextEvent()) |event| {
+            self.callEvent();
+
             const detection = event.detection orelse {
                 const object = self.tracked_objects.get(event.id).?;
                 self.renderer.deleteObject(object);
