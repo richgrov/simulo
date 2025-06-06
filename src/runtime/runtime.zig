@@ -32,7 +32,6 @@ const Runtime = struct {
     material: engine.Renderer.MaterialHandle,
     mesh: engine.Renderer.MeshHandle,
     chessboard: engine.Renderer.ObjectHandle,
-    tracked_objects: std.AutoHashMap(u64, engine.Renderer.ObjectHandle),
     calibrated: bool,
 
     fn init(runtime: *Runtime, allocator: std.mem.Allocator) void {
@@ -44,12 +43,12 @@ const Runtime = struct {
         runtime.event_handlers = FixedArrayList(engine.Scripting.Function, 16).init();
         runtime.scripting = engine.Scripting.init(runtime);
         runtime.pose_detector = engine.PoseDetector.init();
-        runtime.tracked_objects = std.AutoHashMap(u64, engine.Renderer.ObjectHandle).init(allocator);
         runtime.calibrated = false;
 
         const module = runtime.scripting.defineModule("simulo");
-        const func = runtime.scripting.createFunction(Runtime.registerEventHandler);
-        runtime.scripting.defineFunction(module, "on", func);
+        runtime.scripting.defineFunction(module, "on", Runtime.registerEventHandler);
+        runtime.scripting.defineFunction(module, "create_object", Runtime.createObject);
+        runtime.scripting.defineFunction(module, "delete_object", Runtime.deleteObject);
 
         const image = createChessboard(&runtime.renderer);
         runtime.material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
@@ -58,7 +57,6 @@ const Runtime = struct {
     }
 
     fn deinit(self: *Runtime) void {
-        self.tracked_objects.deinit();
         self.pose_detector.stop();
         self.scripting.deinit();
         self.renderer.deinit();
@@ -81,6 +79,26 @@ const Runtime = struct {
         }
     }
 
+    fn createObject(user_ptr: *anyopaque, x: f64, y: f64) i64 {
+        var runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+
+        const fx: f32 = @floatCast(x);
+        const fy: f32 = @floatCast(y);
+        const width: f32 = @floatFromInt(runtime.window.getWidth());
+        const height: f32 = @floatFromInt(runtime.window.getHeight());
+
+        const translate = Mat4.translate(.{ fx * width - 25.0, fy * height - 25.0, 0 });
+        const scale = Mat4.scale(.{ 50, 50, 1 });
+        const transform = translate.matmul(&scale);
+        const obj_handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
+        return @intCast(obj_handle.id);
+    }
+
+    fn deleteObject(user_ptr: *anyopaque, id: i64) void {
+        var runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.renderer.deleteObject(.{ .id = @intCast(id) });
+    }
+
     fn run(self: *Runtime) !void {
         try self.pose_detector.start();
 
@@ -97,32 +115,21 @@ const Runtime = struct {
             const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
             _ = self.renderer.render(&ui_projection, &ui_projection);
 
-            try self.processPoseDetections(width, height);
+            try self.processPoseDetections();
         }
     }
 
-    fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
+    fn processPoseDetections(self: *Runtime) !void {
         while (self.pose_detector.nextEvent()) |event| {
+            const id_i64: i64 = @intCast(event.id);
+
             const detection = event.detection orelse {
-                const object = self.tracked_objects.get(event.id).?;
-                self.renderer.deleteObject(object);
-                if (!self.tracked_objects.remove(event.id)) {
-                    std.log.err("tracked object wasn't deleted", .{});
-                }
+                self.callEvent(.{ id_i64, @as(f32, -1), @as(f32, -1) });
                 continue;
             };
 
             const left_hand = detection.keypoints[9].pos;
-            const translate = Mat4.translate(.{ left_hand[0] * width - 25.0, left_hand[1] * height - 25.0, 0 });
-            const scale = Mat4.scale(.{ 50, 50, 1 });
-            const transform = translate.matmul(&scale);
-
-            const id_i64: i64 = @intCast(event.id);
             self.callEvent(.{ id_i64, left_hand[0], left_hand[1] });
-
-            const object = self.renderer.addObject(self.mesh, transform, self.material);
-            try self.tracked_objects.put(event.id, object);
-
             self.calibrated = true;
         }
     }

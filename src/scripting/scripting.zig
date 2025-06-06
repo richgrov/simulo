@@ -9,6 +9,10 @@ const pocketpy = @cImport({
 fn typeToPyType(T: type) c_int {
     if (T == Scripting.Function) {
         return pocketpy.tp_function;
+    } else if (T == i64) {
+        return pocketpy.tp_int;
+    } else if (T == f64) {
+        return pocketpy.tp_float;
     }
 
     return switch (@typeInfo(T)) {
@@ -37,7 +41,12 @@ pub const Scripting = struct {
         return pocketpy.py_newmodule(@ptrCast(name)).?;
     }
 
-    pub fn createFunction(_: *const Scripting, func: anytype) NativeCallback {
+    pub fn defineFunction(self: *const Scripting, onto: Value, name: []const u8, func: anytype) void {
+        const func_obj = self.createFunction(func);
+        pocketpy.py_bindfunc(onto, @ptrCast(name), func_obj);
+    }
+
+    fn createFunction(_: *const Scripting, func: anytype) NativeCallback {
         const func_info = switch (@typeInfo(@TypeOf(func))) {
             .@"fn" => |f| f,
             else => @compileError("non-function passed to createFunction"),
@@ -47,6 +56,8 @@ pub const Scripting = struct {
         if (params.len < 1) {
             @compileError("all native functions must accept at least one parameter for a context pointer");
         }
+
+        const ret_type = func_info.return_type.?;
 
         const py_argc = params.len - 1;
 
@@ -79,21 +90,27 @@ pub const Scripting = struct {
                         pocketpy.py_setglobal(name, value);
                         const persistent_value = pocketpy.py_getglobal(name).?;
                         args[i + 1] = Function{ .value = persistent_value };
+                    } else if (py_type == pocketpy.tp_int) {
+                        args[i + 1] = pocketpy.py_toint(value);
+                    } else if (py_type == pocketpy.tp_float) {
+                        args[i + 1] = pocketpy.py_tofloat(value);
                     } else {
                         unreachable;
                     }
                 }
 
-                @call(.auto, func, args);
-                pocketpy.py_newnone(pocketpy.py_retval());
+                const res = @call(.auto, func, args);
+                if (ret_type == i64) {
+                    pocketpy.py_newint(pocketpy.py_retval(), res);
+                } else if (ret_type == void) {
+                    pocketpy.py_newnone(pocketpy.py_retval());
+                } else {
+                    @compileError("function return type " ++ @typeName(ret_type) ++ " not Python-compatible");
+                }
                 return true;
             }
         };
         return Funcs.callback;
-    }
-
-    pub fn defineFunction(_: *const Scripting, onto: Value, name: []const u8, func: NativeCallback) void {
-        pocketpy.py_bindfunc(onto, @ptrCast(name), func);
     }
 
     pub fn callFunction(_: *const Scripting, func: *const Function, args: anytype) void {
