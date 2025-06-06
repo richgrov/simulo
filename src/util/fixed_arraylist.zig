@@ -15,7 +15,7 @@ pub fn FixedArrayList(comptime T: type, comptime capacity: usize) type {
             self.len += 1;
         }
 
-        pub fn get(self: Self, index: usize) ?T {
+        pub fn get(self: *Self, index: usize) ?T {
             if (index >= self.len) return null;
             return self.data[index];
         }
