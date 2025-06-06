@@ -75,9 +75,9 @@ const Runtime = struct {
         runtime.event_handlers.append(callback) catch unreachable;
     }
 
-    fn callEvent(self: *Runtime) void {
+    fn callEvent(self: *Runtime, args: anytype) void {
         for (self.event_handlers.items()) |handler| {
-            self.scripting.callFunction(&handler);
+            self.scripting.callFunction(&handler, args);
         }
     }
 
@@ -103,8 +103,6 @@ const Runtime = struct {
 
     fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
         while (self.pose_detector.nextEvent()) |event| {
-            self.callEvent();
-
             const detection = event.detection orelse {
                 const object = self.tracked_objects.get(event.id).?;
                 self.renderer.deleteObject(object);
@@ -118,6 +116,9 @@ const Runtime = struct {
             const translate = Mat4.translate(.{ left_hand[0] * width - 25.0, left_hand[1] * height - 25.0, 0 });
             const scale = Mat4.scale(.{ 50, 50, 1 });
             const transform = translate.matmul(&scale);
+
+            const id_i64: i64 = @intCast(event.id);
+            self.callEvent(.{ id_i64, left_hand[0], left_hand[1] });
 
             const object = self.renderer.addObject(self.mesh, transform, self.material);
             try self.tracked_objects.put(event.id, object);

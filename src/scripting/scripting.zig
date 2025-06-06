@@ -96,10 +96,22 @@ pub const Scripting = struct {
         pocketpy.py_bindfunc(onto, @ptrCast(name), func);
     }
 
-    pub fn callFunction(_: *const Scripting, func: *const Function) void {
+    pub fn callFunction(_: *const Scripting, func: *const Function, args: anytype) void {
         pocketpy.py_push(func.value);
         pocketpy.py_pushnil();
-        if (!pocketpy.py_vectorcall(0, 0)) {
+
+        inline for (0..args.len) |i| {
+            const ty = @TypeOf(args[i]);
+            if (ty == f32) {
+                pocketpy.py_newfloat(pocketpy.py_pushtmp(), args[i]);
+            } else if (ty == i64) {
+                pocketpy.py_newint(pocketpy.py_pushtmp(), args[i]);
+            } else {
+                @compileError(@typeName(ty) ++ " not convertible to Python");
+            }
+        }
+
+        if (!pocketpy.py_vectorcall(@intCast(args.len), 0)) {
             pocketpy.py_printexc();
         }
     }
