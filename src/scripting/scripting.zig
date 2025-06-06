@@ -72,8 +72,13 @@ pub const Scripting = struct {
                         return false;
                     }
 
+                    const value = pocketpy.py_offset(argv, i).?;
+
                     if (py_type == pocketpy.tp_function) {
-                        args[i + 1] = Function{ .value = pocketpy.py_offset(argv, i).? };
+                        const name = pocketpy.py_name("todo");
+                        pocketpy.py_setglobal(name, value);
+                        const persistent_value = pocketpy.py_getglobal(name).?;
+                        args[i + 1] = Function{ .value = persistent_value };
                     } else {
                         unreachable;
                     }
