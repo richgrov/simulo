@@ -12,6 +12,8 @@ pub fn build(b: *std.Build) void {
     const os = target.result.os.tag;
     const engine = createEngine(b, optimize, target);
 
+    const check_step = b.step("check", "Check step for ZLS");
+
     const godot_lib = b.addSharedLibrary(.{
         .name = "gdperception",
         .root_source_file = b.path("src/godot/extension.zig"),
@@ -24,6 +26,7 @@ pub fn build(b: *std.Build) void {
     godot_lib.linkSystemLibrary("onnxruntime");
     godot_lib.linkSystemLibrary("opencv4");
     bundleFramework(b, godot_lib, "gdperception");
+    check_step.dependOn(&godot_lib.step);
 
     const editor = b.addExecutable(.{
         .name = "simulo",
@@ -33,6 +36,7 @@ pub fn build(b: *std.Build) void {
     });
     setupExecutable(b, editor);
     editor.root_module.addImport("engine", engine);
+    check_step.dependOn(&editor.step);
 
     bundleExe(b, editor, "simulo");
     if (usesVulkan(os)) {
@@ -54,6 +58,7 @@ pub fn build(b: *std.Build) void {
     runtime.linkSystemLibrary("onnxruntime");
     runtime.linkSystemLibrary("opencv4");
     bundleExe(b, runtime, "runtime");
+    check_step.dependOn(&runtime.step);
 }
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
