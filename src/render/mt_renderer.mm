@@ -108,7 +108,7 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
           render_pass_desc.colorAttachments[0];
       color_attachments.texture = drawable.texture;
       color_attachments.loadAction = MTLLoadActionClear;
-      color_attachments.clearColor = MTLClearColorMake(0.4f, 0.4f, 0.4f, 1.0f);
+      color_attachments.clearColor = MTLClearColorMake(0.f, 0.f, 0.f, 1.0f);
       color_attachments.storeAction = MTLStoreActionStore;
 
       id<MTLRenderCommandEncoder> render_encoder =
