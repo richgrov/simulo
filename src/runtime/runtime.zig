@@ -49,6 +49,7 @@ const Runtime = struct {
         runtime.scripting.defineFunction(module, "on", Runtime.registerEventHandler);
         runtime.scripting.defineFunction(module, "create_object", Runtime.createObject);
         runtime.scripting.defineFunction(module, "delete_object", Runtime.deleteObject);
+        runtime.scripting.defineFunction(module, "set_object_position", Runtime.setObjectPosition);
 
         const image = createChessboard(&runtime.renderer);
         runtime.material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
@@ -84,11 +85,9 @@ const Runtime = struct {
 
         const fx: f32 = @floatCast(x);
         const fy: f32 = @floatCast(y);
-        const width: f32 = @floatFromInt(runtime.window.getWidth());
-        const height: f32 = @floatFromInt(runtime.window.getHeight());
 
-        const translate = Mat4.translate(.{ fx * width - 25.0, fy * height - 25.0, 0 });
-        const scale = Mat4.scale(.{ 50, 50, 1 });
+        const translate = Mat4.translate(.{ fx, fy, 0 });
+        const scale = Mat4.scale(.{ 5, 5, 1 });
         const transform = translate.matmul(&scale);
         const obj_handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
         return @intCast(obj_handle.id);
@@ -97,6 +96,19 @@ const Runtime = struct {
     fn deleteObject(user_ptr: *anyopaque, id: i64) void {
         var runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         runtime.renderer.deleteObject(.{ .id = @intCast(id) });
+    }
+
+    fn setObjectPosition(user_ptr: *anyopaque, id: i64, x: f64, y: f64) void {
+        var runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+
+        const fx: f32 = @floatCast(x);
+        const fy: f32 = @floatCast(y);
+
+        const translate = Mat4.translate(.{ fx, fy, 0 });
+        const scale = Mat4.scale(.{ 5, 5, 1 });
+        const transform = translate.matmul(&scale);
+
+        runtime.renderer.setObjectTransform(.{ .id = @intCast(id) }, transform);
     }
 
     fn run(self: *Runtime) !void {
@@ -115,11 +127,11 @@ const Runtime = struct {
             const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
             _ = self.renderer.render(&ui_projection, &ui_projection);
 
-            try self.processPoseDetections();
+            try self.processPoseDetections(width, height);
         }
     }
 
-    fn processPoseDetections(self: *Runtime) !void {
+    fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
         while (self.pose_detector.nextEvent()) |event| {
             const id_i64: i64 = @intCast(event.id);
 
@@ -129,7 +141,7 @@ const Runtime = struct {
             };
 
             const left_hand = detection.keypoints[9].pos;
-            self.callEvent(.{ id_i64, left_hand[0], left_hand[1] });
+            self.callEvent(.{ id_i64, left_hand[0] * width, left_hand[1] * height });
             self.calibrated = true;
         }
     }
