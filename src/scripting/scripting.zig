@@ -36,13 +36,14 @@ fn typeToPyType(T: type) ?c_int {
 
 pub const Scripting = struct {
     pub const Value = *pocketpy.py_TValue;
+    pub const Type = pocketpy.py_Type;
     pub const NativeCallback = pocketpy.py_CFunction;
     pub const Function = struct {
         value: *pocketpy.py_TValue,
     };
     pub const Any = struct {
         value: *pocketpy.py_TValue,
-        ty: pocketpy.py_Type,
+        ty: Type,
     };
 
     types: std.AutoHashMap(TypeId, pocketpy.py_Type),
@@ -63,7 +64,7 @@ pub const Scripting = struct {
         return pocketpy.py_newmodule(@ptrCast(name)).?;
     }
 
-    pub fn defineClass(self: *Scripting, T: type, module: Value) !void {
+    pub fn defineClass(self: *Scripting, T: type, module: Value) !Type {
         const struct_name = reflect.structName(T);
         const ty = pocketpy.py_newtype(@ptrCast(struct_name), pocketpy.tp_object, module, null);
         try self.types.put(typeId(T), ty);
@@ -73,12 +74,13 @@ pub const Scripting = struct {
                 _ = argc;
 
                 const class = pocketpy.py_totype(argv);
-                _ = pocketpy.py_newobject(pocketpy.py_retval(), class, 0, @sizeOf(T));
+                _ = pocketpy.py_newobject(pocketpy.py_retval(), class, -1, @sizeOf(T));
                 return true;
             }
         };
 
         pocketpy.py_bindmethod(ty, "__new__", Methods.new);
+        return ty;
     }
 
     pub fn defineFunction(self: *const Scripting, onto: Value, name: []const u8, func: anytype) void {
@@ -206,13 +208,22 @@ pub const Scripting = struct {
         }
     }
 
+    pub fn getRawSelf(_: *const Scripting, any: Any) *anyopaque {
+        return pocketpy.py_touserdata(any.value).?;
+    }
+
     pub fn getSelf(self: *const Scripting, T: type, any: Scripting.Any) ?*T {
         const py_type = self.types.get(typeId(T)) orelse return null;
         if (any.ty != py_type) {
             return null;
         }
 
-        const user_data = pocketpy.py_touserdata(any.value).?;
+        const user_data = self.getRawSelf(any);
         return @alignCast(@ptrCast(user_data));
+    }
+
+    pub fn keepMemberAlive(_: *const Scripting, obj: Any, target: Any, name: []const u8) void {
+        const key = pocketpy.py_name(@ptrCast(name));
+        pocketpy.py_setdict(obj.value, key, target.value);
     }
 };

@@ -13,28 +13,77 @@ const Vertex = struct {
     tex_coord: @Vector(2, f32) align(8),
 };
 
-const RenderedObject = struct {
-    handle: engine.Renderer.ObjectHandle,
+const UpdateEvent = struct {
+    delta: f32,
 };
 
-const Particle2d = struct {
-    pos: @Vector(2, f32),
-    vel: @Vector(2, f32),
+const movement_behavior_events = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
+    MovementBehavior.update_handler,
+};
+
+const MovementBehavior = extern struct {
+    behavior: Behavior,
+    object: *GameObject,
+    dx: f32,
+    dy: f32,
+
+    pub fn init(self: *MovementBehavior, object: *GameObject, dx: f32, dy: f32) void {
+        self.behavior = .{
+            .behavior_instance = @ptrCast(self),
+            .num_event_handlers = 1,
+            .event_handlers = @ptrCast(&movement_behavior_events),
+        };
+
+        self.object = object;
+        self.dx = dx;
+        self.dy = dy;
+    }
+
+    pub fn py__init__(user_data: *anyopaque, self_any: engine.Scripting.Any, object_any: engine.Scripting.Any, dx: f64, dy: f64) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_data));
+        const self = runtime.scripting.getSelf(MovementBehavior, self_any) orelse return;
+        const object = runtime.scripting.getSelf(GameObject, object_any) orelse return;
+        runtime.scripting.keepMemberAlive(self_any, object_any, "object");
+        self.init(object, @floatCast(dx), @floatCast(dy));
+    }
+
+    pub fn update(runtime: *Runtime, self: *MovementBehavior, delta_ms: f32) void {
+        self.object.x += self.dx * delta_ms;
+        self.object.y += self.dy * delta_ms;
+        const translate = Mat4.translate(.{ self.object.x, self.object.y, 0 });
+        const scale = Mat4.scale(.{ 50, 50, 1 });
+        const transform = translate.matmul(&scale);
+        runtime.renderer.setObjectTransform(self.object.handle, transform);
+    }
+
+    pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *anyopaque) callconv(.C) void {
+        const self: *MovementBehavior = @alignCast(@ptrCast(self_any));
+        const event: *UpdateEvent = @alignCast(@ptrCast(event_any));
+        MovementBehavior.update(runtime, self, event.delta);
+    }
+};
+
+const Behavior = extern struct {
+    behavior_instance: *anyopaque,
+    num_event_handlers: usize,
+    event_handlers: [*]const *const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void,
 };
 
 const GameObject = struct {
     x: f32,
     y: f32,
     handle: engine.Renderer.ObjectHandle,
+    behaviors: std.ArrayListUnmanaged(Behavior),
 
     pub fn init(runtime: *Runtime, self: *GameObject, x_: f32, y_: f32) void {
         self.x = x_;
         self.y = y_;
 
         const translate = Mat4.translate(.{ self.x, self.y, 0 });
-        const scale = Mat4.scale(.{ 5, 5, 1 });
+        const scale = Mat4.scale(.{ 50, 50, 1 });
         const transform = translate.matmul(&scale);
         self.handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
+        self.behaviors = .{};
     }
 
     pub fn py__init__(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_: f64, y_: f64) void {
@@ -73,6 +122,28 @@ const GameObject = struct {
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
         runtime.renderer.deleteObject(self.handle);
     }
+
+    pub fn py_add_behavior(user_ptr: *anyopaque, self_any: engine.Scripting.Any, behavior_any: engine.Scripting.Any) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
+
+        if (!runtime.isNativeBehavior(behavior_any.ty)) {
+            return;
+        }
+
+        const behavior_derived = runtime.scripting.getRawSelf(behavior_any);
+        const behavior: *Behavior = @ptrCast(@alignCast(behavior_derived));
+
+        var type_str_buf: [8]u8 = undefined;
+        const type_str = std.fmt.bufPrint(&type_str_buf, "{d}", .{behavior_any.ty}) catch unreachable;
+
+        runtime.scripting.keepMemberAlive(
+            self_any,
+            behavior_any,
+            type_str,
+        );
+        self.behaviors.append(runtime.allocator, behavior.*) catch unreachable;
+    }
 };
 
 const vertices = [_]Vertex{
@@ -90,6 +161,7 @@ const Runtime = struct {
     pose_detector: engine.PoseDetector,
     allocator: std.mem.Allocator,
 
+    native_behaviors: std.ArrayList(engine.Scripting.Type),
     scripting: engine.Scripting,
 
     material: engine.Renderer.MaterialHandle,
@@ -107,16 +179,21 @@ const Runtime = struct {
         runtime.pose_detector = engine.PoseDetector.init();
         runtime.calibrated = false;
 
+        runtime.native_behaviors = std.ArrayList(engine.Scripting.Type).init(runtime.allocator);
         runtime.scripting = engine.Scripting.init(runtime, allocator);
         const module = runtime.scripting.defineModule("simulo");
         runtime.scripting.defineFunction(module, "on", Runtime.registerEventHandler);
 
-        try runtime.scripting.defineClass(GameObject, module);
+        _ = try runtime.scripting.defineClass(GameObject, module);
         runtime.scripting.defineMethod(GameObject, "__init__", GameObject.py__init__);
         runtime.scripting.defineMethod(GameObject, "x", GameObject.py_x);
         runtime.scripting.defineMethod(GameObject, "y", GameObject.py_y);
         runtime.scripting.defineMethod(GameObject, "set_position", GameObject.py_set_position);
         runtime.scripting.defineMethod(GameObject, "delete", GameObject.py_delete);
+        runtime.scripting.defineMethod(GameObject, "add_behavior", GameObject.py_add_behavior);
+
+        try runtime.native_behaviors.append(try runtime.scripting.defineClass(MovementBehavior, module));
+        runtime.scripting.defineMethod(MovementBehavior, "__init__", MovementBehavior.py__init__);
 
         const image = createChessboard(&runtime.renderer);
         runtime.material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
@@ -135,6 +212,15 @@ const Runtime = struct {
 
     fn runScript(self: *Runtime, source: []const u8, file_name: []const u8) !void {
         try self.scripting.run(source, file_name);
+    }
+
+    fn isNativeBehavior(self: *const Runtime, ty: engine.Scripting.Type) bool {
+        for (self.native_behaviors.items) |behavior| {
+            if (behavior == ty) {
+                return true;
+            }
+        }
+        return false;
     }
 
     fn registerEventHandler(user_ptr: *anyopaque, callback: engine.Scripting.Function) void {
