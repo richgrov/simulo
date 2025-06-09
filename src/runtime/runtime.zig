@@ -13,6 +13,64 @@ const Vertex = struct {
     tex_coord: @Vector(2, f32) align(8),
 };
 
+const RenderedObject = struct {
+    handle: engine.Renderer.ObjectHandle,
+};
+
+const Particle2d = struct {
+    pos: @Vector(2, f32),
+    vel: @Vector(2, f32),
+};
+
+const GameObject = struct {
+    x_: f32,
+    y_: f32,
+    handle: engine.Renderer.ObjectHandle,
+
+    pub fn __init__(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_pos: f64, y_pos: f64) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
+
+        self.x_ = @floatCast(x_pos);
+        self.y_ = @floatCast(y_pos);
+
+        const translate = Mat4.translate(.{ self.x_, self.y_, 0 });
+        const scale = Mat4.scale(.{ 5, 5, 1 });
+        const transform = translate.matmul(&scale);
+        self.handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
+    }
+
+    pub fn x(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return 0.0;
+        return @floatCast(self.x_);
+    }
+
+    pub fn y(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return 0.0;
+        return @floatCast(self.y_);
+    }
+
+    pub fn set_position(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_pos: f64, y_pos: f64) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
+
+        self.x_ = @floatCast(x_pos);
+        self.y_ = @floatCast(y_pos);
+
+        const translate = Mat4.translate(.{ self.x_, self.y_, 0 });
+        const scale = Mat4.scale(.{ 5, 5, 1 });
+        const transform = translate.matmul(&scale);
+        runtime.renderer.setObjectTransform(self.handle, transform);
+    }
+
+    pub fn delete(user_ptr: *anyopaque, self: *GameObject) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.renderer.deleteObject(self.handle);
+    }
+};
+
 const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 0.0, 0.0 }, .tex_coord = .{ 0.0, 0.0 } },
     .{ .position = .{ 1.0, 0.0, 0.0 }, .tex_coord = .{ 1.0, 0.0 } },
@@ -25,31 +83,35 @@ const Runtime = struct {
     window: engine.Window,
     renderer: engine.Renderer,
     event_handlers: FixedArrayList(engine.Scripting.Function, 16),
-    scripting: engine.Scripting,
     pose_detector: engine.PoseDetector,
     allocator: std.mem.Allocator,
+
+    scripting: engine.Scripting,
 
     material: engine.Renderer.MaterialHandle,
     mesh: engine.Renderer.MeshHandle,
     chessboard: engine.Renderer.ObjectHandle,
     calibrated: bool,
 
-    fn init(runtime: *Runtime, allocator: std.mem.Allocator) void {
+    fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
 
         runtime.gpu = engine.Gpu.init();
         runtime.window = engine.Window.init(&runtime.gpu, "simulo runtime");
         runtime.renderer = engine.Renderer.init(&runtime.gpu, &runtime.window);
         runtime.event_handlers = FixedArrayList(engine.Scripting.Function, 16).init();
-        runtime.scripting = engine.Scripting.init(runtime);
         runtime.pose_detector = engine.PoseDetector.init();
         runtime.calibrated = false;
 
+        runtime.scripting = engine.Scripting.init(runtime, allocator);
         const module = runtime.scripting.defineModule("simulo");
         runtime.scripting.defineFunction(module, "on", Runtime.registerEventHandler);
-        runtime.scripting.defineFunction(module, "create_object", Runtime.createObject);
-        runtime.scripting.defineFunction(module, "delete_object", Runtime.deleteObject);
-        runtime.scripting.defineFunction(module, "set_object_position", Runtime.setObjectPosition);
+
+        try runtime.scripting.defineClass(GameObject, module);
+        runtime.scripting.defineMethod(GameObject, "__init__", GameObject.__init__);
+        runtime.scripting.defineMethod(GameObject, "x", GameObject.x);
+        runtime.scripting.defineMethod(GameObject, "y", GameObject.y);
+        runtime.scripting.defineMethod(GameObject, "set_position", GameObject.set_position);
 
         const image = createChessboard(&runtime.renderer);
         runtime.material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
@@ -58,8 +120,9 @@ const Runtime = struct {
     }
 
     fn deinit(self: *Runtime) void {
-        self.pose_detector.stop();
         self.scripting.deinit();
+
+        self.pose_detector.stop();
         self.renderer.deinit();
         self.window.deinit();
         self.gpu.deinit();
@@ -78,37 +141,6 @@ const Runtime = struct {
         for (self.event_handlers.items()) |handler| {
             self.scripting.callFunction(&handler, args);
         }
-    }
-
-    fn createObject(user_ptr: *anyopaque, x: f64, y: f64) i64 {
-        var runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-
-        const fx: f32 = @floatCast(x);
-        const fy: f32 = @floatCast(y);
-
-        const translate = Mat4.translate(.{ fx, fy, 0 });
-        const scale = Mat4.scale(.{ 5, 5, 1 });
-        const transform = translate.matmul(&scale);
-        const obj_handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
-        return @intCast(obj_handle.id);
-    }
-
-    fn deleteObject(user_ptr: *anyopaque, id: i64) void {
-        var runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        runtime.renderer.deleteObject(.{ .id = @intCast(id) });
-    }
-
-    fn setObjectPosition(user_ptr: *anyopaque, id: i64, x: f64, y: f64) void {
-        var runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-
-        const fx: f32 = @floatCast(x);
-        const fy: f32 = @floatCast(y);
-
-        const translate = Mat4.translate(.{ fx, fy, 0 });
-        const scale = Mat4.scale(.{ 5, 5, 1 });
-        const transform = translate.matmul(&scale);
-
-        runtime.renderer.setObjectTransform(.{ .id = @intCast(id) }, transform);
     }
 
     fn run(self: *Runtime) !void {
@@ -173,7 +205,7 @@ pub fn main() !void {
     const allocator = dba.allocator();
 
     var runtime: Runtime = undefined;
-    Runtime.init(&runtime, allocator);
+    try Runtime.init(&runtime, allocator);
     defer runtime.deinit();
 
     var args = try std.process.argsWithAllocator(allocator);

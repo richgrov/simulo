@@ -6,18 +6,32 @@ const pocketpy = @cImport({
     @cInclude("vendor/pocketpy/pocketpy.h");
 });
 
-fn typeToPyType(T: type) c_int {
+// https://github.com/ziglang/zig/issues/19858#issuecomment-2369861301
+const TypeId = *const struct {
+    _: u8,
+};
+
+pub inline fn typeId(comptime T: type) TypeId {
+    return &struct {
+        comptime {
+            _ = T;
+        }
+        var id: @typeInfo(TypeId).pointer.child = undefined;
+    }.id;
+}
+
+fn typeToPyType(T: type) ?c_int {
     if (T == Scripting.Function) {
         return pocketpy.tp_function;
     } else if (T == i64) {
         return pocketpy.tp_int;
     } else if (T == f64) {
         return pocketpy.tp_float;
+    } else if (T == Scripting.Any) {
+        return null;
     }
 
-    return switch (@typeInfo(T)) {
-        else => @compileError(@typeName(T) ++ " cannot be converted to Python type"),
-    };
+    @compileError(@typeName(T) ++ " cannot be converted into a Python type");
 }
 
 pub const Scripting = struct {
@@ -26,11 +40,19 @@ pub const Scripting = struct {
     pub const Function = struct {
         value: *pocketpy.py_TValue,
     };
+    pub const Any = struct {
+        value: *pocketpy.py_TValue,
+        ty: pocketpy.py_Type,
+    };
 
-    pub fn init(user_data: *anyopaque) Scripting {
+    types: std.AutoHashMap(TypeId, pocketpy.py_Type),
+
+    pub fn init(user_data: *anyopaque, allocator: std.mem.Allocator) Scripting {
         pocketpy.py_initialize();
         pocketpy.py_setvmctx(user_data);
-        return .{};
+        return .{
+            .types = std.AutoHashMap(TypeId, pocketpy.py_Type).init(allocator),
+        };
     }
 
     pub fn deinit(_: *const Scripting) void {
@@ -41,9 +63,37 @@ pub const Scripting = struct {
         return pocketpy.py_newmodule(@ptrCast(name)).?;
     }
 
+    pub fn defineClass(self: *Scripting, T: type, module: Value) !void {
+        const struct_name = reflect.structName(T);
+        const ty = pocketpy.py_newtype(@ptrCast(struct_name), pocketpy.tp_object, module, null);
+        try self.types.put(typeId(T), ty);
+
+        const Methods = struct {
+            pub fn new(argc: c_int, argv: pocketpy.py_StackRef) callconv(.C) bool {
+                _ = argc;
+
+                const class = pocketpy.py_totype(argv);
+                _ = pocketpy.py_newobject(pocketpy.py_retval(), class, 0, @sizeOf(T));
+                return true;
+            }
+        };
+
+        pocketpy.py_bindmethod(ty, "__new__", Methods.new);
+    }
+
     pub fn defineFunction(self: *const Scripting, onto: Value, name: []const u8, func: anytype) void {
         const func_obj = self.createFunction(func);
         pocketpy.py_bindfunc(onto, @ptrCast(name), func_obj);
+    }
+
+    pub fn defineMethod(self: *const Scripting, onto: type, comptime name: []const u8, func: anytype) void {
+        if (comptime std.mem.eql(u8, name, "__new__")) {
+            @compileError("python structs already have a __new__ method");
+        }
+
+        const func_obj = self.createFunction(func);
+        const py_type = self.types.get(typeId(onto)) orelse std.debug.panic("type must be defined before adding methods", .{});
+        pocketpy.py_bindmethod(py_type, @ptrCast(name), func_obj);
     }
 
     fn createFunction(_: *const Scripting, func: anytype) NativeCallback {
@@ -78,30 +128,46 @@ pub const Scripting = struct {
                 args[0] = pocketpy.py_getvmctx().?;
 
                 inline for (0..py_argc) |i| {
-                    const py_type = comptime typeToPyType(params[i + 1].type.?);
-                    if (!pocketpy.py_checktype(pocketpy.py_offset(argv, i), @intCast(py_type))) {
-                        return false;
+                    const type_id = comptime typeToPyType(params[i + 1].type.?);
+                    if (type_id) |py_type| {
+                        if (!pocketpy.py_checktype(pocketpy.py_offset(argv, i), @intCast(py_type))) {
+                            return false;
+                        }
                     }
 
                     const value = pocketpy.py_offset(argv, i).?;
 
-                    if (py_type == pocketpy.tp_function) {
-                        const name = pocketpy.py_name("todo");
-                        pocketpy.py_setglobal(name, value);
-                        const persistent_value = pocketpy.py_getglobal(name).?;
-                        args[i + 1] = Function{ .value = persistent_value };
-                    } else if (py_type == pocketpy.tp_int) {
-                        args[i + 1] = pocketpy.py_toint(value);
-                    } else if (py_type == pocketpy.tp_float) {
-                        args[i + 1] = pocketpy.py_tofloat(value);
+                    if (type_id) |py_type| {
+                        switch (py_type) {
+                            pocketpy.tp_function => {
+                                const name = pocketpy.py_name("todo");
+                                pocketpy.py_setglobal(name, value);
+                                const persistent_value = pocketpy.py_getglobal(name).?;
+                                args[i + 1] = Function{ .value = persistent_value };
+                            },
+                            pocketpy.tp_int => {
+                                args[i + 1] = pocketpy.py_toint(value);
+                            },
+                            pocketpy.tp_float => {
+                                args[i + 1] = pocketpy.py_tofloat(value);
+                            },
+                            else => {
+                                unreachable;
+                            },
+                        }
                     } else {
-                        unreachable;
+                        args[i + 1] = Any{
+                            .value = value,
+                            .ty = pocketpy.py_typeof(value),
+                        };
                     }
                 }
 
                 const res = @call(.auto, func, args);
                 if (ret_type == i64) {
                     pocketpy.py_newint(pocketpy.py_retval(), res);
+                } else if (ret_type == f64) {
+                    pocketpy.py_newfloat(pocketpy.py_retval(), res);
                 } else if (ret_type == void) {
                     pocketpy.py_newnone(pocketpy.py_retval());
                 } else {
@@ -138,5 +204,15 @@ pub const Scripting = struct {
             pocketpy.py_printexc();
             return error.PythonError;
         }
+    }
+
+    pub fn getSelf(self: *const Scripting, T: type, any: Scripting.Any) ?*T {
+        const py_type = self.types.get(typeId(T)) orelse return null;
+        if (any.ty != py_type) {
+            return null;
+        }
+
+        const user_data = pocketpy.py_touserdata(any.value).?;
+        return @alignCast(@ptrCast(user_data));
     }
 };
