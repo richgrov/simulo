@@ -23,50 +23,54 @@ const Particle2d = struct {
 };
 
 const GameObject = struct {
-    x_: f32,
-    y_: f32,
+    x: f32,
+    y: f32,
     handle: engine.Renderer.ObjectHandle,
 
-    pub fn __init__(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_pos: f64, y_pos: f64) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
+    pub fn init(runtime: *Runtime, self: *GameObject, x_: f32, y_: f32) void {
+        self.x = x_;
+        self.y = y_;
 
-        self.x_ = @floatCast(x_pos);
-        self.y_ = @floatCast(y_pos);
-
-        const translate = Mat4.translate(.{ self.x_, self.y_, 0 });
+        const translate = Mat4.translate(.{ self.x, self.y, 0 });
         const scale = Mat4.scale(.{ 5, 5, 1 });
         const transform = translate.matmul(&scale);
         self.handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
     }
 
-    pub fn x(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
+    pub fn py__init__(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_: f64, y_: f64) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return 0.0;
-        return @floatCast(self.x_);
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
+        GameObject.init(runtime, self, @floatCast(x_), @floatCast(y_));
     }
 
-    pub fn y(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
+    pub fn py_x(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return 0.0;
-        return @floatCast(self.y_);
+        return @floatCast(self.x);
     }
 
-    pub fn set_position(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_pos: f64, y_pos: f64) void {
+    pub fn py_y(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return 0.0;
+        return @floatCast(self.y);
+    }
+
+    pub fn py_set_position(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_: f64, y_: f64) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
 
-        self.x_ = @floatCast(x_pos);
-        self.y_ = @floatCast(y_pos);
+        self.x = @floatCast(x_);
+        self.y = @floatCast(y_);
 
-        const translate = Mat4.translate(.{ self.x_, self.y_, 0 });
+        const translate = Mat4.translate(.{ self.x, self.y, 0 });
         const scale = Mat4.scale(.{ 5, 5, 1 });
         const transform = translate.matmul(&scale);
         runtime.renderer.setObjectTransform(self.handle, transform);
     }
 
-    pub fn delete(user_ptr: *anyopaque, self: *GameObject) void {
+    pub fn py_delete(user_ptr: *anyopaque, self_any: engine.Scripting.Any) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
         runtime.renderer.deleteObject(self.handle);
     }
 };
@@ -108,10 +112,11 @@ const Runtime = struct {
         runtime.scripting.defineFunction(module, "on", Runtime.registerEventHandler);
 
         try runtime.scripting.defineClass(GameObject, module);
-        runtime.scripting.defineMethod(GameObject, "__init__", GameObject.__init__);
-        runtime.scripting.defineMethod(GameObject, "x", GameObject.x);
-        runtime.scripting.defineMethod(GameObject, "y", GameObject.y);
-        runtime.scripting.defineMethod(GameObject, "set_position", GameObject.set_position);
+        runtime.scripting.defineMethod(GameObject, "__init__", GameObject.py__init__);
+        runtime.scripting.defineMethod(GameObject, "x", GameObject.py_x);
+        runtime.scripting.defineMethod(GameObject, "y", GameObject.py_y);
+        runtime.scripting.defineMethod(GameObject, "set_position", GameObject.py_set_position);
+        runtime.scripting.defineMethod(GameObject, "delete", GameObject.py_delete);
 
         const image = createChessboard(&runtime.renderer);
         runtime.material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
