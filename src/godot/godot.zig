@@ -133,9 +133,7 @@ pub fn registerClass(
     Class: type,
     comptime parent: []const u8,
 ) void {
-    const qualified_name = @typeName(Class);
-    const dot_index = comptime std.mem.lastIndexOf(u8, qualified_name, ".") orelse 0;
-    const struct_name = comptime qualified_name[dot_index + 1 ..];
+    const struct_name = comptime reflect.structName(Class);
 
     var class_name = createStringName(struct_name);
     defer string_name_destructor.?(&class_name);
