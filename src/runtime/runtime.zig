@@ -74,6 +74,7 @@ const GameObject = struct {
     y: f32,
     handle: engine.Renderer.ObjectHandle,
     behaviors: std.ArrayListUnmanaged(Behavior),
+    deleted: bool,
 
     pub fn init(runtime: *Runtime, self: *GameObject, x_: f32, y_: f32) void {
         self.x = x_;
@@ -84,6 +85,7 @@ const GameObject = struct {
         const transform = translate.matmul(&scale);
         self.handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
         self.behaviors = .{};
+        self.deleted = false;
 
         runtime.objects.append(self) catch unreachable;
     }
@@ -94,6 +96,15 @@ const GameObject = struct {
                 behavior.event_handlers[i](runtime, behavior.behavior_instance, event);
             }
         }
+    }
+
+    pub fn delete(self: *GameObject, runtime: *Runtime) void {
+        if (self.deleted) {
+            return;
+        }
+
+        runtime.renderer.deleteObject(self.handle);
+        self.deleted = true;
     }
 
     pub fn py__init__(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_: f64, y_: f64) void {
@@ -130,14 +141,7 @@ const GameObject = struct {
     pub fn py_delete(user_ptr: *anyopaque, self_any: engine.Scripting.Any) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
-        runtime.renderer.deleteObject(self.handle);
-
-        for (runtime.objects.items, 0..) |object_ptr, i| {
-            if (object_ptr == self) {
-                _ = runtime.objects.swapRemove(i);
-                break;
-            }
-        }
+        self.delete(runtime);
     }
 
     pub fn py_add_behavior(user_ptr: *anyopaque, self_any: engine.Scripting.Any, behavior_any: engine.Scripting.Any) void {
@@ -282,6 +286,8 @@ const Runtime = struct {
             for (self.objects.items) |object| {
                 object.callEvent(self, &event);
             }
+
+            self.clearDeletedObjects();
         }
     }
 
@@ -297,6 +303,18 @@ const Runtime = struct {
             const left_hand = detection.keypoints[9].pos;
             self.callEvent(.{ id_i64, left_hand[0] * width, left_hand[1] * height });
             self.calibrated = true;
+        }
+    }
+
+    fn clearDeletedObjects(self: *Runtime) void {
+        var i: usize = 0;
+        while (i < self.objects.items.len) {
+            const object = self.objects.items[i];
+            if (object.deleted) {
+                _ = self.objects.swapRemove(i);
+            } else {
+                i += 1;
+            }
         }
     }
 };
