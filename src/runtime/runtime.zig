@@ -4,6 +4,9 @@ const engine = @import("engine");
 const Mat4 = engine.math.Mat4;
 const FixedArrayList = @import("../util/fixed_arraylist.zig").FixedArrayList;
 
+const behaviors = @import("behaviors.zig");
+const events = @import("events.zig");
+
 comptime {
     _ = engine;
 }
@@ -13,111 +16,11 @@ const Vertex = struct {
     tex_coord: @Vector(2, f32) align(8),
 };
 
-const UpdateEvent = struct {
-    delta: f32,
-};
-
-const MovementBehavior = extern struct {
-    behavior: Behavior,
-    object: *GameObject,
-    dx: f32,
-    dy: f32,
-
-    const movement_behavior_events = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
-        MovementBehavior.update_handler,
-    };
-
-    pub fn init(self: *MovementBehavior, object: *GameObject, dx: f32, dy: f32) void {
-        self.behavior = .{
-            .behavior_instance = @ptrCast(self),
-            .num_event_handlers = 1,
-            .event_handlers = @ptrCast(&movement_behavior_events),
-        };
-
-        self.object = object;
-        self.dx = dx;
-        self.dy = dy;
-    }
-
-    pub fn py__init__(user_data: *anyopaque, self_any: engine.Scripting.Any, object_any: engine.Scripting.Any, dx: f64, dy: f64) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_data));
-        const self = runtime.scripting.getSelf(MovementBehavior, self_any) orelse return;
-        const object = runtime.scripting.getSelf(GameObject, object_any) orelse return;
-        runtime.scripting.keepMemberAlive(self_any, object_any, "object");
-        self.init(object, @floatCast(dx), @floatCast(dy));
-    }
-
-    pub fn update(runtime: *Runtime, self: *MovementBehavior, delta_ms: f32) void {
-        self.object.x += self.dx * delta_ms;
-        self.object.y += self.dy * delta_ms;
-        const translate = Mat4.translate(.{ self.object.x, self.object.y, 0 });
-        const scale = Mat4.scale(.{ 5, 5, 1 });
-        const transform = translate.matmul(&scale);
-        runtime.renderer.setObjectTransform(self.object.handle, transform);
-    }
-
-    pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *const anyopaque) callconv(.C) void {
-        const self: *MovementBehavior = @alignCast(@ptrCast(self_any));
-        const event: *const UpdateEvent = @alignCast(@ptrCast(event_any));
-        MovementBehavior.update(runtime, self, event.delta);
-    }
-};
-
-const Behavior = extern struct {
-    behavior_instance: *anyopaque,
-    num_event_handlers: usize,
-    event_handlers: [*]const *const fn (runtime: *Runtime, self: *anyopaque, event: *const anyopaque) callconv(.C) void,
-};
-
-const LifetimeBehavior = struct {
-    behavior: Behavior,
-    object: *GameObject,
-    lifetime: f32,
-    timer: f32,
-
-    const lifetime_behavior_events = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
-        LifetimeBehavior.update_handler,
-    };
-
-    pub fn init(self: *LifetimeBehavior, object: *GameObject, lifetime: f32) void {
-        self.behavior = .{
-            .behavior_instance = @ptrCast(self),
-            .num_event_handlers = 1,
-            .event_handlers = @ptrCast(&lifetime_behavior_events),
-        };
-
-        self.object = object;
-        self.lifetime = lifetime;
-        self.timer = 0;
-    }
-
-    pub fn py__init__(user_data: *anyopaque, self_any: engine.Scripting.Any, object_any: engine.Scripting.Any, lifetime: f64) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_data));
-        const self = runtime.scripting.getSelf(LifetimeBehavior, self_any) orelse return;
-        const object = runtime.scripting.getSelf(GameObject, object_any) orelse return;
-        runtime.scripting.keepMemberAlive(self_any, object_any, "object");
-        self.init(object, @floatCast(lifetime));
-    }
-
-    pub fn update(runtime: *Runtime, self: *LifetimeBehavior, delta_ms: f32) void {
-        self.timer += delta_ms;
-        if (self.timer >= self.lifetime) {
-            self.object.delete(runtime);
-        }
-    }
-
-    pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *const anyopaque) callconv(.C) void {
-        const self: *LifetimeBehavior = @alignCast(@ptrCast(self_any));
-        const event: *const UpdateEvent = @alignCast(@ptrCast(event_any));
-        LifetimeBehavior.update(runtime, self, event.delta);
-    }
-};
-
-const GameObject = struct {
+pub const GameObject = struct {
     x: f32,
     y: f32,
     handle: engine.Renderer.ObjectHandle,
-    behaviors: std.ArrayListUnmanaged(Behavior),
+    behaviors: std.ArrayListUnmanaged(behaviors.Behavior),
     deleted: bool,
 
     pub fn init(runtime: *Runtime, self: *GameObject, x_: f32, y_: f32) void {
@@ -197,7 +100,7 @@ const GameObject = struct {
         }
 
         const behavior_derived = runtime.scripting.getRawSelf(behavior_any);
-        const behavior: *Behavior = @ptrCast(@alignCast(behavior_derived));
+        const behavior: *behaviors.Behavior = @ptrCast(@alignCast(behavior_derived));
 
         var type_str_buf: [8]u8 = undefined;
         const type_str = std.fmt.bufPrint(&type_str_buf, "{d}", .{behavior_any.ty}) catch unreachable;
@@ -218,7 +121,7 @@ const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 1.0, 0.0 }, .tex_coord = .{ 0.0, 1.0 } },
 };
 
-const Runtime = struct {
+pub const Runtime = struct {
     gpu: engine.Gpu,
     window: engine.Window,
     renderer: engine.Renderer,
@@ -235,7 +138,7 @@ const Runtime = struct {
     chessboard: engine.Renderer.ObjectHandle,
     calibrated: bool,
 
-    fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
+    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
 
         runtime.gpu = engine.Gpu.init();
@@ -258,11 +161,11 @@ const Runtime = struct {
         runtime.scripting.defineMethod(GameObject, "delete", GameObject.py_delete);
         runtime.scripting.defineMethod(GameObject, "add_behavior", GameObject.py_add_behavior);
 
-        try runtime.native_behaviors.append(try runtime.scripting.defineClass(MovementBehavior, module));
-        runtime.scripting.defineMethod(MovementBehavior, "__init__", MovementBehavior.py__init__);
+        try runtime.native_behaviors.append(try runtime.scripting.defineClass(behaviors.MovementBehavior, module));
+        runtime.scripting.defineMethod(behaviors.MovementBehavior, "__init__", behaviors.MovementBehavior.py__init__);
 
-        try runtime.native_behaviors.append(try runtime.scripting.defineClass(LifetimeBehavior, module));
-        runtime.scripting.defineMethod(LifetimeBehavior, "__init__", LifetimeBehavior.py__init__);
+        try runtime.native_behaviors.append(try runtime.scripting.defineClass(behaviors.LifetimeBehavior, module));
+        runtime.scripting.defineMethod(behaviors.LifetimeBehavior, "__init__", behaviors.LifetimeBehavior.py__init__);
 
         runtime.objects = std.ArrayList(*GameObject).init(runtime.allocator);
 
@@ -272,7 +175,7 @@ const Runtime = struct {
         runtime.chessboard = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), runtime.material);
     }
 
-    fn deinit(self: *Runtime) void {
+    pub fn deinit(self: *Runtime) void {
         self.scripting.deinit();
 
         self.pose_detector.stop();
@@ -281,7 +184,7 @@ const Runtime = struct {
         self.gpu.deinit();
     }
 
-    fn runScript(self: *Runtime, source: []const u8, file_name: []const u8) !void {
+    pub fn runScript(self: *Runtime, source: []const u8, file_name: []const u8) !void {
         try self.scripting.run(source, file_name);
     }
 
@@ -305,7 +208,7 @@ const Runtime = struct {
         }
     }
 
-    fn run(self: *Runtime) !void {
+    pub fn run(self: *Runtime) !void {
         try self.pose_detector.start();
         var last_time = std.time.milliTimestamp();
 
@@ -329,7 +232,7 @@ const Runtime = struct {
             try self.processPoseDetections(width, height);
 
             const deltaf: f32 = @floatFromInt(delta);
-            const event = UpdateEvent{ .delta = deltaf / 1000.0 };
+            const event = events.UpdateEvent{ .delta = deltaf / 1000.0 };
             for (self.objects.items) |object| {
                 object.callEvent(self, &event);
             }
@@ -380,36 +283,4 @@ pub fn createChessboard(renderer: *engine.Renderer) engine.Renderer.ImageHandle 
         }
     }
     return renderer.createImage(&checkerboard, 1280, 800);
-}
-
-pub fn main() !void {
-    var dba = std.heap.DebugAllocator(.{}).init;
-    defer {
-        if (dba.deinit() == .leak) {
-            std.log.err("memory leak detected", .{});
-        }
-    }
-    const allocator = dba.allocator();
-
-    var runtime: Runtime = undefined;
-    try Runtime.init(&runtime, allocator);
-    defer runtime.deinit();
-
-    var args = try std.process.argsWithAllocator(allocator);
-    defer args.deinit();
-
-    _ = args.next(); // skip program name
-    const script_path = args.next() orelse {
-        std.log.err("provide a path to a script", .{});
-        return;
-    };
-
-    const script_file = std.fs.cwd().readFileAlloc(allocator, script_path, std.math.maxInt(usize)) catch |err| {
-        std.log.err("failed to read script file: {}", .{err});
-        return;
-    };
-    defer allocator.free(script_file);
-
-    try runtime.runScript(script_file, script_path);
-    try runtime.run();
 }
