@@ -46,7 +46,7 @@ pub const PoseDetector = struct {
     pub fn init() PoseDetector {
         return PoseDetector{
             .output = DetectionSpsc.init(),
-            .running = true,
+            .running = false,
             .last_tracked_boxes = FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2).init(),
             .thread = undefined,
         };
@@ -58,8 +58,10 @@ pub const PoseDetector = struct {
     }
 
     pub fn stop(self: *PoseDetector) void {
-        @atomicStore(bool, &self.running, false, .seq_cst);
-        self.thread.join();
+        const stopped = @cmpxchgStrong(bool, &self.running, true, false, .seq_cst, .seq_cst) == null;
+        if (stopped) {
+            self.thread.join();
+        }
     }
 
     pub fn nextEvent(self: *PoseDetector) ?PoseEvent {
