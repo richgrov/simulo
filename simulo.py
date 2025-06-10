@@ -57,15 +57,17 @@ class GameObject:
         """
         ...
 
+    @property
     def x(self) -> float:
         """
-            Gets the screen x-coordinate of the object.
+            The screen x-coordinate of the object.
         """
         ...
 
+    @property
     def y(self) -> float:
         """
-            Gets the screen y-coordinate of the object.
+            The screen y-coordinate of the object.
         """
         ...
 

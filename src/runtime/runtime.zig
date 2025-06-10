@@ -155,8 +155,8 @@ pub const Runtime = struct {
 
         _ = try runtime.scripting.defineClass(GameObject, module);
         runtime.scripting.defineMethod(GameObject, "__init__", GameObject.py__init__);
-        runtime.scripting.defineMethod(GameObject, "x", GameObject.py_x);
-        runtime.scripting.defineMethod(GameObject, "y", GameObject.py_y);
+        runtime.scripting.defineProperty(GameObject, "x", GameObject.py_x);
+        runtime.scripting.defineProperty(GameObject, "y", GameObject.py_y);
         runtime.scripting.defineMethod(GameObject, "set_position", GameObject.py_set_position);
         runtime.scripting.defineMethod(GameObject, "delete", GameObject.py_delete);
         runtime.scripting.defineMethod(GameObject, "add_behavior", GameObject.py_add_behavior);

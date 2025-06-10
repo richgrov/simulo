@@ -99,6 +99,12 @@ pub const Scripting = struct {
         pocketpy.py_bindmethod(py_type, @ptrCast(name), func_obj);
     }
 
+    pub fn defineProperty(self: *const Scripting, onto: type, comptime name: []const u8, getter: anytype) void {
+        const py_type = self.types.get(typeId(onto)) orelse std.debug.panic("type must be defined before adding properties", .{});
+        const getter_obj = self.createFunction(getter);
+        pocketpy.py_bindproperty(py_type, @ptrCast(name), getter_obj, null);
+    }
+
     fn createFunction(_: *const Scripting, func: anytype) NativeCallback {
         const func_info = switch (@typeInfo(@TypeOf(func))) {
             .@"fn" => |f| f,
