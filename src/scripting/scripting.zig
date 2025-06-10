@@ -188,7 +188,7 @@ pub const Scripting = struct {
 
         inline for (0..args.len) |i| {
             const ty = @TypeOf(args[i]);
-            if (ty == f32) {
+            if (ty == f64) {
                 pocketpy.py_newfloat(pocketpy.py_pushtmp(), args[i]);
             } else if (ty == i64) {
                 pocketpy.py_newint(pocketpy.py_pushtmp(), args[i]);

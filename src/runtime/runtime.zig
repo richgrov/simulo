@@ -248,12 +248,14 @@ pub const Runtime = struct {
             const id_i64: i64 = @intCast(event.id);
 
             const detection = event.detection orelse {
-                self.callEvent(.{ id_i64, @as(f32, -1), @as(f32, -1) });
+                self.callEvent(.{ id_i64, @as(f64, -1), @as(f64, -1) });
                 continue;
             };
 
             const left_hand = detection.keypoints[9].pos;
-            self.callEvent(.{ id_i64, left_hand[0] * width, left_hand[1] * height });
+            const fx: f64 = @floatCast(left_hand[0] * width);
+            const fy: f64 = @floatCast(left_hand[1] * height);
+            self.callEvent(.{ id_i64, fx, fy });
             self.calibrated = true;
         }
     }
