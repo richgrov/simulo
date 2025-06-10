@@ -17,19 +17,16 @@ const Vertex = struct {
 };
 
 pub const GameObject = struct {
-    x: f32,
-    y: f32,
+    pos: @Vector(3, f32) align(8), // TODO: probably causes performance issues, but PocketPy can't allocate align(16)
+    scale: @Vector(3, f32) align(8),
     handle: engine.Renderer.ObjectHandle,
     behaviors: std.ArrayListUnmanaged(behaviors.Behavior),
     deleted: bool,
 
     pub fn init(runtime: *Runtime, self: *GameObject, x_: f32, y_: f32) void {
-        self.x = x_;
-        self.y = y_;
-
-        const translate = Mat4.translate(.{ self.x, self.y, 0 });
-        const scale = Mat4.scale(.{ 5, 5, 1 });
-        const transform = translate.matmul(&scale);
+        self.pos = .{ x_, y_, 0 };
+        self.scale = .{ 5, 5, 1 };
+        const transform = self.calculateTransform();
         self.handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
         self.behaviors = .{};
         self.deleted = false;
@@ -54,6 +51,12 @@ pub const GameObject = struct {
         self.deleted = true;
     }
 
+    pub fn calculateTransform(self: *GameObject) Mat4 {
+        const translate = Mat4.translate(.{ self.pos[0], self.pos[1], self.pos[2] });
+        const scale = Mat4.scale(.{ self.scale[0], self.scale[1], self.scale[2] });
+        return translate.matmul(&scale);
+    }
+
     pub fn py__init__(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_: f64, y_: f64) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
@@ -63,26 +66,39 @@ pub const GameObject = struct {
     pub fn py_x(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return 0.0;
-        return @floatCast(self.x);
+        return @floatCast(self.pos[0]);
     }
 
     pub fn py_y(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return 0.0;
-        return @floatCast(self.y);
+        return @floatCast(self.pos[1]);
     }
 
     pub fn py_set_position(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_: f64, y_: f64) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
+        self.pos = .{ @floatCast(x_), @floatCast(y_), 0 };
+        runtime.renderer.setObjectTransform(self.handle, self.calculateTransform());
+    }
 
-        self.x = @floatCast(x_);
-        self.y = @floatCast(y_);
+    pub fn py_x_scale(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return 0.0;
+        return @floatCast(self.scale[0]);
+    }
 
-        const translate = Mat4.translate(.{ self.x, self.y, 0 });
-        const scale = Mat4.scale(.{ 5, 5, 1 });
-        const transform = translate.matmul(&scale);
-        runtime.renderer.setObjectTransform(self.handle, transform);
+    pub fn py_y_scale(user_ptr: *anyopaque, self_any: engine.Scripting.Any) f64 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return 0.0;
+        return @floatCast(self.scale[1]);
+    }
+
+    pub fn py_set_scale(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x: f64, y: f64) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
+        self.scale = .{ @floatCast(x), @floatCast(y), 1 };
+        runtime.renderer.setObjectTransform(self.handle, self.calculateTransform());
     }
 
     pub fn py_delete(user_ptr: *anyopaque, self_any: engine.Scripting.Any) void {
@@ -158,6 +174,9 @@ pub const Runtime = struct {
         runtime.scripting.defineProperty(GameObject, "x", GameObject.py_x);
         runtime.scripting.defineProperty(GameObject, "y", GameObject.py_y);
         runtime.scripting.defineMethod(GameObject, "set_position", GameObject.py_set_position);
+        runtime.scripting.defineMethod(GameObject, "x_scale", GameObject.py_x_scale);
+        runtime.scripting.defineMethod(GameObject, "y_scale", GameObject.py_y_scale);
+        runtime.scripting.defineMethod(GameObject, "set_scale", GameObject.py_set_scale);
         runtime.scripting.defineMethod(GameObject, "delete", GameObject.py_delete);
         runtime.scripting.defineMethod(GameObject, "add_behavior", GameObject.py_add_behavior);
 

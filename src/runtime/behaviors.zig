@@ -12,8 +12,7 @@ const events = @import("events.zig");
 pub const MovementBehavior = extern struct {
     behavior: Behavior,
     object: *GameObject,
-    dx: f32,
-    dy: f32,
+    move: @Vector(3, f32) align(8), // TODO: probably causes performance issues, but PocketPy can't allocate align(16)
 
     const movement_behavior_events = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
         MovementBehavior.update_handler,
@@ -27,8 +26,7 @@ pub const MovementBehavior = extern struct {
         };
 
         self.object = object;
-        self.dx = dx;
-        self.dy = dy;
+        self.move = .{ dx, dy, 0 };
     }
 
     pub fn py__init__(user_data: *anyopaque, self_any: engine.Scripting.Any, object_any: engine.Scripting.Any, dx: f64, dy: f64) void {
@@ -40,12 +38,9 @@ pub const MovementBehavior = extern struct {
     }
 
     fn update(runtime: *Runtime, self: *MovementBehavior, delta_ms: f32) void {
-        self.object.x += self.dx * delta_ms;
-        self.object.y += self.dy * delta_ms;
-        const translate = Mat4.translate(.{ self.object.x, self.object.y, 0 });
-        const scale = Mat4.scale(.{ 5, 5, 1 });
-        const transform = translate.matmul(&scale);
-        runtime.renderer.setObjectTransform(self.object.handle, transform);
+        const delta_vec: @Vector(3, f32) = @splat(delta_ms);
+        self.object.pos += self.move * delta_vec;
+        runtime.renderer.setObjectTransform(self.object.handle, self.object.calculateTransform());
     }
 
     pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *const anyopaque) callconv(.C) void {

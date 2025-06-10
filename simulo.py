@@ -46,7 +46,8 @@ def on(func: DetectionHandler) -> None:
 class GameObject:
     def __init__(self, x: float, y: float):
         """
-            Spawns an object in the scene at the given position. The object is 5x5 pixels in size.
+            Spawns an object in the scene at the given position. At default (1x1) scale, the object
+            displays a 1x1 pixel image.
         """
         ...
 
@@ -74,6 +75,26 @@ class GameObject:
     def set_position(self, x: float, y: float):
         """
             Sets the position of the object to the given coordinates.
+        """
+        ...
+
+    @property
+    def x_scale(self) -> float:
+        """
+            The scale of the object in screen pixels along the x-axis.
+        """
+        ...
+
+    @property
+    def y_scale(self) -> float:
+        """
+            The scale of the object in screen pixels along the y-axis.
+        """
+        ...
+
+    def set_scale(self, x_scale: float, y_scale: float):
+        """
+            Sets the scale of the object to the given values in screen pixels.
         """
         ...
 
