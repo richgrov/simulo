@@ -51,7 +51,7 @@ const MovementBehavior = extern struct {
         self.object.x += self.dx * delta_ms;
         self.object.y += self.dy * delta_ms;
         const translate = Mat4.translate(.{ self.object.x, self.object.y, 0 });
-        const scale = Mat4.scale(.{ 50, 50, 1 });
+        const scale = Mat4.scale(.{ 5, 5, 1 });
         const transform = translate.matmul(&scale);
         runtime.renderer.setObjectTransform(self.object.handle, transform);
     }
@@ -80,7 +80,7 @@ const GameObject = struct {
         self.y = y_;
 
         const translate = Mat4.translate(.{ self.x, self.y, 0 });
-        const scale = Mat4.scale(.{ 50, 50, 1 });
+        const scale = Mat4.scale(.{ 5, 5, 1 });
         const transform = translate.matmul(&scale);
         self.handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
         self.behaviors = .{};
