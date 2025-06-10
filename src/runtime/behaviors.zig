@@ -61,7 +61,7 @@ pub const Behavior = extern struct {
     event_handlers: [*]const *const fn (runtime: *Runtime, self: *anyopaque, event: *const anyopaque) callconv(.C) void,
 };
 
-pub const LifetimeBehavior = struct {
+pub const LifetimeBehavior = extern struct {
     behavior: Behavior,
     object: *GameObject,
     lifetime: f32,
