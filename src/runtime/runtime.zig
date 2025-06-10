@@ -84,6 +84,17 @@ const GameObject = struct {
         const transform = translate.matmul(&scale);
         self.handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
         self.behaviors = .{};
+
+        runtime.objects.append(self) catch unreachable;
+    }
+
+    pub fn callEvent(self: *GameObject, runtime: *Runtime) void {
+        var event = UpdateEvent{ .delta = 1 };
+        for (self.behaviors.items) |behavior| {
+            for (0..behavior.num_event_handlers) |i| {
+                behavior.event_handlers[i](runtime, behavior.behavior_instance, &event);
+            }
+        }
     }
 
     pub fn py__init__(user_ptr: *anyopaque, self_any: engine.Scripting.Any, x_: f64, y_: f64) void {
@@ -121,6 +132,13 @@ const GameObject = struct {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
         runtime.renderer.deleteObject(self.handle);
+
+        for (runtime.objects.items, 0..) |object_ptr, i| {
+            if (object_ptr == self) {
+                _ = runtime.objects.swapRemove(i);
+                break;
+            }
+        }
     }
 
     pub fn py_add_behavior(user_ptr: *anyopaque, self_any: engine.Scripting.Any, behavior_any: engine.Scripting.Any) void {
@@ -163,6 +181,7 @@ const Runtime = struct {
 
     native_behaviors: std.ArrayList(engine.Scripting.Type),
     scripting: engine.Scripting,
+    objects: std.ArrayList(*GameObject),
 
     material: engine.Renderer.MaterialHandle,
     mesh: engine.Renderer.MeshHandle,
@@ -194,6 +213,8 @@ const Runtime = struct {
 
         try runtime.native_behaviors.append(try runtime.scripting.defineClass(MovementBehavior, module));
         runtime.scripting.defineMethod(MovementBehavior, "__init__", MovementBehavior.py__init__);
+
+        runtime.objects = std.ArrayList(*GameObject).init(runtime.allocator);
 
         const image = createChessboard(&runtime.renderer);
         runtime.material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
@@ -251,6 +272,10 @@ const Runtime = struct {
             _ = self.renderer.render(&ui_projection, &ui_projection);
 
             try self.processPoseDetections(width, height);
+
+            for (self.objects.items) |object| {
+                object.callEvent(self);
+            }
         }
     }
 
