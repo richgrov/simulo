@@ -56,9 +56,9 @@ const MovementBehavior = extern struct {
         runtime.renderer.setObjectTransform(self.object.handle, transform);
     }
 
-    pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *anyopaque) callconv(.C) void {
+    pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *const anyopaque) callconv(.C) void {
         const self: *MovementBehavior = @alignCast(@ptrCast(self_any));
-        const event: *UpdateEvent = @alignCast(@ptrCast(event_any));
+        const event: *const UpdateEvent = @alignCast(@ptrCast(event_any));
         MovementBehavior.update(runtime, self, event.delta);
     }
 };
@@ -66,7 +66,7 @@ const MovementBehavior = extern struct {
 const Behavior = extern struct {
     behavior_instance: *anyopaque,
     num_event_handlers: usize,
-    event_handlers: [*]const *const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void,
+    event_handlers: [*]const *const fn (runtime: *Runtime, self: *anyopaque, event: *const anyopaque) callconv(.C) void,
 };
 
 const GameObject = struct {
@@ -88,11 +88,10 @@ const GameObject = struct {
         runtime.objects.append(self) catch unreachable;
     }
 
-    pub fn callEvent(self: *GameObject, runtime: *Runtime) void {
-        var event = UpdateEvent{ .delta = 1 };
+    pub fn callEvent(self: *GameObject, runtime: *Runtime, event: *const anyopaque) void {
         for (self.behaviors.items) |behavior| {
             for (0..behavior.num_event_handlers) |i| {
-                behavior.event_handlers[i](runtime, behavior.behavior_instance, &event);
+                behavior.event_handlers[i](runtime, behavior.behavior_instance, event);
             }
         }
     }
@@ -257,8 +256,13 @@ const Runtime = struct {
 
     fn run(self: *Runtime) !void {
         try self.pose_detector.start();
+        var last_time = std.time.milliTimestamp();
 
         while (self.window.poll()) {
+            const now = std.time.milliTimestamp();
+            const delta = now - last_time;
+            last_time = now;
+
             const width: f32 = @floatFromInt(self.window.getWidth());
             const height: f32 = @floatFromInt(self.window.getHeight());
 
@@ -273,8 +277,10 @@ const Runtime = struct {
 
             try self.processPoseDetections(width, height);
 
+            const deltaf: f32 = @floatFromInt(delta);
+            const event = UpdateEvent{ .delta = deltaf / 1000.0 };
             for (self.objects.items) |object| {
-                object.callEvent(self);
+                object.callEvent(self, &event);
             }
         }
     }
