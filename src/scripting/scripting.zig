@@ -56,8 +56,9 @@ pub const Scripting = struct {
         };
     }
 
-    pub fn deinit(_: *const Scripting) void {
+    pub fn deinit(self: *Scripting) void {
         pocketpy.py_finalize();
+        self.types.deinit();
     }
 
     pub fn defineModule(_: *const Scripting, name: []const u8) Value {

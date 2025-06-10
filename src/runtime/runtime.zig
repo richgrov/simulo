@@ -177,6 +177,8 @@ pub const Runtime = struct {
 
     pub fn deinit(self: *Runtime) void {
         self.scripting.deinit();
+        self.objects.deinit();
+        self.native_behaviors.deinit();
 
         self.pose_detector.stop();
         self.renderer.deinit();
