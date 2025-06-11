@@ -9,8 +9,13 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const custom_calibration = b.option(bool, "custom_calibration", "Use custom calibration algorithm instead of OpenCV's") orelse false;
+    const options = b.addOptions();
+    options.addOption(bool, "custom_calibration", custom_calibration);
+
     const os = target.result.os.tag;
-    const engine = createEngine(b, optimize, target);
+    const engine = createEngine(b, optimize, target, custom_calibration);
+    engine.addOptions("build_options", options);
 
     const check_step = b.step("check", "Check step for ZLS");
 
@@ -24,7 +29,11 @@ pub fn build(b: *std.Build) void {
     godot_lib.addIncludePath(b.path("src"));
     godot_lib.linkLibCpp();
     godot_lib.linkSystemLibrary("onnxruntime");
-    godot_lib.linkSystemLibrary("opencv4");
+
+    if (!custom_calibration) {
+        godot_lib.linkSystemLibrary("opencv4");
+    }
+
     bundleFramework(b, godot_lib, "gdperception");
     check_step.dependOn(&godot_lib.step);
 
@@ -50,13 +59,18 @@ pub fn build(b: *std.Build) void {
         .name = "runtime",
         .target = target,
         .optimize = optimize,
-        .root_source_file = b.path("src/runtime/runtime.zig"),
+        .root_source_file = b.path("src/runtime/main.zig"),
     });
     runtime.addIncludePath(b.path("src"));
     runtime.linkLibCpp();
     runtime.root_module.addImport("engine", engine);
     runtime.linkSystemLibrary("onnxruntime");
-    runtime.linkSystemLibrary("opencv4");
+
+    if (!custom_calibration) {
+        runtime.linkSystemLibrary("opencv4");
+    }
+
+    runtime.root_module.addRPathSpecial("@executable_path/../Frameworks");
     bundleExe(b, runtime, "runtime");
     check_step.dependOn(&runtime.step);
 }
@@ -101,7 +115,7 @@ fn bundleFramework(b: *std.Build, lib: *std.Build.Step.Compile, comptime name: [
     b.getInstallStep().dependOn(&install_framework.step);
 }
 
-fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Module {
+fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget, custom_calibration: bool) *std.Build.Module {
     const engine = b.addModule("engine", .{
         .root_source_file = b.path("src/engine.zig"),
         .target = target,
@@ -122,7 +136,6 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
         "src/geometry/model.cc",
         "src/geometry/shape.cc",
         "src/image/png.cc",
-        "src/inference/calibrate.cc",
         "src/ttf/ttf.cc",
         "src/ui/font.cc",
         "src/ui/ui.cc",
@@ -130,6 +143,10 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
         "src/app.cc",
         "src/stl.cc",
     }) catch unreachable;
+
+    if (!custom_calibration) {
+        cpp_sources.append("src/inference/calibrate.cc") catch unreachable;
+    }
 
     const os = target.result.os.tag;
     if (os == .windows) {
@@ -205,7 +222,10 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
         .file = b.path("src/vendor/pocketpy/pocketpy.c"),
     });
 
-    engine.linkSystemLibrary("opencv4", .{});
+    if (!custom_calibration) {
+        engine.linkSystemLibrary("opencv4", .{});
+    }
+
     engine.linkSystemLibrary("onnxruntime", .{});
     engine.linkSystemLibrary("libdeflate", .{});
 
