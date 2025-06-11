@@ -42,7 +42,6 @@ const DetectionSpsc = Spsc(PoseEvent, DETECTION_CAPACITY * 8);
 pub const PoseDetector = struct {
     output: DetectionSpsc,
     running: bool,
-    calibrator: Calibrator,
     last_tracked_boxes: FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2),
     next_tracked_box_id: u64 = 0,
     thread: std.Thread,
@@ -51,7 +50,6 @@ pub const PoseDetector = struct {
         return PoseDetector{
             .output = DetectionSpsc.init(),
             .running = false,
-            .calibrator = Calibrator.init(),
             .last_tracked_boxes = FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2).init(),
             .thread = undefined,
         };
@@ -76,37 +74,12 @@ pub const PoseDetector = struct {
     fn run(self: *PoseDetector) !void {
         var transform: DMat3 = undefined;
 
-        var calibration_frames = if (comptime build_options.custom_calibration)
-            @as([2][480 * 640 * 3]u8, undefined)
-        else
-            [2]*ffi.OpenCvMat{
-                ffi.create_opencv_mat(480, 640).?,
-                ffi.create_opencv_mat(480, 640).?,
-            };
-
-        defer {
-            if (comptime !build_options.custom_calibration) {
-                ffi.destroy_opencv_mat(calibration_frames[0]);
-                ffi.destroy_opencv_mat(calibration_frames[1]);
-            }
-        }
-
         var calibrated = false;
-
-        var camera = try Camera.init(if (comptime build_options.custom_calibration)
-            [2][*]u8{
-                &calibration_frames[0],
-                &calibration_frames[1],
-            }
-        else
-            [2][*]u8{
-                ffi.get_opencv_mat_data(calibration_frames[0]),
-                ffi.get_opencv_mat_data(calibration_frames[1]),
-            });
-
-        defer camera.deinit();
-
         var calibrator = Calibrator.init();
+        defer calibrator.deinit();
+
+        var camera = try Camera.init(calibrator.buffers());
+        defer camera.deinit();
 
         var inference = try Inference.init();
         defer inference.deinit();
@@ -115,18 +88,12 @@ pub const PoseDetector = struct {
             const frame_idx = camera.swapBuffers();
 
             if (!calibrated) {
-                if (comptime build_options.custom_calibration) {
-                    calibrator.calibrate();
-                } else {
-                    var transform_out: ffi.FfiMat3 = undefined;
-                    if (ffi.find_chessboard(calibration_frames[frame_idx], CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT, &transform_out)) {
-                        camera.setFloatMode([2][*]f32{
-                            inference.input_buffers[0],
-                            inference.input_buffers[1],
-                        });
-                        calibrated = true;
-                        transform = DMat3.fromRowMajorPtr(&transform_out.data);
-                    }
+                if (calibrator.calibrate(frame_idx, CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT, &transform)) {
+                    camera.setFloatMode([2][*]f32{
+                        inference.input_buffers[0],
+                        inference.input_buffers[1],
+                    });
+                    calibrated = true;
                 }
                 continue;
             }

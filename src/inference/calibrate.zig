@@ -1,9 +1,16 @@
 const std = @import("std");
+const build_options = @import("build_options");
+
+const DMat3 = @import("../math/matrix.zig").DMat3;
 
 const WIDTH = 640;
 const HEIGHT = 480;
 const FRAME = HEIGHT * WIDTH;
 const RGB_FRAME = FRAME * 3;
+
+const ffi = @cImport({
+    @cInclude("ffi.h");
+});
 
 fn debugSaveImage(image: []u8) void {
     const file = std.fs.cwd().createFile("image.bin", .{}) catch unreachable;
@@ -93,21 +100,72 @@ fn findContour(binary: *[FRAME]u8, min_perimeter: usize, out: *Contour) bool {
 
 pub const Calibrator = struct {
     background_frame: [RGB_FRAME]u8 = undefined,
+    calibration_frames: if (build_options.custom_calibration)
+        [2][RGB_FRAME]u8
+    else
+        [2]*ffi.OpenCvMat,
+    transform: DMat3 = undefined,
 
     pub fn init() Calibrator {
-        return .{};
+        if (comptime build_options.custom_calibration) {
+            return .{ .calibration_frames = undefined };
+        } else {
+            return .{ .calibration_frames = [2]*ffi.OpenCvMat{
+                ffi.create_opencv_mat(HEIGHT, WIDTH).?,
+                ffi.create_opencv_mat(HEIGHT, WIDTH).?,
+            } };
+        }
+    }
+
+    pub fn deinit(self: *Calibrator) void {
+        if (comptime !build_options.custom_calibration) {
+            ffi.destroy_opencv_mat(self.calibration_frames[0]);
+            ffi.destroy_opencv_mat(self.calibration_frames[1]);
+        }
+    }
+
+    pub fn buffers(self: *Calibrator) [2][*]u8 {
+        if (comptime build_options.custom_calibration) {
+            return [2][*]u8{
+                &self.calibration_frames[0],
+                &self.calibration_frames[1],
+            };
+        } else {
+            return [2][*]u8{
+                ffi.get_opencv_mat_data(self.calibration_frames[0]),
+                ffi.get_opencv_mat_data(self.calibration_frames[1]),
+            };
+        }
     }
 
     pub fn setBackground(self: *Calibrator, frame: *[RGB_FRAME]u8) void {
         @memcpy(&self.background_frame, frame);
     }
 
-    pub fn calibrate(self: *Calibrator, frame: *[RGB_FRAME]u8) void {
-        for (0..RGB_FRAME) |i| {
-            frame[i] -|= self.background_frame[i];
-        }
+    pub fn calibrate(self: *Calibrator, frame_idx: usize, chessboard_width: i32, chessboard_height: i32, transform_out: *DMat3) bool {
+        if (comptime build_options.custom_calibration) {
+            if (frame_idx == 0) {
+                self.setBackground(&self.calibration_frames[frame_idx]);
+                return false;
+            }
 
-        var thresholded: [FRAME]u8 = undefined;
-        basicBinaryThreshold(frame, 128, &thresholded);
+            var frame = &self.calibration_frames[frame_idx];
+            for (0..RGB_FRAME) |i| {
+                frame[i] -|= self.background_frame[i];
+            }
+
+            var thresholded: [FRAME]u8 = undefined;
+            basicBinaryThreshold(frame, 128, &thresholded);
+
+            // TODO
+            return false;
+        } else {
+            var transform_mat: ffi.FfiMat3 = undefined;
+            if (ffi.find_chessboard(self.calibration_frames[frame_idx], chessboard_width, chessboard_height, &transform_mat)) {
+                transform_out.* = DMat3.fromRowMajorPtr(&transform_mat.data);
+                return true;
+            }
+            return false;
+        }
     }
 };
