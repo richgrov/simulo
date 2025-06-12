@@ -38,9 +38,7 @@ pub const Scripting = struct {
     pub const Value = *pocketpy.py_TValue;
     pub const Type = pocketpy.py_Type;
     pub const NativeCallback = pocketpy.py_CFunction;
-    pub const Function = struct {
-        value: *pocketpy.py_TValue,
-    };
+    pub const Function = struct { key: pocketpy.py_Name };
     pub const Any = struct {
         value: *pocketpy.py_TValue,
         ty: Type,
@@ -151,8 +149,7 @@ pub const Scripting = struct {
                             pocketpy.tp_function => {
                                 const name = pocketpy.py_name("todo");
                                 pocketpy.py_setglobal(name, value);
-                                const persistent_value = pocketpy.py_getglobal(name).?;
-                                args[i + 1] = Function{ .value = persistent_value };
+                                args[i + 1] = Function{ .key = name };
                             },
                             pocketpy.tp_int => {
                                 args[i + 1] = pocketpy.py_toint(value);
@@ -189,7 +186,8 @@ pub const Scripting = struct {
     }
 
     pub fn callFunction(_: *const Scripting, func: *const Function, args: anytype) void {
-        pocketpy.py_push(func.value);
+        const func_obj = pocketpy.py_getglobal(func.key).?;
+        pocketpy.py_push(func_obj);
         pocketpy.py_pushnil();
 
         inline for (0..args.len) |i| {
