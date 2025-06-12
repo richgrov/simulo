@@ -151,7 +151,7 @@ pub const Runtime = struct {
 
     material: engine.Renderer.MaterialHandle,
     mesh: engine.Renderer.MeshHandle,
-    chessboard: engine.Renderer.ObjectHandle,
+    chessboard: *GameObject,
     calibrated: bool,
 
     pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
@@ -191,7 +191,12 @@ pub const Runtime = struct {
         const image = createChessboard(&runtime.renderer);
         runtime.material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
         runtime.mesh = runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
-        runtime.chessboard = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), runtime.material);
+
+        const chessboard = runtime.scripting.instantiate(GameObject);
+        const chessboard_obj = runtime.scripting.getSelf(GameObject, chessboard).?;
+        GameObject.init(runtime, chessboard_obj, 0, 0);
+        runtime.scripting.defineVariable(module, "root_object", chessboard);
+        runtime.chessboard = chessboard_obj;
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -241,11 +246,8 @@ pub const Runtime = struct {
             const width: f32 = @floatFromInt(self.window.getWidth());
             const height: f32 = @floatFromInt(self.window.getHeight());
 
-            if (self.calibrated) {
-                self.renderer.setObjectTransform(self.chessboard, Mat4.scale(.{ 0, 0, 0 }));
-            } else {
-                self.renderer.setObjectTransform(self.chessboard, Mat4.scale(.{ width, height, 1 }));
-            }
+            self.chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
+            self.renderer.setObjectTransform(self.chessboard.handle, self.chessboard.calculateTransform());
 
             const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
             _ = self.renderer.render(&ui_projection, &ui_projection);

@@ -82,6 +82,11 @@ pub const Scripting = struct {
         return ty;
     }
 
+    pub fn defineVariable(_: *const Scripting, object: *pocketpy.py_TValue, key: []const u8, value: Any) void {
+        const name = pocketpy.py_name(@ptrCast(key));
+        _ = pocketpy.py_setattr(object, name, value.value);
+    }
+
     pub fn defineFunction(self: *const Scripting, onto: Value, name: []const u8, func: anytype) void {
         const func_obj = self.createFunction(func);
         pocketpy.py_bindfunc(onto, @ptrCast(name), func_obj);
@@ -204,6 +209,13 @@ pub const Scripting = struct {
         if (!pocketpy.py_vectorcall(@intCast(args.len), 0)) {
             pocketpy.py_printexc();
         }
+    }
+
+    pub fn instantiate(self: *const Scripting, T: type) Any {
+        const py_type = self.types.get(typeId(T)) orelse unreachable;
+        const dest = pocketpy.py_getreg(0).?;
+        _ = pocketpy.py_newobject(dest, py_type, -1, @sizeOf(T));
+        return .{ .value = dest, .ty = py_type };
     }
 
     pub fn run(_: *const Scripting, src: []const u8, file: []const u8) !void {

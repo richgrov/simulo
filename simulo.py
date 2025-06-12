@@ -105,6 +105,13 @@ class GameObject:
         """
         ...
 
+root_object: GameObject
+"""
+    The root object of the current scene. Global events are dispatched to this object. Although it
+    is the "parent" of all other objects, it's transformation does not affect its children. All
+    objects' transformations are absolute to the viewport.
+"""
+
 class MovementBehavior:
     """
         Constantly moves an object in a given direction scaled by delta time.
