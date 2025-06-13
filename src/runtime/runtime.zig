@@ -20,7 +20,8 @@ pub const GameObject = struct {
     pos: @Vector(3, f32) align(8), // TODO: probably causes performance issues, but PocketPy can't allocate align(16)
     scale: @Vector(3, f32) align(8),
     handle: engine.Renderer.ObjectHandle,
-    behaviors: std.ArrayListUnmanaged(behaviors.Behavior),
+    scripting_behaviors: std.ArrayListUnmanaged(engine.Scripting.Method),
+    native_behaviors: std.ArrayListUnmanaged(behaviors.Behavior),
     deleted: bool,
 
     pub fn init(runtime: *Runtime, self: *GameObject, x_: f32, y_: f32) void {
@@ -28,14 +29,19 @@ pub const GameObject = struct {
         self.scale = .{ 5, 5, 1 };
         const transform = self.calculateTransform();
         self.handle = runtime.renderer.addObject(runtime.mesh, transform, runtime.material);
-        self.behaviors = .{};
+        self.scripting_behaviors = .{};
+        self.native_behaviors = .{};
         self.deleted = false;
 
         runtime.objects.append(self) catch unreachable;
     }
 
     pub fn callEvent(self: *GameObject, runtime: *Runtime, event: *const anyopaque) void {
-        for (self.behaviors.items) |behavior| {
+        for (self.scripting_behaviors.items) |behavior| {
+            runtime.scripting.callMethod(behavior, .{@as(f64, 1000.0 / 60.0)});
+        }
+
+        for (self.native_behaviors.items) |behavior| {
             for (0..behavior.num_event_handlers) |i| {
                 behavior.event_handlers[i](runtime, behavior.behavior_instance, event);
             }
@@ -111,13 +117,6 @@ pub const GameObject = struct {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const self = runtime.scripting.getSelf(GameObject, self_any) orelse return;
 
-        if (!runtime.isNativeBehavior(behavior_any.ty)) {
-            return;
-        }
-
-        const behavior_derived = runtime.scripting.getRawSelf(behavior_any);
-        const behavior: *behaviors.Behavior = @ptrCast(@alignCast(behavior_derived));
-
         var type_str_buf: [8]u8 = undefined;
         const type_str = std.fmt.bufPrint(&type_str_buf, "{d}", .{behavior_any.ty}) catch unreachable;
 
@@ -126,7 +125,15 @@ pub const GameObject = struct {
             behavior_any,
             type_str,
         );
-        self.behaviors.append(runtime.allocator, behavior.*) catch unreachable;
+
+        if (runtime.isNativeBehavior(behavior_any.ty)) {
+            const behavior_derived = runtime.scripting.getRawSelf(behavior_any);
+            const behavior: *behaviors.Behavior = @ptrCast(@alignCast(behavior_derived));
+            self.native_behaviors.append(runtime.allocator, behavior.*) catch unreachable;
+        } else {
+            const update_handler = runtime.scripting.getMethod(behavior_any, "on_update") orelse return;
+            self.scripting_behaviors.append(runtime.allocator, update_handler) catch unreachable;
+        }
     }
 };
 

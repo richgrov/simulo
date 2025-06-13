@@ -40,6 +40,7 @@ pub const Scripting = struct {
     pub const Type = pocketpy.py_Type;
     pub const NativeCallback = pocketpy.py_CFunction;
     pub const Function = struct { key: pocketpy.py_Name };
+    pub const Method = struct { func: *pocketpy.py_TValue, this: *pocketpy.py_TValue };
     pub const Any = struct {
         value: *pocketpy.py_TValue,
         ty: Type,
@@ -191,6 +192,26 @@ pub const Scripting = struct {
         return Funcs.callback;
     }
 
+    pub fn callMethod(_: *const Scripting, func: Method, args: anytype) void {
+        pocketpy.py_push(func.func);
+        pocketpy.py_push(func.this);
+
+        inline for (0..args.len) |i| {
+            const ty = @TypeOf(args[i]);
+            if (ty == f64) {
+                pocketpy.py_newfloat(pocketpy.py_pushtmp(), args[i]);
+            } else if (ty == i64) {
+                pocketpy.py_newint(pocketpy.py_pushtmp(), args[i]);
+            } else {
+                @compileError(@typeName(ty) ++ " not convertible to Python");
+            }
+        }
+
+        if (!pocketpy.py_vectorcall(@intCast(args.len), 0)) {
+            pocketpy.py_printexc();
+        }
+    }
+
     pub fn callFunction(_: *const Scripting, func: *const Function, args: anytype) void {
         const func_obj = pocketpy.py_getglobal(func.key).?;
         pocketpy.py_push(func_obj);
@@ -243,5 +264,32 @@ pub const Scripting = struct {
     pub fn keepMemberAlive(_: *const Scripting, obj: Any, target: Any, name: []const u8) void {
         const key = pocketpy.py_name(@ptrCast(name));
         pocketpy.py_setdict(obj.value, key, target.value);
+    }
+
+    pub fn getMethod(_: *const Scripting, obj: Any, target: []const u8) ?Method {
+        var attr_count: c_int = 0;
+        const attrs = pocketpy.py_tpclassattrs(obj.ty, &attr_count);
+
+        for (0..@intCast(attr_count)) |i| {
+            const name = attrs[i];
+
+            const name_sv = pocketpy.py_name2sv(name);
+            const name_str = name_sv.data[0..@intCast(name_sv.size)];
+
+            if (!std.mem.eql(u8, name_str, target)) {
+                continue;
+            }
+
+            const attr = pocketpy.py_tpfindname(obj.ty, name);
+            if (attr == null) {
+                continue;
+            }
+
+            if (pocketpy.py_callable(attr)) {
+                return .{ .func = attr, .this = obj.value };
+            }
+        }
+
+        return null;
     }
 };
