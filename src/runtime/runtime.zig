@@ -36,9 +36,9 @@ pub const GameObject = struct {
         runtime.objects.append(self) catch unreachable;
     }
 
-    pub fn callEvent(self: *GameObject, runtime: *Runtime, event: *const anyopaque) void {
+    pub fn callEvent(self: *GameObject, runtime: *Runtime, event: anytype) void {
         for (self.scripting_behaviors.items) |behavior| {
-            runtime.scripting.callMethod(behavior, .{@as(f64, 1000.0 / 60.0)});
+            runtime.scripting.callMethod(behavior, event.toScriptingArgs());
         }
 
         for (self.native_behaviors.items) |behavior| {
