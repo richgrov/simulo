@@ -31,7 +31,7 @@ pub fn build(b: *std.Build) void {
     godot_lib.linkSystemLibrary("onnxruntime");
 
     if (!custom_calibration) {
-        godot_lib.linkSystemLibrary("opencv4");
+        godot_lib.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
     }
 
     bundleFramework(b, godot_lib, "gdperception");
@@ -67,7 +67,7 @@ pub fn build(b: *std.Build) void {
     runtime.linkSystemLibrary("onnxruntime");
 
     if (!custom_calibration) {
-        runtime.linkSystemLibrary("opencv4");
+        runtime.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
     }
 
     runtime.root_module.addRPathSpecial("@executable_path/../Frameworks");
@@ -223,7 +223,7 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
     });
 
     if (!custom_calibration) {
-        engine.linkSystemLibrary("opencv4", .{});
+        engine.linkSystemLibrary("opencv4", .{ .preferred_link_mode = .dynamic });
     }
 
     engine.linkSystemLibrary("onnxruntime", .{});
