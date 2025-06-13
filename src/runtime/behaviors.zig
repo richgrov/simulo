@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const engine = @import("engine");
+const reflect = engine.utils.reflect;
 const Mat4 = engine.math.Mat4;
 
 const runtime_module = @import("runtime.zig");
@@ -14,15 +15,20 @@ pub const MovementBehavior = extern struct {
     object: *GameObject,
     move: @Vector(3, f32) align(8), // TODO: probably causes performance issues, but PocketPy can't allocate align(16)
 
-    const movement_behavior_events = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
+    const handlers = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
         MovementBehavior.update_handler,
+    };
+
+    const types = [_]reflect.TypeId{
+        reflect.typeId(events.UpdateEvent),
     };
 
     pub fn init(self: *MovementBehavior, object: *GameObject, dx: f32, dy: f32) void {
         self.behavior = .{
             .behavior_instance = @ptrCast(self),
             .num_event_handlers = 1,
-            .event_handlers = @ptrCast(&movement_behavior_events),
+            .event_handlers = @ptrCast(&handlers),
+            .event_handler_types = @ptrCast(&types),
         };
 
         self.object = object;
@@ -54,6 +60,7 @@ pub const Behavior = extern struct {
     behavior_instance: *anyopaque,
     num_event_handlers: usize,
     event_handlers: [*]const *const fn (runtime: *Runtime, self: *anyopaque, event: *const anyopaque) callconv(.C) void,
+    event_handler_types: [*]const reflect.TypeId,
 };
 
 pub const LifetimeBehavior = extern struct {
@@ -62,15 +69,20 @@ pub const LifetimeBehavior = extern struct {
     lifetime: f32,
     timer: f32,
 
-    const lifetime_behavior_events = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
+    const handlers = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
         LifetimeBehavior.update_handler,
+    };
+
+    const types = [_]reflect.TypeId{
+        reflect.typeId(events.UpdateEvent),
     };
 
     pub fn init(self: *LifetimeBehavior, object: *GameObject, lifetime: f32) void {
         self.behavior = .{
             .behavior_instance = @ptrCast(self),
             .num_event_handlers = 1,
-            .event_handlers = @ptrCast(&lifetime_behavior_events),
+            .event_handlers = @ptrCast(&handlers),
+            .event_handler_types = @ptrCast(&types),
         };
 
         self.object = object;

@@ -252,7 +252,7 @@ pub const Scripting = struct {
         pocketpy.py_setdict(obj.value, key, target.value);
     }
 
-    pub fn getMethod(_: *const Scripting, obj: Any, target: []const u8) ?Method {
+    pub fn getMethods(_: *const Scripting, obj: Any, names: [][]const u8, methods: []Method) usize {
         var attr_count: c_int = 0;
         const attrs = pocketpy.py_tpclassattrs(obj.ty, &attr_count);
 
@@ -262,20 +262,17 @@ pub const Scripting = struct {
             const name_sv = pocketpy.py_name2sv(name);
             const name_str = name_sv.data[0..@intCast(name_sv.size)];
 
-            if (!std.mem.eql(u8, name_str, target)) {
-                continue;
-            }
-
             const attr = pocketpy.py_tpfindname(obj.ty, name);
             if (attr == null) {
                 continue;
             }
 
             if (pocketpy.py_callable(attr)) {
-                return .{ .func = attr, .this = obj.value };
+                names[i] = name_str;
+                methods[i] = .{ .func = attr, .this = obj.value };
             }
         }
 
-        return null;
+        return @intCast(attr_count);
     }
 };

@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const engine = @import("engine");
+const reflect = engine.utils.reflect;
 const Mat4 = engine.math.Mat4;
 const FixedArrayList = @import("../util/fixed_arraylist.zig").FixedArrayList;
 
@@ -16,11 +17,16 @@ const Vertex = struct {
     tex_coord: @Vector(2, f32) align(8),
 };
 
+const ScriptingBehavior = struct {
+    name: []const u8,
+    method: engine.Scripting.Method,
+};
+
 pub const GameObject = struct {
     pos: @Vector(3, f32) align(8), // TODO: probably causes performance issues, but PocketPy can't allocate align(16)
     scale: @Vector(3, f32) align(8),
     handle: engine.Renderer.ObjectHandle,
-    scripting_behaviors: std.ArrayListUnmanaged(engine.Scripting.Method),
+    scripting_behaviors: std.ArrayListUnmanaged(ScriptingBehavior),
     native_behaviors: std.ArrayListUnmanaged(behaviors.Behavior),
     deleted: bool,
 
@@ -37,12 +43,27 @@ pub const GameObject = struct {
     }
 
     pub fn callEvent(self: *GameObject, runtime: *Runtime, event: anytype) void {
+        const EventType = @TypeOf(event);
+
+        const struct_type, const event_name = switch (@typeInfo(EventType)) {
+            .pointer => |ptr| .{ reflect.typeId(ptr.child), ptr.child.name },
+            else => @compileError("event must be a pointer to a struct"),
+        };
+
         for (self.scripting_behaviors.items) |behavior| {
-            runtime.scripting.callMethod(behavior, event.toScriptingArgs());
+            if (!std.mem.eql(u8, behavior.name, event_name)) {
+                continue;
+            }
+
+            runtime.scripting.callMethod(behavior.method, event.toScriptingArgs());
         }
 
         for (self.native_behaviors.items) |behavior| {
             for (0..behavior.num_event_handlers) |i| {
+                if (behavior.event_handler_types[i] != struct_type) {
+                    continue;
+                }
+
                 behavior.event_handlers[i](runtime, behavior.behavior_instance, event);
             }
         }
@@ -131,8 +152,21 @@ pub const GameObject = struct {
             const behavior: *behaviors.Behavior = @ptrCast(@alignCast(behavior_derived));
             self.native_behaviors.append(runtime.allocator, behavior.*) catch unreachable;
         } else {
-            const update_handler = runtime.scripting.getMethod(behavior_any, "on_update") orelse return;
-            self.scripting_behaviors.append(runtime.allocator, update_handler) catch unreachable;
+            var method_names: [32][]const u8 = undefined;
+            var methods: [32]engine.Scripting.Method = undefined;
+            const num_methods = runtime.scripting.getMethods(behavior_any, &method_names, &methods);
+
+            for (0..num_methods) |i| {
+                const method_name = method_names[i];
+                if (!std.mem.startsWith(u8, method_name, "on_")) {
+                    continue;
+                }
+
+                self.scripting_behaviors.append(runtime.allocator, .{
+                    .name = method_name[3..],
+                    .method = methods[i],
+                }) catch unreachable;
+            }
         }
     }
 };
@@ -273,17 +307,21 @@ pub const Runtime = struct {
 
     fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
         while (self.pose_detector.nextEvent()) |event| {
-            const id_i64: i64 = @intCast(event.id);
-
             const detection = event.detection orelse {
-                self.callEvent(.{ id_i64, @as(f64, -1), @as(f64, -1) });
+                self.chessboard.callEvent(self, &events.PoseEvent{
+                    .id = event.id,
+                    .x = -1,
+                    .y = -1,
+                });
                 continue;
             };
 
             const left_hand = detection.keypoints[9].pos;
-            const fx: f64 = @floatCast(left_hand[0] * width);
-            const fy: f64 = @floatCast(left_hand[1] * height);
-            self.callEvent(.{ id_i64, fx, fy });
+            self.chessboard.callEvent(self, &events.PoseEvent{
+                .id = event.id,
+                .x = @floatCast(left_hand[0] * width),
+                .y = @floatCast(left_hand[1] * height),
+            });
             self.calibrated = true;
         }
     }

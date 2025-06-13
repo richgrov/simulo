@@ -18,30 +18,21 @@
 
     Behavior system:
     Behaviors may be added to objects which can respond to events, fire events, and manipulate the
-    object they are attached to. There is no specific order that behaviors execute in.
+    object they are attached to. There is no specific order that behaviors execute in. Behaviors
+    may define any of the following methods to listen for built-in events:
+
+    on_update(delta: float):
+    Called every frame with the elapsed time since the last frame in seconds.
+
+    on_pose(id: int, x: float, y: float):
+    Called when a person is detected in the physical world. ID is a unique identifier for the
+    person. If their position changes later, this event will be fired again with the same ID.
+    X and Y coordinates are relative to the viewport and may be outside the range if the person
+    is off-screen. If both x and y are exactly -1, the person is no longer visible on the screen
+    and has been deleted.
 """
 
-from typing import Any, Callable
-
-DetectionHandler = Callable[[int, float, float], None]
-"""
-    :param id: The ID of the object that was detected. If the object's position is updated later,
-    it will have the same ID.
-    :param x: The screen x-coordinate of the object that was detected. Actual value may be outside
-    this range if the object is off-screen.
-    :param y: The screen y-coordinate of the object that was detected. Actual value may be outside
-    this range if the object is off-screen.
-
-    If both x and y are exactly -1, the object is no longer visible on the screen and has been
-    deleted.
-"""
-
-def on(func: DetectionHandler) -> None:
-    """
-        Registers a detection handler callback to be called every frame when an a person's hand
-        comes into view, moves, or leaves the screen.
-    """
-    ...
+from typing import Any
 
 class GameObject:
     def __init__(self, x: float, y: float):
@@ -110,6 +101,8 @@ root_object: GameObject
     The root object of the current scene. Global events are dispatched to this object. Although it
     is the "parent" of all other objects, it's transformation does not affect its children. All
     objects' transformations are absolute to the viewport.
+
+    This is the only object that emits pose events.
 """
 
 class MovementBehavior:
