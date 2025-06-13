@@ -182,7 +182,6 @@ pub const Runtime = struct {
     gpu: engine.Gpu,
     window: engine.Window,
     renderer: engine.Renderer,
-    event_handlers: FixedArrayList(engine.Scripting.Function, 16),
     pose_detector: engine.PoseDetector,
     allocator: std.mem.Allocator,
 
@@ -201,14 +200,12 @@ pub const Runtime = struct {
         runtime.gpu = engine.Gpu.init();
         runtime.window = engine.Window.init(&runtime.gpu, "simulo runtime");
         runtime.renderer = engine.Renderer.init(&runtime.gpu, &runtime.window);
-        runtime.event_handlers = FixedArrayList(engine.Scripting.Function, 16).init();
         runtime.pose_detector = engine.PoseDetector.init();
         runtime.calibrated = false;
 
         runtime.native_behaviors = std.ArrayList(engine.Scripting.Type).init(runtime.allocator);
         runtime.scripting = engine.Scripting.init(runtime, allocator);
         const module = runtime.scripting.defineModule("simulo");
-        runtime.scripting.defineFunction(module, "on", Runtime.registerEventHandler);
 
         _ = try runtime.scripting.defineClass(GameObject, module);
         runtime.scripting.defineMethod(GameObject, "__init__", GameObject.py__init__);
@@ -262,11 +259,6 @@ pub const Runtime = struct {
             }
         }
         return false;
-    }
-
-    fn registerEventHandler(user_ptr: *anyopaque, callback: engine.Scripting.Function) void {
-        var runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        runtime.event_handlers.append(callback) catch unreachable;
     }
 
     fn callEvent(self: *Runtime, args: anytype) void {
