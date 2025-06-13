@@ -14,3 +14,17 @@ pub fn structName(T: type) []const u8 {
     const dot_index = comptime std.mem.lastIndexOf(u8, qualified_name, ".") orelse 0;
     return qualified_name[dot_index + 1 ..];
 }
+
+// https://github.com/ziglang/zig/issues/19858#issuecomment-2369861301
+pub const TypeId = *const struct {
+    _: u8,
+};
+
+pub inline fn typeId(comptime T: type) TypeId {
+    return &struct {
+        comptime {
+            _ = T;
+        }
+        var id: @typeInfo(TypeId).pointer.child = undefined;
+    }.id;
+}

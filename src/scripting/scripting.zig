@@ -7,20 +7,6 @@ const pocketpy = @cImport({
     @cInclude("vendor/pocketpy/pocketpy.h");
 });
 
-// https://github.com/ziglang/zig/issues/19858#issuecomment-2369861301
-const TypeId = *const struct {
-    _: u8,
-};
-
-pub inline fn typeId(comptime T: type) TypeId {
-    return &struct {
-        comptime {
-            _ = T;
-        }
-        var id: @typeInfo(TypeId).pointer.child = undefined;
-    }.id;
-}
-
 fn typeToPyType(T: type) ?c_int {
     if (T == Scripting.Function) {
         return pocketpy.tp_function;
@@ -46,13 +32,13 @@ pub const Scripting = struct {
         ty: Type,
     };
 
-    types: std.AutoHashMap(TypeId, pocketpy.py_Type),
+    types: std.AutoHashMap(reflect.TypeId, pocketpy.py_Type),
 
     pub fn init(user_data: *anyopaque, allocator: std.mem.Allocator) Scripting {
         pocketpy.py_initialize();
         pocketpy.py_setvmctx(user_data);
         return .{
-            .types = std.AutoHashMap(TypeId, pocketpy.py_Type).init(allocator),
+            .types = std.AutoHashMap(reflect.TypeId, pocketpy.py_Type).init(allocator),
         };
     }
 
@@ -68,7 +54,7 @@ pub const Scripting = struct {
     pub fn defineClass(self: *Scripting, T: type, module: Value) !Type {
         const struct_name = reflect.structName(T);
         const ty = pocketpy.py_newtype(@ptrCast(struct_name), pocketpy.tp_object, module, null);
-        try self.types.put(typeId(T), ty);
+        try self.types.put(reflect.typeId(T), ty);
 
         const Methods = struct {
             pub fn new(argc: c_int, argv: pocketpy.py_StackRef) callconv(.C) bool {
@@ -100,12 +86,12 @@ pub const Scripting = struct {
         }
 
         const func_obj = self.createFunction(func);
-        const py_type = self.types.get(typeId(onto)) orelse std.debug.panic("type must be defined before adding methods", .{});
+        const py_type = self.types.get(reflect.typeId(onto)) orelse std.debug.panic("type must be defined before adding methods", .{});
         pocketpy.py_bindmethod(py_type, @ptrCast(name), func_obj);
     }
 
     pub fn defineProperty(self: *const Scripting, onto: type, comptime name: []const u8, getter: anytype) void {
-        const py_type = self.types.get(typeId(onto)) orelse std.debug.panic("type must be defined before adding properties", .{});
+        const py_type = self.types.get(reflect.typeId(onto)) orelse std.debug.panic("type must be defined before adding properties", .{});
         const getter_obj = self.createFunction(getter);
         pocketpy.py_bindproperty(py_type, @ptrCast(name), getter_obj, null);
     }
@@ -234,7 +220,7 @@ pub const Scripting = struct {
     }
 
     pub fn instantiate(self: *const Scripting, T: type) Any {
-        const py_type = self.types.get(typeId(T)) orelse unreachable;
+        const py_type = self.types.get(reflect.typeId(T)) orelse unreachable;
         const dest = pocketpy.py_getreg(0).?;
         _ = pocketpy.py_newobject(dest, py_type, -1, @sizeOf(T));
         return .{ .value = dest, .ty = py_type };
@@ -252,7 +238,7 @@ pub const Scripting = struct {
     }
 
     pub fn getSelf(self: *const Scripting, T: type, any: Scripting.Any) ?*T {
-        const py_type = self.types.get(typeId(T)) orelse return null;
+        const py_type = self.types.get(reflect.typeId(T)) orelse return null;
         if (any.ty != py_type) {
             return null;
         }
