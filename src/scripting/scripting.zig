@@ -3,6 +3,7 @@ const std = @import("std");
 const reflect = @import("../util/util.zig").reflect;
 
 const pocketpy = @cImport({
+    @cDefine("PK_IS_PUBLIC_INCLUDE", "true");
     @cInclude("vendor/pocketpy/pocketpy.h");
 });
 

@@ -8,47 +8,51 @@
 
 // clang-format off
 
-#define PK_VERSION				"2.0.8"
+#define PK_VERSION				"2.1.0"
 #define PK_VERSION_MAJOR            2
-#define PK_VERSION_MINOR            0
-#define PK_VERSION_PATCH            8
+#define PK_VERSION_MINOR            1
+#define PK_VERSION_PATCH            0
 
 /*************** feature settings ***************/
-
-// Reduce the startup memory usage for embedded systems
-#ifndef PK_LOW_MEMORY_MODE          // can be overridden by cmake
-#define PK_LOW_MEMORY_MODE          0
-#endif
-
 // Whether to compile os-related modules or not
 #ifndef PK_ENABLE_OS                // can be overridden by cmake
 #define PK_ENABLE_OS                1
 #endif
 
+#ifndef PK_ENABLE_DETERMINISM       // must be enabled from cmake
+#define PK_ENABLE_DETERMINISM       0
+#endif
+
+#ifndef PK_ENABLE_WATCHDOG          // can be overridden by cmake
+#define PK_ENABLE_WATCHDOG          0                
+#endif
+
+#ifndef PK_ENABLE_CUSTOM_SNAME      // can be overridden by cmake
+#define PK_ENABLE_CUSTOM_SNAME      0                
+#endif
+
 // GC min threshold
 #ifndef PK_GC_MIN_THRESHOLD         // can be overridden by cmake
-    #if PK_LOW_MEMORY_MODE
-        #define PK_GC_MIN_THRESHOLD     2048
-    #else
-        #define PK_GC_MIN_THRESHOLD     32768
-    #endif
+    #define PK_GC_MIN_THRESHOLD     32768
 #endif
 
 // Memory allocation functions
 #ifndef PK_MALLOC
-#define PK_MALLOC(size)             malloc(size)
-#define PK_REALLOC(ptr, size)       realloc(ptr, size)
-#define PK_FREE(ptr)                free(ptr)
+    #ifndef __cplusplus
+        #define PK_MALLOC(size)             malloc(size)
+        #define PK_REALLOC(ptr, size)       realloc(ptr, size)
+        #define PK_FREE(ptr)                free(ptr)
+    #else
+        #define PK_MALLOC(size)             std::malloc(size)
+        #define PK_REALLOC(ptr, size)       std::realloc(ptr, size)
+        #define PK_FREE(ptr)                std::free(ptr)
+    #endif
 #endif
 
 // This is the maximum size of the value stack in py_TValue units
 // The actual size in bytes equals `sizeof(py_TValue) * PK_VM_STACK_SIZE`
 #ifndef PK_VM_STACK_SIZE            // can be overridden by cmake
-    #if PK_LOW_MEMORY_MODE
-        #define PK_VM_STACK_SIZE    2048
-    #else
-        #define PK_VM_STACK_SIZE    16384
-    #endif
+    #define PK_VM_STACK_SIZE        16384
 #endif
 
 // This is the maximum number of local variables in a function
@@ -67,10 +71,22 @@
 #define PK_M_DEG2RAD                0.017453292519943295
 #define PK_M_RAD2DEG                57.29577951308232
 
+// Hash table load factor (smaller ones mean less collision but more memory)
+// For class instance
+#define PK_INST_ATTR_LOAD_FACTOR    0.67f
+// For class itself
+#define PK_TYPE_ATTR_LOAD_FACTOR    0.5f
+
 #ifdef _WIN32
     #define PK_PLATFORM_SEP '\\'
 #else
     #define PK_PLATFORM_SEP '/'
+#endif
+
+#ifdef __cplusplus
+    #ifndef restrict
+        #define restrict
+    #endif
 #endif
 
 
@@ -131,6 +147,11 @@
     #define PK_IS_DESKTOP_PLATFORM 0
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define PK_DEPRECATED __attribute__((deprecated))
+#else
+    #define PK_DEPRECATED
+#endif
 
 
 #include <stdint.h>
@@ -167,6 +188,16 @@ typedef union c11_mat3x3 {
     float data[9];
 } c11_mat3x3;
 
+typedef union c11_color32 {
+    struct {
+        unsigned char r;
+        unsigned char g;
+        unsigned char b;
+        unsigned char a;
+    };
+    unsigned char data[4];
+} c11_color32;
+
 
 
 #include <stdint.h>
@@ -178,12 +209,12 @@ extern "C" {
 #endif
 
 /************* Public Types *************/
-
+/// A helper struct for `py_Name`.
+typedef struct py_OpaqueName py_OpaqueName;
+/// A pointer that represents a python identifier. For fast name resolution.
+typedef py_OpaqueName* py_Name;
 /// A opaque type that represents a python object. You cannot access its members directly.
 typedef struct py_TValue py_TValue;
-/// An integer that represents a python identifier. This is to achieve string pooling and fast name
-/// resolution.
-typedef uint16_t py_Name;
 /// An integer that represents a python type. `0` is invalid.
 typedef int16_t py_Type;
 /// A 64-bit integer type. Corresponds to `int` in python.
@@ -192,6 +223,12 @@ typedef int64_t py_i64;
 typedef double py_f64;
 /// A generic destructor function.
 typedef void (*py_Dtor)(void*);
+
+#ifdef PK_IS_PUBLIC_INCLUDE
+typedef struct py_TValue {
+    int64_t _[2];
+} py_TValue;
+#endif
 
 /// A string view type. It is helpful for passing strings which are not null-terminated.
 typedef struct c11_sv {
@@ -212,7 +249,7 @@ typedef py_TValue* py_GlobalRef;
 typedef py_TValue* py_StackRef;
 /// An item reference to a container object. It invalidates when the container is modified.
 typedef py_TValue* py_ItemRef;
-/// An output reference for returning a value.
+/// An output reference for returning a value. Only use this for function arguments.
 typedef py_TValue* py_OutRef;
 
 typedef struct py_Frame py_Frame;
@@ -233,8 +270,12 @@ typedef struct py_Callbacks {
     char* (*importfile)(const char*);
     /// Used by `print` to output a string.
     void (*print)(const char*);
+    /// Flush the output buffer of `print`.
+    void (*flush)();
     /// Used by `input` to get a character.
-    int (*getchar)();
+    int (*getchr)();
+    /// Used by `gc.collect()` to mark extra objects for garbage collection.
+    void (*gc_mark)(void (*f)(py_Ref val, void* ctx), void* ctx);
 } py_Callbacks;
 
 /// Native function signature.
@@ -253,7 +294,8 @@ enum py_CompileMode { EXEC_MODE, EVAL_MODE, SINGLE_MODE };
 
 /// Initialize pocketpy and the default VM.
 PK_API void py_initialize();
-/// Finalize pocketpy and free all VMs.
+/// Finalize pocketpy and free all VMs. This opearation is irreversible.
+/// After this call, you cannot use any function from this header anymore.
 PK_API void py_finalize();
 /// Get the current VM index.
 PK_API int py_currentvm();
@@ -269,9 +311,17 @@ PK_API void py_setvmctx(void* ctx);
 /// Set `sys.argv`. Used for storing command-line arguments.
 PK_API void py_sys_setargv(int argc, char** argv);
 /// Set the trace function for the current VM.
-PK_API void py_sys_settrace(py_TraceFunc func);
+PK_API void py_sys_settrace(py_TraceFunc func, bool reset);
 /// Setup the callbacks for the current VM.
 PK_API py_Callbacks* py_callbacks();
+
+/// Begin the watchdog with `timeout` in milliseconds.
+/// `PK_ENABLE_WATCHDOG` must be defined to `1` to use this feature.
+/// You need to call `py_watchdog_end()` later.
+/// If `timeout` is reached, `TimeoutError` will be raised.
+PK_API void py_watchdog_begin(py_i64 timeout);
+/// Reset the watchdog.
+PK_API void py_watchdog_end();
 
 /// Get the current source location of the frame.
 PK_API const char* py_Frame_sourceloc(py_Frame* frame, int* lineno);
@@ -397,7 +447,7 @@ PK_API py_Name py_namev(c11_sv);
 /// Convert a name to a `c11_sv`.
 PK_API c11_sv py_name2sv(py_Name);
 
-#define py_ismagicname(name) (name <= __missing__)
+#define py_ismagicname(name) (true)
 
 /************* Meta Operations *************/
 
@@ -471,14 +521,19 @@ PK_API bool py_isinstance(py_Ref obj, py_Type type);
 PK_API bool py_issubclass(py_Type derived, py_Type base);
 
 /// Get the magic method from the given type only.
-/// The returned reference is always valid. However, its value may be `nil`.
-PK_API py_GlobalRef py_tpgetmagic(py_Type type, py_Name name);
+/// Return `nil` if not found.
+PK_API PK_DEPRECATED py_GlobalRef py_tpgetmagic(py_Type type, py_Name name);
 /// Search the magic method from the given type to the base type.
 /// Return `NULL` if not found.
 PK_API py_GlobalRef py_tpfindmagic(py_Type, py_Name name);
 /// Search the name from the given type to the base type.
 /// Return `NULL` if not found.
 PK_API py_ItemRef py_tpfindname(py_Type, py_Name name);
+/// Get ordered attributes of the type.
+// These attributes must be defined under `class` statement.
+PK_API py_Name* py_tpclassattrs(py_Type, int* out_length);
+/// Get the base type of the given type.
+PK_API py_Type py_tpbase(py_Type type);
 
 /// Get the type object of the given type.
 PK_API py_GlobalRef py_tpobject(py_Type type);
@@ -524,8 +579,6 @@ PK_API void py_setglobal(py_Name name, py_Ref val);
 /// Get variable in the `builtins` module.
 PK_API py_ItemRef py_getbuiltin(py_Name name);
 
-/// Equivalent to `*dst = *src`.
-PK_API void py_assign(py_Ref dst, py_Ref src);
 /// Get the last return value.
 PK_API py_GlobalRef py_retval();
 
@@ -592,8 +645,8 @@ PK_API void py_bindfunc(py_Ref obj, const char* name, py_CFunction f);
 /// @param setter setter function. Use `NULL` if not needed.
 PK_API void
     py_bindproperty(py_Type type, const char* name, py_CFunction getter, py_CFunction setter);
-
-#define py_bindmagic(type, __magic__, f) py_newnativefunc(py_tpgetmagic((type), __magic__), (f))
+/// Bind a magic method to type.
+PK_API void py_bindmagic(py_Type type, py_Name name, py_CFunction f);
 
 #define PY_CHECK_ARGC(n)                                                                           \
     if(argc != n) return TypeError("expected %d arguments, got %d", n, argc)
@@ -601,8 +654,9 @@ PK_API void
 #define PY_CHECK_ARG_TYPE(i, type)                                                                 \
     if(!py_checktype(py_arg(i), type)) return false
 
-#define py_offset(p, i) ((py_Ref)((char*)p + ((i) << 4)))
-#define py_arg(i) py_offset(argv, i)
+#define py_offset(p, i) ((p) + (i))
+#define py_arg(i) (&argv[i])
+#define py_assign(dst, src) *(dst) = *(src)
 
 /************* Python Equivalents *************/
 
@@ -623,21 +677,32 @@ PK_API bool py_delitem(py_Ref self, py_Ref key) PY_RAISE;
 /// The result will be set to `py_retval()`.
 /// The stack remains unchanged after the operation.
 PK_API bool py_binaryop(py_Ref lhs, py_Ref rhs, py_Name op, py_Name rop) PY_RAISE PY_RETURN;
-
-#define py_binaryadd(lhs, rhs) py_binaryop(lhs, rhs, __add__, __radd__)
-#define py_binarysub(lhs, rhs) py_binaryop(lhs, rhs, __sub__, __rsub__)
-#define py_binarymul(lhs, rhs) py_binaryop(lhs, rhs, __mul__, __rmul__)
-#define py_binarytruediv(lhs, rhs) py_binaryop(lhs, rhs, __truediv__, __rtruediv__)
-#define py_binaryfloordiv(lhs, rhs) py_binaryop(lhs, rhs, __floordiv__, __rfloordiv__)
-#define py_binarymod(lhs, rhs) py_binaryop(lhs, rhs, __mod__, __rmod__)
-#define py_binarypow(lhs, rhs) py_binaryop(lhs, rhs, __pow__, __rpow__)
-
-#define py_binarylshift(lhs, rhs) py_binaryop(lhs, rhs, __lshift__, 0)
-#define py_binaryrshift(lhs, rhs) py_binaryop(lhs, rhs, __rshift__, 0)
-#define py_binaryand(lhs, rhs) py_binaryop(lhs, rhs, __and__, 0)
-#define py_binaryor(lhs, rhs) py_binaryop(lhs, rhs, __or__, 0)
-#define py_binaryxor(lhs, rhs) py_binaryop(lhs, rhs, __xor__, 0)
-#define py_binarymatmul(lhs, rhs) py_binaryop(lhs, rhs, __matmul__, 0)
+/// lhs + rhs
+PK_API bool py_binaryadd(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs - rhs
+PK_API bool py_binarysub(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs * rhs
+PK_API bool py_binarymul(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs / rhs
+PK_API bool py_binarytruediv(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs // rhs
+PK_API bool py_binaryfloordiv(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs % rhs
+PK_API bool py_binarymod(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs ** rhs
+PK_API bool py_binarypow(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs << rhs
+PK_API bool py_binarylshift(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs >> rhs
+PK_API bool py_binaryrshift(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs & rhs
+PK_API bool py_binaryand(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs | rhs
+PK_API bool py_binaryor(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs ^ rhs
+PK_API bool py_binaryxor(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
+/// lhs @ rhs
+PK_API bool py_binarymatmul(py_Ref lhs, py_Ref rhs) PY_RAISE PY_RETURN;
 
 /************* Stack Operations *************/
 
@@ -715,6 +780,7 @@ PK_API void py_clearexc(py_StackRef p0);
 #define NameError(n) py_exception(tp_NameError, "name '%n' is not defined", (n))
 #define TypeError(...) py_exception(tp_TypeError, __VA_ARGS__)
 #define RuntimeError(...) py_exception(tp_RuntimeError, __VA_ARGS__)
+#define TimeoutError(...) py_exception(tp_TimeoutError, __VA_ARGS__)
 #define OSError(...) py_exception(tp_OSError, __VA_ARGS__)
 #define ValueError(...) py_exception(tp_ValueError, __VA_ARGS__)
 #define IndexError(...) py_exception(tp_IndexError, __VA_ARGS__)
@@ -832,17 +898,19 @@ PK_API bool
 /// noexcept
 PK_API int py_dict_len(py_Ref self);
 
-/************* linalg module *************/
+/************* vmath module *************/
 void py_newvec2(py_OutRef out, c11_vec2);
 void py_newvec3(py_OutRef out, c11_vec3);
 void py_newvec2i(py_OutRef out, c11_vec2i);
 void py_newvec3i(py_OutRef out, c11_vec3i);
+void py_newcolor32(py_OutRef out, c11_color32);
 c11_mat3x3* py_newmat3x3(py_OutRef out);
 c11_vec2 py_tovec2(py_Ref self);
 c11_vec3 py_tovec3(py_Ref self);
 c11_vec2i py_tovec2i(py_Ref self);
 c11_vec3i py_tovec3i(py_Ref self);
 c11_mat3x3* py_tomat3x3(py_Ref self);
+c11_color32 py_tocolor32(py_Ref self);
 
 /************* Others *************/
 
@@ -860,79 +928,6 @@ PK_API int py_replinput(char* buf, int max_size);
 /// %p: void*
 /// %t: py_Type
 /// %n: py_Name
-
-enum py_MagicName {
-    py_MagicName__NULL,  // 0 is reserved
-
-#define MAGIC_METHOD(x) x,
-#ifdef MAGIC_METHOD
-
-// math operators
-MAGIC_METHOD(__lt__)
-MAGIC_METHOD(__le__)
-MAGIC_METHOD(__gt__)
-MAGIC_METHOD(__ge__)
-/////////////////////////////
-MAGIC_METHOD(__neg__)
-MAGIC_METHOD(__abs__)
-MAGIC_METHOD(__round__)
-MAGIC_METHOD(__divmod__)
-/////////////////////////////
-MAGIC_METHOD(__add__)
-MAGIC_METHOD(__radd__)
-MAGIC_METHOD(__sub__)
-MAGIC_METHOD(__rsub__)
-MAGIC_METHOD(__mul__)
-MAGIC_METHOD(__rmul__)
-MAGIC_METHOD(__truediv__)
-MAGIC_METHOD(__rtruediv__)
-MAGIC_METHOD(__floordiv__)
-MAGIC_METHOD(__rfloordiv__)
-MAGIC_METHOD(__mod__)
-MAGIC_METHOD(__rmod__)
-MAGIC_METHOD(__pow__)
-MAGIC_METHOD(__rpow__)
-MAGIC_METHOD(__matmul__)
-MAGIC_METHOD(__lshift__)
-MAGIC_METHOD(__rshift__)
-MAGIC_METHOD(__and__)
-MAGIC_METHOD(__or__)
-MAGIC_METHOD(__xor__)
-/////////////////////////////
-MAGIC_METHOD(__repr__)
-MAGIC_METHOD(__str__)
-MAGIC_METHOD(__hash__)
-MAGIC_METHOD(__len__)
-MAGIC_METHOD(__iter__)
-MAGIC_METHOD(__next__)
-MAGIC_METHOD(__contains__)
-MAGIC_METHOD(__bool__)
-MAGIC_METHOD(__invert__)
-/////////////////////////////
-MAGIC_METHOD(__eq__)
-MAGIC_METHOD(__ne__)
-// indexer
-MAGIC_METHOD(__getitem__)
-MAGIC_METHOD(__setitem__)
-MAGIC_METHOD(__delitem__)
-// specials
-MAGIC_METHOD(__new__)
-MAGIC_METHOD(__init__)
-MAGIC_METHOD(__call__)
-MAGIC_METHOD(__enter__)
-MAGIC_METHOD(__exit__)
-MAGIC_METHOD(__name__)
-MAGIC_METHOD(__all__)
-MAGIC_METHOD(__package__)
-MAGIC_METHOD(__path__)
-MAGIC_METHOD(__class__)
-MAGIC_METHOD(__getattr__)
-MAGIC_METHOD(__reduce__)
-MAGIC_METHOD(__missing__)
-
-#endif
-#undef MAGIC_METHOD
-};
 
 enum py_PredefinedType {
     tp_nil = 0,
@@ -961,11 +956,11 @@ enum py_PredefinedType {
     tp_locals,
     tp_code,
     tp_dict,
-    tp_dict_items,    // 1 slot
-    tp_property,      // 2 slots (getter + setter)
-    tp_star_wrapper,  // 1 slot + int level
-    tp_staticmethod,  // 1 slot
-    tp_classmethod,   // 1 slot
+    tp_dict_iterator,  // 1 slot
+    tp_property,       // 2 slots (getter + setter)
+    tp_star_wrapper,   // 1 slot + int level
+    tp_staticmethod,   // 1 slot
+    tp_classmethod,    // 1 slot
     tp_NoneType,
     tp_NotImplementedType,
     tp_ellipsis,
@@ -982,6 +977,7 @@ enum py_PredefinedType {
     tp_IndexError,
     tp_ValueError,
     tp_RuntimeError,
+    tp_TimeoutError,
     tp_ZeroDivisionError,
     tp_NameError,
     tp_UnboundLocalError,
@@ -989,12 +985,13 @@ enum py_PredefinedType {
     tp_ImportError,
     tp_AssertionError,
     tp_KeyError,
-    /* linalg */
+    /* vmath */
     tp_vec2,
     tp_vec3,
     tp_vec2i,
     tp_vec3i,
     tp_mat3x3,
+    tp_color32,
     /* array2d */
     tp_array2d_like,
     tp_array2d_like_iterator,
