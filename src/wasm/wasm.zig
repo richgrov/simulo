@@ -18,6 +18,28 @@ pub const Wasm = struct {
         }
     }
 
+    pub fn exposeFunction(comptime name: []const u8, func: anytype) !void {
+        _ = func;
+        const Callback = struct {
+            var native_symbol: wasm.NativeSymbol = .{
+                .symbol = @ptrCast(name),
+                .func_ptr = @constCast(@ptrCast(&two_args)),
+                .signature = "(ff)i",
+            };
+
+            pub fn two_args(env: wasm.wasm_exec_env_t, arg1: f32, arg2: f32) callconv(.C) u32 {
+                _ = env;
+                //_ = wasm.wasm_runtime_get_user_data(env);
+                std.debug.print("{d} {d}\n", .{ arg1, arg2 });
+                return 56;
+            }
+        };
+
+        if (!wasm.wasm_runtime_register_natives("env", &Callback.native_symbol, 1)) {
+            return error.WasmRuntimeRegisterFailed;
+        }
+    }
+
     pub fn globalDeinit() void {
         wasm.wasm_runtime_destroy();
     }

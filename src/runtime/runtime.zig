@@ -95,6 +95,16 @@ pub const Runtime = struct {
     chessboard: usize,
     calibrated: bool,
 
+    pub fn globalInit() !void {
+        try engine.Wasm.globalInit();
+        errdefer engine.Wasm.globalDeinit();
+        try engine.Wasm.exposeFunction("simulo_create_object", 0);
+    }
+
+    pub fn globalDeinit() void {
+        engine.Wasm.globalDeinit();
+    }
+
     pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
 

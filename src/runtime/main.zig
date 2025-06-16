@@ -12,8 +12,8 @@ pub fn main() !void {
     }
     const allocator = dba.allocator();
 
-    try engine.Wasm.globalInit();
-    defer engine.Wasm.globalDeinit();
+    try Runtime.globalInit();
+    defer Runtime.globalDeinit();
 
     var runtime: Runtime = undefined;
     try Runtime.init(&runtime, allocator);
