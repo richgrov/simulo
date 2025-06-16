@@ -7,6 +7,23 @@ const wasm = @cImport({
     @cInclude("wasm_export.h");
 });
 
+fn typeToSignature(T: type) []const u8 {
+    return switch (@typeInfo(T)) {
+        .void => "",
+        .int => |int| switch (int.bits) {
+            32 => "i",
+            64 => "I",
+            else => @compileError(@typeName(T) ++ " not supported for wasm"),
+        },
+        .float => |float| switch (float.bits) {
+            32 => "f",
+            64 => "F",
+            else => @compileError(@typeName(T) ++ " not supported for wasm"),
+        },
+        else => @compileError(@typeName(T) ++ " not supported for wasm"),
+    };
+}
+
 pub const Wasm = struct {
     module: wasm.wasm_module_t = null,
     module_instance: wasm.wasm_module_inst_t = null,
@@ -26,6 +43,15 @@ pub const Wasm = struct {
             else => @compileError("must pass a function into exposeFunction"),
         };
 
+        const signature = comptime switch (func_info.params.len) {
+            3 => std.fmt.comptimePrint("({s}{s}){s}", .{
+                typeToSignature(func_info.params[1].type.?),
+                typeToSignature(func_info.params[2].type.?),
+                typeToSignature(func_info.return_type.?),
+            }),
+            else => @compileError("unsupported number of parameters"),
+        };
+
         const Callback = struct {
             var native_symbol: wasm.NativeSymbol = .{
                 .symbol = @ptrCast(name),
@@ -33,7 +59,7 @@ pub const Wasm = struct {
                     3 => @constCast(@ptrCast(&two_args)),
                     else => @compileError("unsupported number of parameters"),
                 },
-                .signature = "(ff)i",
+                .signature = @ptrCast(signature),
             };
 
             pub fn two_args(
