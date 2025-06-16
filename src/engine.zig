@@ -17,8 +17,6 @@ pub const math = @import("math/matrix.zig");
 pub const Renderer = @import("render/renderer.zig").Renderer;
 pub const Window = @import("window/window.zig").Window;
 
-pub const Scripting = @import("scripting/scripting.zig").Scripting;
-
 pub const utils = @import("util/util.zig");
 
 pub const Wasm = @import("wasm/wasm.zig").Wasm;

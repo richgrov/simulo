@@ -47,6 +47,13 @@ pub fn Slab(T: type) type {
             return index;
         }
 
+        pub fn get(self: *Self, index: usize) !*T {
+            if (index >= self.data.items.len) {
+                return error.InvalidIndex;
+            }
+            return &self.data.items[index].data;
+        }
+
         pub fn delete(self: *Self, index: usize) !void {
             if (index >= self.data.items.len) {
                 return error.InvalidIndex;

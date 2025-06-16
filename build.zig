@@ -219,10 +219,6 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
         },
     });
 
-    engine.addCSourceFile(.{
-        .file = b.path("src/vendor/pocketpy/pocketpy.c"),
-    });
-
     if (!custom_calibration) {
         engine.linkSystemLibrary("opencv4", .{ .preferred_link_mode = .dynamic });
     }
