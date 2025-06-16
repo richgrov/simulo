@@ -98,7 +98,7 @@ pub const Runtime = struct {
     pub fn globalInit() !void {
         try engine.Wasm.globalInit();
         errdefer engine.Wasm.globalDeinit();
-        try engine.Wasm.exposeFunction("simulo_create_object", 0);
+        try engine.Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
     }
 
     pub fn globalDeinit() void {
@@ -132,7 +132,7 @@ pub const Runtime = struct {
     }
 
     pub fn runProgram(self: *Runtime, data: []const u8) !void {
-        try self.wasm.init(data);
+        try self.wasm.init(@ptrCast(self), data);
         const init_func = try self.wasm.getFunction("init");
         var args = [_]u32{0};
         _ = try self.wasm.callFunction(init_func, &args);
@@ -159,7 +159,7 @@ pub const Runtime = struct {
             const width: f32 = @floatFromInt(self.window.getWidth());
             const height: f32 = @floatFromInt(self.window.getHeight());
 
-            var chessboard = try self.objects.get(self.chessboard);
+            const chessboard = try self.objects.get(self.chessboard);
             chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
             self.renderer.setObjectTransform(chessboard.handle, chessboard.calculateTransform());
 
@@ -204,6 +204,15 @@ pub const Runtime = struct {
 
     fn clearDeletedObjects(_: *Runtime) void {
         // nop for now
+    }
+
+    fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32) u32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const id = runtime.objects.insert(GameObject.init(runtime, x, y)) catch unreachable;
+        const obj = runtime.objects.get(id) catch unreachable;
+        obj.scale = .{ 500, 500, 500 };
+        runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
+        return @intCast(id);
     }
 };
 

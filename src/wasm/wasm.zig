@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const reflect = @import("../util/util.zig").reflect;
+
 const wasm = @cImport({
     @cInclude("wasm_c_api.h");
     @cInclude("wasm_export.h");
@@ -19,19 +21,30 @@ pub const Wasm = struct {
     }
 
     pub fn exposeFunction(comptime name: []const u8, func: anytype) !void {
-        _ = func;
+        const func_info = switch (@typeInfo(@TypeOf(func))) {
+            .@"fn" => |fi| fi,
+            else => @compileError("must pass a function into exposeFunction"),
+        };
+
         const Callback = struct {
             var native_symbol: wasm.NativeSymbol = .{
                 .symbol = @ptrCast(name),
-                .func_ptr = @constCast(@ptrCast(&two_args)),
+                .func_ptr = switch (func_info.params.len) {
+                    3 => @constCast(@ptrCast(&two_args)),
+                    else => @compileError("unsupported number of parameters"),
+                },
                 .signature = "(ff)i",
             };
 
-            pub fn two_args(env: wasm.wasm_exec_env_t, arg1: f32, arg2: f32) callconv(.C) u32 {
-                _ = env;
-                //_ = wasm.wasm_runtime_get_user_data(env);
-                std.debug.print("{d} {d}\n", .{ arg1, arg2 });
-                return 56;
+            pub fn two_args(
+                env: wasm.wasm_exec_env_t,
+                arg1: func_info.params[1].type.?,
+                arg2: func_info.params[2].type.?,
+            ) callconv(.C) func_info.return_type.? {
+                const user_data = wasm.wasm_runtime_get_user_data(env).?;
+                const ZigArgs = reflect.functionParamsIntoTuple(func_info.params);
+                const args = ZigArgs{ user_data, arg1, arg2 };
+                return @call(.auto, func, args);
             }
         };
 
@@ -50,13 +63,14 @@ pub const Wasm = struct {
         self.exec_env = null;
     }
 
-    pub fn init(self: *Wasm, data: []const u8) !void {
+    pub fn init(self: *Wasm, user_data: *anyopaque, data: []const u8) !void {
         var error_buf: [1024 * 10]u8 = undefined;
         self.module = wasm.wasm_runtime_load(@constCast(data.ptr), @intCast(data.len), @ptrCast(&error_buf), error_buf.len) orelse return error.WasmLoadFailed;
         errdefer wasm.wasm_runtime_unload(self.module);
         self.module_instance = wasm.wasm_runtime_instantiate(self.module, 1024 * 8, 1024 * 64, @ptrCast(&error_buf), @intCast(error_buf.len)) orelse return error.WasmInstantiateFailed;
         errdefer wasm.wasm_runtime_deinstantiate(self.module_instance);
         self.exec_env = wasm.wasm_runtime_create_exec_env(self.module_instance, 1024 * 8) orelse return error.WasmExecEnvCreateFailed;
+        wasm.wasm_runtime_set_user_data(self.exec_env, user_data);
     }
 
     pub fn deinit(self: *Wasm) void {
