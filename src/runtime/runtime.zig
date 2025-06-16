@@ -99,6 +99,8 @@ pub const Runtime = struct {
         try engine.Wasm.globalInit();
         errdefer engine.Wasm.globalDeinit();
         try engine.Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
+        try engine.Wasm.exposeFunction("simulo_set_object_position", wasmSetObjectPosition);
+        try engine.Wasm.exposeFunction("simulo_set_object_scale", wasmSetObjectScale);
     }
 
     pub fn globalDeinit() void {
@@ -213,6 +215,20 @@ pub const Runtime = struct {
         obj.scale = .{ 500, 500, 500 };
         runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
         return @intCast(id);
+    }
+
+    fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.objects.get(id) catch return;
+        obj.pos = .{ x, y, 0 };
+        runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
+    }
+
+    fn wasmSetObjectScale(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.objects.get(id) catch return;
+        obj.scale = .{ x, y, 1 };
+        runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
     }
 };
 
