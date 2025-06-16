@@ -8,6 +8,8 @@ const FixedArrayList = @import("../util/fixed_arraylist.zig").FixedArrayList;
 const behaviors = @import("behaviors.zig");
 const events = @import("events.zig");
 
+const Wasm = engine.Wasm;
+
 comptime {
     _ = engine;
 }
@@ -39,7 +41,7 @@ pub const GameObject = struct {
         self.native_behaviors = .{};
         self.deleted = false;
 
-        runtime.objects.append(self) catch unreachable;
+        _ = runtime.objects.insert(self) catch unreachable;
     }
 
     pub fn callEvent(self: *GameObject, runtime: *Runtime, event: anytype) void {
@@ -185,9 +187,10 @@ pub const Runtime = struct {
     pose_detector: engine.PoseDetector,
     allocator: std.mem.Allocator,
 
+    wasm: engine.Wasm,
     native_behaviors: std.ArrayList(engine.Scripting.Type),
     scripting: engine.Scripting,
-    objects: std.ArrayList(*GameObject),
+    objects: Slab(*GameObject),
 
     material: engine.Renderer.MaterialHandle,
     mesh: engine.Renderer.MeshHandle,
@@ -208,6 +211,7 @@ pub const Runtime = struct {
         const module = runtime.scripting.defineModule("simulo");
 
         _ = try runtime.scripting.defineClass(GameObject, module);
+        runtime.wasm.zeroInit();
         runtime.scripting.defineMethod(GameObject, "__init__", GameObject.py__init__);
         runtime.scripting.defineProperty(GameObject, "x", GameObject.py_x);
         runtime.scripting.defineProperty(GameObject, "y", GameObject.py_y);
@@ -224,7 +228,7 @@ pub const Runtime = struct {
         try runtime.native_behaviors.append(try runtime.scripting.defineClass(behaviors.LifetimeBehavior, module));
         runtime.scripting.defineMethod(behaviors.LifetimeBehavior, "__init__", behaviors.LifetimeBehavior.py__init__);
 
-        runtime.objects = std.ArrayList(*GameObject).init(runtime.allocator);
+        runtime.objects = try Slab(*GameObject).init(runtime.allocator, 64);
 
         const image = createChessboard(&runtime.renderer);
         runtime.material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
@@ -238,6 +242,7 @@ pub const Runtime = struct {
     }
 
     pub fn deinit(self: *Runtime) void {
+        self.wasm.deinit();
         self.scripting.deinit();
         self.objects.deinit();
         self.native_behaviors.deinit();
@@ -248,8 +253,11 @@ pub const Runtime = struct {
         self.gpu.deinit();
     }
 
-    pub fn runScript(self: *Runtime, source: []const u8, file_name: []const u8) !void {
-        try self.scripting.run(source, file_name);
+    pub fn runProgram(self: *Runtime, data: []const u8) !void {
+        try self.wasm.init(data);
+        const init_func = try self.wasm.getFunction("init");
+        var args = [_]u32{0};
+        _ = try self.wasm.callFunction(init_func, &args);
     }
 
     fn isNativeBehavior(self: *const Runtime, ty: engine.Scripting.Type) bool {
@@ -273,7 +281,7 @@ pub const Runtime = struct {
 
         while (self.window.poll()) {
             const now = std.time.milliTimestamp();
-            const delta = now - last_time;
+            //const delta = now - last_time;
             last_time = now;
 
             const width: f32 = @floatFromInt(self.window.getWidth());
@@ -287,11 +295,11 @@ pub const Runtime = struct {
 
             try self.processPoseDetections(width, height);
 
-            const deltaf: f32 = @floatFromInt(delta);
-            const event = events.UpdateEvent{ .delta = deltaf / 1000.0 };
-            for (self.objects.items) |object| {
-                object.callEvent(self, &event);
-            }
+            //const deltaf: f32 = @floatFromInt(delta);
+            //const event = events.UpdateEvent{ .delta = deltaf / 1000.0 };
+            //for (self.objects.items()) |object| {
+            //object.callEvent(self, &event);
+            //}
 
             self.clearDeletedObjects();
         }
@@ -318,16 +326,8 @@ pub const Runtime = struct {
         }
     }
 
-    fn clearDeletedObjects(self: *Runtime) void {
-        var i: usize = 0;
-        while (i < self.objects.items.len) {
-            const object = self.objects.items[i];
-            if (object.deleted) {
-                _ = self.objects.swapRemove(i);
-            } else {
-                i += 1;
-            }
-        }
+    fn clearDeletedObjects(_: *Runtime) void {
+        // nop for now
     }
 };
 

@@ -65,6 +65,7 @@ pub fn build(b: *std.Build) void {
     runtime.linkLibCpp();
     runtime.root_module.addImport("engine", engine);
     runtime.linkSystemLibrary("onnxruntime");
+    runtime.linkSystemLibrary("iwasm");
 
     if (!custom_calibration) {
         runtime.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
