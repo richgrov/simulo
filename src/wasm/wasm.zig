@@ -44,6 +44,10 @@ pub const Wasm = struct {
         };
 
         const signature = comptime switch (func_info.params.len) {
+            2 => std.fmt.comptimePrint("({s}){s}", .{
+                typeToSignature(func_info.params[1].type.?),
+                typeToSignature(func_info.return_type.?),
+            }),
             3 => std.fmt.comptimePrint("({s}{s}){s}", .{
                 typeToSignature(func_info.params[1].type.?),
                 typeToSignature(func_info.params[2].type.?),
@@ -62,12 +66,23 @@ pub const Wasm = struct {
             var native_symbol: wasm.NativeSymbol = .{
                 .symbol = @ptrCast(name),
                 .func_ptr = switch (func_info.params.len) {
+                    2 => @constCast(@ptrCast(&one_arg)),
                     3 => @constCast(@ptrCast(&two_args)),
                     4 => @constCast(@ptrCast(&three_args)),
                     else => @compileError("unsupported number of parameters"),
                 },
                 .signature = @ptrCast(signature),
             };
+
+            pub fn one_arg(
+                env: wasm.wasm_exec_env_t,
+                arg1: func_info.params[1].type.?,
+            ) callconv(.C) func_info.return_type.? {
+                const user_data = wasm.wasm_runtime_get_user_data(env).?;
+                const ZigArgs = reflect.functionParamsIntoTuple(func_info.params);
+                const args = ZigArgs{ user_data, arg1 };
+                return @call(.auto, func, args);
+            }
 
             pub fn two_args(
                 env: wasm.wasm_exec_env_t,
