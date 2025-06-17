@@ -24,6 +24,17 @@ fn typeToSignature(T: type) []const u8 {
     };
 }
 
+fn createWasmSignature(func_info: std.builtin.Type.Fn) []const u8 {
+    const fmt = "(" ++ "{s}" ** (func_info.params.len - 1) ++ "){s}";
+    const Params = std.meta.Tuple(&[_]type{[]const u8} ** func_info.params.len);
+    var params: Params = undefined;
+    inline for (1..func_info.params.len) |i| {
+        params[i - 1] = typeToSignature(func_info.params[i].type.?);
+    }
+    params[func_info.params.len - 1] = typeToSignature(func_info.return_type.?);
+    return std.fmt.comptimePrint(fmt, params);
+}
+
 pub const Wasm = struct {
     module: wasm.wasm_module_t = null,
     module_instance: wasm.wasm_module_inst_t = null,
@@ -43,45 +54,28 @@ pub const Wasm = struct {
             else => @compileError("must pass a function into exposeFunction"),
         };
 
-        const signature = comptime switch (func_info.params.len) {
-            2 => std.fmt.comptimePrint("({s}){s}", .{
-                typeToSignature(func_info.params[1].type.?),
-                typeToSignature(func_info.return_type.?),
-            }),
-            3 => std.fmt.comptimePrint("({s}{s}){s}", .{
-                typeToSignature(func_info.params[1].type.?),
-                typeToSignature(func_info.params[2].type.?),
-                typeToSignature(func_info.return_type.?),
-            }),
-            4 => std.fmt.comptimePrint("({s}{s}{s}){s}", .{
-                typeToSignature(func_info.params[1].type.?),
-                typeToSignature(func_info.params[2].type.?),
-                typeToSignature(func_info.params[3].type.?),
-                typeToSignature(func_info.return_type.?),
-            }),
-            else => @compileError("unsupported number of parameters"),
-        };
+        const ZigArgs = reflect.functionParamsIntoTuple(func_info.params);
 
         const Callback = struct {
             var native_symbol: wasm.NativeSymbol = .{
                 .symbol = @ptrCast(name),
-                .func_ptr = switch (func_info.params.len) {
-                    2 => @constCast(@ptrCast(&one_arg)),
-                    3 => @constCast(@ptrCast(&two_args)),
-                    4 => @constCast(@ptrCast(&three_args)),
+                .func_ptr = switch (func_info.params.len - 1) {
+                    1 => @constCast(@ptrCast(&one_arg)),
+                    2 => @constCast(@ptrCast(&two_args)),
+                    3 => @constCast(@ptrCast(&three_args)),
                     else => @compileError("unsupported number of parameters"),
                 },
-                .signature = @ptrCast(signature),
+                .signature = @ptrCast(createWasmSignature(func_info)),
             };
 
             pub fn one_arg(
                 env: wasm.wasm_exec_env_t,
                 arg1: func_info.params[1].type.?,
             ) callconv(.C) func_info.return_type.? {
-                const user_data = wasm.wasm_runtime_get_user_data(env).?;
-                const ZigArgs = reflect.functionParamsIntoTuple(func_info.params);
-                const args = ZigArgs{ user_data, arg1 };
-                return @call(.auto, func, args);
+                return @call(.auto, func, ZigArgs{
+                    wasm.wasm_runtime_get_user_data(env).?,
+                    arg1,
+                });
             }
 
             pub fn two_args(
@@ -89,10 +83,11 @@ pub const Wasm = struct {
                 arg1: func_info.params[1].type.?,
                 arg2: func_info.params[2].type.?,
             ) callconv(.C) func_info.return_type.? {
-                const user_data = wasm.wasm_runtime_get_user_data(env).?;
-                const ZigArgs = reflect.functionParamsIntoTuple(func_info.params);
-                const args = ZigArgs{ user_data, arg1, arg2 };
-                return @call(.auto, func, args);
+                return @call(.auto, func, ZigArgs{
+                    wasm.wasm_runtime_get_user_data(env).?,
+                    arg1,
+                    arg2,
+                });
             }
 
             pub fn three_args(
@@ -101,10 +96,12 @@ pub const Wasm = struct {
                 arg2: func_info.params[2].type.?,
                 arg3: func_info.params[3].type.?,
             ) callconv(.C) func_info.return_type.? {
-                const user_data = wasm.wasm_runtime_get_user_data(env).?;
-                const ZigArgs = reflect.functionParamsIntoTuple(func_info.params);
-                const args = ZigArgs{ user_data, arg1, arg2, arg3 };
-                return @call(.auto, func, args);
+                return @call(.auto, func, ZigArgs{
+                    wasm.wasm_runtime_get_user_data(env).?,
+                    arg1,
+                    arg2,
+                    arg3,
+                });
             }
         };
 
