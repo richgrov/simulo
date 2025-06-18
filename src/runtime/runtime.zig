@@ -128,6 +128,7 @@ pub const Runtime = struct {
 
     pub fn deinit(self: *Runtime) void {
         self.wasm.deinit();
+        self.objects.deinit();
         self.pose_detector.stop();
         self.renderer.deinit();
         self.window.deinit();
