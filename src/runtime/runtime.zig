@@ -26,11 +26,11 @@ pub const GameObject = struct {
     native_behaviors: std.ArrayListUnmanaged(behaviors.Behavior),
     deleted: bool,
 
-    pub fn init(runtime: *Runtime, x_: f32, y_: f32) GameObject {
+    pub fn init(runtime: *Runtime, material: engine.Renderer.MaterialHandle, x_: f32, y_: f32) GameObject {
         const obj = GameObject{
             .pos = .{ x_, y_, 0 },
-            .scale = .{ 5, 5, 1 },
-            .handle = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), runtime.material),
+            .scale = .{ 1, 1, 1 },
+            .handle = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material),
             .native_behaviors = .{},
             .deleted = false,
         };
@@ -91,7 +91,7 @@ pub const Runtime = struct {
     update_func: engine.Wasm.Function,
     objects: Slab(GameObject),
 
-    material: engine.Renderer.MaterialHandle,
+    blank_material: engine.Renderer.MaterialHandle,
     mesh: engine.Renderer.MeshHandle,
     chessboard: usize,
     calibrated: bool,
@@ -121,10 +121,12 @@ pub const Runtime = struct {
         runtime.objects = try Slab(GameObject).init(runtime.allocator, 64);
 
         const image = createChessboard(&runtime.renderer);
-        runtime.material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
+        const white_pixel = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
+        const chessboard_material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
+        runtime.blank_material = runtime.renderer.createUiMaterial(white_pixel, 1.0, 1.0, 1.0);
         runtime.mesh = runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
 
-        runtime.chessboard = try runtime.objects.insert(GameObject.init(runtime, 0, 0));
+        runtime.chessboard = try runtime.objects.insert(GameObject.init(runtime, chessboard_material, 0, 0));
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -175,14 +177,6 @@ pub const Runtime = struct {
             _ = self.renderer.render(&ui_projection, &ui_projection);
 
             try self.processPoseDetections(width, height);
-
-            //const deltaf: f32 = @floatFromInt(delta);
-            //const event = events.UpdateEvent{ .delta = deltaf / 1000.0 };
-            //for (self.objects.items()) |object| {
-            //object.callEvent(self, &event);
-            //}
-
-            self.clearDeletedObjects();
         }
     }
 
@@ -210,13 +204,9 @@ pub const Runtime = struct {
         }
     }
 
-    fn clearDeletedObjects(_: *Runtime) void {
-        // nop for now
-    }
-
     fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const id = runtime.objects.insert(GameObject.init(runtime, x, y)) catch unreachable;
+        const id = runtime.objects.insert(GameObject.init(runtime, runtime.blank_material, x, y)) catch unreachable;
         const obj = runtime.objects.get(id) catch unreachable;
         runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
         return @intCast(id);
