@@ -149,10 +149,24 @@ pub const Wasm = struct {
         return func;
     }
 
-    pub fn callFunction(self: *Wasm, func: Function, args: []u32) !u32 {
-        if (!wasm.wasm_runtime_call_wasm(self.exec_env, func, @intCast(args.len), @ptrCast(args))) {
+    pub fn callFunction(self: *Wasm, func: Function, args: anytype) !u32 {
+        var wasm_args: [@max(1, args.len)]u32 = undefined;
+        inline for (args, 0..) |arg, i| {
+            const Arg = @TypeOf(arg);
+            if (Arg == u32) {
+                wasm_args[i] = arg;
+            } else if (Arg == i32) {
+                wasm_args[i] = @intCast(arg);
+            } else if (Arg == f32) {
+                wasm_args[i] = @bitCast(arg);
+            } else {
+                @compileError("can't pass " ++ @typeName(Arg) ++ " to wasm function");
+            }
+        }
+
+        if (!wasm.wasm_runtime_call_wasm(self.exec_env, func, @intCast(args.len), @ptrCast(&wasm_args))) {
             return error.WasmFunctionCallFailed;
         }
-        return args[0];
+        return wasm_args[0];
     }
 };

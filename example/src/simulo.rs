@@ -1,9 +1,20 @@
-//! Documentation for Simulo: the game engine of the real world. All APIs are globally available in the current namespace.
+//! Documentation for Simulo: the game engine of the real world. All APIs are available in the
+//! global namespace.
 //!
-//! An entry point must be declared like so:
+//! A struct `Game` must be declared with the following functions:
 //! ```rust
-//! pub fn start() {
+//! pub struct Game {
 //!     // ...
+//! }
+//!
+//! impl Game {
+//!     pub fn new() -> Self {
+//!         // ...
+//!     }
+//!
+//!     pub fn update(&mut self, delta: f32) {
+//!         // ...
+//!     }
 //! }
 //! ```
 //!

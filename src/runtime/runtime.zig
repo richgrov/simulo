@@ -88,6 +88,7 @@ pub const Runtime = struct {
     allocator: std.mem.Allocator,
 
     wasm: engine.Wasm,
+    update_func: engine.Wasm.Function,
     objects: Slab(GameObject),
 
     material: engine.Renderer.MaterialHandle,
@@ -138,8 +139,8 @@ pub const Runtime = struct {
     pub fn runProgram(self: *Runtime, data: []const u8) !void {
         try self.wasm.init(@ptrCast(self), data);
         const init_func = try self.wasm.getFunction("init");
-        var args = [_]u32{0};
-        _ = try self.wasm.callFunction(init_func, &args);
+        self.update_func = try self.wasm.getFunction("update");
+        _ = try self.wasm.callFunction(init_func, .{});
     }
 
     fn isNativeBehavior(self: *const Runtime, ty: engine.Scripting.Type) bool {
@@ -157,7 +158,7 @@ pub const Runtime = struct {
 
         while (self.window.poll()) {
             const now = std.time.milliTimestamp();
-            //const delta = now - last_time;
+            const delta = now - last_time;
             last_time = now;
 
             const width: f32 = @floatFromInt(self.window.getWidth());
@@ -166,6 +167,9 @@ pub const Runtime = struct {
             const chessboard = try self.objects.get(self.chessboard);
             chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
             self.renderer.setObjectTransform(chessboard.handle, chessboard.calculateTransform());
+
+            const deltaf: f32 = @floatFromInt(delta);
+            _ = self.wasm.callFunction(self.update_func, .{deltaf / 1000}) catch {};
 
             const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
             _ = self.renderer.render(&ui_projection, &ui_projection);
@@ -214,7 +218,6 @@ pub const Runtime = struct {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const id = runtime.objects.insert(GameObject.init(runtime, x, y)) catch unreachable;
         const obj = runtime.objects.get(id) catch unreachable;
-        obj.scale = .{ 500, 500, 500 };
         runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
         return @intCast(id);
     }
