@@ -12,7 +12,7 @@ using namespace simulo;
 
 Image::Image(const Gpu &gpu, std::span<const uint8_t> data, int width, int height) {
    MTLTextureDescriptor *texture_desc = [[MTLTextureDescriptor alloc] init];
-   texture_desc.pixelFormat = MTLPixelFormatR8Unorm;
+   texture_desc.pixelFormat = MTLPixelFormatRGBA8Unorm;
    texture_desc.width = width;
    texture_desc.height = height;
 
@@ -26,7 +26,7 @@ Image::Image(const Gpu &gpu, std::span<const uint8_t> data, int width, int heigh
    [texture_ replaceRegion:MTLRegionMake3D(0, 0, 0, width, height, 1)
                mipmapLevel:0
                  withBytes:data.data()
-               bytesPerRow:width];
+               bytesPerRow:width * 4];
 }
 
 Image::~Image() {

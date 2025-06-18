@@ -21,8 +21,7 @@ vertex UiOut vertex_main(uint vert_id [[vertex_id]], constant UiVertex* vertices
 
 fragment float4 fragment_main(UiOut vert [[stage_in]], constant simd::float3 *color, texture2d<float> texture [[texture(0)]]) {
 	constexpr sampler tex_sampler(mag_filter::linear, min_filter::linear);
-
-	return texture.sample(tex_sampler, vert.uv).x * float4(color[0], 1.0);
+	return texture.sample(tex_sampler, vert.uv) * float4(color[0], 1.0);
 }
 
 struct MeshVertex {

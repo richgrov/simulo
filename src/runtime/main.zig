@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const engine = @import("engine");
 const Runtime = @import("runtime.zig").Runtime;
 
 pub fn main() !void {
@@ -10,6 +11,9 @@ pub fn main() !void {
         }
     }
     const allocator = dba.allocator();
+
+    try Runtime.globalInit();
+    defer Runtime.globalDeinit();
 
     var runtime: Runtime = undefined;
     try Runtime.init(&runtime, allocator);
@@ -30,6 +34,6 @@ pub fn main() !void {
     };
     defer allocator.free(script_file);
 
-    try runtime.runScript(script_file, script_path);
+    try runtime.runProgram(script_file);
     try runtime.run();
 }

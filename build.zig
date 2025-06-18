@@ -65,6 +65,7 @@ pub fn build(b: *std.Build) void {
     runtime.linkLibCpp();
     runtime.root_module.addImport("engine", engine);
     runtime.linkSystemLibrary("onnxruntime");
+    runtime.linkSystemLibrary("iwasm");
 
     if (!custom_calibration) {
         runtime.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
@@ -216,10 +217,6 @@ fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.B
         .flags = &[_][]const u8{
             "-std=c++20",
         },
-    });
-
-    engine.addCSourceFile(.{
-        .file = b.path("src/vendor/pocketpy/pocketpy.c"),
     });
 
     if (!custom_calibration) {
