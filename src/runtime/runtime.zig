@@ -242,15 +242,17 @@ pub const Runtime = struct {
 };
 
 pub fn createChessboard(renderer: *engine.Renderer) engine.Renderer.ImageHandle {
-    var checkerboard: [1280 * 800]u8 = undefined;
+    var checkerboard: [1280 * 800 * 4]u8 = undefined;
+    @memset(&checkerboard, 0);
     for (0..1280) |x| {
         for (0..800) |y| {
             const x_square = x / 160;
             const y_square = y / 160;
             if (x_square % 2 == y_square % 2) {
-                checkerboard[y * 1280 + x] = 0xFF;
-            } else {
-                checkerboard[y * 1280 + x] = 0x00;
+                checkerboard[(y * 1280 + x) * 4 + 0] = 0xFF;
+                checkerboard[(y * 1280 + x) * 4 + 1] = 0xFF;
+                checkerboard[(y * 1280 + x) * 4 + 2] = 0xFF;
+                checkerboard[(y * 1280 + x) * 4 + 3] = 0xFF;
             }
         }
     }
