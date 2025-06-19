@@ -17,3 +17,10 @@ pub extern "C" fn update(delta: f32) {
         (*GAME).update(delta);
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "C" fn pose(id: u32, x: f32, y: f32) {
+    unsafe {
+        (*GAME).on_pose_update(id, x, y);
+    }
+}
