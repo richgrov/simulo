@@ -2,6 +2,8 @@ unsafe extern "C" {
     fn simulo_create_object(x: f32, y: f32) -> u32;
     fn simulo_set_object_position(id: u32, x: f32, y: f32);
     fn simulo_set_object_scale(id: u32, x: f32, y: f32);
+    fn simulo_get_object_x(id: u32) -> f32;
+    fn simulo_get_object_y(id: u32) -> f32;
     fn simulo_delete_object(id: u32);
 }
 
@@ -44,6 +46,14 @@ impl GameObject {
         }
     }
 
+    pub fn x(&self) -> f32 {
+        unsafe { simulo_get_object_x(self.0) }
+    }
+
+    pub fn y(&self) -> f32 {
+        unsafe { simulo_get_object_y(self.0) }
+    }
+
     pub fn set_scale(&self, x: f32, y: f32) {
         unsafe {
             simulo_set_object_scale(self.0, x, y);
@@ -70,12 +80,15 @@ impl Game {
         Game { obj }
     }
 
-    pub fn update(&mut self, _delta: f32) {}
+    pub fn update(&mut self, delta: f32) {
+        self.obj
+            .set_position(self.obj.x() + 50.0 * delta, self.obj.y());
+    }
 
     pub fn on_pose_update(&mut self, id: u32, x: f32, y: f32) {
-        if x == -1.0 && y == -1.0 {
+        /*if x == -1.0 && y == -1.0 {
             return;
         }
-        self.obj.set_position(x, y);
+        self.obj.set_position(x, y);*/
     }
 }

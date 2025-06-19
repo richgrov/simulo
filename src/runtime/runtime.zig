@@ -103,6 +103,8 @@ pub const Runtime = struct {
         try engine.Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
         try engine.Wasm.exposeFunction("simulo_set_object_position", wasmSetObjectPosition);
         try engine.Wasm.exposeFunction("simulo_set_object_scale", wasmSetObjectScale);
+        try engine.Wasm.exposeFunction("simulo_get_object_x", wasmGetObjectX);
+        try engine.Wasm.exposeFunction("simulo_get_object_y", wasmGetObjectY);
         try engine.Wasm.exposeFunction("simulo_delete_object", wasmDeleteObject);
     }
 
@@ -220,6 +222,18 @@ pub const Runtime = struct {
         const obj = runtime.objects.get(id) catch return;
         obj.scale = .{ x, y, 1 };
         runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
+    }
+
+    fn wasmGetObjectX(user_ptr: *anyopaque, id: u32) f32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.objects.get(id) catch return 0.0;
+        return obj.pos[0];
+    }
+
+    fn wasmGetObjectY(user_ptr: *anyopaque, id: u32) f32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.objects.get(id) catch return 0.0;
+        return obj.pos[1];
     }
 
     fn wasmDeleteObject(user_ptr: *anyopaque, id: u32) void {
