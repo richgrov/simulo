@@ -156,7 +156,7 @@ pub const Wasm = struct {
             if (Arg == u32) {
                 wasm_args[i] = arg;
             } else if (Arg == i32) {
-                wasm_args[i] = @intCast(arg);
+                wasm_args[i] = @bitCast(arg);
             } else if (Arg == f32) {
                 wasm_args[i] = @bitCast(arg);
             } else {
