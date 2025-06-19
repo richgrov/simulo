@@ -89,6 +89,7 @@ pub const Runtime = struct {
 
     wasm: engine.Wasm,
     update_func: engine.Wasm.Function,
+    pose_func: engine.Wasm.Function,
     objects: Slab(GameObject),
 
     blank_material: engine.Renderer.MaterialHandle,
@@ -142,6 +143,7 @@ pub const Runtime = struct {
         try self.wasm.init(@ptrCast(self), data);
         const init_func = try self.wasm.getFunction("init");
         self.update_func = try self.wasm.getFunction("update");
+        self.pose_func = try self.wasm.getFunction("pose");
         _ = try self.wasm.callFunction(init_func, .{});
     }
 
@@ -181,25 +183,19 @@ pub const Runtime = struct {
     }
 
     fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
-        _ = width;
-        _ = height;
         while (self.pose_detector.nextEvent()) |event| {
+            const id_u32: u32 = @intCast(event.id);
             const detection = event.detection orelse {
-                //self.chessboard.callEvent(self, &events.PoseEvent{
-                //    .id = event.id,
-                //    .x = -1,
-                //    .y = -1,
-                //});
+                _ = self.wasm.callFunction(self.pose_func, .{ id_u32, @as(f32, -1), @as(f32, -1) }) catch {};
                 continue;
             };
 
             const left_hand = detection.keypoints[9].pos;
-            _ = left_hand;
-            //self.chessboard.callEvent(self, &events.PoseEvent{
-            //    .id = event.id,
-            //    .x = @floatCast(left_hand[0] * width),
-            //    .y = @floatCast(left_hand[1] * height),
-            //});
+            _ = self.wasm.callFunction(self.pose_func, .{
+                id_u32,
+                left_hand[0] * width,
+                left_hand[1] * height,
+            }) catch {};
             self.calibrated = true;
         }
     }
