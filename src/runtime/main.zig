@@ -23,17 +23,11 @@ pub fn main() !void {
     defer args.deinit();
 
     _ = args.next(); // skip program name
-    const script_path = args.next() orelse {
+    const program_url = args.next() orelse {
         std.log.err("provide a path to a script", .{});
         return;
     };
 
-    const script_file = std.fs.cwd().readFileAlloc(allocator, script_path, std.math.maxInt(usize)) catch |err| {
-        std.log.err("failed to read script file: {}", .{err});
-        return;
-    };
-    defer allocator.free(script_file);
-
-    try runtime.runProgram(script_file);
+    try runtime.runProgram(program_url);
     try runtime.run();
 }
