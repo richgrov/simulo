@@ -25,7 +25,7 @@ bool find_chessboard(
    cv::Mat &frame = *mat;
 
    static thread_local cv::Mat gray;
-   cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+   cv::cvtColor(frame, gray, cv::COLOR_RGB2GRAY);
 
    std::vector<cv::Point2f> corners;
    bool found = cv::findChessboardCornersSB(
