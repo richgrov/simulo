@@ -176,7 +176,7 @@ pub const Runtime = struct {
             self.renderer.setObjectTransform(chessboard.handle, chessboard.calculateTransform());
 
             const deltaf: f32 = @floatFromInt(delta);
-            _ = self.wasm.callFunction(self.update_func, .{deltaf / 1000}) catch {};
+            _ = self.wasm.callFunction(self.update_func, .{deltaf / 1000}) catch unreachable;
 
             const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
             _ = self.renderer.render(&ui_projection, &ui_projection);
@@ -189,7 +189,7 @@ pub const Runtime = struct {
         while (self.pose_detector.nextEvent()) |event| {
             const id_u32: u32 = @intCast(event.id);
             const detection = event.detection orelse {
-                _ = self.wasm.callFunction(self.pose_func, .{ id_u32, @as(f32, -1), @as(f32, -1) }) catch {};
+                _ = self.wasm.callFunction(self.pose_func, .{ id_u32, @as(f32, -1), @as(f32, -1) }) catch unreachable;
                 continue;
             };
 
@@ -198,7 +198,7 @@ pub const Runtime = struct {
                 id_u32,
                 left_hand[0] * width,
                 left_hand[1] * height,
-            }) catch {};
+            }) catch unreachable;
             self.calibrated = true;
         }
     }
