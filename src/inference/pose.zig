@@ -147,8 +147,20 @@ pub const PoseDetector = struct {
         }
     }
 
-    fn nearestPreviousDetection(_: *const PoseDetector, _: *const Box) ?u64 {
-        return null;
+    fn nearestPreviousDetection(self: *const PoseDetector, box: *const Box) ?u64 {
+        var closest_distance: f32 = std.math.floatMax(f32);
+        var closest_id: ?u64 = null;
+
+        for (self.last_tracked_boxes.items()) |other| {
+            const diff = box.pos - other.box.pos;
+            const distance = diff[0] * diff[0] + diff[1] * diff[1];
+            if (distance < closest_distance) {
+                closest_distance = distance;
+                closest_id = other.id;
+            }
+        }
+
+        return closest_id;
     }
 
     fn nextDetectionId(self: *PoseDetector) u64 {
