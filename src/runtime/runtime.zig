@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const engine = @import("engine");
+const Remote = engine.Remote;
 const reflect = engine.utils.reflect;
 const Mat4 = engine.math.Mat4;
 const Slab = engine.utils.Slab;
@@ -85,6 +86,7 @@ pub const Runtime = struct {
     window: engine.Window,
     renderer: engine.Renderer,
     pose_detector: engine.PoseDetector,
+    remote: Remote,
     allocator: std.mem.Allocator,
 
     wasm: engine.Wasm,
@@ -119,6 +121,7 @@ pub const Runtime = struct {
         runtime.window = engine.Window.init(&runtime.gpu, "simulo runtime");
         runtime.renderer = engine.Renderer.init(&runtime.gpu, &runtime.window);
         runtime.pose_detector = engine.PoseDetector.init();
+        runtime.remote = Remote.init(allocator);
         runtime.calibrated = false;
 
         runtime.wasm.zeroInit();
@@ -142,7 +145,12 @@ pub const Runtime = struct {
         self.gpu.deinit();
     }
 
-    pub fn runProgram(self: *Runtime, data: []const u8) !void {
+    pub fn runProgram(self: *Runtime, program_url: []const u8) !void {
+        try self.remote.fetchProgram(program_url);
+
+        const data = try std.fs.cwd().readFileAlloc(self.allocator, "program.wasm", std.math.maxInt(usize));
+        defer self.allocator.free(data);
+
         try self.wasm.init(@ptrCast(self), data);
         const init_func = try self.wasm.getFunction("init");
         self.update_func = try self.wasm.getFunction("update");
