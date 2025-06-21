@@ -121,6 +121,7 @@ pub const Runtime = struct {
         runtime.pose_detector = engine.PoseDetector.init();
         runtime.calibrated = false;
 
+        runtime.wasm.zeroInit();
         runtime.objects = try Slab(GameObject).init(runtime.allocator, 64);
 
         const image = createChessboard(&runtime.renderer);
