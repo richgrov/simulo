@@ -20,7 +20,7 @@ pub fn FixedArrayList(comptime T: type, comptime capacity: usize) type {
             return self.data[index];
         }
 
-        pub fn items(self: *Self) []const T {
+        pub fn items(self: *const Self) []const T {
             return self.data[0..self.len];
         }
     };
