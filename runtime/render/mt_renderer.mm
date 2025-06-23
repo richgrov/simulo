@@ -42,21 +42,30 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
       meshes_(32),
       instances_(64),
       metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)),
-      geometry_(VertexIndexBuffer::concat(
-          gpu_,
-          std::span<const uint8_t>(reinterpret_cast<const uint8_t *>(triangle), sizeof(triangle)),
-          std::span<const uint16_t>(indices, 6)
-      )),
+      geometry_(
+          VertexIndexBuffer::concat(
+              gpu_,
+              std::span<const uint8_t>(
+                  reinterpret_cast<const uint8_t *>(triangle), sizeof(triangle)
+              ),
+              std::span<const uint16_t>(indices, 6)
+          )
+      ),
       command_queue_(gpu) {
    pipelines_.ui = static_cast<RenderPipeline>(render_pipelines_.size());
-   render_pipelines_.emplace_back(MaterialPipeline{
-       .pipeline = Pipeline(gpu, pipeline_pixel_format, "ui", "vertex_main", "fragment_main"),
-   });
+   render_pipelines_.emplace_back(
+       MaterialPipeline{
+           .pipeline = Pipeline(gpu, pipeline_pixel_format, "ui", "vertex_main", "fragment_main"),
+       }
+   );
 
    pipelines_.mesh = static_cast<RenderPipeline>(render_pipelines_.size());
-   render_pipelines_.emplace_back(MaterialPipeline{
-       .pipeline = Pipeline(gpu, pipeline_pixel_format, "mesh", "vertex_main2", "fragment_main2"),
-   });
+   render_pipelines_.emplace_back(
+       MaterialPipeline{
+           .pipeline =
+               Pipeline(gpu, pipeline_pixel_format, "mesh", "vertex_main2", "fragment_main2"),
+       }
+   );
 
    MTLDepthStencilDescriptor *depth_desc = [MTLDepthStencilDescriptor new];
    depth_desc.depthCompareFunction = MTLCompareFunctionLessEqual;
@@ -70,11 +79,13 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
 Renderer::~Renderer() {}
 
 RenderObject Renderer::add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material) {
-   int id = instances_.emplace(MeshInstance{
-       .transform = transform,
-       .mesh = mesh,
-       .material = material,
-   });
+   int id = instances_.emplace(
+       MeshInstance{
+           .transform = transform,
+           .mesh = mesh,
+           .material = material,
+       }
+   );
 
    Material &mat = materials_.get(material);
    if (mat.mesh_instances.contains(mesh)) {

@@ -1,6 +1,10 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
+const util = @import("util");
+const Spsc = util.Spsc;
+const FixedArrayList = util.FixedArrayList;
+
 const inf = @import("inference.zig");
 const Detection = inf.Detection;
 const Inference = inf.Inference;
@@ -9,9 +13,7 @@ const Box = inf.Box;
 const Calibrator = @import("calibrate.zig").Calibrator;
 
 const Camera = @import("../camera/camera.zig").Camera;
-const Spsc = @import("../util/spsc_ring.zig").Spsc;
-const FixedArrayList = @import("../util/fixed_arraylist.zig").FixedArrayList;
-const DMat3 = @import("../math/matrix.zig").DMat3;
+const DMat3 = @import("engine").math.DMat3;
 
 const ffi = @cImport({
     @cInclude("ffi.h");

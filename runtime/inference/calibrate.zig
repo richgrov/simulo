@@ -1,7 +1,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
-const DMat3 = @import("../math/matrix.zig").DMat3;
+const DMat3 = @import("engine").math.DMat3;
 
 const WIDTH = 640;
 const HEIGHT = 480;

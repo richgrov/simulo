@@ -1,27 +1,37 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const Camera = @import("camera/camera.zig").Camera;
-pub const Gpu = @import("gpu/gpu.zig").Gpu;
+const engine = @import("engine");
+const Runtime = @import("runtime.zig").Runtime;
 
-const inference = @import("inference/inference.zig");
-pub const Inference = inference.Inference;
-pub const Detection = inference.Detection;
-pub const Keypoint = inference.Keypoint;
+pub fn main() !void {
+    var dba = std.heap.DebugAllocator(.{}).init;
+    defer {
+        if (dba.deinit() == .leak) {
+            std.log.err("memory leak detected", .{});
+        }
+    }
+    const allocator = dba.allocator();
 
-const pose = @import("inference/pose.zig");
-pub const PoseDetector = pose.PoseDetector;
+    try Runtime.globalInit();
+    defer Runtime.globalDeinit();
 
-pub const math = @import("math/matrix.zig");
+    var runtime: Runtime = undefined;
+    try Runtime.init(&runtime, allocator);
+    defer runtime.deinit();
 
-pub const Remote = @import("remote/remote.zig").Remote;
+    var args = try std.process.argsWithAllocator(allocator);
+    defer args.deinit();
 
-pub const Renderer = @import("render/renderer.zig").Renderer;
-pub const Window = @import("window/window.zig").Window;
+    _ = args.next(); // skip program name
+    const program_url = args.next() orelse {
+        std.log.err("provide a path to a script", .{});
+        return;
+    };
 
-pub const utils = @import("util/util.zig");
-
-pub const Wasm = @import("wasm/wasm.zig").Wasm;
+    try runtime.runProgram(program_url);
+    try runtime.run();
+}
 
 const vulkan = builtin.target.os.tag == .windows or builtin.target.os.tag == .linux;
 const text_vert = if (vulkan) @embedFile("shader/text.vert") else &[_]u8{0};

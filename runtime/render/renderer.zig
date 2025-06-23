@@ -6,7 +6,7 @@ const ffi = @cImport({
 
 const Gpu = @import("../gpu/gpu.zig").Gpu;
 const Window = @import("../window/window.zig").Window;
-const Mat4 = @import("../math/matrix.zig").Mat4;
+const Mat4 = @import("engine").math.Mat4;
 
 pub const Renderer = struct {
     handle: *ffi.Renderer,

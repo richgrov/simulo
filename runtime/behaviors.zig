@@ -1,8 +1,9 @@
 const std = @import("std");
 
 const engine = @import("engine");
-const reflect = engine.utils.reflect;
 const Mat4 = engine.math.Mat4;
+
+const reflect = @import("util").reflect;
 
 const runtime_module = @import("runtime.zig");
 const Runtime = runtime_module.Runtime;

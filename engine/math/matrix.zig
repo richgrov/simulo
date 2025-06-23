@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const vulkan = @import("../util/platform.zig").vulkan;
+const vulkan = @import("util").vulkan;
 const Y_AXIS = if (vulkan) -1 else 1;
 
 fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {

@@ -57,10 +57,9 @@ App::App()
       state_(State::STANDBY) {
 
    blue_mesh_ = renderer_.create_material<ModelUniform>(
-       renderer_.pipelines().mesh,
-       {
-           {"color", Vec3{0.1, 0.1, 0.8}},
-       }
+       renderer_.pipelines().mesh, {
+                                       {"color", Vec3{0.1, 0.1, 0.8}},
+                                   }
    );
 
    window_->set_capture_mouse(true);
@@ -257,12 +256,4 @@ void App::add_prompt_text(const std::string &message) {
    text->set_position(30, window_->height() - 50);
    text->set_size(text->font_size());
    ui_.add_child(std::move(text));
-}
-
-Renderer *create_renderer(Gpu *gpu, const Window *window) {
-   return new Renderer(*gpu, window->layer_pixel_format(), window->metal_layer());
-}
-
-void destroy_renderer(Renderer *renderer) {
-   delete renderer;
 }

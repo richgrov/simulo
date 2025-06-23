@@ -2,10 +2,10 @@ const std = @import("std");
 const Type = std.builtin.Type;
 
 const engine = @import("engine");
-const reflect = engine.utils.reflect;
+const reflect = @import("util").reflect;
 
 pub const gd = @cImport({
-    @cInclude("godot/godot-cpp/gdextension/gdextension_interface.h");
+    @cInclude("gdextension_interface.h");
 });
 
 comptime {

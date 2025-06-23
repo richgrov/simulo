@@ -1,15 +1,32 @@
 const std = @import("std");
 
 const engine = @import("engine");
-const Remote = engine.Remote;
-const reflect = engine.utils.reflect;
 const Mat4 = engine.math.Mat4;
-const Slab = engine.utils.Slab;
+
+const util = @import("util");
+const reflect = util.reflect;
+const Slab = util.Slab;
+
+const pose = @import("inference/pose.zig");
+pub const PoseDetector = pose.PoseDetector;
+
+pub const Remote = @import("remote/remote.zig").Remote;
+
+pub const Renderer = @import("render/renderer.zig").Renderer;
+pub const Window = @import("window/window.zig").Window;
+
+pub const Wasm = @import("wasm/wasm.zig").Wasm;
+
+const inference = @import("inference/inference.zig");
+pub const Inference = inference.Inference;
+pub const Detection = inference.Detection;
+pub const Keypoint = inference.Keypoint;
+
+pub const Camera = @import("camera/camera.zig").Camera;
+pub const Gpu = @import("gpu/gpu.zig").Gpu;
 
 const behaviors = @import("behaviors.zig");
 const events = @import("events.zig");
-
-const Wasm = engine.Wasm;
 
 comptime {
     _ = engine;
@@ -23,11 +40,11 @@ const Vertex = struct {
 pub const GameObject = struct {
     pos: @Vector(3, f32),
     scale: @Vector(3, f32),
-    handle: engine.Renderer.ObjectHandle,
+    handle: Renderer.ObjectHandle,
     native_behaviors: std.ArrayListUnmanaged(behaviors.Behavior),
     deleted: bool,
 
-    pub fn init(runtime: *Runtime, material: engine.Renderer.MaterialHandle, x_: f32, y_: f32) GameObject {
+    pub fn init(runtime: *Runtime, material: Renderer.MaterialHandle, x_: f32, y_: f32) GameObject {
         const obj = GameObject{
             .pos = .{ x_, y_, 0 },
             .scale = .{ 1, 1, 1 },
@@ -82,45 +99,45 @@ const vertices = [_]Vertex{
 };
 
 pub const Runtime = struct {
-    gpu: engine.Gpu,
-    window: engine.Window,
-    renderer: engine.Renderer,
-    pose_detector: engine.PoseDetector,
+    gpu: Gpu,
+    window: Window,
+    renderer: Renderer,
+    pose_detector: PoseDetector,
     remote: Remote,
     allocator: std.mem.Allocator,
 
-    wasm: engine.Wasm,
-    update_func: engine.Wasm.Function,
-    pose_func: engine.Wasm.Function,
+    wasm: Wasm,
+    update_func: Wasm.Function,
+    pose_func: Wasm.Function,
     objects: Slab(GameObject),
 
-    blank_material: engine.Renderer.MaterialHandle,
-    mesh: engine.Renderer.MeshHandle,
+    blank_material: Renderer.MaterialHandle,
+    mesh: Renderer.MeshHandle,
     chessboard: usize,
     calibrated: bool,
 
     pub fn globalInit() !void {
-        try engine.Wasm.globalInit();
-        errdefer engine.Wasm.globalDeinit();
-        try engine.Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
-        try engine.Wasm.exposeFunction("simulo_set_object_position", wasmSetObjectPosition);
-        try engine.Wasm.exposeFunction("simulo_set_object_scale", wasmSetObjectScale);
-        try engine.Wasm.exposeFunction("simulo_get_object_x", wasmGetObjectX);
-        try engine.Wasm.exposeFunction("simulo_get_object_y", wasmGetObjectY);
-        try engine.Wasm.exposeFunction("simulo_delete_object", wasmDeleteObject);
+        try Wasm.globalInit();
+        errdefer Wasm.globalDeinit();
+        try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
+        try Wasm.exposeFunction("simulo_set_object_position", wasmSetObjectPosition);
+        try Wasm.exposeFunction("simulo_set_object_scale", wasmSetObjectScale);
+        try Wasm.exposeFunction("simulo_get_object_x", wasmGetObjectX);
+        try Wasm.exposeFunction("simulo_get_object_y", wasmGetObjectY);
+        try Wasm.exposeFunction("simulo_delete_object", wasmDeleteObject);
     }
 
     pub fn globalDeinit() void {
-        engine.Wasm.globalDeinit();
+        Wasm.globalDeinit();
     }
 
     pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
 
-        runtime.gpu = engine.Gpu.init();
-        runtime.window = engine.Window.init(&runtime.gpu, "simulo runtime");
-        runtime.renderer = engine.Renderer.init(&runtime.gpu, &runtime.window);
-        runtime.pose_detector = engine.PoseDetector.init();
+        runtime.gpu = Gpu.init();
+        runtime.window = Window.init(&runtime.gpu, "simulo runtime");
+        runtime.renderer = Renderer.init(&runtime.gpu, &runtime.window);
+        runtime.pose_detector = PoseDetector.init();
         runtime.remote = Remote.init(allocator);
         runtime.calibrated = false;
 
@@ -146,7 +163,8 @@ pub const Runtime = struct {
     }
 
     pub fn runProgram(self: *Runtime, program_url: []const u8) !void {
-        try self.remote.fetchProgram(program_url);
+        _ = program_url;
+        //try self.remote.fetchProgram(program_url);
 
         const data = try std.fs.cwd().readFileAlloc(self.allocator, "program.wasm", std.math.maxInt(usize));
         defer self.allocator.free(data);
@@ -253,7 +271,7 @@ pub const Runtime = struct {
     }
 };
 
-pub fn createChessboard(renderer: *engine.Renderer) engine.Renderer.ImageHandle {
+pub fn createChessboard(renderer: *Renderer) Renderer.ImageHandle {
     var checkerboard: [1280 * 800 * 4]u8 = undefined;
     @memset(&checkerboard, 0);
     for (0..1280) |x| {

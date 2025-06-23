@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const reflect = @import("../util/util.zig").reflect;
+const reflect = @import("util").reflect;
 
 const wasm = @cImport({
     @cInclude("wasm_c_api.h");
