@@ -81,10 +81,16 @@ pub fn build(b: *std.Build) void {
     //    editor.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
     //}
 
+    const websocket = b.dependency("websocket", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const runtime = createRuntime(b, optimize, target, custom_calibration);
     runtime.root_module.addOptions("build_options", options);
     runtime.root_module.addImport("engine", engine);
     runtime.root_module.addImport("util", util);
+    runtime.root_module.addImport("websocket", websocket.module("websocket"));
     runtime.root_module.addRPathSpecial("@executable_path/../Frameworks");
     bundleExe(b, runtime, "runtime");
     check_step.dependOn(&runtime.step);

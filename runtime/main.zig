@@ -12,22 +12,36 @@ pub fn main() !void {
         }
     }
     const allocator = dba.allocator();
+    var args = try std.process.argsWithAllocator(allocator);
+    defer args.deinit();
+
+    _ = args.next(); // skip program name
+    const private_key_path = args.next() orelse {
+        std.log.err("provide a path to DER private key", .{});
+        return;
+    };
+
+    const machine_id = args.next() orelse {
+        std.log.err("machine ID required", .{});
+        return;
+    };
+
+    var private_key_buf: [68]u8 = undefined;
+    const private_key_der = try std.fs.cwd().readFile(private_key_path, &private_key_buf);
+    var private_key: [32]u8 = undefined;
+    @memcpy(&private_key, private_key_der[private_key_der.len - 32 ..]);
+
+    const program_url = args.next() orelse {
+        std.log.err("provide a path to a script", .{});
+        return;
+    };
 
     try Runtime.globalInit();
     defer Runtime.globalDeinit();
 
     var runtime: Runtime = undefined;
-    try Runtime.init(&runtime, allocator);
+    try Runtime.init(&runtime, machine_id, &private_key, allocator);
     defer runtime.deinit();
-
-    var args = try std.process.argsWithAllocator(allocator);
-    defer args.deinit();
-
-    _ = args.next(); // skip program name
-    const program_url = args.next() orelse {
-        std.log.err("provide a path to a script", .{});
-        return;
-    };
 
     try runtime.runProgram(program_url);
     try runtime.run();

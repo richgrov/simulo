@@ -131,14 +131,15 @@ pub const Runtime = struct {
         Wasm.globalDeinit();
     }
 
-    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
+    pub fn init(runtime: *Runtime, machine_id: []const u8, private_key: *[32]u8, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
+        runtime.remote = try Remote.init(allocator, machine_id, private_key);
+        try runtime.remote.start();
 
         runtime.gpu = Gpu.init();
         runtime.window = Window.init(&runtime.gpu, "simulo runtime");
         runtime.renderer = Renderer.init(&runtime.gpu, &runtime.window);
         runtime.pose_detector = PoseDetector.init();
-        runtime.remote = Remote.init(allocator);
         runtime.calibrated = false;
 
         runtime.wasm.zeroInit();
@@ -160,6 +161,7 @@ pub const Runtime = struct {
         self.renderer.deinit();
         self.window.deinit();
         self.gpu.deinit();
+        self.remote.deinit();
     }
 
     pub fn runProgram(self: *Runtime, program_url: []const u8) !void {
