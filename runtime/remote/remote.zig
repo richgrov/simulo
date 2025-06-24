@@ -18,6 +18,7 @@ pub const Remote = struct {
     ws_read_thread: ?std.Thread = null,
     ws_write_thread: ?std.Thread = null,
     running: bool = true,
+    ready: bool = false,
     log_queue: Spsc(LogEntry, 256),
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, private_key: *const [32]u8) !Remote {
@@ -98,6 +99,12 @@ pub const Remote = struct {
 
     fn writeLoop(self: *Remote) void {
         while (@atomicLoad(bool, &self.running, .monotonic)) {
+            std.time.sleep(std.time.ns_per_ms * 100);
+
+            if (!@atomicLoad(bool, &self.ready, .acquire)) {
+                continue;
+            }
+
             while (self.log_queue.tryDequeue()) |log_entry| {
                 var entry = log_entry;
                 const msg = entry.buf[0..entry.used];
@@ -105,15 +112,18 @@ pub const Remote = struct {
                     std.log.err("couldn't write log message '{s}': {any}", .{ msg, err });
                 };
             }
-
-            std.time.sleep(std.time.ns_per_ms * 100);
         }
         std.log.info("remote write loop has exited", .{});
     }
 
     pub fn serverMessage(self: *Remote, data: []u8, ty: websocket.MessageTextType) !void {
-        _ = self;
-        _ = ty;
+        if (ty == .text) {
+            if (std.mem.eql(u8, data, "OK")) {
+                @atomicStore(bool, &self.ready, true, .release);
+                return;
+            }
+        }
+
         std.debug.print("Received message: {s}\n", .{data});
     }
 
