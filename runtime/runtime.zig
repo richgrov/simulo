@@ -52,7 +52,7 @@ pub const GameObject = struct {
             .native_behaviors = .{},
             .deleted = false,
         };
-        runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
+        obj.recalculateTransform(&runtime.renderer);
         return obj;
     }
 
@@ -84,10 +84,10 @@ pub const GameObject = struct {
         self.deleted = true;
     }
 
-    pub fn calculateTransform(self: *const GameObject) Mat4 {
+    pub fn recalculateTransform(self: *const GameObject, renderer: *Renderer) void {
         const translate = Mat4.translate(.{ self.pos[0], self.pos[1], self.pos[2] });
         const scale = Mat4.scale(.{ self.scale[0], self.scale[1], self.scale[2] });
-        return translate.matmul(&scale);
+        renderer.setObjectTransform(self.handle, translate.matmul(&scale));
     }
 };
 
@@ -204,7 +204,7 @@ pub const Runtime = struct {
 
             if (self.objects.get(self.chessboard)) |chessboard| {
                 chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
-                self.renderer.setObjectTransform(chessboard.handle, chessboard.calculateTransform());
+                chessboard.recalculateTransform(&self.renderer);
             }
 
             const deltaf: f32 = @floatFromInt(delta);
@@ -238,7 +238,7 @@ pub const Runtime = struct {
     fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const id, const obj = runtime.objects.insert(GameObject.init(runtime, runtime.blank_material, x, y)) catch unreachable;
-        runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
+        obj.recalculateTransform(&runtime.renderer);
         return @intCast(id);
     }
 
@@ -249,7 +249,7 @@ pub const Runtime = struct {
             return;
         };
         obj.pos = .{ x, y, 0 };
-        runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
+        obj.recalculateTransform(&runtime.renderer);
     }
 
     fn wasmSetObjectScale(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
@@ -259,7 +259,7 @@ pub const Runtime = struct {
             return;
         };
         obj.scale = .{ x, y, 1 };
-        runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
+        obj.recalculateTransform(&runtime.renderer);
     }
 
     fn wasmGetObjectX(user_ptr: *anyopaque, id: u32) f32 {
