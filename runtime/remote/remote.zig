@@ -20,7 +20,7 @@ pub const Remote = struct {
     running: bool = true,
     log_queue: Spsc(LogEntry, 256),
 
-    pub fn init(allocator: std.mem.Allocator, id: []const u8, private_key: *[32]u8) !Remote {
+    pub fn init(allocator: std.mem.Allocator, id: []const u8, private_key: *const [32]u8) !Remote {
         if (id.len > 64) {
             return error.InvalidId;
         }

@@ -131,7 +131,7 @@ pub const Runtime = struct {
         Wasm.globalDeinit();
     }
 
-    pub fn init(runtime: *Runtime, machine_id: []const u8, private_key: *[32]u8, allocator: std.mem.Allocator) !void {
+    pub fn init(runtime: *Runtime, machine_id: []const u8, private_key: *const [32]u8, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
         runtime.remote = try Remote.init(allocator, machine_id, private_key);
         try runtime.remote.start();

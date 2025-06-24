@@ -4,6 +4,22 @@ const builtin = @import("builtin");
 const engine = @import("engine");
 const Runtime = @import("runtime.zig").Runtime;
 
+fn printUsage() void {
+    std.log.err("Usage: simulo <private_key_path> <machine_id> <program_url>", .{});
+}
+
+fn readPrivateKey(path: []const u8) ![32]u8 {
+    var private_key_buf: [68]u8 = undefined;
+    const private_key_der = try std.fs.cwd().readFile(path, &private_key_buf);
+    if (private_key_der.len < 48) {
+        return error.PrivateKeyTooShort;
+    }
+
+    var private_key: [32]u8 = undefined;
+    @memcpy(&private_key, private_key_der[private_key_der.len - 32 ..]);
+    return private_key;
+}
+
 pub fn main() !void {
     var dba = std.heap.DebugAllocator(.{}).init;
     defer {
@@ -12,27 +28,28 @@ pub fn main() !void {
         }
     }
     const allocator = dba.allocator();
-    var args = try std.process.argsWithAllocator(allocator);
+
+    var args = std.process.args();
     defer args.deinit();
 
     _ = args.next(); // skip program name
+
     const private_key_path = args.next() orelse {
-        std.log.err("provide a path to DER private key", .{});
+        printUsage();
+        return;
+    };
+    const private_key = readPrivateKey(private_key_path) catch |err| {
+        std.log.err("failed to read private key: {any}", .{err});
         return;
     };
 
     const machine_id = args.next() orelse {
-        std.log.err("machine ID required", .{});
+        printUsage();
         return;
     };
 
-    var private_key_buf: [68]u8 = undefined;
-    const private_key_der = try std.fs.cwd().readFile(private_key_path, &private_key_buf);
-    var private_key: [32]u8 = undefined;
-    @memcpy(&private_key, private_key_der[private_key_der.len - 32 ..]);
-
     const program_url = args.next() orelse {
-        std.log.err("provide a path to a script", .{});
+        printUsage();
         return;
     };
 
