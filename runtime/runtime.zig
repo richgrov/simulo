@@ -153,7 +153,7 @@ pub const Runtime = struct {
         runtime.blank_material = runtime.renderer.createUiMaterial(white_pixel, 1.0, 1.0, 1.0);
         runtime.mesh = runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
 
-        runtime.chessboard = try runtime.objects.insert(GameObject.init(runtime, chessboard_material, 0, 0));
+        runtime.chessboard, _ = try runtime.objects.insert(GameObject.init(runtime, chessboard_material, 0, 0));
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -202,9 +202,10 @@ pub const Runtime = struct {
             const width: f32 = @floatFromInt(self.window.getWidth());
             const height: f32 = @floatFromInt(self.window.getHeight());
 
-            const chessboard = try self.objects.get(self.chessboard);
-            chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
-            self.renderer.setObjectTransform(chessboard.handle, chessboard.calculateTransform());
+            if (self.objects.get(self.chessboard)) |chessboard| {
+                chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
+                self.renderer.setObjectTransform(chessboard.handle, chessboard.calculateTransform());
+            }
 
             const deltaf: f32 = @floatFromInt(delta);
             _ = self.wasm.callFunction(self.update_func, .{deltaf / 1000}) catch unreachable;
@@ -236,43 +237,59 @@ pub const Runtime = struct {
 
     fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const id = runtime.objects.insert(GameObject.init(runtime, runtime.blank_material, x, y)) catch unreachable;
-        const obj = runtime.objects.get(id) catch unreachable;
+        const id, const obj = runtime.objects.insert(GameObject.init(runtime, runtime.blank_material, x, y)) catch unreachable;
         runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
         return @intCast(id);
     }
 
     fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) catch return;
+        const obj = runtime.objects.get(id) orelse {
+            runtime.remote.log("tried to set position of non-existent object {x}", .{id});
+            return;
+        };
         obj.pos = .{ x, y, 0 };
         runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
     }
 
     fn wasmSetObjectScale(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) catch return;
+        const obj = runtime.objects.get(id) orelse {
+            runtime.remote.log("tried to set scale of non-existent object {x}", .{id});
+            return;
+        };
         obj.scale = .{ x, y, 1 };
         runtime.renderer.setObjectTransform(obj.handle, obj.calculateTransform());
     }
 
     fn wasmGetObjectX(user_ptr: *anyopaque, id: u32) f32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) catch return 0.0;
+        const obj = runtime.objects.get(id) orelse {
+            runtime.remote.log("tried to get x position of non-existent object {x}", .{id});
+            return 0.0;
+        };
         return obj.pos[0];
     }
 
     fn wasmGetObjectY(user_ptr: *anyopaque, id: u32) f32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) catch return 0.0;
+        const obj = runtime.objects.get(id) orelse {
+            runtime.remote.log("tried to get y position of non-existent object {x}", .{id});
+            return 0.0;
+        };
         return obj.pos[1];
     }
 
     fn wasmDeleteObject(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) catch return;
+        const obj = runtime.objects.get(id) orelse {
+            runtime.remote.log("tried to delete non-existent object {x}", .{id});
+            return;
+        };
         runtime.renderer.deleteObject(obj.handle);
-        runtime.objects.delete(id) catch unreachable;
+        runtime.objects.delete(id) catch {
+            runtime.remote.log("impossible: deinitialized but failed to delete object {x}", .{id});
+        };
     }
 };
 

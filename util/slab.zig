@@ -34,22 +34,22 @@ pub fn Slab(T: type) type {
             self.data.deinit();
         }
 
-        pub fn insert(self: *Self, value: T) !usize {
+        pub fn insert(self: *Self, value: T) !std.meta.Tuple(&[_]type{ usize, *T }) {
             if (self.next_free == std.math.maxInt(usize)) {
                 const index = self.data.items.len;
                 try self.data.append(.{ .data = value });
-                return index;
+                return .{ index, &self.data.items[index].data };
             }
 
             const index = self.next_free;
             self.next_free = self.data.items[index].next;
             self.data.items[index] = .{ .data = value };
-            return index;
+            return .{ index, &self.data.items[index].data };
         }
 
-        pub fn get(self: *Self, index: usize) !*T {
+        pub fn get(self: *Self, index: usize) ?*T {
             if (index >= self.data.items.len) {
-                return error.InvalidIndex;
+                return null;
             }
             return &self.data.items[index].data;
         }
