@@ -175,9 +175,19 @@ pub const Runtime = struct {
         defer self.allocator.free(data);
 
         try self.wasm.init(@ptrCast(self), data);
-        const init_func = try self.wasm.getFunction("init");
-        self.update_func = try self.wasm.getFunction("update");
-        self.pose_func = try self.wasm.getFunction("pose");
+        const init_func = self.wasm.getFunction("init") orelse {
+            self.remote.log("program missing init function", .{});
+            return error.MissingInitFunction;
+        };
+        self.update_func = self.wasm.getFunction("update") orelse {
+            self.remote.log("program missing update function", .{});
+            return error.MissingUpdateFunction;
+        };
+        self.pose_func = self.wasm.getFunction("pose") orelse {
+            self.remote.log("program missing pose function", .{});
+            return error.MissingPoseFunction;
+        };
+
         _ = try self.wasm.callFunction(init_func, .{});
     }
 

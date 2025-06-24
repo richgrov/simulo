@@ -40,7 +40,7 @@ pub const Wasm = struct {
     module_instance: wasm.wasm_module_inst_t = null,
     exec_env: wasm.wasm_exec_env_t = null,
 
-    pub const Function = wasm.wasm_function_inst_t;
+    pub const Function = *wasm.WASMFunctionInstanceCommon;
 
     pub fn globalInit() !void {
         if (!wasm.wasm_runtime_init()) {
@@ -144,9 +144,8 @@ pub const Wasm = struct {
         }
     }
 
-    pub fn getFunction(self: *Wasm, name: []const u8) !Function {
-        const func = wasm.wasm_runtime_lookup_function(self.module_instance, @ptrCast(name)) orelse return error.WasmFunctionLookupFailed;
-        return func;
+    pub fn getFunction(self: *Wasm, name: []const u8) ?Function {
+        return wasm.wasm_runtime_lookup_function(self.module_instance, @ptrCast(name));
     }
 
     pub fn callFunction(self: *Wasm, func: Function, args: anytype) !u32 {
