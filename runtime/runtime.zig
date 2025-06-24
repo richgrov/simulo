@@ -165,8 +165,9 @@ pub const Runtime = struct {
     }
 
     pub fn runProgram(self: *Runtime, program_url: []const u8) !void {
-        _ = program_url;
-        //try self.remote.fetchProgram(program_url);
+        self.remote.fetchProgram(program_url) catch |err| {
+            self.remote.log("program download failed- attempting to use last downloaded program ({any})", .{err});
+        };
 
         const data = try std.fs.cwd().readFileAlloc(self.allocator, "program.wasm", std.math.maxInt(usize));
         defer self.allocator.free(data);
