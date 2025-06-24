@@ -134,6 +134,7 @@ pub const Runtime = struct {
     pub fn init(runtime: *Runtime, machine_id: []const u8, private_key: *const [32]u8, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
         runtime.remote = try Remote.init(allocator, machine_id, private_key);
+        errdefer runtime.remote.deinit();
         try runtime.remote.start();
 
         runtime.gpu = Gpu.init();
@@ -144,6 +145,7 @@ pub const Runtime = struct {
 
         runtime.wasm.zeroInit();
         runtime.objects = try Slab(GameObject).init(runtime.allocator, 64);
+        errdefer runtime.objects.deinit();
 
         const image = createChessboard(&runtime.renderer);
         const white_pixel = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
