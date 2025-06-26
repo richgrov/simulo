@@ -48,11 +48,6 @@ pub fn main() !void {
         return;
     };
 
-    const program_url = args.next() orelse {
-        printUsage();
-        return;
-    };
-
     try Runtime.globalInit();
     defer Runtime.globalDeinit();
 
@@ -60,7 +55,6 @@ pub fn main() !void {
     try Runtime.init(&runtime, machine_id, &private_key, allocator);
     defer runtime.deinit();
 
-    try runtime.runProgram(program_url);
     try runtime.run();
 }
 

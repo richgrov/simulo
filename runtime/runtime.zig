@@ -107,8 +107,8 @@ pub const Runtime = struct {
     allocator: std.mem.Allocator,
 
     wasm: Wasm,
-    update_func: Wasm.Function,
-    pose_func: Wasm.Function,
+    update_func: ?Wasm.Function,
+    pose_func: ?Wasm.Function,
     objects: Slab(GameObject),
 
     blank_material: Renderer.MaterialHandle,
@@ -144,6 +144,8 @@ pub const Runtime = struct {
         runtime.calibrated = false;
 
         runtime.wasm.zeroInit();
+        runtime.update_func = null;
+        runtime.pose_func = null;
         runtime.objects = try Slab(GameObject).init(runtime.allocator, 64);
         errdefer runtime.objects.deinit();
 
@@ -166,7 +168,7 @@ pub const Runtime = struct {
         self.remote.deinit();
     }
 
-    pub fn runProgram(self: *Runtime, program_url: []const u8) !void {
+    fn runProgram(self: *Runtime, program_url: []const u8) !void {
         self.remote.fetchProgram(program_url) catch |err| {
             self.remote.log("program download failed- attempting to use last downloaded program ({any})", .{err});
         };
@@ -218,25 +220,35 @@ pub const Runtime = struct {
             }
 
             const deltaf: f32 = @floatFromInt(delta);
-            _ = self.wasm.callFunction(self.update_func, .{deltaf / 1000}) catch unreachable;
+            if (self.update_func) |func| {
+                _ = self.wasm.callFunction(func, .{deltaf / 1000}) catch unreachable;
+            }
 
             const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
             _ = self.renderer.render(&ui_projection, &ui_projection);
 
             try self.processPoseDetections(width, height);
+
+            if (self.remote.nextMessage()) |message| {
+                const url = message.buf[0..message.used];
+                self.remote.log("Downloading program from {s}", .{url});
+                try self.runProgram(url);
+            }
         }
     }
 
     fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
+        const pose_func = self.pose_func orelse return;
+
         while (self.pose_detector.nextEvent()) |event| {
             const id_u32: u32 = @intCast(event.id);
             const detection = event.detection orelse {
-                _ = self.wasm.callFunction(self.pose_func, .{ id_u32, @as(f32, -1), @as(f32, -1) }) catch unreachable;
+                _ = self.wasm.callFunction(pose_func, .{ id_u32, @as(f32, -1), @as(f32, -1) }) catch unreachable;
                 continue;
             };
 
             const left_hand = detection.keypoints[9].pos;
-            _ = self.wasm.callFunction(self.pose_func, .{
+            _ = self.wasm.callFunction(pose_func, .{
                 id_u32,
                 left_hand[0] * width,
                 left_hand[1] * height,

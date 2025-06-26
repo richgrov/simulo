@@ -6,7 +6,7 @@ const Spsc = util.Spsc;
 const download = @import("./download.zig");
 
 pub const Remote = struct {
-    const LogEntry = struct {
+    pub const LogEntry = struct {
         buf: [512]u8,
         used: usize,
     };
@@ -20,6 +20,7 @@ pub const Remote = struct {
     running: bool = true,
     ready: bool = false,
     log_queue: Spsc(LogEntry, 256),
+    inbound_queue: Spsc(LogEntry, 128),
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, private_key: *const [32]u8) !Remote {
         if (id.len > 64) {
@@ -42,6 +43,7 @@ pub const Remote = struct {
                 //.tls = true,
             }),
             .log_queue = Spsc(LogEntry, 256).init(),
+            .inbound_queue = Spsc(LogEntry, 128).init(),
         };
     }
 
@@ -117,14 +119,22 @@ pub const Remote = struct {
     }
 
     pub fn serverMessage(self: *Remote, data: []u8, ty: websocket.MessageTextType) !void {
-        if (ty == .text) {
-            if (std.mem.eql(u8, data, "OK")) {
-                @atomicStore(bool, &self.ready, true, .release);
-                return;
-            }
+        if (ty != .text) {
+            return;
         }
 
-        std.debug.print("Received message: {s}\n", .{data});
+        if (data.len > 512) {
+            std.log.err("message '{s}' too large ({x})", .{ data, data.len });
+            return;
+        }
+
+        @atomicStore(bool, &self.ready, true, .release);
+        var entry: LogEntry = undefined;
+        entry.used = data.len;
+        @memcpy(entry.buf[0..data.len], data);
+        self.inbound_queue.enqueue(entry) catch |err| {
+            std.log.err("couldn't enqueue message '{s}': {any}", .{ data, err });
+        };
     }
 
     pub fn serverClose(self: *Remote, data: []u8) !void {
@@ -137,6 +147,10 @@ pub const Remote = struct {
         }
 
         try self.websocket_cli.close(.{});
+    }
+
+    pub fn nextMessage(self: *Remote) ?LogEntry {
+        return self.inbound_queue.tryDequeue();
     }
 
     pub fn fetchProgram(self: *Remote, url: []const u8) !void {
