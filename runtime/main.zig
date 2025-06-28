@@ -59,10 +59,10 @@ pub fn main() !void {
 }
 
 const vulkan = builtin.target.os.tag == .windows or builtin.target.os.tag == .linux;
-const text_vert = if (vulkan) @embedFile("shader/text.vert") else &[_]u8{0};
-const text_frag = if (vulkan) @embedFile("shader/text.frag") else &[_]u8{0};
-const model_vert = if (vulkan) @embedFile("shader/model.vert") else &[_]u8{0};
-const model_frag = if (vulkan) @embedFile("shader/model.frag") else &[_]u8{0};
+const text_vert = if (vulkan) @embedFile("shader/text.vert.spv") else &[_]u8{0};
+const text_frag = if (vulkan) @embedFile("shader/text.frag.spv") else &[_]u8{0};
+const model_vert = if (vulkan) @embedFile("shader/model.vert.spv") else &[_]u8{0};
+const model_frag = if (vulkan) @embedFile("shader/model.frag.spv") else &[_]u8{0};
 const arial = @embedFile("res/arial.ttf");
 
 pub export fn text_vertex_bytes() *const u8 {
