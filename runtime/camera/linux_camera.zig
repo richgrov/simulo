@@ -82,7 +82,7 @@ pub const LinuxCamera = struct {
 
         return LinuxCamera{
             .fd = fd,
-            .buffer = @ptrCast(mmap_ptr),
+            .buffer = @ptrFromInt(mmap_ptr),
             .buffer_len = buf.length,
 
             .out = out_bufs,
