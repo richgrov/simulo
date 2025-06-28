@@ -18,7 +18,7 @@ pub const LinuxCamera = struct {
     out_idx: usize,
 
     pub fn init(out_bufs: [2][*]u8) !LinuxCamera {
-        const fd = linux.open("/dev/video0", linux.O_RDWR | linux.O_NONBLOCK, 0);
+        const fd = linux.open("/dev/video0", .{ .ACCMODE = .RDWR, .NONBLOCK = true }, 0);
         if (fd < 0) {
             return error.OpenFailed;
         }
