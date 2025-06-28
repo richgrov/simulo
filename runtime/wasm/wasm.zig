@@ -54,12 +54,11 @@ pub const Wasm = struct {
             else => @compileError("must pass a function into exposeFunction"),
         };
 
-        const ZigArgs = reflect.functionParamsIntoTuple(func_info.params);
-
         const Callback = struct {
             var native_symbol: wasm.NativeSymbol = .{
                 .symbol = @ptrCast(name),
                 .func_ptr = switch (func_info.params.len - 1) {
+                    0 => @constCast(@ptrCast(&zero_args)),
                     1 => @constCast(@ptrCast(&one_arg)),
                     2 => @constCast(@ptrCast(&two_args)),
                     3 => @constCast(@ptrCast(&three_args)),
@@ -68,14 +67,20 @@ pub const Wasm = struct {
                 .signature = @ptrCast(createWasmSignature(func_info)),
             };
 
+            pub fn zero_args(
+                env: wasm.wasm_exec_env_t,
+            ) callconv(.C) func_info.return_type.? {
+                return func(wasm.wasm_runtime_get_user_data(env).?);
+            }
+
             pub fn one_arg(
                 env: wasm.wasm_exec_env_t,
                 arg1: func_info.params[1].type.?,
             ) callconv(.C) func_info.return_type.? {
-                return @call(.auto, func, ZigArgs{
+                return func(
                     wasm.wasm_runtime_get_user_data(env).?,
                     arg1,
-                });
+                );
             }
 
             pub fn two_args(
@@ -83,11 +88,11 @@ pub const Wasm = struct {
                 arg1: func_info.params[1].type.?,
                 arg2: func_info.params[2].type.?,
             ) callconv(.C) func_info.return_type.? {
-                return @call(.auto, func, ZigArgs{
+                return func(
                     wasm.wasm_runtime_get_user_data(env).?,
                     arg1,
                     arg2,
-                });
+                );
             }
 
             pub fn three_args(
@@ -96,12 +101,12 @@ pub const Wasm = struct {
                 arg2: func_info.params[2].type.?,
                 arg3: func_info.params[3].type.?,
             ) callconv(.C) func_info.return_type.? {
-                return @call(.auto, func, ZigArgs{
+                return func(
                     wasm.wasm_runtime_get_user_data(env).?,
                     arg1,
                     arg2,
                     arg3,
-                });
+                );
             }
         };
 
