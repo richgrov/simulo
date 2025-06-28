@@ -10,5 +10,6 @@ zig-out/
 *.spv
 *.metallib
 *.air
+*.wasm
 
 .aider*
