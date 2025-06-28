@@ -47,12 +47,12 @@ typedef struct {
 #endif
 } Camera;
 
-#endif
-
 bool init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf_b);
 void destroy_camera(Camera *camera);
 void set_camera_float_mode(Camera *camera, float *buf_a, float *buf_b);
 int swap_camera_buffers(Camera *camera);
+
+#endif
 
 #ifdef __cplusplus
 
