@@ -1,3 +1,4 @@
+#include <memory>
 #include <span>
 
 #include "ffi.h"
@@ -13,7 +14,8 @@
 using namespace simulo;
 
 Window *create_window(const Gpu *gpu, const char *title) {
-   return new Window(*gpu, title);
+   std::unique_ptr<Window> window = simulo::create_window(*gpu, title);
+   return window.release();
 }
 
 void destroy_window(Window *window) {
