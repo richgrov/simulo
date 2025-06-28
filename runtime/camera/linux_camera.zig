@@ -62,12 +62,12 @@ pub const LinuxCamera = struct {
         const mmap_ptr = linux.mmap(
             null,
             buf.length,
-            linux.PROT_READ | linux.PROT_WRITE,
-            linux.MAP_SHARED,
+            linux.PROT.READ | linux.PROT.WRITE,
+            .{ .TYPE = .SHARED },
             fd,
             @intCast(buf.m.offset),
         );
-        if (@intFromPtr(mmap_ptr) == @intFromPtr(linux.MAP_FAILED)) {
+        if (@intFromPtr(mmap_ptr) == std.math.maxInt(usize)) {
             return error.MMapFailed;
         }
 
