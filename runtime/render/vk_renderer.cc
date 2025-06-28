@@ -13,7 +13,6 @@
 #include "gpu/vulkan/status.h"
 #include "gpu/vulkan/swapchain.h"
 #include "math/matrix.h"
-#include "mesh.h"
 #include "model.h"
 #include "ui.h"
 #include "util/memory.h"
