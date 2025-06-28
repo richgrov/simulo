@@ -17,7 +17,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("util/util.zig"),
     });
 
-    const engine = createEngine(b, optimize, target);
+    const engine = createEngine(b, target);
     engine.addImport("util", util);
 
     const check_step = b.step("check", "Check step for ZLS");
@@ -144,17 +144,11 @@ fn bundleFramework(b: *std.Build, lib: *std.Build.Step.Compile, comptime name: [
     b.getInstallStep().dependOn(&install_framework.step);
 }
 
-fn createEngine(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Module {
+fn createEngine(b: *std.Build, target: std.Build.ResolvedTarget) *std.Build.Module {
     const engine = b.addModule("engine", .{
         .root_source_file = b.path("engine/engine.zig"),
         .target = target,
     });
-    engine.addIncludePath(b.path("src/"));
-
-    if (optimize == .Debug) {
-        engine.addCMacro("SIMULO_DEBUG", "");
-        engine.addCMacro("VKAD_DEBUG", "");
-    }
 
     engine.linkSystemLibrary("onnxruntime", .{});
     engine.linkSystemLibrary("libdeflate", .{});

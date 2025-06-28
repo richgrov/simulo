@@ -28,10 +28,6 @@ pub const Gpu = @import("gpu/gpu.zig").Gpu;
 const behaviors = @import("behaviors.zig");
 const events = @import("events.zig");
 
-comptime {
-    _ = engine;
-}
-
 const Vertex = struct {
     position: @Vector(3, f32) align(16),
     tex_coord: @Vector(2, f32) align(8),
