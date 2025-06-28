@@ -67,7 +67,7 @@ pub const LinuxCamera = struct {
             fd,
             @intCast(buf.m.offset),
         );
-        if (@intFromPtr(mmap_ptr) == std.math.maxInt(usize)) {
+        if (mmap_ptr == std.math.maxInt(usize)) {
             return error.MMapFailed;
         }
 
