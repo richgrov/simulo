@@ -2,9 +2,6 @@
 
 #include <vulkan/vulkan_core.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "vendor/stb_image.h"
-
 #include "status.h"
 
 using namespace simulo;

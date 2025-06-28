@@ -9,7 +9,7 @@ Renderer *create_renderer(Gpu *gpu, const Window *window) {
 #ifdef VKAD_APPLE
    return new Renderer(*gpu, window->layer_pixel_format(), window->metal_layer());
 #else
-   return new Renderer(gpu_, window_->surface(), window_->width(), window_->height()),
+   return new Renderer(*gpu, window->surface(), window->width(), window->height());
 #endif
 }
 
