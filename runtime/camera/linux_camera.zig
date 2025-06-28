@@ -18,7 +18,7 @@ pub const LinuxCamera = struct {
     out_idx: usize,
 
     pub fn init(out_bufs: [2][*]u8) !LinuxCamera {
-        const fd = linux.open("/dev/video0", .{ .ACCMODE = .RDWR, .NONBLOCK = true }, 0);
+        const fd: i32 = @intCast(linux.open("/dev/video0", .{ .ACCMODE = .RDWR, .NONBLOCK = true }, 0));
         if (fd < 0) {
             return error.OpenFailed;
         }
@@ -101,11 +101,8 @@ pub const LinuxCamera = struct {
     }
 
     pub fn swapBuffers(self: *LinuxCamera) !usize {
-        var fds = linux.FdSet{};
-        fds.set(self.fd);
-
-        var tv = linux.timeval{ .tv_sec = 2, .tv_usec = 0 };
-        if (linux.select(self.fd + 1, &fds, null, null, &tv) <= 0) {
+        var pollfd = linux.pollfd{ .fd = self.fd, .events = linux.POLL.IN };
+        if (linux.poll(&pollfd, 1, -1) <= 0) {
             return error.SelectFailed;
         }
 
