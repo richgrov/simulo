@@ -85,7 +85,7 @@ pub const LinuxCamera = struct {
             .buffer = @ptrFromInt(mmap_ptr),
             .buffer_len = buf.length,
 
-            .out = out_bufs,
+            .out = .{ .bytes = out_bufs },
             .out_idx = 0,
         };
     }
@@ -97,7 +97,7 @@ pub const LinuxCamera = struct {
     }
 
     pub fn setFloatMode(self: *LinuxCamera, out: [2][*]f32) void {
-        self.out = out;
+        self.out = .{ .floats = out };
     }
 
     pub fn swapBuffers(self: *LinuxCamera) !usize {
@@ -123,8 +123,8 @@ pub const LinuxCamera = struct {
         self.out_idx = (self.out_idx + 1) % 2;
 
         switch (self.out) {
-            .bytes => {},
-            .floats => {},
+            .bytes => |_| {},
+            .floats => |_| {},
         }
 
         _ = linux.ioctl(self.fd, v42l.VIDIOC_QBUF, @intFromPtr(&buf)); // Re-queue buffer
