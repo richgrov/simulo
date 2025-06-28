@@ -106,6 +106,7 @@ pub const Runtime = struct {
     update_func: ?Wasm.Function,
     pose_func: ?Wasm.Function,
     objects: Slab(GameObject),
+    random: std.Random.Xoshiro256,
 
     blank_material: Renderer.MaterialHandle,
     mesh: Renderer.MeshHandle,
@@ -121,6 +122,7 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_get_object_x", wasmGetObjectX);
         try Wasm.exposeFunction("simulo_get_object_y", wasmGetObjectY);
         try Wasm.exposeFunction("simulo_delete_object", wasmDeleteObject);
+        try Wasm.exposeFunction("simulo_random", wasmRandom);
     }
 
     pub fn globalDeinit() void {
@@ -144,6 +146,9 @@ pub const Runtime = struct {
         runtime.pose_func = null;
         runtime.objects = try Slab(GameObject).init(runtime.allocator, 64);
         errdefer runtime.objects.deinit();
+
+        const now: u64 = @bitCast(std.time.microTimestamp());
+        runtime.random = std.Random.Xoshiro256.init(now);
 
         const image = createChessboard(&runtime.renderer);
         const white_pixel = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
@@ -308,6 +313,11 @@ pub const Runtime = struct {
         runtime.objects.delete(id) catch {
             runtime.remote.log("impossible: deinitialized but failed to delete object {x}", .{id});
         };
+    }
+
+    fn wasmRandom(user_ptr: *anyopaque) f32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        return runtime.random.random().float(f32);
     }
 };
 
