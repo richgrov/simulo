@@ -92,7 +92,7 @@ pub fn build(b: *std.Build) void {
     runtime.root_module.addImport("util", util);
     runtime.root_module.addImport("websocket", websocket.module("websocket"));
     runtime.root_module.addRPathSpecial("@executable_path/../Frameworks");
-    bundleExe(b, runtime, "runtime");
+    bundleExe(b, runtime, target.result.os.tag, "runtime");
     check_step.dependOn(&runtime.step);
 }
 
@@ -102,26 +102,34 @@ fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     return &run.step;
 }
 
-fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, comptime name: []const u8) void {
-    const install_exe = b.addInstallArtifact(exe, .{
-        .dest_dir = .{
-            .override = .{
-                .custom = name ++ ".app/Contents/MacOS",
+fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Target.Os.Tag, comptime name: []const u8) void {
+    const install_step = b.getInstallStep();
+    if (target == .macos) {
+        const install_exe = b.addInstallArtifact(exe, .{
+            .dest_dir = .{
+                .override = .{
+                    .custom = name ++ ".app/Contents/MacOS",
+                },
             },
-        },
-    });
+        });
 
-    const install_plist = b.addInstallFile(b.path("runtime/res/Info.plist"), name ++ ".app/Contents/Info.plist");
+        const install_plist = b.addInstallFile(b.path("runtime/res/Info.plist"), name ++ ".app/Contents/Info.plist");
 
-    const gen_air = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metal", "-c", "runtime/shader/text.metal", "-o", "text.air" });
-    const gen_metallib = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metallib", "text.air", "-o", "default.metallib" });
-    gen_metallib.step.dependOn(&gen_air.step);
-    const install_metallib = b.addInstallFile(b.path("default.metallib"), name ++ ".app/Contents/Resources/default.metallib");
-    install_metallib.step.dependOn(&gen_metallib.step);
+        const gen_air = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metal", "-c", "runtime/shader/text.metal", "-o", "text.air" });
+        const gen_metallib = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metallib", "text.air", "-o", "default.metallib" });
+        gen_metallib.step.dependOn(&gen_air.step);
+        const install_metallib = b.addInstallFile(b.path("default.metallib"), name ++ ".app/Contents/Resources/default.metallib");
+        install_metallib.step.dependOn(&gen_metallib.step);
 
-    b.getInstallStep().dependOn(&install_exe.step);
-    b.getInstallStep().dependOn(&install_plist.step);
-    b.getInstallStep().dependOn(&install_metallib.step);
+        install_step.dependOn(&install_exe.step);
+        install_step.dependOn(&install_plist.step);
+        install_step.dependOn(&install_metallib.step);
+    } else {
+        install_step.dependOn(embedVkShader(b, "runtime/shader/text.vert"));
+        install_step.dependOn(embedVkShader(b, "runtime/shader/text.frag"));
+        install_step.dependOn(embedVkShader(b, "runtime/shader/model.vert"));
+        install_step.dependOn(embedVkShader(b, "runtime/shader/model.frag"));
+    }
 }
 
 fn bundleFramework(b: *std.Build, lib: *std.Build.Step.Compile, comptime name: []const u8) void {
