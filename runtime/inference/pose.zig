@@ -87,7 +87,7 @@ pub const PoseDetector = struct {
         defer inference.deinit();
 
         while (@atomicLoad(bool, &self.running, .monotonic)) {
-            const frame_idx = camera.swapBuffers();
+            const frame_idx = try camera.swapBuffers();
 
             if (!calibrated) {
                 if (calibrator.calibrate(frame_idx, CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT, &transform)) {

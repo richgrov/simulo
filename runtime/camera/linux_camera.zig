@@ -4,11 +4,18 @@ const v42l = @cImport({
     @cInclude("linux/videodev2.h");
 });
 
+const OutMode = union(enum) {
+    bytes: [2][*]u8,
+    floats: [2][*]f32,
+};
+
 pub const LinuxCamera = struct {
     fd: i32,
-    out_rgb: [2][*]u8,
     buffer: [*]u8,
     buffer_len: usize,
+
+    out: OutMode,
+    out_idx: usize,
 
     pub fn init(out_bufs: [2][*]u8) !LinuxCamera {
         const fd = linux.open("/dev/video0", linux.O_RDWR | linux.O_NONBLOCK, 0);
@@ -75,13 +82,25 @@ pub const LinuxCamera = struct {
 
         return LinuxCamera{
             .fd = fd,
-            .out_rgb = out_bufs,
             .buffer = @ptrCast(mmap_ptr),
             .buffer_len = buf.length,
+
+            .out = out_bufs,
+            .out_idx = 0,
         };
     }
 
-    pub fn captureFrame(self: *LinuxCamera) ![]u8 {
+    pub fn deinit(self: *LinuxCamera) void {
+        var ty = v42l.V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        _ = linux.ioctl(self.fd, v42l.VIDIOC_STREAMOFF, &ty);
+        _ = linux.close(self.fd);
+    }
+
+    pub fn setFloatMode(self: *LinuxCamera, out: [2][*]f32) void {
+        self.out = out;
+    }
+
+    pub fn swapBuffers(self: *LinuxCamera) !usize {
         var fds = linux.FdSet{};
         fds.set(self.fd);
 
@@ -102,16 +121,17 @@ pub const LinuxCamera = struct {
             return error.InvalidFrameSize;
         }
 
-        const frame = self.buffer[0..buf.bytesused];
+        //const frame = self.buffer[0..buf.bytesused];
+        const out_idx = self.out_idx;
+        self.out_idx = (self.out_idx + 1) % 2;
+
+        switch (self.out) {
+            .bytes => {},
+            .floats => {},
+        }
 
         _ = linux.ioctl(self.fd, v42l.VIDIOC_QBUF, &buf); // Re-queue buffer
 
-        return frame;
-    }
-
-    pub fn deinit(self: *LinuxCamera) void {
-        var ty = v42l.V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        _ = linux.ioctl(self.fd, v42l.VIDIOC_STREAMOFF, &ty);
-        _ = linux.close(self.fd);
+        return out_idx;
     }
 };

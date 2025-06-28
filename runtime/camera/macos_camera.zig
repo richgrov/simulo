@@ -28,7 +28,7 @@ pub const MacOsCamera = struct {
         ffi.set_camera_float_mode(&self.camera, out[0], out[1]);
     }
 
-    pub inline fn swapBuffers(self: *MacOsCamera) usize {
+    pub inline fn swapBuffers(self: *MacOsCamera) !usize {
         return @intCast(ffi.swap_camera_buffers(&self.camera));
     }
 };
