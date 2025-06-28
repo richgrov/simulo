@@ -101,7 +101,7 @@ pub const LinuxCamera = struct {
     }
 
     pub fn swapBuffers(self: *LinuxCamera) !usize {
-        var pollfd = linux.pollfd{ .fd = self.fd, .events = linux.POLL.IN };
+        var pollfd = linux.pollfd{ .fd = self.fd, .events = linux.POLL.IN, .revents = 0 };
         if (linux.poll(&pollfd, 1, -1) <= 0) {
             return error.SelectFailed;
         }
