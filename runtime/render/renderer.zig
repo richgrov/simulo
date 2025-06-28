@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const ffi = @cImport({
     @cInclude("ffi.h");
@@ -64,8 +65,19 @@ pub const Renderer = struct {
         return ImageHandle{ .id = id };
     }
 
-    pub fn render(self: *Renderer, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) bool {
-        return ffi.render(self.handle, ui_view_projection.ptr(), world_view_projection.ptr());
+    pub fn render(self: *Renderer, window: *const Window, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) !void {
+        const ok = ffi.render(self.handle, ui_view_projection.ptr(), world_view_projection.ptr());
+        if (!ok) {
+            if (comptime builtin.os.tag == .macos) {
+                return error.RenderFailed;
+            }
+
+            ffi.recreate_swapchain(self.handle, window.handle);
+
+            if (!ffi.render(self.handle, ui_view_projection.ptr(), world_view_projection.ptr())) {
+                return error.RenderFailed;
+            }
+        }
     }
 
     pub fn recreateSwapchain(self: *Renderer) void {

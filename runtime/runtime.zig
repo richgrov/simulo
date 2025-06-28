@@ -226,7 +226,9 @@ pub const Runtime = struct {
             }
 
             const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
-            _ = self.renderer.render(&ui_projection, &ui_projection);
+            self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
+                self.remote.log("render failed: {any}", .{err});
+            };
 
             try self.processPoseDetections(width, height);
 

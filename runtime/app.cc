@@ -170,9 +170,11 @@ bool render(
    return renderer->render(ui_mat, world_mat);
 }
 
-void recreate_swapchain(Renderer *renderer) {
-   renderer->recreate_swapchain();
+#ifndef VKAD_APPLE
+void recreate_swapchain(Renderer *renderer, Window *window) {
+   renderer->recreate_swapchain(window->width(), window->height(), window->surface());
 }
+#endif
 
 void wait_idle(Renderer *renderer) {
    renderer->wait_idle();
