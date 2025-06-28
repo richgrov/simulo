@@ -125,6 +125,7 @@ fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Target.Os.
         install_step.dependOn(&install_plist.step);
         install_step.dependOn(&install_metallib.step);
     } else {
+        install_step.dependOn(&b.addInstallArtifact(exe, .{}).step);
         install_step.dependOn(embedVkShader(b, "runtime/shader/text.vert"));
         install_step.dependOn(embedVkShader(b, "runtime/shader/text.frag"));
         install_step.dependOn(embedVkShader(b, "runtime/shader/model.vert"));
