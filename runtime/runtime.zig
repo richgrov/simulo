@@ -332,8 +332,8 @@ pub fn createChessboard(renderer: *Renderer) Renderer.ImageHandle {
                 checkerboard[(y * 1280 + x) * 4 + 0] = 0xFF;
                 checkerboard[(y * 1280 + x) * 4 + 1] = 0xFF;
                 checkerboard[(y * 1280 + x) * 4 + 2] = 0xFF;
-                checkerboard[(y * 1280 + x) * 4 + 3] = 0xFF;
             }
+            checkerboard[(y * 1280 + x) * 4 + 3] = 0xFF;
         }
     }
     return renderer.createImage(&checkerboard, 1280, 800);
