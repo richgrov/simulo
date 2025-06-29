@@ -39,7 +39,7 @@ pub const Remote = struct {
             .secret_key = key_pair,
             .websocket_cli = try websocket.Client.init(allocator, .{
                 .host = "localhost",
-                .port = 3001,
+                .port = 3000,
                 //.tls = true,
             }),
             .log_queue = Spsc(LogEntry, 256).init(),
