@@ -1,4 +1,6 @@
 const std = @import("std");
+const build_options = @import("build_options");
+
 const util = @import("util");
 const websocket = @import("websocket");
 
@@ -38,9 +40,9 @@ pub const Remote = struct {
             .id = id,
             .secret_key = key_pair,
             .websocket_cli = try websocket.Client.init(allocator, .{
-                .host = "localhost",
-                .port = 3000,
-                //.tls = true,
+                .host = build_options.api_host,
+                .port = build_options.api_port,
+                .tls = build_options.api_tls,
             }),
             .log_queue = Spsc(LogEntry, 256).init(),
             .inbound_queue = Spsc(LogEntry, 128).init(),
