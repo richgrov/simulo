@@ -53,8 +53,6 @@ jobs:
           mkdir -p extern/onnxruntime
           curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-osx-arm64-1.22.0.tgz -o onnxruntime.tgz
           tar -xzf onnxruntime.tgz -C extern/onnxruntime --strip-components=1
-          pwd
-          ls
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
@@ -66,41 +64,54 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: zig-out
-#  Build-Linux:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Checkout code
-#        uses: actions/checkout@v2
-#        with:
-#          submodules: recursive
-#
-#      - name: Add LunarG Repository
-#        run: |
-#          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
-#          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
-#          sudo apt update
-#
-#      - name: Install dependencies
-#        uses: awalsh128/cache-apt-pkgs-action@latest
-#        with:
-#          packages: curl xxd libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake
-#          version: "1.0"
-#
-#      - name: Download ONNX Runtime
-#        run: |
-#          mkdir -p extern/onnxruntime
-#          curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
-#          tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
-#          pwd
-#          ls
-#
-#      - name: Setup Zig
-#        uses: mlugg/setup-zig@v2
-#
-#      - name: Build project
-#        run: zig build --search-prefix extern/onnxruntime
-#
-#      - name: Upload install artifact
-#        uses: actions/upload-artifact@v4
-#        with:
-#          path: install
+
+  Build-Linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Add LunarG Repository
+        run: |
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
+          sudo apt update
+
+      - name: Install dependencies
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl xxd libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev ccache
+          version: "1.0"
+
+      - name: Download ONNX Runtime
+        run: |
+          mkdir -p extern/onnxruntime
+          curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
+          tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
+          pwd
+          ls
+
+      - name: Build WAMR
+        run: |
+          cd ..
+          git clone https://github.com/bytecodealliance/wasm-micro-runtime.git
+          cd wasm-micro-runtime/product-mini/platforms/linux
+          mkdir build
+          cd build
+          cmake ..
+          make
+          sudo make install
+          cd $GITHUB_WORKSPACE
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+
+      - name: Build project
+        run: zig build --search-prefix extern/onnxruntime
+
+      - name: Upload install artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: install
