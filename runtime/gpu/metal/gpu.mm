@@ -27,11 +27,3 @@ Gpu::~Gpu() {
    [library_ release];
    [mt_device_ release];
 }
-
-Gpu *create_gpu(void) {
-   return new Gpu();
-}
-
-void destroy_gpu(Gpu *gpu) {
-   delete gpu;
-}

@@ -112,7 +112,9 @@ void set_object_transform(Renderer *renderer, uint32_t object_id, const float *t
 bool render(
     Renderer *renderer, const float *ui_view_projection, const float *world_view_projection
 );
-void recreate_swapchain(Renderer *renderer);
+#ifndef VKAD_APPLE
+void recreate_swapchain(Renderer *renderer, Window *window);
+#endif
 void wait_idle(Renderer *renderer);
 
 Gpu *create_gpu(void);

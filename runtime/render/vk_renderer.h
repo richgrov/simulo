@@ -116,6 +116,10 @@ public:
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height);
 
+   void set_object_transform(RenderObject object_id, const Mat4 &transform) {
+      objects_.get(static_cast<int>(object_id)).transform = transform;
+   }
+
    void update_mesh(
        RenderMesh mesh, std::span<uint8_t> vertex_data,
        std::span<VertexIndexBuffer::IndexType> index_data

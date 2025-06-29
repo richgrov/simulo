@@ -18,13 +18,13 @@ pub const LinuxCamera = struct {
     out_idx: usize,
 
     pub fn init(out_bufs: [2][*]u8) !LinuxCamera {
-        const fd = linux.open("/dev/video0", linux.O_RDWR | linux.O_NONBLOCK, 0);
+        const fd: i32 = @intCast(linux.open("/dev/video0", .{ .ACCMODE = .RDWR, .NONBLOCK = true }, 0));
         if (fd < 0) {
             return error.OpenFailed;
         }
 
         var caps = v42l.v4l2_capability{};
-        if (linux.ioctl(fd, v42l.VIDIOC_QUERYCAP, &caps) < 0) {
+        if (linux.ioctl(fd, v42l.VIDIOC_QUERYCAP, @intFromPtr(&caps)) < 0) {
             return error.CapFailed;
         }
 
@@ -37,7 +37,7 @@ pub const LinuxCamera = struct {
                 .field = v42l.V4L2_FIELD_ANY,
             } },
         };
-        if (linux.ioctl(fd, v42l.VIDIOC_S_FMT, &fmt) < 0) {
+        if (linux.ioctl(fd, v42l.VIDIOC_S_FMT, @intFromPtr(&fmt)) < 0) {
             return error.SetFormatFailed;
         }
 
@@ -46,7 +46,7 @@ pub const LinuxCamera = struct {
             .type = v42l.V4L2_BUF_TYPE_VIDEO_CAPTURE,
             .memory = v42l.V4L2_MEMORY_MMAP,
         };
-        if (linux.ioctl(fd, v42l.VIDIOC_REQBUFS, &req) < 0 or req.count < 1) {
+        if (linux.ioctl(fd, v42l.VIDIOC_REQBUFS, @intFromPtr(&req)) < 0 or req.count < 1) {
             return error.ReqBufsFailed;
         }
 
@@ -55,57 +55,54 @@ pub const LinuxCamera = struct {
             .memory = v42l.V4L2_MEMORY_MMAP,
             .index = 0,
         };
-        if (linux.ioctl(fd, v42l.VIDIOC_QUERYBUF, &buf) < 0) {
+        if (linux.ioctl(fd, v42l.VIDIOC_QUERYBUF, @intFromPtr(&buf)) < 0) {
             return error.QueryBufFailed;
         }
 
         const mmap_ptr = linux.mmap(
             null,
             buf.length,
-            linux.PROT_READ | linux.PROT_WRITE,
-            linux.MAP_SHARED,
+            linux.PROT.READ | linux.PROT.WRITE,
+            .{ .TYPE = .SHARED },
             fd,
             @intCast(buf.m.offset),
         );
-        if (@intFromPtr(mmap_ptr) == @intFromPtr(linux.MAP_FAILED)) {
+        if (mmap_ptr == std.math.maxInt(usize)) {
             return error.MMapFailed;
         }
 
-        if (linux.ioctl(fd, v42l.VIDIOC_QBUF, &buf) < 0) {
+        if (linux.ioctl(fd, v42l.VIDIOC_QBUF, @intFromPtr(&buf)) < 0) {
             return error.QBufFailed;
         }
 
         var ty = v42l.V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        if (linux.ioctl(fd, v42l.VIDIOC_STREAMON, &ty) < 0) {
+        if (linux.ioctl(fd, v42l.VIDIOC_STREAMON, @intFromPtr(&ty)) < 0) {
             return error.StreamOnFailed;
         }
 
         return LinuxCamera{
             .fd = fd,
-            .buffer = @ptrCast(mmap_ptr),
+            .buffer = @ptrFromInt(mmap_ptr),
             .buffer_len = buf.length,
 
-            .out = out_bufs,
+            .out = .{ .bytes = out_bufs },
             .out_idx = 0,
         };
     }
 
     pub fn deinit(self: *LinuxCamera) void {
         var ty = v42l.V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        _ = linux.ioctl(self.fd, v42l.VIDIOC_STREAMOFF, &ty);
+        _ = linux.ioctl(self.fd, v42l.VIDIOC_STREAMOFF, @intFromPtr(&ty));
         _ = linux.close(self.fd);
     }
 
     pub fn setFloatMode(self: *LinuxCamera, out: [2][*]f32) void {
-        self.out = out;
+        self.out = .{ .floats = out };
     }
 
     pub fn swapBuffers(self: *LinuxCamera) !usize {
-        var fds = linux.FdSet{};
-        fds.set(self.fd);
-
-        var tv = linux.timeval{ .tv_sec = 2, .tv_usec = 0 };
-        if (linux.select(self.fd + 1, &fds, null, null, &tv) <= 0) {
+        var pollfd = linux.pollfd{ .fd = self.fd, .events = linux.POLL.IN, .revents = 0 };
+        if (linux.poll(@ptrCast(&pollfd), 1, -1) <= 0) {
             return error.SelectFailed;
         }
 
@@ -113,7 +110,7 @@ pub const LinuxCamera = struct {
             .type = v42l.V4L2_BUF_TYPE_VIDEO_CAPTURE,
             .memory = v42l.V4L2_MEMORY_MMAP,
         };
-        if (linux.ioctl(self.fd, v42l.VIDIOC_DQBUF, &buf) < 0) {
+        if (linux.ioctl(self.fd, v42l.VIDIOC_DQBUF, @intFromPtr(&buf)) < 0) {
             return error.DQBufFailed;
         }
 
@@ -126,11 +123,11 @@ pub const LinuxCamera = struct {
         self.out_idx = (self.out_idx + 1) % 2;
 
         switch (self.out) {
-            .bytes => {},
-            .floats => {},
+            .bytes => |_| {},
+            .floats => |_| {},
         }
 
-        _ = linux.ioctl(self.fd, v42l.VIDIOC_QBUF, &buf); // Re-queue buffer
+        _ = linux.ioctl(self.fd, v42l.VIDIOC_QBUF, @intFromPtr(&buf)); // Re-queue buffer
 
         return out_idx;
     }
