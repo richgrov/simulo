@@ -241,6 +241,10 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
             "runtime/gpu/vulkan/swapchain.cc",
             "runtime/gpu/vulkan/buffer.cc",
         }) catch unreachable;
+
+        if (optimize == .Debug) {
+            runtime.root_module.addCMacro("VKAD_DEBUG", "true");
+        }
     }
 
     if (!custom_calibration) {
