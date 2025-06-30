@@ -69,10 +69,15 @@ pub const Inference = struct {
         try errIfStatus(ort_api.CreateSessionOptions.?(&ort_options), ort_api);
         errdefer ort_api.ReleaseSessionOptions.?(ort_options);
 
-        if (builtin.os.tag == .macos) {
-            const coreml: [:0]const u8 = "CoreML";
+        const execution_provider: ?[:0]const u8 = switch (builtin.os.tag) {
+            .macos => "CoreML",
+            .linux => "TensorRT",
+            else => null,
+        };
+
+        if (execution_provider) |ep| {
             try errIfStatus(
-                ort_api.*.SessionOptionsAppendExecutionProvider.?(ort_options, coreml, null, null, 0),
+                ort_api.*.SessionOptionsAppendExecutionProvider.?(ort_options, ep, null, null, 0),
                 ort_api,
             );
         }
