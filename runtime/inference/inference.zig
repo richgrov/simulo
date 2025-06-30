@@ -1,12 +1,11 @@
 const builtin = @import("builtin");
 const std = @import("std");
+const util = @import("util");
 
 const ort = @import("onnxruntime.zig");
 const ffi = @cImport({
     @cInclude("ffi.h");
 });
-
-const rtmo = @embedFile("rtmo-m.onnx");
 
 const detection_threshold = 0.5;
 
@@ -78,9 +77,11 @@ pub const Inference = struct {
             );
         }
 
+        var model_path_buf: [512]u8 = undefined;
+        const model_path = try util.getResourcePath("rtmo-m.onnx", &model_path_buf);
         var ort_session: ?*ort.OrtSession = null;
         try errIfStatus(
-            ort_api.CreateSessionFromArray.?(ort_env, &rtmo[0], rtmo.len, ort_options, &ort_session),
+            ort_api.CreateSession.?(ort_env, @ptrCast(model_path), ort_options, &ort_session),
             ort_api,
         );
         errdefer ort_api.ReleaseSession.?(ort_session);

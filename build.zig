@@ -5,7 +5,7 @@ const ArrayList = std.ArrayList;
 const mem = std.mem;
 const fs = std.fs;
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -99,7 +99,9 @@ pub fn build(b: *std.Build) void {
     runtime.root_module.addImport("util", util);
     runtime.root_module.addImport("websocket", websocket.module("websocket"));
     runtime.root_module.addRPathSpecial("@executable_path/../Frameworks");
-    bundleExe(b, runtime, target.result.os.tag, "runtime");
+    try bundleExe(b, runtime, target.result.os.tag, &[_][]const u8{
+        "runtime/inference/rtmo-m.onnx",
+    });
     check_step.dependOn(&runtime.step);
 }
 
@@ -109,23 +111,26 @@ fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     return &run.step;
 }
 
-fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Target.Os.Tag, comptime name: []const u8) void {
+fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Target.Os.Tag, resources: []const []const u8) !void {
     const install_step = b.getInstallStep();
     if (target == .macos) {
         const install_exe = b.addInstallArtifact(exe, .{
             .dest_dir = .{
                 .override = .{
-                    .custom = name ++ ".app/Contents/MacOS",
+                    .custom = try std.fmt.allocPrint(b.allocator, "{s}.app/Contents/MacOS", .{exe.name}),
                 },
             },
         });
 
-        const install_plist = b.addInstallFile(b.path("runtime/res/Info.plist"), name ++ ".app/Contents/Info.plist");
+        const install_plist = b.addInstallFile(
+            b.path("runtime/res/Info.plist"),
+            try std.fmt.allocPrint(b.allocator, "{s}.app/Contents/Info.plist", .{exe.name}),
+        );
 
         const gen_air = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metal", "-c", "runtime/shader/text.metal", "-o", "text.air" });
         const gen_metallib = b.addSystemCommand(&[_][]const u8{ "xcrun", "-sdk", "macosx", "metallib", "text.air", "-o", "default.metallib" });
         gen_metallib.step.dependOn(&gen_air.step);
-        const install_metallib = b.addInstallFile(b.path("default.metallib"), name ++ ".app/Contents/Resources/default.metallib");
+        const install_metallib = b.addInstallFile(b.path("default.metallib"), try std.fmt.allocPrint(b.allocator, "{s}.app/Contents/Resources/default.metallib", .{exe.name}));
         install_metallib.step.dependOn(&gen_metallib.step);
 
         install_step.dependOn(&install_exe.step);
@@ -137,6 +142,18 @@ fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Target.Os.
         install_step.dependOn(embedVkShader(b, "runtime/shader/text.frag"));
         install_step.dependOn(embedVkShader(b, "runtime/shader/model.vert"));
         install_step.dependOn(embedVkShader(b, "runtime/shader/model.frag"));
+    }
+
+    for (resources) |resource| {
+        const file_name = resource[std.mem.lastIndexOf(u8, resource, "/").? + 1 ..];
+
+        const destination = if (target == .macos)
+            try std.fmt.allocPrint(b.allocator, "{s}.app/Contents/Resources/{s}", .{ exe.name, file_name })
+        else
+            file_name;
+
+        const install_resource = b.addInstallFile(b.path(resource), destination);
+        install_step.dependOn(&install_resource.step);
     }
 }
 
