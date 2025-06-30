@@ -9,13 +9,11 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const custom_calibration = b.option(bool, "custom_calibration", "Use custom calibration algorithm instead of OpenCV's") orelse false;
     const custom_api_host = b.option([]const u8, "api_host", "Override API host") orelse "api.simulo.grover.sh";
     const custom_api_port = b.option(u16, "api_port", "Override API port") orelse 443;
     const api_tls = b.option(bool, "api_tls", "Use TLS for API connection") orelse true;
 
     const options = b.addOptions();
-    options.addOption(bool, "custom_calibration", custom_calibration);
     options.addOption([]const u8, "api_host", custom_api_host);
     options.addOption(u16, "api_port", custom_api_port);
     options.addOption(bool, "api_tls", api_tls);
@@ -42,9 +40,7 @@ pub fn build(b: *std.Build) !void {
     //godot_lib.linkLibCpp();
     //godot_lib.linkSystemLibrary("onnxruntime");
 
-    //if (!custom_calibration) {
-    //    godot_lib.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
-    //}
+    //godot_lib.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
 
     //bundleFramework(b, godot_lib, "gdperception");
     //check_step.dependOn(&godot_lib.step);
@@ -93,7 +89,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const runtime = createRuntime(b, optimize, target, custom_calibration);
+    const runtime = createRuntime(b, optimize, target);
     runtime.root_module.addOptions("build_options", options);
     runtime.root_module.addImport("engine", engine);
     runtime.root_module.addImport("util", util);
@@ -181,7 +177,7 @@ fn createEngine(b: *std.Build, target: std.Build.ResolvedTarget) *std.Build.Modu
     return engine;
 }
 
-fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget, custom_calibration: bool) *std.Build.Step.Compile {
+fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Step.Compile {
     const runtime = b.addExecutable(.{
         .name = "runtime",
         .target = target,
@@ -195,7 +191,10 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
 
     var cpp_sources = ArrayList([]const u8).init(b.allocator);
     defer cpp_sources.deinit();
-    cpp_sources.append("runtime/app.cc") catch unreachable;
+    cpp_sources.appendSlice(&[_][]const u8{
+        "runtime/app.cc",
+        "runtime/inference/calibrate.cc",
+    }) catch unreachable;
 
     const os = target.result.os.tag;
     if (os == .windows) {
@@ -264,10 +263,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         }
     }
 
-    if (!custom_calibration) {
-        runtime.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
-        cpp_sources.append("runtime/inference/calibrate.cc") catch unreachable;
-    }
+    runtime.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
 
     runtime.addCSourceFiles(.{
         .files = cpp_sources.items,
