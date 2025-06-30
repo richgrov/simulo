@@ -71,7 +71,7 @@ pub const Inference = struct {
 
         const execution_provider: ?[:0]const u8 = switch (builtin.os.tag) {
             .macos => "CoreML",
-            .linux => "TensorRT",
+            .linux => "NvTensorRtRtx",
             else => null,
         };
 
