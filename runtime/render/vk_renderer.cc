@@ -218,8 +218,8 @@ void Renderer::delete_object(RenderObject object) {
 RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int height) {
    int image_id = images_.emplace(
        physical_device_, device_.handle(),
-       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8_UNORM, width,
-       height
+       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8G8B8A8_UNORM,
+       width, height
    );
    Image &image = images_.get(image_id);
 
@@ -368,7 +368,7 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
    };
    VKAD_VK(vkBeginCommandBuffer(command_buffer_, &cmd_begin));
 
-   VkClearValue clear_color = {.color = {0.4f, 0.4f, 0.4f, 1.0f}};
+   VkClearValue clear_color = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
    VkRenderPassBeginInfo render_begin = {
        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
        .renderPass = render_pass_,
