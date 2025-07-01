@@ -202,12 +202,12 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         runtime.linkSystemLibrary("vulkan-1");
     } else if (os == .macos) {
         cpp_sources.appendSlice(&[_][]const u8{
-            "runtime/gpu/metal/buffer.mm",
-            "runtime/gpu/metal/command_queue.mm",
-            "runtime/gpu/metal/gpu.mm",
-            "runtime/gpu/metal/image.mm",
-            "runtime/gpu/metal/render_pipeline.mm",
-            "runtime/render/mt_renderer.mm",
+            //    "runtime/gpu/metal/buffer.mm",
+            //    "runtime/gpu/metal/command_queue.mm",
+            //    "runtime/gpu/metal/gpu.mm",
+            //    "runtime/gpu/metal/image.mm",
+            //    "runtime/gpu/metal/render_pipeline.mm",
+            //    "runtime/render/mt_renderer.mm",
             "runtime/window/macos/window.mm",
             "runtime/camera/macos_camera.mm",
         }) catch unreachable;
@@ -235,7 +235,6 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
             },
         });
 
-        runtime.linkSystemLibrary("vulkan");
         runtime.linkSystemLibrary("X11");
         runtime.linkSystemLibrary("Xi");
         runtime.linkSystemLibrary("wayland-client");
@@ -243,7 +242,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         runtime.linkSystemLibrary("xkbcommon");
     }
 
-    if (usesVulkan(os)) {
+    if (true) {
         cpp_sources.appendSlice(&[_][]const u8{
             "runtime/render/vk_renderer.cc",
             "runtime/gpu/vulkan/command_pool.cc",
@@ -261,6 +260,8 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         if (optimize == .Debug) {
             runtime.root_module.addCMacro("VKAD_DEBUG", "true");
         }
+
+        runtime.linkSystemLibrary("vulkan");
     }
 
     runtime.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });

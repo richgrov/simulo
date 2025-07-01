@@ -175,11 +175,11 @@ Window::Window(const Gpu &vk_instance, const char *title)
    open_ = true;
 
    register_raw_mouse_input(window_);
-   surface_ = create_surface(window_, vk_instance.instance());
+   surface_ = create_surface(window_, vk_instance);
 }
 
 Window::~Window() {
-   vkDestroySurfaceKHR(vk_instance_.instance(), surface_, nullptr);
+   vkDestroySurfaceKHR(vk_instance_, surface_, nullptr);
 }
 
 bool Window::poll() {

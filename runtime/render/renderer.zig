@@ -5,12 +5,13 @@ const ffi = @cImport({
     @cInclude("ffi.h");
 });
 
-const Gpu = @import("../gpu/gpu.zig").Gpu;
+const Gpu = @import("../gpu/vulkan/gpu.zig").Gpu;
 const Window = @import("../window/window.zig").Window;
 const Mat4 = @import("engine").math.Mat4;
+const VulkanRenderer = @import("vk_renderer.zig").VulkanRenderer;
 
 pub const Renderer = struct {
-    handle: *ffi.Renderer,
+    handle: if (builtin.os.tag == .macos) *ffi.Renderer,
 
     pub const PipelineHandle = struct { id: u32 };
     pub const MaterialHandle = struct { id: u32 };
@@ -20,7 +21,7 @@ pub const Renderer = struct {
 
     pub fn init(gpu: *const Gpu, window: *const Window) Renderer {
         return Renderer{
-            .handle = ffi.create_renderer(gpu.handle, window.handle).?,
+            .handle = ffi.create_renderer(@ptrCast(gpu.instance), window.handle).?,
         };
     }
 

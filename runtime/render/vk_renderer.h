@@ -71,16 +71,18 @@ public:
    using IndexBufferType = VertexIndexBuffer::IndexType;
 
    explicit Renderer(
-       Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
+       VkInstance vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
    );
    ~Renderer();
 
    template <class Uniform>
    RenderMaterial create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
       MaterialPipeline &pipe = pipelines_[pipeline_id];
-      int material_id = materials_.emplace(Material{
-          .descriptor_set = pipe.descriptor_pool.allocate(pipe.descriptor_set_layout),
-      });
+      int material_id = materials_.emplace(
+          Material{
+              .descriptor_set = pipe.descriptor_pool.allocate(pipe.descriptor_set_layout),
+          }
+      );
       Material &mat = materials_.get(material_id);
 
       pipe.materials.insert(material_id);
@@ -204,7 +206,6 @@ private:
       RenderMaterial material_id;
    };
 
-   Gpu &vk_instance_;
    PhysicalDevice physical_device_;
    Device device_;
    Swapchain swapchain_;

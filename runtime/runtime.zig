@@ -23,7 +23,7 @@ pub const Detection = inference.Detection;
 pub const Keypoint = inference.Keypoint;
 
 pub const Camera = @import("camera/camera.zig").Camera;
-pub const Gpu = @import("gpu/gpu.zig").Gpu;
+pub const Gpu = @import("gpu/vulkan/gpu.zig").Gpu;
 
 const behaviors = @import("behaviors.zig");
 const events = @import("events.zig");
@@ -135,7 +135,7 @@ pub const Runtime = struct {
         errdefer runtime.remote.deinit();
         try runtime.remote.start();
 
-        runtime.gpu = Gpu.init();
+        runtime.gpu = try Gpu.init(runtime.allocator);
         runtime.window = Window.init(&runtime.gpu, "simulo runtime");
         runtime.renderer = Renderer.init(&runtime.gpu, &runtime.window);
         runtime.pose_detector = PoseDetector.init();

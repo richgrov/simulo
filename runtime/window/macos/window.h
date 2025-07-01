@@ -11,6 +11,8 @@
 @class WindowView;
 #endif
 
+#include <vulkan/vulkan_core.h>
+
 #include "gpu/gpu.h"
 #include "util/bitfield.h"
 
@@ -18,7 +20,7 @@ namespace simulo {
 
 class Window {
 public:
-   explicit Window(const Gpu &gpu, const char *title);
+   explicit Window(VkInstance vk_instance, const char *title);
    ~Window();
 
    bool poll();
@@ -26,6 +28,10 @@ public:
    void set_capture_mouse(bool capture);
 
    void request_close();
+
+   VkSurfaceKHR surface() const {
+      return surface_;
+   }
 
    int width() const;
 
@@ -80,12 +86,13 @@ private:
    void *window_view_;
 #endif
 
+   VkSurfaceKHR surface_;
    bool closing_ = false;
    bool cursor_captured_ = false;
 };
 
-inline std::unique_ptr<Window> create_window(const Gpu &gpu, const char *title) {
-   return std::make_unique<Window>(gpu, title);
+inline std::unique_ptr<Window> create_window(VkInstance vk_instance, const char *title) {
+   return std::make_unique<Window>(vk_instance, title);
 }
 
 } // namespace simulo

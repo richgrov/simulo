@@ -1,4 +1,4 @@
-const Gpu = @import("../gpu/gpu.zig").Gpu;
+const Gpu = @import("../gpu/vulkan/gpu.zig").Gpu;
 
 const ffi = @cImport({
     @cInclude("ffi.h");
@@ -9,7 +9,7 @@ pub const Window = struct {
 
     pub fn init(gpu: *const Gpu, title: []const u8) Window {
         return Window{
-            .handle = ffi.create_window(gpu.handle, @ptrCast(title)).?,
+            .handle = ffi.create_window(@ptrCast(gpu.instance), @ptrCast(title)).?,
         };
     }
 

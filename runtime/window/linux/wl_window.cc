@@ -76,7 +76,7 @@ VkSurfaceKHR create_surface(wl_display *display, wl_surface *surface, VkInstance
 
 } // namespace
 
-WaylandWindow::WaylandWindow(const Gpu &vk_instance, const char *title)
+WaylandWindow::WaylandWindow(VkInstance vk_instance, const char *title)
     : vk_instance_(vk_instance), xkb_ctx_(xkb_context_new(XKB_CONTEXT_NO_FLAGS)) {
 
 #define VERIFY_INIT(name)                                                                          \
@@ -132,7 +132,7 @@ WaylandWindow::~WaylandWindow() {
    xdg_toplevel_destroy(xdg_toplevel_);
    xdg_surface_destroy(xdg_surface_);
    xdg_wm_base_destroy(xdg_base_);
-   vkDestroySurfaceKHR(vk_instance_.instance(), vk_surface_, nullptr);
+   vkDestroySurfaceKHR(vk_instance_, vk_surface_, nullptr);
 }
 
 bool WaylandWindow::poll() {
@@ -237,10 +237,9 @@ void WaylandWindow::init_registry() {
 
 void WaylandWindow::init_xdg_wm_base() {
    static constexpr xdg_wm_base_listener xdg_listener = {
-       .ping =
-           [](void *user_ptr, xdg_wm_base *xdg_wm_base, uint32_t serial) {
-              xdg_wm_base_pong(xdg_wm_base, serial);
-           },
+       .ping = [](void *user_ptr, xdg_wm_base *xdg_wm_base, uint32_t serial) {
+          xdg_wm_base_pong(xdg_wm_base, serial);
+       },
    };
    xdg_wm_base_add_listener(xdg_base_, &xdg_listener, this);
 }
@@ -258,15 +257,14 @@ void WaylandWindow::init_surfaces() {
 
    xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_.get());
    static constexpr xdg_surface_listener xdg_surf_listener = {
-       .configure =
-           [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
-              auto window = reinterpret_cast<WaylandWindow *>(data);
-              xdg_surface_ack_configure(xdg_surface, serial);
-           },
+       .configure = [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
+          auto window = reinterpret_cast<WaylandWindow *>(data);
+          xdg_surface_ack_configure(xdg_surface, serial);
+       },
    };
    xdg_surface_add_listener(xdg_surface_, &xdg_surf_listener, this);
 
-   vk_surface_ = create_surface(display_.get(), surface_.get(), vk_instance_.instance());
+   vk_surface_ = create_surface(display_.get(), surface_.get(), vk_instance_);
 }
 
 void WaylandWindow::init_toplevel(const char *title) {
@@ -429,14 +427,14 @@ void WaylandWindow::init_relative_pointer() {
        zwp_relative_pointer_manager_v1_get_relative_pointer(relative_pointer_manager_, pointer_);
 
    static constexpr zwp_relative_pointer_v1_listener listener = {
-       .relative_motion =
-           [](void *user_data, struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1,
-              uint32_t utime_hi, uint32_t utime_lo, wl_fixed_t dx, wl_fixed_t dy,
-              wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel) {
-              auto *window = reinterpret_cast<WaylandWindow *>(user_data);
-              window->delta_mouse_x_ += dx_unaccel / 256;
-              window->delta_mouse_y_ -= dy_unaccel / 256;
-           },
+       .relative_motion = [](void *user_data,
+                             struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1,
+                             uint32_t utime_hi, uint32_t utime_lo, wl_fixed_t dx, wl_fixed_t dy,
+                             wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel) {
+          auto *window = reinterpret_cast<WaylandWindow *>(user_data);
+          window->delta_mouse_x_ += dx_unaccel / 256;
+          window->delta_mouse_y_ -= dy_unaccel / 256;
+       },
    };
 
    zwp_relative_pointer_v1_add_listener(relative_pointer_, &listener, this);

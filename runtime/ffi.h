@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <vulkan/vulkan_core.h>
+
 #include "util/os_detect.h"
 
 #if defined(VKAD_APPLE) && defined(__OBJC__)
@@ -19,7 +21,7 @@ void run(void);
 const unsigned char *arial_bytes(void);
 size_t arial_len(void);
 
-#if defined(VKAD_WINDOWS) || defined(VKAD_LINUX)
+// #if defined(VKAD_WINDOWS) || defined(VKAD_LINUX)
 const unsigned char *text_vertex_bytes(void);
 size_t text_vertex_len(void);
 const unsigned char *text_fragment_bytes(void);
@@ -29,7 +31,7 @@ const unsigned char *model_vertex_bytes(void);
 size_t model_vertex_len(void);
 const unsigned char *model_fragment_bytes(void);
 size_t model_fragment_len(void);
-#endif
+// #endif
 
 #ifdef VKAD_APPLE
 
@@ -95,7 +97,12 @@ void destroy_opencv_mat(OpenCvMat *mat);
 unsigned char *get_opencv_mat_data(OpenCvMat *mat);
 bool find_chessboard(OpenCvMat *mat, int pattern_width, int pattern_height, FfiMat3 *out_transform);
 
-Renderer *create_renderer(Gpu *gpu, const Window *window);
+// #ifdef VKAD_APPLE
+// Renderer *create_renderer(Gpu *gpu, const Window *window);
+// #else
+Renderer *create_renderer(VkInstance vk_instance, const Window *window);
+// #endif
+
 void destroy_renderer(Renderer *renderer);
 uint32_t create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b);
 uint32_t create_mesh_material(Renderer *renderer, float r, float g, float b);
@@ -112,15 +119,15 @@ void set_object_transform(Renderer *renderer, uint32_t object_id, const float *t
 bool render(
     Renderer *renderer, const float *ui_view_projection, const float *world_view_projection
 );
-#ifndef VKAD_APPLE
+// #ifndef VKAD_APPLE
 void recreate_swapchain(Renderer *renderer, Window *window);
-#endif
+// #endif
 void wait_idle(Renderer *renderer);
 
 Gpu *create_gpu(void);
 void destroy_gpu(Gpu *gpu);
 
-Window *create_window(const Gpu *gpu, const char *title);
+Window *create_window(VkInstance vk_instance, const char *title);
 void destroy_window(Window *window);
 bool poll_window(Window *window);
 void set_capture_mouse(Window *window, bool capture);

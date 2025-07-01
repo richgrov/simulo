@@ -20,10 +20,9 @@
 using namespace simulo;
 
 Renderer::Renderer(
-    Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
+    VkInstance vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
 )
-    : vk_instance_(vk_instance),
-      physical_device_(vk_instance_, surface),
+    : physical_device_(vk_instance, surface),
       device_(physical_device_),
       swapchain_(
           {physical_device_.graphics_queue(), physical_device_.present_queue()},
@@ -182,21 +181,25 @@ Renderer::~Renderer() {
 RenderMesh Renderer::create_mesh(
     std::span<uint8_t> vertex_data, std::span<VertexIndexBuffer::IndexType> index_data
 ) {
-   RenderMesh mesh_id = static_cast<RenderMesh>(meshes_.emplace(Mesh{
-       .vertices_indices = VertexIndexBuffer(
-           vertex_data.size_bytes(), index_data.size_bytes(), device_.handle(), physical_device_
-       ),
-   }));
+   RenderMesh mesh_id = static_cast<RenderMesh>(meshes_.emplace(
+       Mesh{
+           .vertices_indices = VertexIndexBuffer(
+               vertex_data.size_bytes(), index_data.size_bytes(), device_.handle(), physical_device_
+           ),
+       }
+   ));
    update_mesh(mesh_id, vertex_data, index_data);
    return mesh_id;
 }
 
 RenderObject Renderer::add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material) {
-   RenderObject object_id = static_cast<RenderObject>(objects_.emplace(MeshInstance{
-       .transform = transform,
-       .mesh_id = mesh,
-       .material_id = material,
-   }));
+   RenderObject object_id = static_cast<RenderObject>(objects_.emplace(
+       MeshInstance{
+           .transform = transform,
+           .mesh_id = mesh,
+           .material_id = material,
+       }
+   ));
 
    Material &mat = materials_.get(material);
    if (mat.instances.contains(mesh)) {
@@ -266,15 +269,17 @@ RenderPipeline Renderer::create_pipeline(
    Shader vertex(device_, vertex_shader);
    Shader fragment(device_, fragment_shader);
 
-   pipelines_.emplace_back(MaterialPipeline{
-       .descriptor_set_layout = layout,
-       .pipeline =
-           Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
-       .descriptor_pool = DescriptorPool(device_.handle(), layout, sizes, 1),
-       .uniforms = UniformBuffer(uniform_size, 4, device_.handle(), physical_device_),
-       .vertex_shader = std::move(vertex),
-       .fragment_shader = std::move(fragment),
-   });
+   pipelines_.emplace_back(
+       MaterialPipeline{
+           .descriptor_set_layout = layout,
+           .pipeline =
+               Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
+           .descriptor_pool = DescriptorPool(device_.handle(), layout, sizes, 1),
+           .uniforms = UniformBuffer(uniform_size, 4, device_.handle(), physical_device_),
+           .vertex_shader = std::move(vertex),
+           .fragment_shader = std::move(fragment),
+       }
+   );
    return static_cast<RenderPipeline>(pipelines_.size() - 1);
 }
 
@@ -320,12 +325,11 @@ void Renderer::upload_texture(const StagingBuffer &src, Image &image) {
                .baseArrayLayer = 0,
                .layerCount = 1,
            },
-       .imageExtent =
-           {
-               .width = static_cast<uint32_t>(image.width()),
-               .height = static_cast<uint32_t>(image.height()),
-               .depth = 1,
-           },
+       .imageExtent = {
+           .width = static_cast<uint32_t>(image.width()),
+           .height = static_cast<uint32_t>(image.height()),
+           .depth = 1,
+       },
    };
 
    vkCmdCopyBufferToImage(

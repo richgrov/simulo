@@ -6,6 +6,9 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <objc/objc.h>
 
+#define VK_USE_PLATFORM_MACOS_MVK
+#include <vulkan/vulkan_macos.h>
+
 #include "ffi.h"
 #include "gpu/gpu.h"
 #include "window/macos/keys.h"
@@ -185,7 +188,7 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
 
 @end
 
-Window::Window(const Gpu &gpu, const char *title) {
+Window::Window(VkInstance vk_instance, const char *title) {
    [NSApplication sharedApplication];
    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 
@@ -212,11 +215,17 @@ Window::Window(const Gpu &gpu, const char *title) {
    window.releasedWhenClosed = NO;
 
    metal_layer_ = [[CAMetalLayer alloc] init];
-   metal_layer_.device = gpu.device();
+   // metal_layer_.device = gpu.device();
    metal_layer_.opaque = YES;
    layer_pixel_format_ = metal_layer_.pixelFormat;
    resize_metal_layer_to_window(window, metal_layer_);
    window.contentView.layer = metal_layer_;
+
+   VkMacOSSurfaceCreateInfoMVK create_info = {
+       .sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK,
+       .pView = metal_layer_,
+   };
+   vkCreateMacOSSurfaceMVK(vk_instance, &create_info, nullptr, &surface_);
 
    this->ns_window_ = window;
 

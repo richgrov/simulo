@@ -1,6 +1,8 @@
 #include <memory>
 #include <span>
 
+#include <vulkan/vulkan_core.h>
+
 #include "ffi.h"
 #include "gpu/gpu.h"
 #include "math/matrix.h"
@@ -13,8 +15,8 @@
 
 using namespace simulo;
 
-Window *create_window(const Gpu *gpu, const char *title) {
-   std::unique_ptr<Window> window = simulo::create_window(*gpu, title);
+Window *create_window(VkInstance vk_instance, const char *title) {
+   std::unique_ptr<Window> window = simulo::create_window(vk_instance, title);
    return window.release();
 }
 
@@ -82,12 +84,14 @@ const char *get_typed_chars(const Window *window) {
 int get_typed_chars_length(const Window *window) {
    return static_cast<int>(window->typed_chars().length());
 }
-Renderer *create_renderer(Gpu *gpu, const Window *window) {
-#ifdef VKAD_APPLE
-   return new Renderer(*gpu, window->layer_pixel_format(), window->metal_layer());
-#else
-   return new Renderer(*gpu, window->surface(), window->width(), window->height());
-#endif
+
+// #ifdef VKAD_APPLE
+// Renderer *create_renderer(Gpu *gpu, const Window *window) {
+// return new Renderer(*gpu, window->layer_pixel_format(), window->metal_layer());
+// #else
+Renderer *create_renderer(VkInstance vk_instance, const Window *window) {
+   return new Renderer(vk_instance, window->surface(), window->width(), window->height());
+   // #endif
 }
 
 void destroy_renderer(Renderer *renderer) {

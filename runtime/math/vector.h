@@ -163,7 +163,7 @@ template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignme
       return (*this)[3];
    }
 
-#ifndef __APPLE__
+   // #ifndef __APPLE__
    static constexpr VkFormat format()
       requires(N >= 2 && N <= 3)
    {
@@ -173,7 +173,7 @@ template <size_t N, size_t Alignment = alignof(float[N])> struct alignas(Alignme
          return VK_FORMAT_R32G32B32_SFLOAT;
       }
    }
-#endif // !__APPLE__
+   // #endif // !__APPLE__
 
 private:
    std::array<float, N> elements_;

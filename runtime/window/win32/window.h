@@ -15,7 +15,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_par
 
 class Window {
 public:
-   explicit Window(const Gpu &vk_instance, const char *title);
+   explicit Window(VkInstance vk_instance, const char *title);
    ~Window();
 
    bool poll();
@@ -69,7 +69,7 @@ public:
    }
 
 private:
-   const Gpu &vk_instance_;
+   VkInstance vk_instance_;
    HWND window_;
    bool open_;
    bool closing_;
@@ -95,7 +95,7 @@ private:
    friend LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM w_param, LPARAM l_param);
 };
 
-inline std::unique_ptr<Window> create_window(const Gpu &vk_instance, const char *title) {
+inline std::unique_ptr<Window> create_window(VkInstance vk_instance, const char *title) {
    return std::make_unique<Window>(vk_instance, title);
 }
 
