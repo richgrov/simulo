@@ -7,6 +7,8 @@ unsafe extern "C" {
     fn simulo_get_object_y(id: u32) -> f32;
     fn simulo_delete_object(id: u32);
     fn simulo_random() -> f32;
+    fn simulo_window_width() -> i32;
+    fn simulo_window_height() -> i32;
 }
 
 static mut GAME: *mut Game = std::ptr::null_mut();

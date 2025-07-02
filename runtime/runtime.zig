@@ -123,6 +123,8 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_get_object_y", wasmGetObjectY);
         try Wasm.exposeFunction("simulo_delete_object", wasmDeleteObject);
         try Wasm.exposeFunction("simulo_random", wasmRandom);
+        try Wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
+        try Wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
     }
 
     pub fn globalDeinit() void {
@@ -320,6 +322,16 @@ pub const Runtime = struct {
     fn wasmRandom(user_ptr: *anyopaque) f32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         return runtime.random.random().float(f32);
+    }
+
+    fn wasmWindowWidth(user_ptr: *anyopaque) i32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        return runtime.window.getWidth();
+    }
+
+    fn wasmWindowHeight(user_ptr: *anyopaque) i32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        return runtime.window.getHeight();
     }
 };
 
