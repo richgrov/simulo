@@ -19,6 +19,7 @@ pub const Remote = struct {
     websocket_cli: websocket.Client,
     ws_read_thread: ?std.Thread = null,
     ws_write_thread: ?std.Thread = null,
+    conn_thread: ?std.Thread = null,
     running: bool = true,
     ready: bool = false,
     log_queue: Spsc(LogEntry, 256),
@@ -51,36 +52,21 @@ pub const Remote = struct {
 
     pub fn deinit(self: *Remote) void {
         @atomicStore(bool, &self.running, false, .seq_cst);
+        if (self.conn_thread) |thread| {
+            thread.join();
+        }
         if (self.ws_write_thread) |thread| {
             thread.join();
         }
-        self.websocket_cli.deinit();
         if (self.ws_read_thread) |thread| {
             thread.join();
         }
+        self.websocket_cli.deinit();
     }
 
     pub fn start(self: *Remote) !void {
-        try self.websocket_cli.handshake("/", .{
-            .timeout_ms = 5000,
-            .headers = "Host: localhost:9224",
-        });
-
-        self.ws_read_thread = try self.websocket_cli.readLoopInNewThread(self);
         self.ws_write_thread = try std.Thread.spawn(.{}, Remote.writeLoop, .{self});
-
-        const signature = try self.secret_key.sign(self.id, null);
-        const signature_bytes = signature.toBytes();
-
-        // auth message:
-        // id_length: u8
-        // id: [id_length]u8
-        // signature: [signature_bytes.len]u8
-        var message: [1 + 64 + signature_bytes.len]u8 = undefined;
-        message[0] = @intCast(self.id.len);
-        @memcpy(message[1 .. 1 + self.id.len], self.id);
-        @memcpy(message[1 + self.id.len .. 1 + self.id.len + signature_bytes.len], &signature_bytes);
-        try self.websocket_cli.writeBin(message[0 .. 1 + self.id.len + signature_bytes.len]);
+        self.conn_thread = try std.Thread.spawn(.{}, Remote.connectionLoop, .{self});
     }
 
     pub fn log(self: *Remote, comptime fmt: []const u8, args: anytype) void {
@@ -120,6 +106,64 @@ pub const Remote = struct {
         std.log.info("remote write loop has exited", .{});
     }
 
+    fn connectionLoop(self: *Remote) void {
+        var backoff_ms: u64 = 1000;
+        const max_backoff_ms: u64 = 16000;
+
+        while (@atomicLoad(bool, &self.running, .monotonic)) {
+            @atomicStore(bool, &self.ready, false, .release);
+
+            if (self.tryConnect()) {
+                backoff_ms = 1000;
+
+                if (self.ws_read_thread) |thread| {
+                    thread.join();
+                    self.ws_read_thread = null;
+                }
+            } else {
+                std.time.sleep(std.time.ns_per_ms * backoff_ms);
+                if (backoff_ms < max_backoff_ms) {
+                    backoff_ms *= 2;
+                }
+            }
+        }
+    }
+
+    fn tryConnect(self: *Remote) bool {
+        self.websocket_cli.handshake("/", .{
+            .timeout_ms = 5000,
+            .headers = "Host: localhost:9224",
+        }) catch |err| {
+            std.log.err("websocket handshake failed: {any}", .{err});
+            return false;
+        };
+
+        self.ws_read_thread = self.websocket_cli.readLoopInNewThread(self) catch |err| {
+            std.log.err("could not start read loop: {any}", .{err});
+            _ = self.websocket_cli.close(.{});
+            return false;
+        };
+
+        const signature = self.secret_key.sign(self.id, null) catch |err| {
+            std.log.err("could not sign auth message: {any}", .{err});
+            _ = self.websocket_cli.close(.{});
+            return false;
+        };
+        const signature_bytes = signature.toBytes();
+
+        var message: [1 + 64 + signature_bytes.len]u8 = undefined;
+        message[0] = @intCast(self.id.len);
+        @memcpy(message[1 .. 1 + self.id.len], self.id);
+        @memcpy(message[1 + self.id.len .. 1 + self.id.len + signature_bytes.len], &signature_bytes);
+        self.websocket_cli.writeBin(message[0 .. 1 + self.id.len + signature_bytes.len]) catch |err| {
+            std.log.err("failed to send auth message: {any}", .{err});
+            _ = self.websocket_cli.close(.{});
+            return false;
+        };
+
+        return true;
+    }
+
     pub fn serverMessage(self: *Remote, data: []u8, ty: websocket.MessageTextType) !void {
         if (ty != .text) {
             return;
@@ -147,6 +191,8 @@ pub const Remote = struct {
             const closeReason = data[2..];
             std.debug.print("Websocket closed: {d}: {s}\n", .{ closeCode, closeReason });
         }
+
+        @atomicStore(bool, &self.ready, false, .release);
 
         try self.websocket_cli.close(.{});
     }
