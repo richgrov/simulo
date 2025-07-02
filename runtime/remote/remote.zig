@@ -20,11 +20,12 @@ pub const Remote = struct {
     port: u16,
     tls: bool,
     websocket_cli: ?websocket.Client = null,
+    client_lock: std.Thread.RwLock.DefaultRwLock = .{},
+    ws_conn_thread: ?std.Thread = null,
     ws_read_thread: ?std.Thread = null,
     ws_write_thread: ?std.Thread = null,
-    conn_thread: ?std.Thread = null,
     running: bool = true,
-    ready: bool = false,
+    authenticated: bool = false,
     log_queue: Spsc(LogEntry, 256),
     inbound_queue: Spsc(LogEntry, 128),
 
@@ -54,7 +55,7 @@ pub const Remote = struct {
 
     pub fn deinit(self: *Remote) void {
         @atomicStore(bool, &self.running, false, .seq_cst);
-        if (self.conn_thread) |thread| {
+        if (self.ws_conn_thread) |thread| {
             thread.join();
         }
         if (self.ws_write_thread) |thread| {
@@ -70,7 +71,7 @@ pub const Remote = struct {
 
     pub fn start(self: *Remote) !void {
         self.ws_write_thread = try std.Thread.spawn(.{}, Remote.writeLoop, .{self});
-        self.conn_thread = try std.Thread.spawn(.{}, Remote.connectionLoop, .{self});
+        self.ws_conn_thread = try std.Thread.spawn(.{}, Remote.connectionLoop, .{self});
     }
 
     pub fn log(self: *Remote, comptime fmt: []const u8, args: anytype) void {
@@ -95,20 +96,20 @@ pub const Remote = struct {
         while (@atomicLoad(bool, &self.running, .monotonic)) {
             std.time.sleep(std.time.ns_per_ms * 100);
 
-            if (!@atomicLoad(bool, &self.ready, .acquire)) {
+            if (!@atomicLoad(bool, &self.authenticated, .acquire)) {
                 continue;
             }
 
+            self.client_lock.lockShared();
+            defer self.client_lock.unlockShared();
+            const ws = if (self.websocket_cli) |*cli| cli else continue;
+
             while (self.log_queue.tryDequeue()) |log_entry| {
-                if (self.websocket_cli) |*ws| {
-                    var entry = log_entry;
-                    const msg = entry.buf[0..entry.used];
-                    ws.writeText(msg) catch |err| {
-                        std.log.err("couldn't write log message '{s}': {any}", .{ msg, err });
-                    };
-                } else {
-                    break;
-                }
+                var entry = log_entry;
+                const msg = entry.buf[0..entry.used];
+                ws.writeText(msg) catch |err| {
+                    std.log.err("couldn't write log message '{s}': {any}", .{ msg, err });
+                };
             }
         }
         std.log.info("remote write loop has exited", .{});
@@ -119,7 +120,7 @@ pub const Remote = struct {
         const max_backoff_ms: u64 = 16000;
 
         while (@atomicLoad(bool, &self.running, .monotonic)) {
-            @atomicStore(bool, &self.ready, false, .release);
+            @atomicStore(bool, &self.authenticated, false, .release);
 
             if (self.tryConnect()) {
                 backoff_ms = 1000;
@@ -130,9 +131,7 @@ pub const Remote = struct {
                 }
             } else {
                 std.time.sleep(std.time.ns_per_ms * backoff_ms);
-                if (backoff_ms < max_backoff_ms) {
-                    backoff_ms *= 2;
-                }
+                backoff_ms = @min(backoff_ms * 2, max_backoff_ms);
             }
         }
     }
@@ -186,6 +185,8 @@ pub const Remote = struct {
             return false;
         };
 
+        self.client_lock.lock();
+        defer self.client_lock.unlock();
         self.websocket_cli = ws;
 
         return true;
@@ -201,7 +202,7 @@ pub const Remote = struct {
             return;
         }
 
-        @atomicStore(bool, &self.ready, true, .release);
+        @atomicStore(bool, &self.authenticated, true, .release);
         var entry: LogEntry = undefined;
         entry.used = data.len;
         @memcpy(entry.buf[0..data.len], data);
@@ -219,7 +220,7 @@ pub const Remote = struct {
             std.debug.print("Websocket closed: {d}: {s}\n", .{ closeCode, closeReason });
         }
 
-        @atomicStore(bool, &self.ready, false, .release);
+        @atomicStore(bool, &self.authenticated, false, .release);
 
         if (self.websocket_cli) |*ws| {
             try ws.close(.{});
