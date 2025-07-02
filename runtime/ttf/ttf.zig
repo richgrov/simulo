@@ -116,3 +116,97 @@ pub fn parse(allocator: std.mem.Allocator, data: []const u8) !Ttf {
         .glyf_length = glyf_length,
     };
 }
+
+const GlyphMod = @import("./glyph.zig");
+const Glyph = GlyphMod.Glyph;
+const Point = GlyphMod.Point;
+
+pub fn parseGlyph(ttf: *const Ttf, allocator: std.mem.Allocator, index: u16) !Glyph {
+    const slice = ttf.glyphSlice(index);
+    if (slice.len == 0) return error.EmptyGlyph;
+
+    var r = Reader.init(slice);
+    const numberOfContours = try r.readI16();
+    const x_min = try r.readI16();
+    const y_min = try r.readI16();
+    const x_max = try r.readI16();
+    const y_max = try r.readI16();
+
+    if (numberOfContours < 0)
+        return error.CompositeGlyph; // composite glyphs not yet supported
+
+    var end_pts = try allocator.alloc(u16, @intCast(numberOfContours));
+    for (end_pts, 0..) |*pt, i| {
+        pt.* = try r.readU16();
+    }
+
+    const instruction_length = try r.readU16();
+    var instructions = try allocator.alloc(u8, instruction_length);
+    for (instructions, 0..) |*b, i| {
+        b.* = try r.readU8();
+    }
+
+    const num_points = @as(usize, end_pts[end_pts.len - 1]) + 1;
+    var flags = try allocator.alloc(u8, num_points);
+
+    var idx: usize = 0;
+    while (idx < num_points) {
+        const flag = try r.readU8();
+        var repeat: usize = 1;
+        if (flag & 0x08 != 0) {
+            repeat = try r.readU8() + 1;
+        }
+        for (0..repeat) |_| {
+            if (idx >= num_points) break;
+            flags[idx] = flag;
+            idx += 1;
+        }
+    }
+
+    var xs = try allocator.alloc(i16, num_points);
+    var ys = try allocator.alloc(i16, num_points);
+
+    var x: i32 = 0;
+    for (0..num_points) |i| {
+        const flag = flags[i];
+        if ((flag & 0x02) != 0) {
+            const dx = try r.readU8();
+            x += if ((flag & 0x10) != 0) dx else -@as(i32, dx);
+        } else {
+            if ((flag & 0x10) == 0) {
+                x += try r.readI16();
+            }
+        }
+        xs[i] = @as(i16, x);
+    }
+
+    var y: i32 = 0;
+    for (0..num_points) |i| {
+        const flag = flags[i];
+        if ((flag & 0x04) != 0) {
+            const dy = try r.readU8();
+            y += if ((flag & 0x20) != 0) dy else -@as(i32, dy);
+        } else {
+            if ((flag & 0x20) == 0) {
+                y += try r.readI16();
+            }
+        }
+        ys[i] = @as(i16, y);
+    }
+
+    var points = try allocator.alloc(Point, num_points);
+    for (0..num_points) |i| {
+        points[i] = Point{ .x = xs[i], .y = ys[i], .on_curve = (flags[i] & 0x01) != 0 };
+    }
+
+    allocator.free(xs);
+    allocator.free(ys);
+    allocator.free(flags);
+
+    return Glyph{
+        .bbox = .{ .x_min = x_min, .y_min = y_min, .x_max = x_max, .y_max = y_max },
+        .end_pts = end_pts,
+        .instructions = instructions,
+        .points = points,
+    };
+}
