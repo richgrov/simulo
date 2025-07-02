@@ -16,11 +16,19 @@ pub const Remote = struct {
     allocator: std.mem.Allocator,
     id: []const u8,
     secret_key: std.crypto.sign.Ed25519.KeyPair,
-    websocket_cli: websocket.Client,
+
+    host: []const u8,
+    port: u16,
+    tls: bool,
+
+    websocket_cli: ?websocket.Client = null,
+    client_lock: std.Thread.RwLock.DefaultRwLock = .{},
+    ws_conn_thread: ?std.Thread = null,
     ws_read_thread: ?std.Thread = null,
     ws_write_thread: ?std.Thread = null,
+
     running: bool = true,
-    ready: bool = false,
+    authenticated: bool = false,
     log_queue: Spsc(LogEntry, 256),
     inbound_queue: Spsc(LogEntry, 128),
 
@@ -39,11 +47,10 @@ pub const Remote = struct {
             .allocator = allocator,
             .id = id,
             .secret_key = key_pair,
-            .websocket_cli = try websocket.Client.init(allocator, .{
-                .host = build_options.api_host,
-                .port = build_options.api_port,
-                .tls = build_options.api_tls,
-            }),
+            .host = build_options.api_host,
+            .port = build_options.api_port,
+            .tls = build_options.api_tls,
+            .websocket_cli = null,
             .log_queue = Spsc(LogEntry, 256).init(),
             .inbound_queue = Spsc(LogEntry, 128).init(),
         };
@@ -51,36 +58,20 @@ pub const Remote = struct {
 
     pub fn deinit(self: *Remote) void {
         @atomicStore(bool, &self.running, false, .seq_cst);
+        if (self.ws_conn_thread) |thread| {
+            thread.join();
+        }
         if (self.ws_write_thread) |thread| {
             thread.join();
         }
-        self.websocket_cli.deinit();
-        if (self.ws_read_thread) |thread| {
-            thread.join();
+        if (self.websocket_cli) |*ws| {
+            ws.deinit();
         }
     }
 
     pub fn start(self: *Remote) !void {
-        try self.websocket_cli.handshake("/", .{
-            .timeout_ms = 5000,
-            .headers = "Host: localhost:9224",
-        });
-
-        self.ws_read_thread = try self.websocket_cli.readLoopInNewThread(self);
         self.ws_write_thread = try std.Thread.spawn(.{}, Remote.writeLoop, .{self});
-
-        const signature = try self.secret_key.sign(self.id, null);
-        const signature_bytes = signature.toBytes();
-
-        // auth message:
-        // id_length: u8
-        // id: [id_length]u8
-        // signature: [signature_bytes.len]u8
-        var message: [1 + 64 + signature_bytes.len]u8 = undefined;
-        message[0] = @intCast(self.id.len);
-        @memcpy(message[1 .. 1 + self.id.len], self.id);
-        @memcpy(message[1 + self.id.len .. 1 + self.id.len + signature_bytes.len], &signature_bytes);
-        try self.websocket_cli.writeBin(message[0 .. 1 + self.id.len + signature_bytes.len]);
+        self.ws_conn_thread = try std.Thread.spawn(.{}, Remote.connectionLoop, .{self});
     }
 
     pub fn log(self: *Remote, comptime fmt: []const u8, args: anytype) void {
@@ -105,19 +96,79 @@ pub const Remote = struct {
         while (@atomicLoad(bool, &self.running, .monotonic)) {
             std.time.sleep(std.time.ns_per_ms * 100);
 
-            if (!@atomicLoad(bool, &self.ready, .acquire)) {
+            if (!@atomicLoad(bool, &self.authenticated, .acquire)) {
                 continue;
             }
+
+            self.client_lock.lockShared();
+            defer self.client_lock.unlockShared();
+            const ws = if (self.websocket_cli) |*cli| cli else continue;
 
             while (self.log_queue.tryDequeue()) |log_entry| {
                 var entry = log_entry;
                 const msg = entry.buf[0..entry.used];
-                self.websocket_cli.writeText(msg) catch |err| {
+                ws.writeText(msg) catch |err| {
                     std.log.err("couldn't write log message '{s}': {any}", .{ msg, err });
                 };
             }
         }
         std.log.info("remote write loop has exited", .{});
+    }
+
+    fn connectionLoop(self: *Remote) void {
+        var backoff_ms: u64 = 1000;
+        const max_backoff_ms: u64 = 16000;
+
+        while (@atomicLoad(bool, &self.running, .monotonic)) {
+            @atomicStore(bool, &self.authenticated, false, .release);
+
+            self.tryConnect() catch |err| {
+                std.log.err("could not connect: {any}", .{err});
+                std.time.sleep(std.time.ns_per_ms * backoff_ms);
+                backoff_ms = @min(backoff_ms * 2, max_backoff_ms);
+                continue;
+            };
+
+            backoff_ms = 1000;
+
+            if (self.ws_read_thread) |thread| {
+                thread.join();
+                self.ws_read_thread = null;
+            }
+        }
+    }
+
+    fn tryConnect(self: *Remote) !void {
+        var ws = try websocket.Client.init(self.allocator, .{
+            .host = self.host,
+            .port = self.port,
+            .tls = self.tls,
+        });
+        errdefer ws.deinit();
+
+        try ws.handshake("/", .{
+            .timeout_ms = 5000,
+            .headers = "Host: localhost:9224",
+        });
+
+        self.ws_read_thread = try ws.readLoopInNewThread(self);
+
+        const signature = try self.secret_key.sign(self.id, null);
+        const signature_bytes = signature.toBytes();
+
+        // auth message:
+        // id_length: u8
+        // id: [id_length]u8
+        // signature: [signature_bytes.len]u8
+        var message: [1 + 64 + signature_bytes.len]u8 = undefined;
+        message[0] = @intCast(self.id.len);
+        @memcpy(message[1 .. 1 + self.id.len], self.id);
+        @memcpy(message[1 + self.id.len .. 1 + self.id.len + signature_bytes.len], &signature_bytes);
+        try ws.writeBin(message[0 .. 1 + self.id.len + signature_bytes.len]);
+
+        self.client_lock.lock();
+        defer self.client_lock.unlock();
+        self.websocket_cli = ws;
     }
 
     pub fn serverMessage(self: *Remote, data: []u8, ty: websocket.MessageTextType) !void {
@@ -130,7 +181,7 @@ pub const Remote = struct {
             return;
         }
 
-        @atomicStore(bool, &self.ready, true, .release);
+        @atomicStore(bool, &self.authenticated, true, .release);
         var entry: LogEntry = undefined;
         entry.used = data.len;
         @memcpy(entry.buf[0..data.len], data);
@@ -148,7 +199,13 @@ pub const Remote = struct {
             std.debug.print("Websocket closed: {d}: {s}\n", .{ closeCode, closeReason });
         }
 
-        try self.websocket_cli.close(.{});
+        @atomicStore(bool, &self.authenticated, false, .release);
+
+        if (self.websocket_cli) |*ws| {
+            try ws.close(.{});
+            ws.deinit();
+            self.websocket_cli = null;
+        }
     }
 
     pub fn nextMessage(self: *Remote) ?LogEntry {
