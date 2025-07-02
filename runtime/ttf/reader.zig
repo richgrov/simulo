@@ -12,7 +12,7 @@ pub const Reader = struct {
         if (self.pos + @sizeOf(T) > self.data.len) {
             return error.EndOfStream;
         }
-        const value = std.mem.readInt(T, self.data[self.pos .. self.pos + @sizeOf(T)], .big);
+        const value = std.mem.readInt(T, @ptrCast(self.data[self.pos .. self.pos + @sizeOf(T)]), .big);
         self.pos += @sizeOf(T);
         return value;
     }

@@ -12,7 +12,7 @@ pub const Ttf = struct {
     glyf_offset: u32,
     glyf_length: u32,
 
-    pub fn deinit(self: *Ttf) void {
+    pub fn deinit(self: *const Ttf) void {
         self.allocator.free(self.loca);
     }
 
@@ -135,14 +135,14 @@ pub fn parseGlyph(ttf: *const Ttf, allocator: std.mem.Allocator, index: u16) !Gl
     if (numberOfContours < 0)
         return error.CompositeGlyph; // composite glyphs not yet supported
 
-    var end_pts = try allocator.alloc(u16, @intCast(numberOfContours));
-    for (end_pts, 0..) |*pt, i| {
+    const end_pts = try allocator.alloc(u16, @intCast(numberOfContours));
+    for (end_pts) |*pt| {
         pt.* = try r.readU16();
     }
 
     const instruction_length = try r.readU16();
-    var instructions = try allocator.alloc(u8, instruction_length);
-    for (instructions, 0..) |*b, i| {
+    const instructions = try allocator.alloc(u8, instruction_length);
+    for (instructions) |*b| {
         b.* = try r.readU8();
     }
 
