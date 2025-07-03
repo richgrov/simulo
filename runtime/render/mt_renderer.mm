@@ -98,7 +98,7 @@ RenderObject Renderer::add_object(RenderMesh mesh, Mat4 transform, RenderMateria
 }
 
 void Renderer::delete_object(RenderObject object) {
-   MeshInstance instance = instances_.get(object);
+   MeshInstance &instance = instances_.get(object);
 
    Material &mat = materials_.get(instance.material);
    mat.mesh_instances[instance.mesh].erase(object);
