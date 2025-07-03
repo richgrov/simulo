@@ -108,7 +108,7 @@ pub const Runtime = struct {
     objects: Slab(GameObject),
     random: std.Random.Xoshiro256,
 
-    blank_material: Renderer.MaterialHandle,
+    white_pixel_texture: Renderer.ImageHandle,
     mesh: Renderer.MeshHandle,
     chessboard: usize,
     calibrated: bool,
@@ -125,6 +125,7 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_random", wasmRandom);
         try Wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
         try Wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
+        try Wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
     }
 
     pub fn globalDeinit() void {
@@ -153,9 +154,8 @@ pub const Runtime = struct {
         runtime.random = std.Random.Xoshiro256.init(now);
 
         const image = createChessboard(&runtime.renderer);
-        const white_pixel = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
+        runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
         const chessboard_material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
-        runtime.blank_material = runtime.renderer.createUiMaterial(white_pixel, 1.0, 1.0, 1.0);
         runtime.mesh = runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
 
         runtime.chessboard, _ = try runtime.objects.insert(GameObject.init(runtime, chessboard_material, 0, 0));
@@ -262,9 +262,10 @@ pub const Runtime = struct {
         }
     }
 
-    fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32) u32 {
+    fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32, material_id: u32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const id, const obj = runtime.objects.insert(GameObject.init(runtime, runtime.blank_material, x, y)) catch unreachable;
+        const material = Renderer.MaterialHandle{ .id = material_id };
+        const id, const obj = runtime.objects.insert(GameObject.init(runtime, material, x, y)) catch unreachable;
         obj.recalculateTransform(&runtime.renderer);
         return @intCast(id);
     }
@@ -332,6 +333,12 @@ pub const Runtime = struct {
     fn wasmWindowHeight(user_ptr: *anyopaque) i32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         return runtime.window.getHeight();
+    }
+
+    fn wasmCreateMaterial(user_ptr: *anyopaque, r: f32, g: f32, b: f32) u32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const material = runtime.renderer.createUiMaterial(runtime.white_pixel_texture, r, g, b);
+        return material.id;
     }
 };
 

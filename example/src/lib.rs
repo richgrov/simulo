@@ -1,6 +1,6 @@
 #[allow(unused)]
 unsafe extern "C" {
-    fn simulo_create_object(x: f32, y: f32) -> u32;
+    fn simulo_create_object(x: f32, y: f32, material: u32) -> u32;
     fn simulo_set_object_position(id: u32, x: f32, y: f32);
     fn simulo_set_object_scale(id: u32, x: f32, y: f32);
     fn simulo_get_object_x(id: u32) -> f32;
@@ -9,6 +9,7 @@ unsafe extern "C" {
     fn simulo_random() -> f32;
     fn simulo_window_width() -> i32;
     fn simulo_window_height() -> i32;
+    fn simulo_create_material(r: f32, g: f32, b: f32) -> u32;
 }
 
 static mut GAME: *mut Game = std::ptr::null_mut();
@@ -39,8 +40,8 @@ pub struct GameObject(u32);
 
 #[allow(dead_code)]
 impl GameObject {
-    pub fn new(x: f32, y: f32) -> Self {
-        let id = unsafe { simulo_create_object(x, y) };
+    pub fn new(x: f32, y: f32, material: u32) -> Self {
+        let id = unsafe { simulo_create_object(x, y, material) };
         GameObject(id)
     }
 
@@ -79,7 +80,8 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Self {
-        let obj = GameObject::new(500.0, 500.0);
+        let mat = unsafe { simulo_create_material(1.0, 0.5, 0.25) };
+        let obj = GameObject::new(500.0, 500.0, mat);
         obj.set_scale(100.0, 100.0);
         Game { obj }
     }
