@@ -105,6 +105,7 @@ pub const Runtime = struct {
     allocator: std.mem.Allocator,
 
     wasm: Wasm,
+    init_func: ?Wasm.Function,
     update_func: ?Wasm.Function,
     pose_func: ?Wasm.Function,
     objects: std.ArrayList(GameObject),
@@ -147,6 +148,7 @@ pub const Runtime = struct {
         runtime.calibrated = false;
 
         runtime.wasm.zeroInit();
+        runtime.init_func = null;
         runtime.update_func = null;
         runtime.pose_func = null;
         runtime.objects = try std.ArrayList(GameObject).initCapacity(runtime.allocator, 64);
@@ -197,7 +199,7 @@ pub const Runtime = struct {
         defer self.allocator.free(data);
 
         try self.wasm.init(@ptrCast(self), data);
-        const init_func = self.wasm.getFunction("init") orelse {
+        self.init_func = self.wasm.getFunction("init") orelse {
             self.remote.log("program missing init function", .{});
             return error.MissingInitFunction;
         };
@@ -209,8 +211,6 @@ pub const Runtime = struct {
             self.remote.log("program missing pose function", .{});
             return error.MissingPoseFunction;
         };
-
-        _ = try self.wasm.callFunction(init_func, .{});
     }
 
     fn isNativeBehavior(self: *const Runtime, ty: engine.Scripting.Type) bool {
@@ -234,21 +234,30 @@ pub const Runtime = struct {
             const width: f32 = @floatFromInt(self.window.getWidth());
             const height: f32 = @floatFromInt(self.window.getHeight());
 
+            const was_calibrated = self.calibrated;
+            try self.processPoseDetections(width, height);
+
             const chessboard = &self.objects.items[0];
             chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
             chessboard.recalculateTransform(&self.renderer);
 
-            const deltaf: f32 = @floatFromInt(delta);
-            if (self.update_func) |func| {
-                _ = self.wasm.callFunction(func, .{deltaf / 1000}) catch unreachable;
+            if (self.calibrated) {
+                if (!was_calibrated) {
+                    if (self.init_func) |init_func| {
+                        _ = self.wasm.callFunction(init_func, .{}) catch unreachable;
+                    }
+                }
+
+                const deltaf: f32 = @floatFromInt(delta);
+                if (self.update_func) |func| {
+                    _ = self.wasm.callFunction(func, .{deltaf / 1000}) catch unreachable;
+                }
             }
 
             const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
             self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
                 self.remote.log("render failed: {any}", .{err});
             };
-
-            try self.processPoseDetections(width, height);
 
             if (self.remote.nextMessage()) |message| {
                 const url = message.buf[0..message.used];
@@ -259,9 +268,16 @@ pub const Runtime = struct {
     }
 
     fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
+        const was_calibrated = self.calibrated;
         const pose_func = self.pose_func orelse return;
 
         while (self.pose_detector.nextEvent()) |event| {
+            self.calibrated = true;
+
+            if (!was_calibrated) {
+                continue;
+            }
+
             const id_u32: u32 = @intCast(event.id);
             const detection = event.detection orelse {
                 _ = self.wasm.callFunction(pose_func, .{ id_u32, @as(f32, -1), @as(f32, -1) }) catch unreachable;
@@ -274,7 +290,6 @@ pub const Runtime = struct {
                 left_hand[0] * width,
                 left_hand[1] * height,
             }) catch unreachable;
-            self.calibrated = true;
         }
     }
 
