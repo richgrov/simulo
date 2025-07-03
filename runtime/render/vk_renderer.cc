@@ -354,11 +354,11 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
        &current_framebuffer_
    );
 
-   if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR || next_image_res == VK_SUBOPTIMAL_KHR) {
+   if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR) {
       return false;
+   } else if (next_image_res != VK_SUBOPTIMAL_KHR) {
+      VKAD_VK(next_image_res);
    }
-
-   VKAD_VK(next_image_res);
 
    vkResetFences(device_.handle(), 1, &draw_cycle_complete);
    vkResetCommandBuffer(command_buffer_, 0);
