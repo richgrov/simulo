@@ -354,7 +354,7 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
        &current_framebuffer_
    );
 
-   if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR) {
+   if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR || next_image_res == VK_SUBOPTIMAL_KHR) {
       return false;
    }
 
