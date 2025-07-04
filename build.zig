@@ -188,6 +188,9 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
     runtime.linkLibCpp();
     runtime.linkSystemLibrary("onnxruntime");
     runtime.linkSystemLibrary("iwasm");
+    if (target.result.os.tag == .linux) {
+        runtime.linkSystemLibrary("TensorRT-RTX");
+    }
 
     var cpp_sources = ArrayList([]const u8).init(b.allocator);
     defer cpp_sources.deinit();
@@ -225,6 +228,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
             "runtime/window/linux/wl_deleter.cc",
             "runtime/window/linux/wl_window.cc",
             "runtime/window/linux/x11_window.cc",
+            "runtime/inference/tensorrt_rtx.cc",
         }) catch unreachable;
 
         runtime.addCSourceFiles(.{
