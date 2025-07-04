@@ -276,13 +276,13 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
     defer list.deinit();
     while (d.index < d.data.len) {
         const opcode = try d.readByte();
-        var instr: Instruction = .Plain(opcode);
+        var instr: Instruction = .{ .Plain = opcode };
         switch (opcode) {
-            0x02 => instr = .Block{ .block_type = @intCast(try d.readByte()) },
-            0x03 => instr = .Loop{ .block_type = @intCast(try d.readByte()) },
-            0x04 => instr = .If{ .block_type = @intCast(try d.readByte()) },
-            0x0c => instr = .Br{ .label_index = try d.readVarUint32() },
-            0x0d => instr = .BrIf{ .label_index = try d.readVarUint32() },
+            0x02 => instr = .{ .Block = .{ .block_type = @intCast(try d.readByte()) } },
+            0x03 => instr = .{ .Loop = .{ .block_type = @intCast(try d.readByte()) } },
+            0x04 => instr = .{ .If = .{ .block_type = @intCast(try d.readByte()) } },
+            0x0c => instr = .{ .Br = .{ .label_index = try d.readVarUint32() } },
+            0x0d => instr = .{ .BrIf = .{ .label_index = try d.readVarUint32() } },
             0x0e => {
                 const count = try d.readVarUint32();
                 const targets = try allocator.alloc(u32, count);
@@ -291,55 +291,55 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
                     t.* = try d.readVarUint32();
                 }
                 const default_target = try d.readVarUint32();
-                instr = .BrTable{ .targets = targets, .default_target = default_target };
+                instr = .{ .BrTable = .{ .targets = targets, .default_target = default_target } };
             },
-            0x10 => instr = .Call{ .func_index = try d.readVarUint32() },
+            0x10 => instr = .{ .Call = .{ .func_index = try d.readVarUint32() } },
             0x11 => {
                 const type_index = try d.readVarUint32();
                 const table_index = try d.readByte();
-                instr = .CallIndirect{ .type_index = type_index, .table_index = table_index };
+                instr = .{ .CallIndirect = .{ .type_index = type_index, .table_index = table_index } };
             },
-            0x20 => instr = .LocalGet{ .local_index = try d.readVarUint32() },
-            0x21 => instr = .LocalSet{ .local_index = try d.readVarUint32() },
-            0x22 => instr = .LocalTee{ .local_index = try d.readVarUint32() },
-            0x23 => instr = .GlobalGet{ .global_index = try d.readVarUint32() },
-            0x24 => instr = .GlobalSet{ .global_index = try d.readVarUint32() },
-            0x28 => instr = .I32Load(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x29 => instr = .I64Load(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x2a => instr = .F32Load(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x2b => instr = .F64Load(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x2c => instr = .I32Load8S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x2d => instr = .I32Load8U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x2e => instr = .I32Load16S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x2f => instr = .I32Load16U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x30 => instr = .I64Load8S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x31 => instr = .I64Load8U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x32 => instr = .I64Load16S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x33 => instr = .I64Load16U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x34 => instr = .I64Load32S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x35 => instr = .I64Load32U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x36 => instr = .I32Store(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x37 => instr = .I64Store(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x38 => instr = .F32Store(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x39 => instr = .F64Store(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x3a => instr = .I32Store8(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x3b => instr = .I32Store16(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x3c => instr = .I64Store8(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x3d => instr = .I64Store16(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x3e => instr = .I64Store32(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
-            0x3f => instr = .MemorySize(try d.readVarUint32()),
-            0x40 => instr = .MemoryGrow(try d.readVarUint32()),
-            0x41 => instr = .I32Const(try d.readVarInt32()),
-            0x42 => instr = .I64Const(try d.readVarInt64()),
+            0x20 => instr = .{ .LocalGet = .{ .local_index = try d.readVarUint32() } },
+            0x21 => instr = .{ .LocalSet = .{ .local_index = try d.readVarUint32() } },
+            0x22 => instr = .{ .LocalTee = .{ .local_index = try d.readVarUint32() } },
+            0x23 => instr = .{ .GlobalGet = .{ .global_index = try d.readVarUint32() } },
+            0x24 => instr = .{ .GlobalSet = .{ .global_index = try d.readVarUint32() } },
+            0x28 => instr = .{ .I32Load = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x29 => instr = .{ .I64Load = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x2a => instr = .{ .F32Load = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x2b => instr = .{ .F64Load = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x2c => instr = .{ .I32Load8S = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x2d => instr = .{ .I32Load8U = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x2e => instr = .{ .I32Load16S = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x2f => instr = .{ .I32Load16U = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x30 => instr = .{ .I64Load8S = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x31 => instr = .{ .I64Load8U = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x32 => instr = .{ .I64Load16S = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x33 => instr = .{ .I64Load16U = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x34 => instr = .{ .I64Load32S = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x35 => instr = .{ .I64Load32U = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x36 => instr = .{ .I32Store = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x37 => instr = .{ .I64Store = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x38 => instr = .{ .F32Store = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x39 => instr = .{ .F64Store = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x3a => instr = .{ .I32Store8 = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x3b => instr = .{ .I32Store16 = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x3c => instr = .{ .I64Store8 = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x3d => instr = .{ .I64Store16 = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x3e => instr = .{ .I64Store32 = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } },
+            0x3f => instr = .{ .MemorySize = try d.readVarUint32() },
+            0x40 => instr = .{ .MemoryGrow = try d.readVarUint32() },
+            0x41 => instr = .{ .I32Const = try d.readVarInt32() },
+            0x42 => instr = .{ .I64Const = try d.readVarInt64() },
             0x43 => {
                 const bytes = try d.readSlice(4);
                 const bits = std.mem.readInt(u32, @as(*const [4]u8, @ptrCast(bytes.ptr)), .little);
-                instr = .F32Const(@bitCast(bits));
+                instr = .{ .F32Const = @bitCast(bits) };
             },
             0x44 => {
                 const bytes = try d.readSlice(8);
                 const bits = std.mem.readInt(u64, @as(*const [8]u8, @ptrCast(bytes.ptr)), .little);
-                instr = .F64Const(@bitCast(bits));
+                instr = .{ .F64Const = @bitCast(bits) };
             },
             0xfc, 0xfd => {
                 const start = d.index;
@@ -347,7 +347,7 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
                 while (d.index < d.data.len and d.data[d.index] & 0x80 != 0) {
                     _ = try d.readByte();
                 }
-                instr = .Misc{ .opcode = opcode, .bytes = d.data[start..d.index] };
+                instr = .{ .Misc = .{ .opcode = opcode, .bytes = d.data[start..d.index] } };
             },
             else => {},
         }
