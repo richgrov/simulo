@@ -17,31 +17,56 @@ pub const FunctionType = struct {
     results: []ValueType,
 };
 
-pub const Instruction = struct {
-    opcode: u8,
-    payload: Payload = .none,
-
+pub const Instruction = union(enum) {
     pub const MemArg = struct {
         alignment: u32,
         offset: u32,
     };
 
-    pub const Payload = union(enum) {
-        none,
-        block_type: i32,
-        label_index: u32,
-        br_table: struct { targets: []u32, default_target: u32 },
-        call_index: u32,
-        call_indirect: struct { type_index: u32, table_index: u32 },
-        local_index: u32,
-        global_index: u32,
-        memarg: MemArg,
-        i32: i32,
-        i64: i64,
-        f32: f32,
-        f64: f64,
-        raw: []const u8,
-    };
+    Block: struct { block_type: i32 },
+    Loop: struct { block_type: i32 },
+    If: struct { block_type: i32 },
+    Br: struct { label_index: u32 },
+    BrIf: struct { label_index: u32 },
+    BrTable: struct { targets: []u32, default_target: u32 },
+    Call: struct { func_index: u32 },
+    CallIndirect: struct { type_index: u32, table_index: u32 },
+    LocalGet: struct { local_index: u32 },
+    LocalSet: struct { local_index: u32 },
+    LocalTee: struct { local_index: u32 },
+    GlobalGet: struct { global_index: u32 },
+    GlobalSet: struct { global_index: u32 },
+    I32Load: MemArg,
+    I64Load: MemArg,
+    F32Load: MemArg,
+    F64Load: MemArg,
+    I32Load8S: MemArg,
+    I32Load8U: MemArg,
+    I32Load16S: MemArg,
+    I32Load16U: MemArg,
+    I64Load8S: MemArg,
+    I64Load8U: MemArg,
+    I64Load16S: MemArg,
+    I64Load16U: MemArg,
+    I64Load32S: MemArg,
+    I64Load32U: MemArg,
+    I32Store: MemArg,
+    I64Store: MemArg,
+    F32Store: MemArg,
+    F64Store: MemArg,
+    I32Store8: MemArg,
+    I32Store16: MemArg,
+    I64Store8: MemArg,
+    I64Store16: MemArg,
+    I64Store32: MemArg,
+    MemorySize: u32,
+    MemoryGrow: u32,
+    I32Const: i32,
+    I64Const: i64,
+    F32Const: f32,
+    F64Const: f64,
+    Misc: struct { opcode: u8, bytes: []const u8 },
+    Plain: u8,
 };
 
 pub const Code = struct {
@@ -251,14 +276,13 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
     defer list.deinit();
     while (d.index < d.data.len) {
         const opcode = try d.readByte();
-        var instr = Instruction{ .opcode = opcode };
+        var instr: Instruction = .Plain(opcode);
         switch (opcode) {
-            0x02, 0x03, 0x04 => {
-                instr.payload = .{ .block_type = @as(i32, @bitCast(try d.readByte())) };
-            },
-            0x0c, 0x0d => {
-                instr.payload = .{ .label_index = try d.readVarUint32() };
-            },
+            0x02 => instr = .Block{ .block_type = @intCast(try d.readByte()) },
+            0x03 => instr = .Loop{ .block_type = @intCast(try d.readByte()) },
+            0x04 => instr = .If{ .block_type = @intCast(try d.readByte()) },
+            0x0c => instr = .Br{ .label_index = try d.readVarUint32() },
+            0x0d => instr = .BrIf{ .label_index = try d.readVarUint32() },
             0x0e => {
                 const count = try d.readVarUint32();
                 const targets = try allocator.alloc(u32, count);
@@ -267,40 +291,55 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
                     t.* = try d.readVarUint32();
                 }
                 const default_target = try d.readVarUint32();
-                instr.payload = .{ .br_table = .{ .targets = targets, .default_target = default_target } };
+                instr = .BrTable{ .targets = targets, .default_target = default_target };
             },
-            0x10 => {
-                instr.payload = .{ .call_index = try d.readVarUint32() };
-            },
+            0x10 => instr = .Call{ .func_index = try d.readVarUint32() },
             0x11 => {
                 const type_index = try d.readVarUint32();
                 const table_index = try d.readByte();
-                instr.payload = .{ .call_indirect = .{ .type_index = type_index, .table_index = table_index } };
+                instr = .CallIndirect{ .type_index = type_index, .table_index = table_index };
             },
-            0x20, 0x21, 0x22 => {
-                instr.payload = .{ .local_index = try d.readVarUint32() };
-            },
-            0x23, 0x24 => {
-                instr.payload = .{ .global_index = try d.readVarUint32() };
-            },
-            0x28...0x40 => {
-                instr.payload = .{ .memarg = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } };
-            },
-            0x41 => {
-                instr.payload = .{ .i32 = try d.readVarInt32() };
-            },
-            0x42 => {
-                instr.payload = .{ .i64 = try d.readVarInt64() };
-            },
+            0x20 => instr = .LocalGet{ .local_index = try d.readVarUint32() },
+            0x21 => instr = .LocalSet{ .local_index = try d.readVarUint32() },
+            0x22 => instr = .LocalTee{ .local_index = try d.readVarUint32() },
+            0x23 => instr = .GlobalGet{ .global_index = try d.readVarUint32() },
+            0x24 => instr = .GlobalSet{ .global_index = try d.readVarUint32() },
+            0x28 => instr = .I32Load(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x29 => instr = .I64Load(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x2a => instr = .F32Load(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x2b => instr = .F64Load(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x2c => instr = .I32Load8S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x2d => instr = .I32Load8U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x2e => instr = .I32Load16S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x2f => instr = .I32Load16U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x30 => instr = .I64Load8S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x31 => instr = .I64Load8U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x32 => instr = .I64Load16S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x33 => instr = .I64Load16U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x34 => instr = .I64Load32S(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x35 => instr = .I64Load32U(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x36 => instr = .I32Store(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x37 => instr = .I64Store(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x38 => instr = .F32Store(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x39 => instr = .F64Store(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x3a => instr = .I32Store8(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x3b => instr = .I32Store16(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x3c => instr = .I64Store8(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x3d => instr = .I64Store16(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x3e => instr = .I64Store32(Instruction.MemArg{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() }),
+            0x3f => instr = .MemorySize(try d.readVarUint32()),
+            0x40 => instr = .MemoryGrow(try d.readVarUint32()),
+            0x41 => instr = .I32Const(try d.readVarInt32()),
+            0x42 => instr = .I64Const(try d.readVarInt64()),
             0x43 => {
                 const bytes = try d.readSlice(4);
                 const bits = std.mem.readInt(u32, @as(*const [4]u8, @ptrCast(bytes.ptr)), .little);
-                instr.payload = .{ .f32 = @bitCast(bits) };
+                instr = .F32Const(@bitCast(bits));
             },
             0x44 => {
                 const bytes = try d.readSlice(8);
                 const bits = std.mem.readInt(u64, @as(*const [8]u8, @ptrCast(bytes.ptr)), .little);
-                instr.payload = .{ .f64 = @bitCast(bits) };
+                instr = .F64Const(@bitCast(bits));
             },
             0xfc, 0xfd => {
                 const start = d.index;
@@ -308,7 +347,7 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
                 while (d.index < d.data.len and d.data[d.index] & 0x80 != 0) {
                     _ = try d.readByte();
                 }
-                instr.payload = .{ .raw = d.data[start..d.index] };
+                instr = .Misc{ .opcode = opcode, .bytes = d.data[start..d.index] };
             },
             else => {},
         }
@@ -319,8 +358,9 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
 
 fn freeInstructions(allocator: std.mem.Allocator, slice: []Instruction) void {
     for (slice) |inst| {
-        switch (inst.payload) {
-            .br_table => |bt| allocator.free(bt.targets),
+        switch (inst) {
+            .BrTable => |bt| allocator.free(bt.targets),
+            .Misc => {},
             else => {},
         }
     }
