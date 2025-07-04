@@ -17,9 +17,15 @@ pub const FunctionType = struct {
     results: []ValueType,
 };
 
+pub const Instruction = struct {
+    opcode: u8,
+    immediates: []const u8,
+};
+
 pub const Code = struct {
     locals: []Local,
     body: []const u8,
+    instructions: []Instruction,
 };
 
 pub const Module = struct {
@@ -36,6 +42,7 @@ pub const Module = struct {
         allocator.free(self.functions);
         for (self.codes) |*c| {
             allocator.free(c.locals);
+            allocator.free(c.instructions);
         }
         allocator.free(self.codes);
     }
@@ -68,6 +75,38 @@ const Deserializer = struct {
             result |= (@as(u32, byte & 0x7f)) << @as(u5, @intCast(shift));
             if (byte & 0x80 == 0) break;
             shift += 7;
+        }
+        return result;
+    }
+
+    fn readVarInt32(self: *Deserializer) !i32 {
+        var result: i32 = 0;
+        var shift: u32 = 0;
+        var byte: u8 = 0;
+        while (true) {
+            byte = try self.readByte();
+            result |= (@as(i32, @as(i8, @bitCast(byte & 0x7f)))) << @as(u5, @intCast(shift));
+            shift += 7;
+            if (byte & 0x80 == 0) break;
+        }
+        if (shift < 32 and (byte & 0x40) != 0) {
+            result |= ~(@as(i32, 0)) << @as(u5, @intCast(shift));
+        }
+        return result;
+    }
+
+    fn readVarInt64(self: *Deserializer) !i64 {
+        var result: i64 = 0;
+        var shift: u32 = 0;
+        var byte: u8 = 0;
+        while (true) {
+            byte = try self.readByte();
+            result |= (@as(i64, @as(i8, @bitCast(byte & 0x7f)))) << @as(u6, @intCast(shift));
+            shift += 7;
+            if (byte & 0x80 == 0) break;
+        }
+        if (shift < 64 and (byte & 0x40) != 0) {
+            result |= ~(@as(i64, 0)) << @as(u6, @intCast(shift));
         }
         return result;
     }
@@ -104,8 +143,8 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
     var codes = std.ArrayList(Code).init(allocator);
     errdefer {
         for (codes.items) |code| {
-            allocator.free(code.body);
             allocator.free(code.locals);
+            allocator.free(code.instructions);
         }
         codes.deinit();
     }
@@ -161,7 +200,9 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
                     const locals_alloc = try allocator.dupe(Local, locals_list.items);
                     errdefer allocator.free(locals_alloc);
                     locals_list.deinit();
-                    try codes.append(.{ .locals = locals_alloc, .body = body });
+                    const instrs = try parseInstructions(allocator, body);
+                    errdefer allocator.free(instrs);
+                    try codes.append(.{ .locals = locals_alloc, .body = body, .instructions = instrs });
                 }
             },
             else => {
@@ -176,4 +217,63 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
         .functions = try functions.toOwnedSlice(),
         .codes = try codes.toOwnedSlice(),
     };
+}
+
+fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruction {
+    var d = Deserializer{ .data = data, .allocator = allocator };
+    var list = std.ArrayList(Instruction).init(allocator);
+    errdefer list.deinit();
+    while (d.index < d.data.len) {
+        const opcode = try d.readByte();
+        const start = d.index;
+        switch (opcode) {
+            0x02, 0x03, 0x04 => {
+                _ = try d.readByte();
+            },
+            0x0c, 0x0d => {
+                _ = try d.readVarUint32();
+            },
+            0x0e => {
+                const count = try d.readVarUint32();
+                for (0..count + 1) |_| {
+                    _ = try d.readVarUint32();
+                }
+            },
+            0x10 => {
+                _ = try d.readVarUint32();
+            },
+            0x11 => {
+                _ = try d.readVarUint32();
+                _ = try d.readByte();
+            },
+            0x20, 0x21, 0x22, 0x23, 0x24 => {
+                _ = try d.readVarUint32();
+            },
+            0x28...0x40 => {
+                _ = try d.readVarUint32();
+                _ = try d.readVarUint32();
+            },
+            0x41 => {
+                _ = try d.readVarInt32();
+            },
+            0x42 => {
+                _ = try d.readVarInt64();
+            },
+            0x43 => {
+                _ = try d.readSlice(4);
+            },
+            0x44 => {
+                _ = try d.readSlice(8);
+            },
+            0xfc, 0xfd => {
+                _ = try d.readVarUint32();
+                while (d.index < d.data.len and d.data[d.index] & 0x80 != 0) {
+                    _ = try d.readByte();
+                }
+            },
+            else => {},
+        }
+        try list.append(.{ .opcode = opcode, .immediates = d.data[start..d.index] });
+    }
+    return list.toOwnedSlice();
 }
