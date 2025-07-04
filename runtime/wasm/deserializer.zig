@@ -65,7 +65,7 @@ const Deserializer = struct {
         var shift: u32 = 0;
         while (true) {
             const byte = try self.readByte();
-            result |= (@as(u32, byte & 0x7f)) << shift;
+            result |= (@as(u32, byte & 0x7f)) << @as(u5, @intCast(shift));
             if (byte & 0x80 == 0) break;
             shift += 7;
         }
@@ -92,8 +92,23 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
     if (!std.mem.eql(u8, version, "\x01\x00\x00\x00")) return error.UnsupportedVersion;
 
     var types = std.ArrayList(FunctionType).init(allocator);
+    errdefer {
+        for (types.items) |ty| {
+            allocator.free(ty.params);
+            allocator.free(ty.results);
+        }
+        types.deinit();
+    }
     var functions = std.ArrayList(u32).init(allocator);
+    errdefer functions.deinit();
     var codes = std.ArrayList(Code).init(allocator);
+    errdefer {
+        for (codes.items) |code| {
+            allocator.free(code.body);
+            allocator.free(code.locals);
+        }
+        codes.deinit();
+    }
 
     while (d.index < d.data.len) {
         const id = try d.readByte();
@@ -106,12 +121,14 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
                     const form = try d.readByte();
                     if (form != 0x60) return error.UnsupportedTypeForm;
                     const param_count = try d.readVarUint32();
-                    var params = try allocator.alloc(ValueType, param_count);
+                    const params = try allocator.alloc(ValueType, param_count);
+                    errdefer allocator.free(params);
                     for (params) |*p| {
                         p.* = try valueTypeFromByte(try d.readByte());
                     }
                     const result_count = try d.readVarUint32();
-                    var results = try allocator.alloc(ValueType, result_count);
+                    const results = try allocator.alloc(ValueType, result_count);
+                    errdefer allocator.free(results);
                     for (results) |*r| {
                         r.* = try valueTypeFromByte(try d.readByte());
                     }
@@ -131,17 +148,18 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
                     const start = d.index;
                     const local_count = try d.readVarUint32();
                     var locals_list = std.ArrayList(Local).init(allocator);
+                    errdefer locals_list.deinit();
                     for (0..local_count) |_| {
                         const num = try d.readVarUint32();
                         const vt = try valueTypeFromByte(try d.readByte());
                         try locals_list.append(.{ .count = num, .value_type = vt });
                     }
-                    const body_len = body_size - (d.index - start);
+                    const body_len = body_size - (d.index - start) - 1;
                     const body = try d.readSlice(body_len);
                     const end_byte = try d.readByte();
                     if (end_byte != 0x0b) return error.InvalidFunctionBody;
-                    const locals_alloc = try allocator.alloc(Local, locals_list.items.len);
-                    std.mem.copy(Local, locals_alloc, locals_list.items);
+                    const locals_alloc = try allocator.dupe(Local, locals_list.items);
+                    errdefer allocator.free(locals_alloc);
                     locals_list.deinit();
                     try codes.append(.{ .locals = locals_alloc, .body = body });
                 }
