@@ -109,70 +109,80 @@ void Renderer::delete_object(RenderObject object) {
    instances_.release(object);
 }
 
-bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
-   @autoreleasepool {
-      id<CAMetalDrawable> drawable = [metal_layer_ nextDrawable];
+bool begin_render(Renderer *renderer) {
+   renderer->render_pool_ = [[NSAutoreleasePool alloc] init];
 
-      id<MTLCommandBuffer> cmd_buf = command_queue_.command_buffer();
-      MTLRenderPassDescriptor *render_pass_desc = [[MTLRenderPassDescriptor alloc] init];
-      MTLRenderPassColorAttachmentDescriptor *color_attachments =
-          render_pass_desc.colorAttachments[0];
-      color_attachments.texture = drawable.texture;
-      color_attachments.loadAction = MTLLoadActionClear;
-      color_attachments.clearColor = MTLClearColorMake(0.f, 0.f, 0.f, 1.0f);
-      color_attachments.storeAction = MTLStoreActionStore;
+   renderer->drawable_ = [renderer->metal_layer_ nextDrawable];
 
-      id<MTLRenderCommandEncoder> render_encoder =
-          [cmd_buf renderCommandEncoderWithDescriptor:render_pass_desc];
+   renderer->cmd_buf_ = renderer->command_queue_.command_buffer();
+   renderer->render_pass_desc_ = [[MTLRenderPassDescriptor alloc] init];
+   MTLRenderPassColorAttachmentDescriptor *color_attachments =
+       renderer->render_pass_desc_.colorAttachments[0];
+   color_attachments.texture = renderer->drawable_.texture;
+   color_attachments.loadAction = MTLLoadActionClear;
+   color_attachments.clearColor = MTLClearColorMake(0.f, 0.f, 0.f, 1.0f);
+   color_attachments.storeAction = MTLStoreActionStore;
 
-      [render_encoder setDepthStencilState:depth_stencil_state_];
-
-      do_render_pipeline(pipelines_.mesh, (__bridge void *)render_encoder, world_view_projection);
-      do_render_pipeline(pipelines_.ui, (__bridge void *)render_encoder, ui_view_projection);
-
-      [render_encoder endEncoding];
-
-      [cmd_buf presentDrawable:drawable];
-      [cmd_buf commit];
-      [cmd_buf waitUntilCompleted];
-
-      [render_pass_desc release];
-   }
+   renderer->render_encoder_ =
+       [renderer->cmd_buf_ renderCommandEncoderWithDescriptor:renderer->render_pass_desc_];
+   [renderer->render_encoder_ setDepthStencilState:renderer->depth_stencil_state_];
    return true;
 }
 
-void Renderer::do_render_pipeline(RenderPipeline pipeline_id, void *render_enc, Mat4 projection) {
-   auto render_encoder = (__bridge id<MTLRenderCommandEncoder>)render_enc;
-   const MaterialPipeline &mat_pipeline = render_pipelines_[pipeline_id];
-   [render_encoder setRenderPipelineState:mat_pipeline.pipeline.pipeline_state()];
+void set_pipeline(Renderer *renderer, uint32_t pipeline_id);
+
+void set_material(Renderer *renderer, uint32_t material_id);
+
+void set_mesh(Renderer *renderer, uint32_t mesh_id);
+
+void render_mesh(Renderer *renderer, uint32_t mesh_id);
+
+void end_render(Renderer *renderer) {
+   [renderer->render_encoder_ endEncoding];
+
+   [renderer->cmd_buf_ presentDrawable:renderer->drawable_];
+   [renderer->cmd_buf_ commit];
+   [renderer->cmd_buf_ waitUntilCompleted];
+
+   [renderer->render_pass_desc_ release];
+   [renderer->render_pool_ drain];
+}
+
+void render_pipeline(Renderer *renderer, const float *projection) {
+   Mat4 mat4_projection;
+   std::memcpy(&mat4_projection, projection, sizeof(Mat4));
+   auto pipeline_id = renderer->pipelines_.ui;
+
+   const MaterialPipeline &mat_pipeline = renderer->render_pipelines_[pipeline_id];
+   [renderer->render_encoder_ setRenderPipelineState:mat_pipeline.pipeline.pipeline_state()];
 
    for (int mat_id : mat_pipeline.materials) {
-      const Material &mat = materials_.get(mat_id);
+      const Material &mat = renderer->materials_.get(mat_id);
 
-      [render_encoder setFragmentBuffer:mat.uniform_buffer.buffer() offset:0 atIndex:0];
+      [renderer->render_encoder_ setFragmentBuffer:mat.uniform_buffer.buffer() offset:0 atIndex:0];
 
       for (int i = 0; i < mat.images.size(); ++i) {
          RenderImage img_id = mat.images[i];
-         const Image &img = images_.get(img_id);
-         [render_encoder setFragmentTexture:img.texture() atIndex:0];
+         const Image &img = renderer->images_.get(img_id);
+         [renderer->render_encoder_ setFragmentTexture:img.texture() atIndex:0];
       }
 
       for (const auto &[mesh_id, instances] : mat.mesh_instances) {
-         VertexIndexBuffer &buf = meshes_.get(mesh_id);
-         [render_encoder setVertexBuffer:buf.buffer() offset:0 atIndex:0];
+         VertexIndexBuffer &buf = renderer->meshes_.get(mesh_id);
+         [renderer->render_encoder_ setVertexBuffer:buf.buffer() offset:0 atIndex:0];
 
          for (int instance_id : instances) {
-            const MeshInstance &instance = instances_.get(instance_id);
-            Mat4 transform = projection * instance.transform;
-            [render_encoder setVertexBytes:reinterpret_cast<void *>(&transform)
-                                    length:sizeof(Mat4)
-                                   atIndex:1];
+            const MeshInstance &instance = renderer->instances_.get(instance_id);
+            Mat4 transform = mat4_projection * instance.transform;
+            [renderer->render_encoder_ setVertexBytes:reinterpret_cast<void *>(&transform)
+                                               length:sizeof(Mat4)
+                                              atIndex:1];
 
-            [render_encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-                                       indexCount:buf.num_indices()
-                                        indexType:VertexIndexBuffer::kIndexType
-                                      indexBuffer:buf.buffer()
-                                indexBufferOffset:buf.index_offset()];
+            [renderer->render_encoder_ drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                                                  indexCount:buf.num_indices()
+                                                   indexType:VertexIndexBuffer::kIndexType
+                                                 indexBuffer:buf.buffer()
+                                           indexBufferOffset:buf.index_offset()];
          }
       }
    }

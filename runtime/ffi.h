@@ -112,6 +112,15 @@ void set_object_transform(Renderer *renderer, uint32_t object_id, const float *t
 bool render(
     Renderer *renderer, const float *ui_view_projection, const float *world_view_projection
 );
+
+bool begin_render(Renderer *renderer);
+void render_pipeline(Renderer *renderer, const float *projection);
+void set_pipeline(Renderer *renderer, uint32_t pipeline_id);
+void set_material(Renderer *renderer, uint32_t material_id);
+void set_mesh(Renderer *renderer, uint32_t mesh_id);
+void render_mesh(Renderer *renderer, uint32_t mesh_id);
+void end_render(Renderer *renderer);
+
 #ifndef VKAD_APPLE
 void recreate_swapchain(Renderer *renderer, Window *window);
 #endif

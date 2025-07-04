@@ -159,6 +159,7 @@ void set_object_transform(Renderer *renderer, uint32_t object_id, const float *t
    renderer->set_object_transform(static_cast<RenderObject>(object_id), mat4_transform);
 }
 
+#ifndef VKAD_APPLE
 bool render(
     Renderer *renderer, const float *ui_view_projection, const float *world_view_projection
 ) {
@@ -170,7 +171,6 @@ bool render(
    return renderer->render(ui_mat, world_mat);
 }
 
-#ifndef VKAD_APPLE
 void recreate_swapchain(Renderer *renderer, Window *window) {
    renderer->recreate_swapchain(window->width(), window->height(), window->surface());
 }

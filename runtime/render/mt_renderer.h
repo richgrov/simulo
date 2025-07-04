@@ -7,6 +7,7 @@
 #include <variant>
 
 #ifdef __OBJC__
+#import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 #endif
@@ -63,6 +64,24 @@ private:
    std::unordered_map<std::string, MaterialPropertyValue> properties_;
 };
 
+struct Material {
+   RenderPipeline pipeline;
+   Buffer uniform_buffer;
+   std::vector<RenderImage> images;
+   std::unordered_map<RenderMesh, std::unordered_set<int>> mesh_instances;
+};
+
+struct MaterialPipeline {
+   Pipeline pipeline;
+   std::unordered_set<int> materials;
+};
+
+struct MeshInstance {
+   Mat4 transform;
+   RenderMesh mesh;
+   RenderMaterial material;
+};
+
 class Renderer {
 public:
    using IndexBufferType = VertexIndexBuffer::IndexType;
@@ -79,12 +98,14 @@ public:
       }
 
       Uniform data(Uniform::from_props(props));
-      int id = materials_.emplace(Material{
-          .pipeline = pipeline_id,
-          .uniform_buffer =
-              Buffer(gpu_, std::span(reinterpret_cast<uint8_t *>(&data), sizeof(data))),
-          .images = std::move(images),
-      });
+      int id = materials_.emplace(
+          Material{
+              .pipeline = pipeline_id,
+              .uniform_buffer =
+                  Buffer(gpu_, std::span(reinterpret_cast<uint8_t *>(&data), sizeof(data))),
+              .images = std::move(images),
+          }
+      );
 
       MaterialPipeline &pipeline = render_pipelines_[pipeline_id];
       pipeline.materials.insert(id);
@@ -124,36 +145,25 @@ public:
       return pipelines_;
    }
 
-private:
-   void do_render_pipeline(RenderPipeline pipeline, void *render_enc, Mat4 projection);
-
    Gpu &gpu_;
 
 #ifdef __OBJC__
    CAMetalLayer *metal_layer_;
    _Nonnull id<MTLDepthStencilState> depth_stencil_state_;
+   NSAutoreleasePool *render_pool_ = nullptr;
+   MTLRenderPassDescriptor *render_pass_desc_ = nullptr;
+   _Nullable id<CAMetalDrawable> drawable_ = nil;
+   _Nullable id<MTLCommandBuffer> cmd_buf_ = nil;
+   _Nullable id<MTLRenderCommandEncoder> render_encoder_ = nil;
 #else
    void *metal_layer_;
    void *depth_stencil_state_;
+   void *render_pool_;
+   void *render_pass_desc_;
+   void *drawable_;
+   void *cmd_buf_;
+   void *render_encoder_;
 #endif
-
-   struct Material {
-      RenderPipeline pipeline;
-      Buffer uniform_buffer;
-      std::vector<RenderImage> images;
-      std::unordered_map<RenderMesh, std::unordered_set<int>> mesh_instances;
-   };
-
-   struct MaterialPipeline {
-      Pipeline pipeline;
-      std::unordered_set<int> materials;
-   };
-
-   struct MeshInstance {
-      Mat4 transform;
-      RenderMesh mesh;
-      RenderMaterial material;
-   };
 
    std::vector<MaterialPipeline> render_pipelines_;
    Slab<Image> images_;

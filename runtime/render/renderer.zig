@@ -66,22 +66,32 @@ pub const Renderer = struct {
     }
 
     pub fn render(self: *Renderer, window: *const Window, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) !void {
+        if (comptime builtin.os.tag == .macos) {
+            self.renderMetal(ui_view_projection, world_view_projection);
+        } else {
+            self.renderVulkan(window, ui_view_projection, world_view_projection);
+        }
+    }
+
+    fn renderMetal(self: *Renderer, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) void {
+        _ = world_view_projection;
+
+        if (!ffi.begin_render(self.handle)) {
+            return;
+        }
+        ffi.render_pipeline(self.handle, ui_view_projection.ptr());
+        ffi.end_render(self.handle);
+    }
+
+    fn renderVulkan(self: *Renderer, window: *const Window, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) void {
         const ok = ffi.render(self.handle, ui_view_projection.ptr(), world_view_projection.ptr());
         if (!ok) {
-            if (comptime builtin.os.tag == .macos) {
-                return error.RenderFailed;
-            }
-
             ffi.recreate_swapchain(self.handle, window.handle);
 
             if (!ffi.render(self.handle, ui_view_projection.ptr(), world_view_projection.ptr())) {
                 return error.RenderFailed;
             }
         }
-    }
-
-    pub fn recreateSwapchain(self: *Renderer) void {
-        ffi.recreate_swapchain(self.handle);
     }
 
     pub fn waitIdle(self: *Renderer) void {
