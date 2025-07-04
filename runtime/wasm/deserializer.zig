@@ -19,7 +19,29 @@ pub const FunctionType = struct {
 
 pub const Instruction = struct {
     opcode: u8,
-    immediates: []const u8,
+    payload: Payload = .none,
+
+    pub const MemArg = struct {
+        alignment: u32,
+        offset: u32,
+    };
+
+    pub const Payload = union(enum) {
+        none,
+        block_type: i32,
+        label_index: u32,
+        br_table: struct { targets: []u32, default_target: u32 },
+        call_index: u32,
+        call_indirect: struct { type_index: u32, table_index: u32 },
+        local_index: u32,
+        global_index: u32,
+        memarg: MemArg,
+        i32: i32,
+        i64: i64,
+        f32: f32,
+        f64: f64,
+        raw: []const u8,
+    };
 };
 
 pub const Code = struct {
@@ -42,7 +64,7 @@ pub const Module = struct {
         allocator.free(self.functions);
         for (self.codes) |*c| {
             allocator.free(c.locals);
-            allocator.free(c.instructions);
+            freeInstructions(allocator, c.instructions);
         }
         allocator.free(self.codes);
     }
@@ -144,7 +166,7 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
     errdefer {
         for (codes.items) |code| {
             allocator.free(code.locals);
-            allocator.free(code.instructions);
+            freeInstructions(allocator, code.instructions);
         }
         codes.deinit();
     }
@@ -201,7 +223,7 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
                     errdefer allocator.free(locals_alloc);
                     locals_list.deinit();
                     const instrs = try parseInstructions(allocator, body);
-                    errdefer allocator.free(instrs);
+                    errdefer freeInstructions(allocator, instrs);
                     try codes.append(.{ .locals = locals_alloc, .body = body, .instructions = instrs });
                 }
             },
@@ -222,58 +244,85 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
 fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruction {
     var d = Deserializer{ .data = data, .allocator = allocator };
     var list = std.ArrayList(Instruction).init(allocator);
-    errdefer list.deinit();
+    errdefer {
+        freeInstructions(allocator, list.items);
+        list.deinit();
+    }
+    defer list.deinit();
     while (d.index < d.data.len) {
         const opcode = try d.readByte();
-        const start = d.index;
+        var instr = Instruction{ .opcode = opcode };
         switch (opcode) {
             0x02, 0x03, 0x04 => {
-                _ = try d.readByte();
+                instr.payload = .{ .block_type = @as(i32, @bitCast(try d.readByte())) };
             },
             0x0c, 0x0d => {
-                _ = try d.readVarUint32();
+                instr.payload = .{ .label_index = try d.readVarUint32() };
             },
             0x0e => {
                 const count = try d.readVarUint32();
-                for (0..count + 1) |_| {
-                    _ = try d.readVarUint32();
+                const targets = try allocator.alloc(u32, count);
+                errdefer allocator.free(targets);
+                for (targets) |*t| {
+                    t.* = try d.readVarUint32();
                 }
+                const default_target = try d.readVarUint32();
+                instr.payload = .{ .br_table = .{ .targets = targets, .default_target = default_target } };
             },
             0x10 => {
-                _ = try d.readVarUint32();
+                instr.payload = .{ .call_index = try d.readVarUint32() };
             },
             0x11 => {
-                _ = try d.readVarUint32();
-                _ = try d.readByte();
+                const type_index = try d.readVarUint32();
+                const table_index = try d.readByte();
+                instr.payload = .{ .call_indirect = .{ .type_index = type_index, .table_index = table_index } };
             },
-            0x20, 0x21, 0x22, 0x23, 0x24 => {
-                _ = try d.readVarUint32();
+            0x20, 0x21, 0x22 => {
+                instr.payload = .{ .local_index = try d.readVarUint32() };
+            },
+            0x23, 0x24 => {
+                instr.payload = .{ .global_index = try d.readVarUint32() };
             },
             0x28...0x40 => {
-                _ = try d.readVarUint32();
-                _ = try d.readVarUint32();
+                instr.payload = .{ .memarg = .{ .alignment = try d.readVarUint32(), .offset = try d.readVarUint32() } };
             },
             0x41 => {
-                _ = try d.readVarInt32();
+                instr.payload = .{ .i32 = try d.readVarInt32() };
             },
             0x42 => {
-                _ = try d.readVarInt64();
+                instr.payload = .{ .i64 = try d.readVarInt64() };
             },
             0x43 => {
-                _ = try d.readSlice(4);
+                const bytes = try d.readSlice(4);
+                const bits = std.mem.readInt(u32, @as(*const [4]u8, @ptrCast(bytes.ptr)), .little);
+                instr.payload = .{ .f32 = @bitCast(bits) };
             },
             0x44 => {
-                _ = try d.readSlice(8);
+                const bytes = try d.readSlice(8);
+                const bits = std.mem.readInt(u64, @as(*const [8]u8, @ptrCast(bytes.ptr)), .little);
+                instr.payload = .{ .f64 = @bitCast(bits) };
             },
             0xfc, 0xfd => {
+                const start = d.index;
                 _ = try d.readVarUint32();
                 while (d.index < d.data.len and d.data[d.index] & 0x80 != 0) {
                     _ = try d.readByte();
                 }
+                instr.payload = .{ .raw = d.data[start..d.index] };
             },
             else => {},
         }
-        try list.append(.{ .opcode = opcode, .immediates = d.data[start..d.index] });
+        try list.append(instr);
     }
     return list.toOwnedSlice();
+}
+
+fn freeInstructions(allocator: std.mem.Allocator, slice: []Instruction) void {
+    for (slice) |inst| {
+        switch (inst.payload) {
+            .br_table => |bt| allocator.free(bt.targets),
+            else => {},
+        }
+    }
+    allocator.free(slice);
 }
