@@ -269,7 +269,6 @@ pub const Runtime = struct {
 
     fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
         const was_calibrated = self.calibrated;
-        const pose_func = self.pose_func orelse return;
 
         while (self.pose_detector.nextEvent()) |event| {
             self.calibrated = true;
@@ -277,6 +276,8 @@ pub const Runtime = struct {
             if (!was_calibrated) {
                 continue;
             }
+
+            const pose_func = self.pose_func orelse return;
 
             const id_u32: u32 = @intCast(event.id);
             const detection = event.detection orelse {
