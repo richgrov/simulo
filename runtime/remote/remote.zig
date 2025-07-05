@@ -7,6 +7,9 @@ const websocket = @import("websocket");
 const Spsc = util.Spsc;
 const download = @import("./download.zig");
 
+const MIN_RECONNECT_DELAY_MS: u64 = 1000;
+const MAX_RECONNECT_DELAY_MS: u64 = 16000;
+
 pub const Remote = struct {
     pub const LogEntry = struct {
         buf: [512]u8,
@@ -29,6 +32,7 @@ pub const Remote = struct {
 
     running: bool = true,
     authenticated: bool = false,
+    reconnect_delay_ms: u64 = MIN_RECONNECT_DELAY_MS,
     log_queue: Spsc(LogEntry, 256),
     inbound_queue: Spsc(LogEntry, 128),
 
@@ -116,20 +120,14 @@ pub const Remote = struct {
     }
 
     fn connectionLoop(self: *Remote) void {
-        var backoff_ms: u64 = 1000;
-        const max_backoff_ms: u64 = 16000;
-
         while (@atomicLoad(bool, &self.running, .monotonic)) {
             @atomicStore(bool, &self.authenticated, false, .release);
 
             self.tryConnect() catch |err| {
                 std.log.err("could not connect: {any}", .{err});
-                std.time.sleep(std.time.ns_per_ms * backoff_ms);
-                backoff_ms = @min(backoff_ms * 2, max_backoff_ms);
+                self.exponentialSleep();
                 continue;
             };
-
-            backoff_ms = 1000;
 
             if (self.ws_read_thread) |thread| {
                 thread.join();
@@ -171,6 +169,13 @@ pub const Remote = struct {
         self.websocket_cli = ws;
     }
 
+    fn exponentialSleep(self: *Remote) void {
+        const delay = @atomicLoad(u64, &self.reconnect_delay_ms, .seq_cst);
+        const new_delay = @min(delay * 2, MAX_RECONNECT_DELAY_MS);
+        @atomicStore(u64, &self.reconnect_delay_ms, new_delay, .seq_cst);
+        std.time.sleep(std.time.ns_per_ms * delay);
+    }
+
     pub fn serverMessage(self: *Remote, data: []u8, ty: websocket.MessageTextType) !void {
         if (ty != .text) {
             return;
@@ -182,6 +187,8 @@ pub const Remote = struct {
         }
 
         @atomicStore(bool, &self.authenticated, true, .release);
+        @atomicStore(u64, &self.reconnect_delay_ms, MIN_RECONNECT_DELAY_MS, .seq_cst);
+
         var entry: LogEntry = undefined;
         entry.used = data.len;
         @memcpy(entry.buf[0..data.len], data);
@@ -191,12 +198,17 @@ pub const Remote = struct {
     }
 
     pub fn serverClose(self: *Remote, data: []u8) !void {
+        var ok = true;
         if (data.len >= 2) {
             const codeCodeHi: u16 = @intCast(data[0]);
             const codeCodeLo: u16 = @intCast(data[1]);
             const closeCode = codeCodeHi << 8 | codeCodeLo;
             const closeReason = data[2..];
             std.debug.print("Websocket closed: {d}: {s}\n", .{ closeCode, closeReason });
+
+            if (closeCode != 1000 and closeCode != 1001) {
+                ok = false;
+            }
         }
 
         @atomicStore(bool, &self.authenticated, false, .release);
@@ -205,6 +217,10 @@ pub const Remote = struct {
             try ws.close(.{});
             ws.deinit();
             self.websocket_cli = null;
+        }
+
+        if (!ok) {
+            self.exponentialSleep();
         }
     }
 
