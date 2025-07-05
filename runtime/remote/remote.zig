@@ -62,6 +62,13 @@ pub const Remote = struct {
 
     pub fn deinit(self: *Remote) void {
         @atomicStore(bool, &self.running, false, .seq_cst);
+
+        if (self.websocket_cli) |*ws| {
+            ws.close(.{}) catch |err| {
+                std.log.err("cwebsocket close error: {any}", .{err});
+            };
+        }
+
         if (self.ws_conn_thread) |thread| {
             thread.join();
         }
