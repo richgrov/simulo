@@ -381,7 +381,6 @@ pub const Runtime = struct {
 
     fn wasmSetPoseBuffer(user_ptr: *anyopaque, buffer: [*]f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        std.debug.print("Setting pose buffer to {*}\n", .{buffer});
         runtime.pose_buffer = buffer;
     }
 
