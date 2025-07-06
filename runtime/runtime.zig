@@ -40,8 +40,9 @@ pub const GameObject = struct {
     handle: Renderer.ObjectHandle,
     native_behaviors: std.ArrayListUnmanaged(behaviors.Behavior),
     deleted: bool,
+    internal: bool,
 
-    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32) GameObject {
+    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32, internal: bool) GameObject {
         const obj = GameObject{
             .pos = .{ x_, y_, 0 },
             .scale = .{ 1, 1, 1 },
@@ -49,6 +50,7 @@ pub const GameObject = struct {
             .handle = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material),
             .native_behaviors = .{},
             .deleted = false,
+            .internal = internal,
         };
         obj.recalculateTransform(&runtime.renderer);
         return obj;
@@ -114,6 +116,7 @@ pub const Runtime = struct {
     random: std.Random.Xoshiro256,
 
     white_pixel_texture: Renderer.ImageHandle,
+    chessboard: usize,
     mesh: Renderer.MeshHandle,
     calibrated: bool,
 
@@ -165,16 +168,19 @@ pub const Runtime = struct {
         const now: u64 = @bitCast(std.time.microTimestamp());
         runtime.random = std.Random.Xoshiro256.init(now);
 
+        runtime.masks = std.AutoHashMap(u64, MaskData).init(runtime.allocator);
+
         const image = createChessboard(&runtime.renderer);
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
-        const chessboard_material = runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
+        const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
         runtime.mesh = runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
 
-        try runtime.objects.append(GameObject.init(runtime, std.math.maxInt(usize), chessboard_material, 0, 0));
+        runtime.chessboard = try runtime.createObject(0, 0, chessboard_material, true);
     }
 
     pub fn deinit(self: *Runtime) void {
         self.wasm.deinit();
+        self.masks.deinit();
         self.objects.deinit();
         self.object_ids.deinit();
         self.pose_detector.stop();
@@ -187,15 +193,14 @@ pub const Runtime = struct {
     fn runProgram(self: *Runtime, program_url: []const u8) !void {
         self.wasm.deinit();
 
-        for (self.objects.items[1..]) |*obj| {
-            self.renderer.deleteObject(obj.handle);
+        var i: usize = 0;
+        while (i < self.objects.items.len) {
+            const obj = &self.objects.items[i];
+            if (!obj.internal) {
+                self.deleteObject(obj.id);
+            }
+            i += 1;
         }
-        self.objects.resize(1) catch |err| {
-            self.remote.log("impossible: error downsizing objects to 1: {any}", .{err});
-            return;
-        };
-        self.object_ids.deinit();
-        self.object_ids = try Slab(usize).init(self.allocator, 64);
 
         self.remote.fetchProgram(program_url) catch |err| {
             self.remote.log("program download failed- attempting to use last downloaded program ({any})", .{err});
@@ -243,9 +248,10 @@ pub const Runtime = struct {
             const was_calibrated = self.calibrated;
             try self.processPoseDetections(width, height);
 
-            const chessboard = &self.objects.items[0];
-            chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
-            chessboard.recalculateTransform(&self.renderer);
+            if (self.getObject(self.chessboard)) |chessboard| {
+                chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
+                chessboard.recalculateTransform(&self.renderer);
+            }
 
             if (self.calibrated) {
                 if (!was_calibrated) {
@@ -313,34 +319,75 @@ pub const Runtime = struct {
 
     fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32, material_id: u32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj_id = runtime.createObject(x, y, .{ .id = material_id }, false) catch |err| {
+            std.log.err("Failed to create object: {}", .{err});
+            return 0;
+        };
+        return @intCast(obj_id);
+    }
 
+    fn createObject(self: *Runtime, x: f32, y: f32, material: Renderer.MaterialHandle, internal: bool) !usize {
         // For redundancy, allocate an object index in the set *before* creating the object.
         // If creating the object fails, the index will be freed. Otherwise, the index will be later
         // used to store the object's ID.
-        const object_id, const object_index = runtime.object_ids.insert(std.math.maxInt(usize)) catch {
-            runtime.remote.log("failed to reserve object set index", .{});
-            return 0;
+        const object_id, const object_index = self.object_ids.insert(std.math.maxInt(usize)) catch {
+            return error.ReserveObjectIndexFailed;
         };
 
-        const material = Renderer.MaterialHandle{ .id = material_id };
-        runtime.objects.append(GameObject.init(runtime, object_id, material, x, y)) catch |err| {
-            runtime.remote.log("failed to create object: {any}", .{err});
-            runtime.object_ids.delete(object_id) catch |err2| {
-                runtime.remote.log("impossible: object id not deleted: {any}", .{err2});
+        self.objects.append(GameObject.init(self, object_id, material, x, y, internal)) catch {
+            self.object_ids.delete(object_id) catch {
+                return error.ObjectCreateRecoveryFailed;
             };
-            return 0;
+            return error.ObjectCreateFailed;
         };
-        const index = runtime.objects.items.len - 1;
-        runtime.objects.items[index].recalculateTransform(&runtime.renderer);
+        const index = self.objects.items.len - 1;
+        self.objects.items[index].recalculateTransform(&self.renderer);
         object_index.* = index;
 
-        return @intCast(object_id);
+        return object_id;
     }
 
     fn getObject(self: *Runtime, id: usize) ?*GameObject {
         const object_index = self.object_ids.get(id) orelse return null;
         if (object_index.* >= self.objects.items.len) return null;
         return &self.objects.items[object_index.*];
+    }
+
+    fn deleteObject(self: *Runtime, id: usize) void {
+        const object_index = self.object_ids.get(id) orelse {
+            self.remote.log("tried to delete non-existent object {x}", .{id});
+            return;
+        };
+
+        if (object_index.* >= self.objects.items.len) {
+            self.remote.log(
+                "object index {any} was out of bounds {any} for id {any}",
+                .{ object_index.*, self.objects.items.len, id },
+            );
+            return;
+        }
+
+        // Perform swap-removal. If the object is at the end, simply remove it. Otherwise, swap it
+        // with the last one and update the object ID's target index.
+        var obj: GameObject = undefined;
+        if (object_index.* == self.objects.items.len - 1) {
+            obj = self.objects.pop().?;
+        } else {
+            obj = self.objects.items[object_index.*];
+            const new_object = self.objects.pop().?;
+            const new_object_index = self.object_ids.get(new_object.id) orelse {
+                self.remote.log("impossible: couldn't find object index for replacement id {d}", .{new_object.id});
+                return;
+            };
+            new_object_index.* = object_index.*;
+            self.objects.items[object_index.*] = new_object;
+        }
+
+        self.object_ids.delete(id) catch |err| {
+            self.remote.log("impossible: couldn't delete existing object id {d}: {any}", .{ id, err });
+        };
+
+        self.renderer.deleteObject(obj.handle);
     }
 
     fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
@@ -383,40 +430,7 @@ pub const Runtime = struct {
 
     fn wasmDeleteObject(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const object_index = runtime.object_ids.get(id) orelse {
-            runtime.remote.log("tried to delete non-existent object {x}", .{id});
-            return;
-        };
-
-        if (object_index.* >= runtime.objects.items.len) {
-            runtime.remote.log(
-                "object index {any} was out of bounds {any} for id {any}",
-                .{ object_index.*, runtime.objects.items.len, id },
-            );
-            return;
-        }
-
-        // Perform swap-removal. If the object is at the end, simply remove it. Otherwise, swap it
-        // with the last one and update the object ID's target index.
-        var obj: GameObject = undefined;
-        if (object_index.* == runtime.objects.items.len - 1) {
-            obj = runtime.objects.pop().?;
-        } else {
-            obj = runtime.objects.items[object_index.*];
-            const new_object = runtime.objects.pop().?;
-            const new_object_index = runtime.object_ids.get(new_object.id) orelse {
-                runtime.remote.log("impossible: couldn't find object index for replacement id {d}", .{new_object.id});
-                return;
-            };
-            new_object_index.* = object_index.*;
-            runtime.objects.items[object_index.*] = new_object;
-        }
-
-        runtime.object_ids.delete(id) catch |err| {
-            runtime.remote.log("impossible: couldn't delete existing object id {d}: {any}", .{ id, err });
-        };
-
-        runtime.renderer.deleteObject(obj.handle);
+        runtime.deleteObject(id);
     }
 
     fn wasmRandom(user_ptr: *anyopaque) f32 {
@@ -436,7 +450,10 @@ pub const Runtime = struct {
 
     fn wasmCreateMaterial(user_ptr: *anyopaque, r: f32, g: f32, b: f32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const material = runtime.renderer.createUiMaterial(runtime.white_pixel_texture, r, g, b);
+        const material = runtime.renderer.createUiMaterial(runtime.white_pixel_texture, r, g, b) catch |err| {
+            runtime.remote.log("failed to create material: {any}", .{err});
+            return std.math.maxInt(u32);
+        };
         return material.id;
     }
 };
