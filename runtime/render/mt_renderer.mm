@@ -148,42 +148,41 @@ void end_render(Renderer *renderer) {
    [renderer->render_pool_ drain];
 }
 
-void render_pipeline(Renderer *renderer, const float *projection) {
-   Mat4 mat4_projection;
-   std::memcpy(&mat4_projection, projection, sizeof(Mat4));
-   auto pipeline_id = renderer->pipelines_.ui;
-
+void set_pipeline(Renderer *renderer, uint32_t pipeline_id_unused) {
+   auto pipeline_id = renderer->pipelines_.ui; // TODO
    const MaterialPipeline &mat_pipeline = renderer->render_pipelines_[pipeline_id];
    [renderer->render_encoder_ setRenderPipelineState:mat_pipeline.pipeline.pipeline_state()];
+}
 
-   for (int mat_id : mat_pipeline.materials) {
-      const Material &mat = renderer->materials_.get(mat_id);
+void render_material(Renderer *renderer, uint32_t material_id, const float *projection) {
+   Mat4 mat4_projection;
+   std::memcpy(&mat4_projection, projection, sizeof(Mat4));
 
-      [renderer->render_encoder_ setFragmentBuffer:mat.uniform_buffer.buffer() offset:0 atIndex:0];
+   const Material &mat = renderer->materials_.get(material_id);
+   [renderer->render_encoder_ setFragmentBuffer:mat.uniform_buffer.buffer() offset:0 atIndex:0];
 
-      for (int i = 0; i < mat.images.size(); ++i) {
-         RenderImage img_id = mat.images[i];
-         const Image &img = renderer->images_.get(img_id);
-         [renderer->render_encoder_ setFragmentTexture:img.texture() atIndex:0];
-      }
+   for (int i = 0; i < mat.images.size(); ++i) {
+      RenderImage img_id = mat.images[i];
+      const Image &img = renderer->images_.get(img_id);
+      [renderer->render_encoder_ setFragmentTexture:img.texture() atIndex:0];
+   }
 
-      for (const auto &[mesh_id, instances] : mat.mesh_instances) {
-         VertexIndexBuffer &buf = renderer->meshes_.get(mesh_id);
-         [renderer->render_encoder_ setVertexBuffer:buf.buffer() offset:0 atIndex:0];
+   for (const auto &[mesh_id, instances] : mat.mesh_instances) {
+      VertexIndexBuffer &buf = renderer->meshes_.get(mesh_id);
+      [renderer->render_encoder_ setVertexBuffer:buf.buffer() offset:0 atIndex:0];
 
-         for (int instance_id : instances) {
-            const MeshInstance &instance = renderer->instances_.get(instance_id);
-            Mat4 transform = mat4_projection * instance.transform;
-            [renderer->render_encoder_ setVertexBytes:reinterpret_cast<void *>(&transform)
-                                               length:sizeof(Mat4)
-                                              atIndex:1];
+      for (int instance_id : instances) {
+         const MeshInstance &instance = renderer->instances_.get(instance_id);
+         Mat4 transform = mat4_projection * instance.transform;
+         [renderer->render_encoder_ setVertexBytes:reinterpret_cast<void *>(&transform)
+                                            length:sizeof(Mat4)
+                                           atIndex:1];
 
-            [renderer->render_encoder_ drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-                                                  indexCount:buf.num_indices()
-                                                   indexType:VertexIndexBuffer::kIndexType
-                                                 indexBuffer:buf.buffer()
-                                           indexBufferOffset:buf.index_offset()];
-         }
+         [renderer->render_encoder_ drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                                               indexCount:buf.num_indices()
+                                                indexType:VertexIndexBuffer::kIndexType
+                                              indexBuffer:buf.buffer()
+                                        indexBufferOffset:buf.index_offset()];
       }
    }
 }

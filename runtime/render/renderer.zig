@@ -11,6 +11,7 @@ const Mat4 = @import("engine").math.Mat4;
 
 pub const Renderer = struct {
     handle: *ffi.Renderer,
+    materials: std.ArrayList(MaterialHandle),
 
     pub const PipelineHandle = struct { id: u32 };
     pub const MaterialHandle = struct { id: u32 };
@@ -18,9 +19,13 @@ pub const Renderer = struct {
     pub const ObjectHandle = struct { id: u32 };
     pub const ImageHandle = struct { id: u32 };
 
-    pub fn init(gpu: *const Gpu, window: *const Window) Renderer {
+    pub fn init(gpu: *const Gpu, window: *const Window, allocator: std.mem.Allocator) !Renderer {
+        const renderer = ffi.create_renderer(gpu.handle, window.handle).?;
+        errdefer ffi.destroy_renderer(renderer);
+
         return Renderer{
-            .handle = ffi.create_renderer(gpu.handle, window.handle).?,
+            .handle = renderer,
+            .materials = try std.ArrayList(MaterialHandle).initCapacity(allocator, 64),
         };
     }
 
@@ -28,14 +33,18 @@ pub const Renderer = struct {
         ffi.destroy_renderer(self.handle);
     }
 
-    pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32) MaterialHandle {
+    pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32) !MaterialHandle {
         const id = ffi.create_ui_material(self.handle, image.id, r, g, b);
-        return MaterialHandle{ .id = id };
+        const handle = MaterialHandle{ .id = id };
+        try self.materials.append(handle);
+        return handle;
     }
 
-    pub fn createMeshMaterial(self: *Renderer, r: f32, g: f32, b: f32) MaterialHandle {
+    pub fn createMeshMaterial(self: *Renderer, r: f32, g: f32, b: f32) !MaterialHandle {
         const id = ffi.create_mesh_material(self.handle, r, g, b);
-        return MaterialHandle{ .id = id };
+        const handle = MaterialHandle{ .id = id };
+        try self.materials.append(handle);
+        return handle;
     }
 
     pub fn createMesh(self: *Renderer, vertices: []const u8, indices: []const u16) MeshHandle {
@@ -79,7 +88,17 @@ pub const Renderer = struct {
         if (!ffi.begin_render(self.handle)) {
             return;
         }
-        ffi.render_pipeline(self.handle, ui_view_projection.ptr());
+
+        ffi.set_pipeline(self.handle, 0); // pipeline id not currently used
+
+        for (self.materials.items) |material| {
+            ffi.render_material(self.handle, material.id, ui_view_projection.ptr());
+        }
+
+        if (self.mask_material) |mask_material| {
+            ffi.render_material(self.handle, mask_material.id, ui_view_projection.ptr());
+        }
+
         ffi.end_render(self.handle);
     }
 

@@ -144,9 +144,13 @@ pub const Runtime = struct {
         try runtime.remote.start();
 
         runtime.gpu = Gpu.init();
+        errdefer runtime.gpu.deinit();
         runtime.window = Window.init(&runtime.gpu, "simulo runtime");
-        runtime.renderer = Renderer.init(&runtime.gpu, &runtime.window);
+        errdefer runtime.window.deinit();
+        runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
+        errdefer runtime.renderer.deinit();
         runtime.pose_detector = PoseDetector.init();
+        errdefer runtime.pose_detector.stop();
         runtime.calibrated = false;
 
         runtime.wasm.zeroInit();
