@@ -20,6 +20,7 @@ fn typeToSignature(T: type) []const u8 {
             64 => "F",
             else => @compileError(@typeName(T) ++ " not supported for wasm"),
         },
+        .pointer => "*",
         else => @compileError(@typeName(T) ++ " not supported for wasm"),
     };
 }
@@ -163,6 +164,8 @@ pub const Wasm = struct {
                 wasm_args[i] = @bitCast(arg);
             } else if (Arg == f32) {
                 wasm_args[i] = @bitCast(arg);
+            } else if (Arg == bool) {
+                wasm_args[i] = @intFromBool(arg);
             } else {
                 @compileError("can't pass " ++ @typeName(Arg) ++ " to wasm function");
             }

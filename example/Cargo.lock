@@ -5,3 +5,12 @@ version = 4
 [[package]]
 name = "example"
 version = "0.1.0"
+dependencies = [
+ "glam",
+]
+
+[[package]]
+name = "glam"
+version = "0.30.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50a99dbe56b72736564cfa4b85bf9a33079f16ae8b74983ab06af3b1a3696b11"

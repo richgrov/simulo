@@ -110,6 +110,7 @@ pub const Runtime = struct {
     pose_func: ?Wasm.Function,
     objects: std.ArrayList(GameObject),
     object_ids: Slab(usize),
+    pose_buffer: ?[*]f32,
     random: std.Random.Xoshiro256,
 
     white_pixel_texture: Renderer.ImageHandle,
@@ -119,6 +120,7 @@ pub const Runtime = struct {
     pub fn globalInit() !void {
         try Wasm.globalInit();
         errdefer Wasm.globalDeinit();
+        try Wasm.exposeFunction("simulo_set_pose_buffer", wasmSetPoseBuffer);
         try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
         try Wasm.exposeFunction("simulo_set_object_position", wasmSetObjectPosition);
         try Wasm.exposeFunction("simulo_set_object_scale", wasmSetObjectScale);
@@ -155,7 +157,7 @@ pub const Runtime = struct {
         errdefer runtime.objects.deinit();
         runtime.object_ids = try Slab(usize).init(runtime.allocator, 64);
         errdefer runtime.object_ids.deinit();
-
+        runtime.pose_buffer = null;
         const now: u64 = @bitCast(std.time.microTimestamp());
         runtime.random = std.Random.Xoshiro256.init(now);
 
@@ -244,7 +246,11 @@ pub const Runtime = struct {
             if (self.calibrated) {
                 if (!was_calibrated) {
                     if (self.init_func) |init_func| {
-                        _ = self.wasm.callFunction(init_func, .{}) catch unreachable;
+                        _ = self.wasm.callFunction(init_func, .{@as(u32, 0)}) catch unreachable;
+
+                        if (self.pose_buffer == null) {
+                            return error.PoseBufferNotInitialized;
+                        }
                     }
                 }
 
@@ -278,20 +284,27 @@ pub const Runtime = struct {
             }
 
             const pose_func = self.pose_func orelse return;
+            const pose_buffer = self.pose_buffer orelse return;
 
             const id_u32: u32 = @intCast(event.id);
             const detection = event.detection orelse {
-                _ = self.wasm.callFunction(pose_func, .{ id_u32, @as(f32, -1), @as(f32, -1) }) catch unreachable;
+                _ = self.wasm.callFunction(pose_func, .{ id_u32, false }) catch unreachable;
                 continue;
             };
 
-            const left_hand = detection.keypoints[9].pos;
-            _ = self.wasm.callFunction(pose_func, .{
-                id_u32,
-                left_hand[0] * width,
-                left_hand[1] * height,
-            }) catch unreachable;
+            for (detection.keypoints, 0..) |kp, i| {
+                pose_buffer[i * 2] = kp.pos[0] * width;
+                pose_buffer[i * 2 + 1] = kp.pos[1] * height;
+            }
+
+            _ = self.wasm.callFunction(pose_func, .{ id_u32, true }) catch unreachable;
         }
+    }
+
+    fn wasmSetPoseBuffer(user_ptr: *anyopaque, buffer: [*]f32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        std.debug.print("Setting pose buffer to {*}\n", .{buffer});
+        runtime.pose_buffer = buffer;
     }
 
     fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32, material_id: u32) u32 {
