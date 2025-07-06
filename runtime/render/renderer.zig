@@ -12,6 +12,7 @@ const Mat4 = @import("engine").math.Mat4;
 pub const Renderer = struct {
     handle: *ffi.Renderer,
     materials: std.ArrayList(MaterialHandle),
+    mask_material: ?MaterialHandle = null, // TODO: temporary hack
 
     pub const PipelineHandle = struct { id: u32 };
     pub const MaterialHandle = struct { id: u32 };

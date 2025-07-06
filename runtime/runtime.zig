@@ -98,6 +98,14 @@ const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 1.0, 0.0 }, .tex_coord = .{ 0.0, 1.0 } },
 };
 
+const MASK_WIDTH = 100.0;
+const MASK_HEIGHT = 50.0;
+
+const MaskData = struct {
+    left_id: usize,
+    right_id: usize,
+};
+
 pub const Runtime = struct {
     gpu: Gpu,
     window: Window,
@@ -118,6 +126,7 @@ pub const Runtime = struct {
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: usize,
     mesh: Renderer.MeshHandle,
+    masks: std.AutoHashMap(u64, MaskData),
     calibrated: bool,
 
     pub fn globalInit() !void {
@@ -176,6 +185,7 @@ pub const Runtime = struct {
         runtime.mesh = runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
 
         runtime.chessboard = try runtime.createObject(0, 0, chessboard_material, true);
+        runtime.renderer.mask_material = try runtime.renderer.createUiMaterial(image, 0.0, 0.0, 0.0);
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -289,6 +299,8 @@ pub const Runtime = struct {
         while (self.pose_detector.nextEvent()) |event| {
             self.calibrated = true;
 
+            self.updateMask(&event, width, height);
+
             if (!was_calibrated) {
                 continue;
             }
@@ -309,6 +321,62 @@ pub const Runtime = struct {
 
             _ = self.wasm.callFunction(pose_func, .{ id_u32, true }) catch unreachable;
         }
+    }
+
+    fn updateMask(self: *Runtime, event: *const pose.PoseEvent, window_width: f32, window_height: f32) void {
+        if (event.detection) |det| {
+            const l_eye = det.keypoints[1];
+            const r_eye = det.keypoints[2];
+            const lx = l_eye.pos[0] * window_width;
+            const ly = l_eye.pos[1] * window_height;
+            const rx = r_eye.pos[0] * window_width;
+            const ry = r_eye.pos[1] * window_height;
+
+            if (self.masks.get(event.id)) |mask_data| {
+                _ = self.updateMaskObject(mask_data.left_id, lx, ly) catch |err| {
+                    self.remote.log("failed to update left mask: {any}", .{err});
+                };
+                _ = self.updateMaskObject(mask_data.right_id, rx, ry) catch |err| {
+                    self.remote.log("failed to update right mask: {any}", .{err});
+                };
+            } else {
+                const left_id = self.updateMaskObject(null, lx, ly) catch |err| cat: {
+                    self.remote.log("failed to create left mask: {any}", .{err});
+                    break :cat std.math.maxInt(usize);
+                };
+                const right_id = self.updateMaskObject(null, rx, ry) catch |err| cat: {
+                    self.remote.log("failed to create right mask: {any}", .{err});
+                    break :cat std.math.maxInt(usize);
+                };
+                self.masks.put(event.id, .{ .left_id = left_id, .right_id = right_id }) catch |err| {
+                    self.remote.log("failed to track mask object: {any}", .{err});
+                    return;
+                };
+            }
+        } else {
+            if (self.masks.get(event.id)) |mask_data| {
+                self.deleteObject(mask_data.left_id);
+                self.deleteObject(mask_data.right_id);
+            }
+        }
+    }
+
+    fn updateMaskObject(self: *Runtime, object_id: ?usize, x: f32, y: f32) !usize {
+        const spawn_x = x - MASK_WIDTH / 2.0;
+        const spawn_y = y - MASK_HEIGHT / 3.0;
+
+        if (object_id) |mask_obj_id| {
+            const mask_obj = self.getObject(mask_obj_id) orelse return error.MaskNotFound;
+            mask_obj.pos = .{ spawn_x, spawn_y, 0.0 };
+            mask_obj.recalculateTransform(&self.renderer);
+            return mask_obj_id;
+        }
+
+        const obj_id = try self.createObject(spawn_x, spawn_y, self.renderer.mask_material.?, true);
+        const mask_obj = self.getObject(obj_id) orelse return error.CreatedMaskNotFound;
+        mask_obj.scale = .{ MASK_WIDTH, MASK_HEIGHT, 1.0 };
+        mask_obj.recalculateTransform(&self.renderer);
+        return obj_id;
     }
 
     fn wasmSetPoseBuffer(user_ptr: *anyopaque, buffer: [*]f32) void {
