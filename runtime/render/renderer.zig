@@ -69,7 +69,7 @@ pub const Renderer = struct {
         if (comptime builtin.os.tag == .macos) {
             self.renderMetal(ui_view_projection, world_view_projection);
         } else {
-            self.renderVulkan(window, ui_view_projection, world_view_projection);
+            try self.renderVulkan(window, ui_view_projection, world_view_projection);
         }
     }
 
@@ -83,7 +83,7 @@ pub const Renderer = struct {
         ffi.end_render(self.handle);
     }
 
-    fn renderVulkan(self: *Renderer, window: *const Window, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) void {
+    fn renderVulkan(self: *Renderer, window: *const Window, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) !void {
         const ok = ffi.render(self.handle, ui_view_projection.ptr(), world_view_projection.ptr());
         if (!ok) {
             ffi.recreate_swapchain(self.handle, window.handle);
