@@ -47,7 +47,7 @@ pub const GameObject = struct {
             .pos = .{ x_, y_, 0 },
             .scale = .{ 1, 1, 1 },
             .id = id,
-            .handle = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material),
+            .handle = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, if (internal) 1 else 0),
             .native_behaviors = .{},
             .deleted = false,
             .internal = internal,
@@ -126,6 +126,7 @@ pub const Runtime = struct {
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: usize,
     mesh: Renderer.MeshHandle,
+    mask_material: Renderer.MaterialHandle,
     masks: std.AutoHashMap(u64, MaskData),
     calibrated: bool,
 
@@ -184,8 +185,8 @@ pub const Runtime = struct {
         const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
         runtime.mesh = runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
 
+        runtime.mask_material = try runtime.renderer.createUiMaterial(image, 0.0, 0.0, 0.0);
         runtime.chessboard = try runtime.createObject(0, 0, chessboard_material, true);
-        runtime.renderer.mask_material = try runtime.renderer.createUiMaterial(image, 0.0, 0.0, 0.0);
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -372,7 +373,7 @@ pub const Runtime = struct {
             return mask_obj_id;
         }
 
-        const obj_id = try self.createObject(spawn_x, spawn_y, self.renderer.mask_material.?, true);
+        const obj_id = try self.createObject(spawn_x, spawn_y, self.mask_material, true);
         const mask_obj = self.getObject(obj_id) orelse return error.CreatedMaskNotFound;
         mask_obj.scale = .{ MASK_WIDTH, MASK_HEIGHT, 1.0 };
         mask_obj.recalculateTransform(&self.renderer);

@@ -8,11 +8,21 @@ const ffi = @cImport({
 const Gpu = @import("../gpu/gpu.zig").Gpu;
 const Window = @import("../window/window.zig").Window;
 const Mat4 = @import("engine").math.Mat4;
+const FixedArrayList = @import("util").FixedArrayList;
+const FixedSlab = @import("util").FixedSlab;
+const SparseIntSet = @import("util").SparseIntSet;
+
+const MAX_RENDER_LAYERS = 32;
+const MAX_MATERIALS = 512;
+
+const RenderCollection = struct {
+    materials: SparseIntSet(u16, MAX_MATERIALS) = .{},
+};
 
 pub const Renderer = struct {
     handle: *ffi.Renderer,
-    materials: std.ArrayList(MaterialHandle),
-    mask_material: ?MaterialHandle = null, // TODO: temporary hack
+    materials: FixedSlab(u32, MAX_MATERIALS),
+    render_collections: [MAX_RENDER_LAYERS]RenderCollection = [_]RenderCollection{.{}} ** MAX_RENDER_LAYERS,
 
     pub const PipelineHandle = struct { id: u32 };
     pub const MaterialHandle = struct { id: u32 };
@@ -20,13 +30,13 @@ pub const Renderer = struct {
     pub const ObjectHandle = struct { id: u32 };
     pub const ImageHandle = struct { id: u32 };
 
-    pub fn init(gpu: *const Gpu, window: *const Window, allocator: std.mem.Allocator) !Renderer {
+    pub fn init(gpu: *const Gpu, window: *const Window, _: std.mem.Allocator) !Renderer {
         const renderer = ffi.create_renderer(gpu.handle, window.handle).?;
         errdefer ffi.destroy_renderer(renderer);
 
         return Renderer{
             .handle = renderer,
-            .materials = try std.ArrayList(MaterialHandle).initCapacity(allocator, 64),
+            .materials = try FixedSlab(u32, MAX_MATERIALS).init(),
         };
     }
 
@@ -36,16 +46,14 @@ pub const Renderer = struct {
 
     pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32) !MaterialHandle {
         const id = ffi.create_ui_material(self.handle, image.id, r, g, b);
-        const handle = MaterialHandle{ .id = id };
-        try self.materials.append(handle);
-        return handle;
+        const key, _ = try self.materials.append(id);
+        return .{ .id = key };
     }
 
     pub fn createMeshMaterial(self: *Renderer, r: f32, g: f32, b: f32) !MaterialHandle {
         const id = ffi.create_mesh_material(self.handle, r, g, b);
-        const handle = MaterialHandle{ .id = id };
-        try self.materials.append(handle);
-        return handle;
+        const key, _ = try self.materials.append(id);
+        return .{ .id = key };
     }
 
     pub fn createMesh(self: *Renderer, vertices: []const u8, indices: []const u16) MeshHandle {
@@ -57,8 +65,11 @@ pub const Renderer = struct {
         ffi.delete_mesh(self.handle, mesh.id);
     }
 
-    pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle) ObjectHandle {
-        const id = ffi.add_object(self.handle, mesh.id, transform.ptr(), material.id);
+    pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle, render_order: u8) ObjectHandle {
+        self.render_collections[render_order].materials.put(@intCast(material.id)) catch unreachable;
+        const render_material = self.materials.get(material.id).?;
+
+        const id = ffi.add_object(self.handle, mesh.id, transform.ptr(), render_material.*);
         return ObjectHandle{ .id = id };
     }
 
@@ -92,12 +103,11 @@ pub const Renderer = struct {
 
         ffi.set_pipeline(self.handle, 0); // pipeline id not currently used
 
-        for (self.materials.items) |material| {
-            ffi.render_material(self.handle, material.id, ui_view_projection.ptr());
-        }
-
-        if (self.mask_material) |mask_material| {
-            ffi.render_material(self.handle, mask_material.id, ui_view_projection.ptr());
+        for (&self.render_collections) |*collection| {
+            for (collection.materials.items()) |mat_idx| {
+                const render_material = self.materials.get(mat_idx).?;
+                ffi.render_material(self.handle, render_material.*, ui_view_projection.ptr());
+            }
         }
 
         ffi.end_render(self.handle);

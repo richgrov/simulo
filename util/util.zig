@@ -5,7 +5,9 @@ pub const reflect = @import("reflect.zig");
 pub const vulkan = @import("platform.zig").vulkan;
 
 pub const Slab = @import("slab.zig").Slab;
+pub const FixedSlab = @import("fixed_slab.zig").FixedSlab;
 pub const FixedArrayList = @import("fixed_arraylist.zig").FixedArrayList;
+pub const SparseIntSet = @import("packed_set.zig").SparseIntSet;
 pub const Spsc = @import("spsc_ring.zig").Spsc;
 
 pub fn getResourcePath(name: []const u8, buf: []u8) ![]const u8 {
