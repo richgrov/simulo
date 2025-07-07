@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const util = @import("util");
 
 const ffi = @cImport({
     @cInclude("ffi.h");
@@ -9,16 +10,36 @@ const Gpu = @import("../gpu/gpu.zig").Gpu;
 const Window = @import("../window/window.zig").Window;
 const Mat4 = @import("engine").math.Mat4;
 const FixedArrayList = @import("util").FixedArrayList;
-const FixedSlab = @import("util").FixedSlab;
-const SparseIntSet = @import("util").SparseIntSet;
+const Slab = util.Slab;
+const FixedSlab = util.FixedSlab;
+const SparseIntSet = util.SparseIntSet;
 
 const MAX_RENDER_LAYERS = 32;
 const MAX_MATERIALS = 512;
 const MAX_MESHES = 2048;
 const MAX_MESH_PASSES = 256;
+const MAX_OBJECT_PASSES = 1024;
+const MAX_OBJECTS = 65536;
+
+const Object = struct {
+    transform: Mat4,
+    mesh: u16,
+    material: u16,
+    render_order: u8,
+};
+
+const MeshPass = struct {
+    objects: SparseIntSet(u16, MAX_OBJECT_PASSES) = .{},
+};
 
 const MaterialPass = struct {
-    mesh_passes: SparseIntSet(u32, MAX_MESH_PASSES) = .{},
+    mesh_passes: std.AutoHashMap(u16, u16),
+
+    pub fn init(allocator: std.mem.Allocator) MaterialPass {
+        return MaterialPass{
+            .mesh_passes = std.AutoHashMap(u16, u16).init(allocator),
+        };
+    }
 };
 
 const RenderCollection = struct {
@@ -32,8 +53,11 @@ const RenderCollection = struct {
 };
 
 pub const Renderer = struct {
+    allocator: std.mem.Allocator,
     handle: *ffi.Renderer,
+    objects: Slab(Object),
     meshes: FixedSlab(u32, MAX_MESHES),
+    mesh_passes: Slab(MeshPass),
     materials: FixedSlab(u32, MAX_MATERIALS),
     material_passes: FixedSlab(MaterialPass, MAX_MATERIALS),
     render_collections: [MAX_RENDER_LAYERS]RenderCollection = undefined,
@@ -44,13 +68,22 @@ pub const Renderer = struct {
     pub const ObjectHandle = struct { id: u32 };
     pub const ImageHandle = struct { id: u32 };
 
-    pub fn init(gpu: *const Gpu, window: *const Window, allocator: std.mem.Allocator) Renderer {
+    pub fn init(gpu: *const Gpu, window: *const Window, allocator: std.mem.Allocator) !Renderer {
         const renderer = ffi.create_renderer(gpu.handle, window.handle).?;
         errdefer ffi.destroy_renderer(renderer);
 
+        var objects = try Slab(Object).init(allocator, 1024);
+        errdefer objects.deinit();
+
+        var mesh_passes = try Slab(MeshPass).init(allocator, 64);
+        errdefer mesh_passes.deinit();
+
         var result = Renderer{
+            .allocator = allocator,
             .handle = renderer,
+            .objects = objects,
             .meshes = FixedSlab(u32, MAX_MESHES).init(),
+            .mesh_passes = mesh_passes,
             .materials = FixedSlab(u32, MAX_MATERIALS).init(),
             .material_passes = FixedSlab(MaterialPass, MAX_MATERIALS).init(),
         };
@@ -90,29 +123,46 @@ pub const Renderer = struct {
 
     pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle, render_order: u8) !ObjectHandle {
         const material_passes = &self.render_collections[render_order].material_passes;
-        if (material_passes.get(@intCast(material.id))) |mat_pass_id| {
-            const material_pass = self.material_passes.get(mat_pass_id).?;
-            try material_pass.mesh_passes.put(mesh.id);
-        } else {
-            var material_pass = MaterialPass{};
-            material_pass.mesh_passes.put(mesh.id) catch unreachable;
-            const mat_pass_id, _ = try self.material_passes.append(material_pass); // todo handle error
+        const material_pass = if (material_passes.get(@intCast(material.id))) |mat_pass_id|
+            self.material_passes.get(mat_pass_id).?
+        else cond: {
+            const mat_pass_id, const result = try self.material_passes.append(MaterialPass.init(self.allocator)); // todo handle error
             try material_passes.put(@intCast(material.id), @intCast(mat_pass_id));
-        }
+            break :cond result;
+        };
 
-        const render_mesh = self.meshes.get(mesh.id).?;
-        const render_material = self.materials.get(material.id).?;
+        const mesh_passes = &material_pass.mesh_passes;
+        const mesh_pass = if (mesh_passes.get(@intCast(mesh.id))) |mesh_pass_id|
+            self.mesh_passes.get(mesh_pass_id).?
+        else cond: {
+            const mesh_pass_id, const result = try self.mesh_passes.insert(.{}); // todo handle error
+            try mesh_passes.put(@intCast(mesh.id), @intCast(mesh_pass_id));
+            break :cond result;
+        };
 
-        const id = ffi.add_object(self.handle, render_mesh.*, transform.ptr(), render_material.*);
-        return ObjectHandle{ .id = id };
+        const obj_id, _ = try self.objects.insert(.{
+            .transform = transform,
+            .mesh = @intCast(mesh.id),
+            .material = @intCast(material.id),
+            .render_order = render_order,
+        });
+        try mesh_pass.objects.put(@intCast(obj_id));
+        return ObjectHandle{ .id = @intCast(obj_id) };
     }
 
     pub fn setObjectTransform(self: *Renderer, object: ObjectHandle, transform: Mat4) void {
-        ffi.set_object_transform(self.handle, object.id, transform.ptr());
+        self.objects.get(object.id).?.transform = transform;
     }
 
     pub fn deleteObject(self: *Renderer, object: ObjectHandle) void {
-        ffi.delete_object(self.handle, object.id);
+        const obj = self.objects.get(object.id).?;
+        const collection = &self.render_collections[obj.render_order];
+        const material_pass_id = collection.material_passes.get(obj.material).?;
+        const material_pass = self.material_passes.get(material_pass_id).?;
+        const mesh_pass_id = material_pass.mesh_passes.get(obj.mesh).?;
+        const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
+        mesh_pass.objects.delete(@intCast(object.id)) catch unreachable;
+        self.objects.delete(object.id) catch unreachable;
     }
 
     pub fn createImage(self: *Renderer, image_data: []const u8, width: i32, height: i32) ImageHandle {
@@ -140,12 +190,27 @@ pub const Renderer = struct {
         for (&self.render_collections) |*collection| {
             var material_passes = collection.material_passes.iterator();
             while (material_passes.next()) |mat| {
-                const material = self.materials.get(mat.key_ptr.*).?;
+                const mat_id = mat.key_ptr.*;
+                const mat_pass_id = mat.value_ptr.*;
+
+                const material = self.materials.get(mat_id).?;
                 ffi.set_material(self.handle, material.*);
-                const material_pass = self.material_passes.get(mat.key_ptr.*).?;
-                for (material_pass.mesh_passes.items()) |mesh_id| {
+
+                const material_pass = self.material_passes.get(mat_pass_id).?;
+                var mesh_passes = material_pass.mesh_passes.iterator();
+                while (mesh_passes.next()) |mesh_entry| {
+                    const mesh_id = mesh_entry.key_ptr.*;
+                    const mesh_pass_id = mesh_entry.value_ptr.*;
+
                     const mesh = self.meshes.get(mesh_id).?;
-                    ffi.render_mesh(self.handle, material.*, mesh.*, ui_view_projection.ptr());
+                    ffi.set_mesh(self.handle, mesh.*);
+
+                    const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
+                    for (mesh_pass.objects.items()) |instance| {
+                        const object = self.objects.get(instance).?;
+                        const transform = ui_view_projection.matmul(&object.transform);
+                        ffi.render_object(self.handle, transform.ptr());
+                    }
                 }
             }
         }

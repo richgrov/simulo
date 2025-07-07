@@ -38,9 +38,8 @@ constexpr uint16_t indices[] = {0, 1, 2, 1, 3, 2};
 Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
     : gpu_(gpu),
       images_(4),
-      materials_(8),
+      materials_(1024),
       meshes_(32),
-      instances_(64),
       metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)),
       geometry_(
           VertexIndexBuffer::concat(
@@ -77,37 +76,6 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
 }
 
 Renderer::~Renderer() {}
-
-RenderObject Renderer::add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material) {
-   int id = instances_.emplace(
-       MeshInstance{
-           .transform = transform,
-           .mesh = mesh,
-           .material = material,
-       }
-   );
-
-   Material &mat = materials_.get(material);
-   if (mat.mesh_instances.contains(mesh)) {
-      mat.mesh_instances[mesh].insert(id);
-   } else {
-      mat.mesh_instances.insert({mesh, {id}});
-   }
-
-   return static_cast<RenderObject>(id);
-}
-
-void Renderer::delete_object(RenderObject object) {
-   MeshInstance &instance = instances_.get(object);
-
-   Material &mat = materials_.get(instance.material);
-   mat.mesh_instances[instance.mesh].erase(object);
-   if (mat.mesh_instances[instance.mesh].empty()) {
-      mat.mesh_instances.erase(instance.mesh);
-   }
-
-   instances_.release(object);
-}
 
 bool begin_render(Renderer *renderer) {
    renderer->render_pool_ = [[NSAutoreleasePool alloc] init];
@@ -157,30 +125,21 @@ void set_material(Renderer *renderer, uint32_t material_id) {
    }
 }
 
-void render_mesh(
-    Renderer *renderer, uint32_t material_id, uint32_t mesh_id, const float *projection
-) {
-   Mat4 mat4_projection;
-   std::memcpy(&mat4_projection, projection, sizeof(Mat4));
-
-   const Material &mat = renderer->materials_.get(material_id);
-   const std::unordered_set<int> &instances =
-       mat.mesh_instances.at(static_cast<RenderMesh>(mesh_id));
-
+void set_mesh(Renderer *renderer, uint32_t mesh_id) {
+   renderer->last_mesh_id_ = mesh_id;
    VertexIndexBuffer &buf = renderer->meshes_.get(mesh_id);
    [renderer->render_encoder_ setVertexBuffer:buf.buffer() offset:0 atIndex:0];
+}
 
-   for (int instance_id : instances) {
-      const MeshInstance &instance = renderer->instances_.get(instance_id);
-      Mat4 transform = mat4_projection * instance.transform;
-      [renderer->render_encoder_ setVertexBytes:reinterpret_cast<void *>(&transform)
-                                         length:sizeof(Mat4)
-                                        atIndex:1];
+void render_object(Renderer *renderer, const float *transform) {
+   [renderer->render_encoder_ setVertexBytes:reinterpret_cast<const void *>(transform)
+                                      length:sizeof(Mat4)
+                                     atIndex:1];
 
-      [renderer->render_encoder_ drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-                                            indexCount:buf.num_indices()
-                                             indexType:VertexIndexBuffer::kIndexType
-                                           indexBuffer:buf.buffer()
-                                     indexBufferOffset:buf.index_offset()];
-   }
+   VertexIndexBuffer &buf = renderer->meshes_.get(renderer->last_mesh_id_);
+   [renderer->render_encoder_ drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                                         indexCount:buf.num_indices()
+                                          indexType:VertexIndexBuffer::kIndexType
+                                        indexBuffer:buf.buffer()
+                                  indexBufferOffset:buf.index_offset()];
 }

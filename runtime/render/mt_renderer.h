@@ -26,7 +26,6 @@ namespace simulo {
 enum RenderPipeline : int {};
 enum RenderMaterial : int {};
 enum RenderMesh : int {};
-enum RenderObject : int {};
 enum RenderImage : int {};
 
 struct Pipelines {
@@ -118,14 +117,6 @@ public:
       meshes_.release(static_cast<int>(mesh));
    }
 
-   RenderObject add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material);
-
-   void delete_object(RenderObject object);
-
-   void set_object_transform(RenderObject object_id, const Mat4 &transform) {
-      instances_.get(static_cast<int>(object_id)).transform = transform;
-   }
-
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height) {
       int id = images_.emplace(gpu_, img_data, width, height);
       return static_cast<RenderImage>(id);
@@ -165,7 +156,7 @@ public:
    Slab<Image> images_;
    Slab<Material> materials_;
    Slab<VertexIndexBuffer> meshes_;
-   Slab<MeshInstance> instances_;
+   int last_mesh_id_;
    VertexIndexBuffer geometry_;
    Pipelines pipelines_;
    CommandQueue command_queue_;

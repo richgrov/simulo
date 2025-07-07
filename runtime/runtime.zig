@@ -160,7 +160,7 @@ pub const Runtime = struct {
         errdefer runtime.gpu.deinit();
         runtime.window = Window.init(&runtime.gpu, "simulo runtime");
         errdefer runtime.window.deinit();
-        runtime.renderer = Renderer.init(&runtime.gpu, &runtime.window, allocator);
+        runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
         errdefer runtime.renderer.deinit();
         runtime.pose_detector = PoseDetector.init();
         errdefer runtime.pose_detector.stop();

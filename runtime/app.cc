@@ -134,6 +134,7 @@ void delete_mesh(Renderer *renderer, uint32_t mesh_id) {
    renderer->delete_mesh(static_cast<RenderMesh>(mesh_id));
 }
 
+#ifndef VKAD_APPLE
 uint32_t
 add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_t material_id) {
    Mat4 mat4_transform;
@@ -144,19 +145,20 @@ add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_
    ));
 }
 
-void delete_object(Renderer *renderer, uint32_t object_id) {
-   renderer->delete_object(static_cast<RenderObject>(object_id));
-}
-
-uint32_t create_image(Renderer *renderer, uint8_t *img_data, int width, int height) {
-   std::span<uint8_t> data_span(img_data, width * height);
-   return static_cast<uint32_t>(renderer->create_image(data_span, width, height));
-}
-
 void set_object_transform(Renderer *renderer, uint32_t object_id, const float *transform) {
    Mat4 mat4_transform;
    std::memcpy(&mat4_transform, transform, sizeof(Mat4));
    renderer->set_object_transform(static_cast<RenderObject>(object_id), mat4_transform);
+}
+
+void delete_object(Renderer *renderer, uint32_t object_id) {
+   renderer->delete_object(static_cast<RenderObject>(object_id));
+}
+#endif // !VKAD_APPLE
+
+uint32_t create_image(Renderer *renderer, uint8_t *img_data, int width, int height) {
+   std::span<uint8_t> data_span(img_data, width * height);
+   return static_cast<uint32_t>(renderer->create_image(data_span, width, height));
 }
 
 #ifndef VKAD_APPLE
