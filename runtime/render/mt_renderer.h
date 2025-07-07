@@ -73,7 +73,6 @@ struct Material {
 
 struct MaterialPipeline {
    Pipeline pipeline;
-   std::unordered_set<int> materials;
 };
 
 struct MeshInstance {
@@ -106,9 +105,6 @@ public:
               .images = std::move(images),
           }
       );
-
-      MaterialPipeline &pipeline = render_pipelines_[pipeline_id];
-      pipeline.materials.insert(id);
 
       return static_cast<RenderMaterial>(id);
    }

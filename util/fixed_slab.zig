@@ -13,7 +13,7 @@ pub fn FixedSlab(T: type, capacity: u32) type {
 
         const Self = @This();
 
-        pub fn init() !Self {
+        pub fn init() Self {
             var data: [capacity]Cell = undefined;
             for (0..capacity) |i_usize| {
                 const i: u32 = @intCast(i_usize);

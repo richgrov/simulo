@@ -115,10 +115,11 @@ bool render(
 
 bool begin_render(Renderer *renderer);
 void set_pipeline(Renderer *renderer, uint32_t pipeline_id);
-void render_material(Renderer *renderer, uint32_t material_id, const float *projection);
 void set_material(Renderer *renderer, uint32_t material_id);
 void set_mesh(Renderer *renderer, uint32_t mesh_id);
-void render_mesh(Renderer *renderer, uint32_t mesh_id);
+void render_mesh(
+    Renderer *renderer, uint32_t material_id, uint32_t mesh_id, const float *projection
+);
 void end_render(Renderer *renderer);
 
 #ifndef VKAD_APPLE

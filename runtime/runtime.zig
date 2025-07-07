@@ -42,12 +42,12 @@ pub const GameObject = struct {
     deleted: bool,
     internal: bool,
 
-    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32, internal: bool) GameObject {
+    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32, internal: bool) !GameObject {
         const obj = GameObject{
             .pos = .{ x_, y_, 0 },
             .scale = .{ 1, 1, 1 },
             .id = id,
-            .handle = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, if (internal) 1 else 0),
+            .handle = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, if (internal) 1 else 0),
             .native_behaviors = .{},
             .deleted = false,
             .internal = internal,
@@ -160,7 +160,7 @@ pub const Runtime = struct {
         errdefer runtime.gpu.deinit();
         runtime.window = Window.init(&runtime.gpu, "simulo runtime");
         errdefer runtime.window.deinit();
-        runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
+        runtime.renderer = Renderer.init(&runtime.gpu, &runtime.window, allocator);
         errdefer runtime.renderer.deinit();
         runtime.pose_detector = PoseDetector.init();
         errdefer runtime.pose_detector.stop();
@@ -183,7 +183,7 @@ pub const Runtime = struct {
         const image = createChessboard(&runtime.renderer);
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
         const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
-        runtime.mesh = runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
+        runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
 
         runtime.mask_material = try runtime.renderer.createUiMaterial(image, 0.0, 0.0, 0.0);
         runtime.chessboard = try runtime.createObject(0, 0, chessboard_material, true);
@@ -402,7 +402,9 @@ pub const Runtime = struct {
             return error.ReserveObjectIndexFailed;
         };
 
-        self.objects.append(GameObject.init(self, object_id, material, x, y, internal)) catch {
+        var obj = try GameObject.init(self, object_id, material, x, y, internal);
+        errdefer obj.delete(self);
+        self.objects.append(obj) catch { // todo handle failure
             self.object_ids.delete(object_id) catch {
                 return error.ObjectCreateRecoveryFailed;
             };
@@ -455,7 +457,7 @@ pub const Runtime = struct {
             self.remote.log("impossible: couldn't delete existing object id {d}: {any}", .{ id, err });
         };
 
-        self.renderer.deleteObject(obj.handle);
+        obj.delete(self);
     }
 
     fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {

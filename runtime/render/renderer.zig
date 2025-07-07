@@ -14,15 +14,29 @@ const SparseIntSet = @import("util").SparseIntSet;
 
 const MAX_RENDER_LAYERS = 32;
 const MAX_MATERIALS = 512;
+const MAX_MESHES = 2048;
+const MAX_MESH_PASSES = 256;
+
+const MaterialPass = struct {
+    mesh_passes: SparseIntSet(u32, MAX_MESH_PASSES) = .{},
+};
 
 const RenderCollection = struct {
-    materials: SparseIntSet(u16, MAX_MATERIALS) = .{},
+    material_passes: std.AutoHashMap(u16, u16),
+
+    pub fn init(allocator: std.mem.Allocator) RenderCollection {
+        return RenderCollection{
+            .material_passes = std.AutoHashMap(u16, u16).init(allocator),
+        };
+    }
 };
 
 pub const Renderer = struct {
     handle: *ffi.Renderer,
+    meshes: FixedSlab(u32, MAX_MESHES),
     materials: FixedSlab(u32, MAX_MATERIALS),
-    render_collections: [MAX_RENDER_LAYERS]RenderCollection = [_]RenderCollection{.{}} ** MAX_RENDER_LAYERS,
+    material_passes: FixedSlab(MaterialPass, MAX_MATERIALS),
+    render_collections: [MAX_RENDER_LAYERS]RenderCollection = undefined,
 
     pub const PipelineHandle = struct { id: u32 };
     pub const MaterialHandle = struct { id: u32 };
@@ -30,14 +44,22 @@ pub const Renderer = struct {
     pub const ObjectHandle = struct { id: u32 };
     pub const ImageHandle = struct { id: u32 };
 
-    pub fn init(gpu: *const Gpu, window: *const Window, _: std.mem.Allocator) !Renderer {
+    pub fn init(gpu: *const Gpu, window: *const Window, allocator: std.mem.Allocator) Renderer {
         const renderer = ffi.create_renderer(gpu.handle, window.handle).?;
         errdefer ffi.destroy_renderer(renderer);
 
-        return Renderer{
+        var result = Renderer{
             .handle = renderer,
-            .materials = try FixedSlab(u32, MAX_MATERIALS).init(),
+            .meshes = FixedSlab(u32, MAX_MESHES).init(),
+            .materials = FixedSlab(u32, MAX_MATERIALS).init(),
+            .material_passes = FixedSlab(MaterialPass, MAX_MATERIALS).init(),
         };
+
+        for (&result.render_collections) |*collection| {
+            collection.* = RenderCollection.init(allocator);
+        }
+
+        return result;
     }
 
     pub fn deinit(self: *Renderer) void {
@@ -56,20 +78,32 @@ pub const Renderer = struct {
         return .{ .id = key };
     }
 
-    pub fn createMesh(self: *Renderer, vertices: []const u8, indices: []const u16) MeshHandle {
+    pub fn createMesh(self: *Renderer, vertices: []const u8, indices: []const u16) !MeshHandle {
         const id = ffi.create_mesh(self.handle, @constCast(@ptrCast(vertices.ptr)), vertices.len, @constCast(@ptrCast(indices.ptr)), indices.len);
-        return MeshHandle{ .id = id };
+        const key, _ = try self.meshes.append(id);
+        return MeshHandle{ .id = key };
     }
 
     pub fn deleteMesh(self: *Renderer, mesh: MeshHandle) void {
         ffi.delete_mesh(self.handle, mesh.id);
     }
 
-    pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle, render_order: u8) ObjectHandle {
-        self.render_collections[render_order].materials.put(@intCast(material.id)) catch unreachable;
+    pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle, render_order: u8) !ObjectHandle {
+        const material_passes = &self.render_collections[render_order].material_passes;
+        if (material_passes.get(@intCast(material.id))) |mat_pass_id| {
+            const material_pass = self.material_passes.get(mat_pass_id).?;
+            try material_pass.mesh_passes.put(mesh.id);
+        } else {
+            var material_pass = MaterialPass{};
+            material_pass.mesh_passes.put(mesh.id) catch unreachable;
+            const mat_pass_id, _ = try self.material_passes.append(material_pass); // todo handle error
+            try material_passes.put(@intCast(material.id), @intCast(mat_pass_id));
+        }
+
+        const render_mesh = self.meshes.get(mesh.id).?;
         const render_material = self.materials.get(material.id).?;
 
-        const id = ffi.add_object(self.handle, mesh.id, transform.ptr(), render_material.*);
+        const id = ffi.add_object(self.handle, render_mesh.*, transform.ptr(), render_material.*);
         return ObjectHandle{ .id = id };
     }
 
@@ -104,9 +138,15 @@ pub const Renderer = struct {
         ffi.set_pipeline(self.handle, 0); // pipeline id not currently used
 
         for (&self.render_collections) |*collection| {
-            for (collection.materials.items()) |mat_idx| {
-                const render_material = self.materials.get(mat_idx).?;
-                ffi.render_material(self.handle, render_material.*, ui_view_projection.ptr());
+            var material_passes = collection.material_passes.iterator();
+            while (material_passes.next()) |mat| {
+                const material = self.materials.get(mat.key_ptr.*).?;
+                ffi.set_material(self.handle, material.*);
+                const material_pass = self.material_passes.get(mat.key_ptr.*).?;
+                for (material_pass.mesh_passes.items()) |mesh_id| {
+                    const mesh = self.meshes.get(mesh_id).?;
+                    ffi.render_mesh(self.handle, material.*, mesh.*, ui_view_projection.ptr());
+                }
             }
         }
 
