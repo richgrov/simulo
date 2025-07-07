@@ -12,11 +12,13 @@ pub fn build(b: *std.Build) !void {
     const custom_api_host = b.option([]const u8, "api_host", "Override API host") orelse "api.simulo.grover.sh";
     const custom_api_port = b.option(u16, "api_port", "Override API port") orelse 443;
     const api_tls = b.option(bool, "api_tls", "Use TLS for API connection") orelse true;
+    const wasm_path = b.option([]const u8, "wasm_path", "Override path to read WASM binary from");
 
     const options = b.addOptions();
     options.addOption([]const u8, "api_host", custom_api_host);
     options.addOption(u16, "api_port", custom_api_port);
     options.addOption(bool, "api_tls", api_tls);
+    options.addOption(?[]const u8, "wasm_path", wasm_path);
 
     const util = b.createModule(.{
         .root_source_file = b.path("util/util.zig"),

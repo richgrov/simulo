@@ -1,4 +1,5 @@
 const std = @import("std");
+const build_options = @import("build_options");
 
 const engine = @import("engine");
 const Mat4 = engine.math.Mat4;
@@ -213,11 +214,16 @@ pub const Runtime = struct {
             i += 1;
         }
 
-        self.remote.fetchProgram(program_url) catch |err| {
-            self.remote.log("program download failed- attempting to use last downloaded program ({any})", .{err});
+        const local_path = if (build_options.wasm_path) |path_override|
+            path_override
+        else cond: {
+            self.remote.fetchProgram(program_url) catch |err| {
+                self.remote.log("program download failed- attempting to use last downloaded program: ({any})", .{err});
+            };
+            break :cond "program.wasm";
         };
 
-        const data = try std.fs.cwd().readFileAlloc(self.allocator, "program.wasm", std.math.maxInt(usize));
+        const data = try std.fs.cwd().readFileAlloc(self.allocator, local_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
         try self.wasm.init(@ptrCast(self), data);
