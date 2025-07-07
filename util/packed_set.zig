@@ -45,3 +45,26 @@ pub fn SparseIntSet(T: type, comptime capacity: usize) type {
         }
     };
 }
+
+test "put and capacity" {
+    var set = SparseIntSet(u8, 3){};
+    try set.put(0);
+    try set.put(1);
+    try set.put(2);
+    try std.testing.expectEqual(@as(u32, 3), set.len);
+    try std.testing.expectError(error.Full, set.put(0));
+}
+
+test "duplicate and delete" {
+    var set = SparseIntSet(u8, 5){};
+    try set.put(1);
+    try set.put(3);
+    try set.put(4);
+    try set.put(1); // duplicate should do nothing
+    try std.testing.expectEqual(@as(u32, 3), set.len);
+
+    try set.delete(3);
+    try std.testing.expectEqual(@as(u32, 2), set.len);
+    const items = set.items();
+    try std.testing.expect(items[0] != 3 and items[1] != 3);
+}

@@ -49,3 +49,33 @@ pub fn FixedArrayList(comptime T: type, comptime capacity: u32) type {
         }
     };
 }
+
+const std = @import("std");
+
+test "basic append and get" {
+    var list = FixedArrayList(u8, 3).init();
+
+    try list.append(1);
+    try list.append(2);
+    try list.append(3);
+    try std.testing.expectEqual(@as(u32, 3), list.len);
+    try std.testing.expectEqualSlices(u8, &[_]u8{ 1, 2, 3 }, list.items());
+
+    try std.testing.expectError(error.OutOfMemory, list.append(4));
+    try std.testing.expectEqual(@as(?u8, 2), list.get(1));
+    try std.testing.expectEqual(@as(?u8, null), list.get(5));
+}
+
+test "insert and swapDelete" {
+    var list = FixedArrayList(u8, 4).init();
+    try list.append(1);
+    try list.append(2);
+    try list.append(4);
+
+    try list.insert(2, 3);
+    try std.testing.expectEqualSlices(u8, &[_]u8{ 1, 2, 3, 4 }, list.items());
+
+    try list.swapDelete(1);
+    try std.testing.expectEqual(@as(u32, 3), list.len);
+    try std.testing.expectEqualSlices(u8, &[_]u8{ 1, 4, 3 }, list.items());
+}
