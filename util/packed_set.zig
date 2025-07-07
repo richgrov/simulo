@@ -30,7 +30,10 @@ pub fn SparseIntSet(T: type, comptime capacity: usize) type {
         }
 
         pub fn delete(self: *Self, value: T) !void {
+            std.debug.assert(self.len > 0);
+
             const index = self.sparse[value];
+            self.sparse[value] = std.math.maxInt(u32);
             if (index == self.len - 1) {
                 self.len -= 1;
             } else {
