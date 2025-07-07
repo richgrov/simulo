@@ -60,6 +60,9 @@ jobs:
       - name: Build project
         run: zig build install --search-prefix extern/onnxruntime
 
+      - name: Run tests
+        run: zig build test
+
       - name: Upload install artifact
         uses: actions/upload-artifact@v4
         with:
@@ -108,6 +111,9 @@ jobs:
 
       - name: Build project
         run: zig build --search-prefix extern/onnxruntime
+
+      - name: Run tests
+        run: zig build test
 
       - name: Upload install artifact
         uses: actions/upload-artifact@v4

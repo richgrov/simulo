@@ -21,3 +21,14 @@ pub fn getResourcePath(name: []const u8, buf: []u8) ![]const u8 {
         else => @compileError("platform not supported"),
     };
 }
+
+test {
+    comptime {
+        _ = reflect;
+        _ = Slab;
+        _ = FixedSlab;
+        _ = FixedArrayList;
+        _ = SparseIntSet;
+        _ = Spsc;
+    }
+}

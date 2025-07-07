@@ -58,3 +58,38 @@ pub fn FixedSlab(T: type, capacity: u32) type {
         }
     };
 }
+
+test "append and get" {
+    var slab = FixedSlab(u32, 3).init();
+
+    const r1 = try slab.append(10);
+    try testing.expectEqual(@as(u32, 0), r1[0]);
+    try testing.expectEqual(@as(u32, 10), r1[1].*);
+
+    const r2 = try slab.append(20);
+    try testing.expectEqual(@as(u32, 1), r2[0]);
+    try testing.expectEqual(@as(u32, 20), r2[1].*);
+
+    const ptr = slab.get(r2[0]).?;
+    try testing.expectEqual(@as(u32, 20), ptr.*);
+}
+
+test "delete and reuse" {
+    var slab = FixedSlab(u8, 2).init();
+
+    const r1 = try slab.append(1);
+    const idx1 = r1[0];
+    _ = try slab.append(2);
+
+    try slab.delete(idx1);
+    try testing.expectEqual(idx1, slab.next_free);
+
+    const r3 = try slab.append(3);
+    try testing.expectEqual(idx1, r3[0]);
+    try testing.expectEqual(@as(u8, 3), r3[1].*);
+}
+
+test "invalid delete" {
+    var slab = FixedSlab(u8, 1).init();
+    try testing.expectError(error.InvalidIndex, slab.delete(5));
+}
