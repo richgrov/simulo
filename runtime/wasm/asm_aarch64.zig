@@ -1,5 +1,8 @@
 const std = @import("std");
 
+const Error = @import("error.zig").Error;
+const Module = @import("deserializer.zig").Module;
+
 const Register = enum(u32) {
     x0,
     x1,
@@ -69,7 +72,22 @@ const Assembler = struct {
     }
 };
 
-pub fn writeAssembly(target: *anyopaque) void {
+pub fn writeAssembly(target: *anyopaque, module: *const Module) !?Error {
+    for (0..module.functions.len) |i| {
+        const code = &module.codes[i];
+        const type_idx = module.functions[i];
+        const function_type = module.types[type_idx];
+        _ = function_type;
+
+        for (code.instructions) |instruction| {
+            switch (instruction) {
+                else => {
+                    return Error{ .invalid_instruction = instruction };
+                },
+            }
+        }
+    }
+
     const assembly: [*c]u32 = @alignCast(@ptrCast(target));
     var assembler = Assembler.init(assembly);
     assembler.push(Register.lr);
@@ -79,4 +97,5 @@ pub fn writeAssembly(target: *anyopaque) void {
     assembler.pop(Register.lr);
     assembler.mov_reg_to_reg(Register.x1, Register.x0);
     assembler.ret();
+    return null;
 }

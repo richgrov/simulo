@@ -16,7 +16,9 @@ pub const Remote = @import("remote/remote.zig").Remote;
 pub const Renderer = @import("render/renderer.zig").Renderer;
 pub const Window = @import("window/window.zig").Window;
 
-pub const Wasm = @import("wasm/wasm.zig").Wasm;
+const wasm = @import("wasm/wasm.zig");
+pub const Wasm = wasm.Wasm;
+pub const WasmError = wasm.Error;
 
 const inference = @import("inference/inference.zig");
 pub const Inference = inference.Inference;
@@ -191,7 +193,9 @@ pub const Runtime = struct {
     }
 
     pub fn deinit(self: *Runtime) void {
-        self.wasm.deinit();
+        self.wasm.deinit() catch |err| {
+            self.remote.log("wasm deinit failed: {any}", .{err});
+        };
         self.masks.deinit();
         self.objects.deinit();
         self.object_ids.deinit();
@@ -203,7 +207,9 @@ pub const Runtime = struct {
     }
 
     fn runProgram(self: *Runtime, program_url: []const u8) !void {
-        self.wasm.deinit();
+        self.wasm.deinit() catch |err| {
+            self.remote.log("wasm deinit failed: {any}", .{err});
+        };
 
         var i: usize = 0;
         while (i < self.objects.items.len) {
@@ -226,7 +232,12 @@ pub const Runtime = struct {
         const data = try std.fs.cwd().readFileAlloc(self.allocator, local_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
-        try self.wasm.init(@ptrCast(self), data);
+        var err: ?WasmError = null;
+        self.wasm.init(self.allocator, @ptrCast(self), data, &err) catch |err_code| {
+            self.remote.log("wasm initialization failed: {any}: {any}", .{ err_code, err });
+            return error.WasmInitFailed;
+        };
+
         self.init_func = self.wasm.getFunction("init") orelse {
             self.remote.log("program missing init function", .{});
             return error.MissingInitFunction;

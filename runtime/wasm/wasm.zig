@@ -1,5 +1,10 @@
 const std = @import("std");
+const build_options = @import("build_options");
 
+const allocation = @import("allocate.zig");
+const assembly = @import("asm.zig");
+const deserializer = @import("deserializer.zig");
+pub const Error = @import("error.zig").Error;
 const reflect = @import("util").reflect;
 
 const wasm = @cImport({
@@ -40,6 +45,7 @@ pub const Wasm = struct {
     module: wasm.wasm_module_t = null,
     module_instance: wasm.wasm_module_inst_t = null,
     exec_env: wasm.wasm_exec_env_t = null,
+    buffer: ?*anyopaque,
 
     pub const Function = *wasm.WASMFunctionInstanceCommon;
 
@@ -126,28 +132,61 @@ pub const Wasm = struct {
         self.exec_env = null;
     }
 
-    pub fn init(self: *Wasm, user_data: *anyopaque, data: []const u8) !void {
+    pub fn init(self: *Wasm, allocator: std.mem.Allocator, user_data: *anyopaque, data: []const u8, err_out: *?Error) !void {
         var error_buf: [1024 * 10]u8 = undefined;
-        self.module = wasm.wasm_runtime_load(@constCast(data.ptr), @intCast(data.len), @ptrCast(&error_buf), error_buf.len) orelse return error.WasmLoadFailed;
-        errdefer wasm.wasm_runtime_unload(self.module);
-        self.module_instance = wasm.wasm_runtime_instantiate(self.module, 1024 * 8, 1024 * 64, @ptrCast(&error_buf), @intCast(error_buf.len)) orelse return error.WasmInstantiateFailed;
-        errdefer wasm.wasm_runtime_deinstantiate(self.module_instance);
-        self.exec_env = wasm.wasm_runtime_create_exec_env(self.module_instance, 1024 * 8) orelse return error.WasmExecEnvCreateFailed;
-        wasm.wasm_runtime_set_user_data(self.exec_env, user_data);
+        const module = wasm.wasm_runtime_load(@constCast(data.ptr), @intCast(data.len), @ptrCast(&error_buf), error_buf.len) orelse return error.WasmLoadFailed;
+        errdefer wasm.wasm_runtime_unload(module);
+
+        const module_instance = wasm.wasm_runtime_instantiate(module, 1024 * 8, 1024 * 64, @ptrCast(&error_buf), @intCast(error_buf.len)) orelse return error.WasmInstantiateFailed;
+        errdefer wasm.wasm_runtime_deinstantiate(module_instance);
+
+        const exec_env = wasm.wasm_runtime_create_exec_env(module_instance, 1024 * 8) orelse return error.WasmExecEnvCreateFailed;
+        wasm.wasm_runtime_set_user_data(exec_env, user_data);
+        errdefer wasm.wasm_runtime_destroy_exec_env(exec_env);
+
+        if (build_options.new_wasm) {
+            var raw_module = try deserializer.parseModule(allocator, data);
+            errdefer raw_module.deinit(allocator);
+
+            const buffer = try allocation.allocateExecutable(4 * 1024);
+            errdefer allocation.free(buffer, 4 * 1024) catch {};
+
+            if (try assembly.writeAssembly(buffer, &raw_module)) |err| {
+                err_out.* = err;
+                return error.WasmCompileFailed;
+            }
+
+            allocation.finishAllocation(buffer, 4 * 1024);
+            const func: *const fn (x: u64) callconv(.C) u64 = @alignCast(@ptrCast(buffer));
+            _ = func;
+            self.buffer = buffer;
+        }
+
+        self.module = module;
+        self.module_instance = module_instance;
+        self.exec_env = exec_env;
     }
 
-    pub fn deinit(self: *Wasm) void {
+    pub fn deinit(self: *Wasm) !void {
         if (self.exec_env) |exec_env| {
             wasm.wasm_runtime_destroy_exec_env(exec_env);
         }
+        self.exec_env = null;
 
         if (self.module_instance) |module_instance| {
             wasm.wasm_runtime_deinstantiate(module_instance);
         }
+        self.module_instance = null;
 
         if (self.module) |module| {
             wasm.wasm_runtime_unload(module);
         }
+        self.module = null;
+
+        if (self.buffer) |buffer| {
+            try allocation.free(buffer, 4 * 1024);
+        }
+        self.buffer = null;
     }
 
     pub fn getFunction(self: *Wasm, name: []const u8) ?Function {
