@@ -40,6 +40,10 @@ const MaterialPass = struct {
             .mesh_passes = std.AutoHashMap(u16, u16).init(allocator),
         };
     }
+
+    pub fn deinit(self: *MaterialPass) void {
+        self.mesh_passes.deinit();
+    }
 };
 
 const RenderCollection = struct {
@@ -49,6 +53,10 @@ const RenderCollection = struct {
         return RenderCollection{
             .material_passes = std.AutoHashMap(u16, u16).init(allocator),
         };
+    }
+
+    pub fn deinit(self: *RenderCollection) void {
+        self.material_passes.deinit();
     }
 };
 
@@ -97,6 +105,18 @@ pub const Renderer = struct {
 
     pub fn deinit(self: *Renderer) void {
         ffi.destroy_renderer(self.handle);
+        self.objects.deinit();
+        self.mesh_passes.deinit();
+
+        for (&self.render_collections) |*collection| {
+            var material_passes = collection.material_passes.valueIterator();
+            while (material_passes.next()) |mat_pass_id| {
+                var material_pass = self.material_passes.get(mat_pass_id.*).?;
+                material_pass.deinit();
+            }
+
+            collection.deinit();
+        }
     }
 
     pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32) !MaterialHandle {
