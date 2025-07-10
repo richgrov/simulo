@@ -8,6 +8,7 @@ const MAP_ANONYMOUS = 0x1000;
 const MAP_FAILED: *anyopaque = @ptrFromInt(0xFFFFFFFFFFFFFFFF);
 
 extern fn mmap(addr: ?*anyopaque, len: usize, prot: c_int, flags: c_int, fd: c_int, offset: usize) callconv(.C) *align(16) anyopaque;
+extern fn munmap(addr: *anyopaque, len: usize) callconv(.C) c_int;
 extern fn pthread_jit_write_protect_np(enable: c_int) callconv(.C) void;
 extern fn sys_icache_invalidate(addr: *anyopaque, len: usize) callconv(.C) void;
 
@@ -24,4 +25,10 @@ pub fn allocateExecutable(len: usize) !*anyopaque {
 pub fn finishAllocation(ptr: *anyopaque, len: usize) void {
     pthread_jit_write_protect_np(1);
     sys_icache_invalidate(ptr, len);
+}
+
+pub fn free(ptr: *anyopaque, len: usize) !void {
+    if (munmap(ptr, len) != 0) {
+        return error.MunmapFailed;
+    }
 }

@@ -15,3 +15,10 @@ pub fn finishAllocation(ptr: *anyopaque, len: usize) void {
         else => @compileError("unsupported platform"),
     }
 }
+
+pub fn free(ptr: *anyopaque, len: usize) !void {
+    return switch (comptime builtin.os.tag) {
+        .macos => allocate_macos.free(ptr, len),
+        else => @compileError("unsupported platform"),
+    };
+}
