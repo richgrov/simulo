@@ -549,7 +549,7 @@ pub fn createChessboard(renderer: *Renderer) Renderer.ImageHandle {
     const width = 1280;
     const height = 800;
     const square = 160;
-    const radius: i32 = 20;
+    const radius: i32 = square / 2;
     const radius_sq = radius * radius;
     const cols = width / square;
     const rows = height / square;
