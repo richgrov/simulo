@@ -45,7 +45,7 @@ pub const Wasm = struct {
     module: wasm.wasm_module_t = null,
     module_instance: wasm.wasm_module_inst_t = null,
     exec_env: wasm.wasm_exec_env_t = null,
-    buffer: ?*anyopaque,
+    buffer: ?*anyopaque = null,
 
     pub const Function = *wasm.WASMFunctionInstanceCommon;
 
@@ -130,6 +130,7 @@ pub const Wasm = struct {
         self.module = null;
         self.module_instance = null;
         self.exec_env = null;
+        self.buffer = null;
     }
 
     pub fn init(self: *Wasm, allocator: std.mem.Allocator, user_data: *anyopaque, data: []const u8, err_out: *?Error) !void {
@@ -183,10 +184,12 @@ pub const Wasm = struct {
         }
         self.module = null;
 
-        if (self.buffer) |buffer| {
-            try allocation.free(buffer, 4 * 1024);
+        if (comptime build_options.new_wasm) {
+            if (self.buffer) |buffer| {
+                try allocation.free(buffer, 4 * 1024);
+            }
+            self.buffer = null;
         }
-        self.buffer = null;
     }
 
     pub fn getFunction(self: *Wasm, name: []const u8) ?Function {
