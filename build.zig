@@ -113,6 +113,15 @@ pub fn build(b: *std.Build) !void {
         "runtime/inference/rtmo-m.onnx",
     });
     check_step.dependOn(&runtime.step);
+
+    const ttf_example = b.addExecutable(.{
+        .name = "ttf_example",
+        .root_source_file = b.path("runtime/ttf/example.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    ttf_example.root_module.addImport("util", util);
+    check_step.dependOn(&ttf_example.step);
 }
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
