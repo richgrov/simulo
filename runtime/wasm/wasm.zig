@@ -144,7 +144,7 @@ pub const Wasm = struct {
         wasm.wasm_runtime_set_user_data(exec_env, user_data);
         errdefer wasm.wasm_runtime_destroy_exec_env(exec_env);
 
-        if (build_options.new_wasm) {
+        if (comptime build_options.new_wasm) {
             var raw_module = try deserializer.parseModule(allocator, data);
             errdefer raw_module.deinit(allocator);
 
