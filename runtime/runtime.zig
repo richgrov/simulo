@@ -138,6 +138,7 @@ pub const Runtime = struct {
         errdefer Wasm.globalDeinit();
         try Wasm.exposeFunction("simulo_set_pose_buffer", wasmSetPoseBuffer);
         try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
+        try Wasm.exposeFunction("simulo_set_object_material", wasmSetObjectMaterial);
         try Wasm.exposeFunction("simulo_set_object_position", wasmSetObjectPosition);
         try Wasm.exposeFunction("simulo_set_object_scale", wasmSetObjectScale);
         try Wasm.exposeFunction("simulo_get_object_x", wasmGetObjectX);
@@ -518,6 +519,17 @@ pub const Runtime = struct {
     fn wasmDeleteObject(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         runtime.deleteObject(id);
+    }
+
+    fn wasmSetObjectMaterial(user_ptr: *anyopaque, id: u32, material_id: u32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.getObject(id) orelse {
+            runtime.remote.log("tried to set material of non-existent object {x}", .{id});
+            return;
+        };
+        runtime.renderer.setObjectMaterial(obj.handle, .{ .id = material_id }) catch |err| {
+            runtime.remote.log("failed to set material of object {d}: {any}", .{ id, err });
+        };
     }
 
     fn wasmRandom(user_ptr: *anyopaque) f32 {

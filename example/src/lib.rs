@@ -23,6 +23,12 @@ impl GameObject {
         }
     }
 
+    pub fn set_material(&self, material: &Material) {
+        unsafe {
+            simulo_set_object_material(self.0, material.0);
+        }
+    }
+
     pub fn delete(&self) {
         unsafe {
             simulo_delete_object(self.0);
@@ -163,6 +169,7 @@ unsafe extern "C" {
     fn simulo_set_object_scale(id: u32, x: f32, y: f32);
     fn simulo_get_object_x(id: u32) -> f32;
     fn simulo_get_object_y(id: u32) -> f32;
+    fn simulo_set_object_material(id: u32, material: u32);
     fn simulo_delete_object(id: u32);
     fn simulo_random() -> f32;
     fn simulo_window_width() -> i32;

@@ -142,23 +142,8 @@ pub const Renderer = struct {
     }
 
     pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle, render_order: u8) !ObjectHandle {
-        const material_passes = &self.render_collections[render_order].material_passes;
-        const material_pass = if (material_passes.get(@intCast(material.id))) |mat_pass_id|
-            self.material_passes.get(mat_pass_id).?
-        else cond: {
-            const mat_pass_id, const result = try self.material_passes.append(MaterialPass.init(self.allocator)); // todo handle error
-            try material_passes.put(@intCast(material.id), @intCast(mat_pass_id));
-            break :cond result;
-        };
-
-        const mesh_passes = &material_pass.mesh_passes;
-        const mesh_pass = if (mesh_passes.get(@intCast(mesh.id))) |mesh_pass_id|
-            self.mesh_passes.get(mesh_pass_id).?
-        else cond: {
-            const mesh_pass_id, const result = try self.mesh_passes.insert(.{}); // todo handle error
-            try mesh_passes.put(@intCast(mesh.id), @intCast(mesh_pass_id));
-            break :cond result;
-        };
+        const material_pass = try self.getOrInsertMaterialPass(&self.render_collections[render_order], @intCast(material.id));
+        const mesh_pass = try self.getOrInsertMeshPass(material_pass, @intCast(mesh.id));
 
         const obj_id, _ = try self.objects.insert(.{
             .transform = transform,
@@ -168,6 +153,24 @@ pub const Renderer = struct {
         });
         try mesh_pass.objects.put(@intCast(obj_id));
         return ObjectHandle{ .id = @intCast(obj_id) };
+    }
+
+    pub fn setObjectMaterial(self: *Renderer, object: ObjectHandle, material: MaterialHandle) !void {
+        const obj = self.objects.get(object.id).?;
+
+        if (obj.material == material.id) return;
+
+        const collection = &self.render_collections[obj.render_order];
+        const material_pass_id = collection.material_passes.get(obj.material).?;
+        const material_pass = self.material_passes.get(material_pass_id).?;
+        const mesh_pass_id = material_pass.mesh_passes.get(obj.mesh).?;
+        const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
+        mesh_pass.objects.delete(@intCast(object.id)) catch unreachable;
+
+        obj.material = @intCast(material.id);
+        const new_mat_pass = try self.getOrInsertMaterialPass(collection, @intCast(material.id));
+        const new_mesh_pass = try self.getOrInsertMeshPass(new_mat_pass, @intCast(obj.mesh));
+        try new_mesh_pass.objects.put(@intCast(object.id));
     }
 
     pub fn setObjectTransform(self: *Renderer, object: ObjectHandle, transform: Mat4) void {
@@ -195,6 +198,26 @@ pub const Renderer = struct {
             self.renderMetal(ui_view_projection, world_view_projection);
         } else {
             try self.renderVulkan(window, ui_view_projection, world_view_projection);
+        }
+    }
+
+    fn getOrInsertMaterialPass(self: *Renderer, collection: *RenderCollection, material_id: u16) !*MaterialPass {
+        if (collection.material_passes.get(material_id)) |mat_pass_id| {
+            return self.material_passes.get(mat_pass_id).?;
+        } else {
+            const mat_pass_id, const result = try self.material_passes.append(MaterialPass.init(self.allocator)); // todo handle error
+            try collection.material_passes.put(material_id, @intCast(mat_pass_id));
+            return result;
+        }
+    }
+
+    fn getOrInsertMeshPass(self: *Renderer, pass: *MaterialPass, mesh_id: u16) !*MeshPass {
+        if (pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
+            return self.mesh_passes.get(mesh_pass_id).?;
+        } else {
+            const mesh_pass_id, const result = try self.mesh_passes.insert(.{}); // todo handle error
+            try pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
+            return result;
         }
     }
 
