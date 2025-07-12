@@ -546,19 +546,85 @@ pub const Runtime = struct {
 };
 
 pub fn createChessboard(renderer: *Renderer) Renderer.ImageHandle {
-    var checkerboard: [1280 * 800 * 4]u8 = undefined;
+    const width = 1280;
+    const height = 800;
+    const square = 160;
+    const radius: i32 = square / 2;
+    const radius_sq = radius * radius;
+    const cols = width / square;
+    const rows = height / square;
+
+    var checkerboard: [width * height * 4]u8 = undefined;
     @memset(&checkerboard, 0);
-    for (0..1280) |x| {
-        for (0..800) |y| {
-            const x_square = x / 160;
-            const y_square = y / 160;
+
+    for (0..width) |x| {
+        for (0..height) |y| {
+            var white = false;
+            const x_square = x / square;
+            const y_square = y / square;
             if (x_square % 2 == y_square % 2) {
-                checkerboard[(y * 1280 + x) * 4 + 0] = 0xFF;
-                checkerboard[(y * 1280 + x) * 4 + 1] = 0xFF;
-                checkerboard[(y * 1280 + x) * 4 + 2] = 0xFF;
+                white = true;
+
+                const local_x: i32 = @intCast(x % square);
+                const local_y: i32 = @intCast(y % square);
+
+                const top = y_square == 0;
+                const bottom = y_square == rows - 1;
+                const left = x_square == 0;
+                const right = x_square == cols - 1;
+
+                if (top and local_y < radius) {
+                    if (local_x < radius) {
+                        const dx = radius - local_x;
+                        const dy = radius - local_y;
+                        if (dx * dx + dy * dy > radius_sq) white = false;
+                    } else if (local_x >= square - radius) {
+                        const dx = local_x - (square - radius);
+                        const dy = radius - local_y;
+                        if (dx * dx + dy * dy > radius_sq) white = false;
+                    }
+                }
+
+                if (bottom and local_y >= square - radius) {
+                    if (local_x < radius) {
+                        const dx = radius - local_x;
+                        const dy = local_y - (square - radius);
+                        if (dx * dx + dy * dy > radius_sq) white = false;
+                    } else if (local_x >= square - radius) {
+                        const dx = local_x - (square - radius);
+                        const dy = local_y - (square - radius);
+                        if (dx * dx + dy * dy > radius_sq) white = false;
+                    }
+                }
+
+                if (left and local_x < radius and !top and local_y < radius) {
+                    const dx = radius - local_x;
+                    const dy = radius - local_y;
+                    if (dx * dx + dy * dy > radius_sq) white = false;
+                } else if (left and local_x < radius and !bottom and local_y >= square - radius) {
+                    const dx = radius - local_x;
+                    const dy = local_y - (square - radius);
+                    if (dx * dx + dy * dy > radius_sq) white = false;
+                }
+
+                if (right and local_x >= square - radius and !top and local_y < radius) {
+                    const dx = local_x - (square - radius);
+                    const dy = radius - local_y;
+                    if (dx * dx + dy * dy > radius_sq) white = false;
+                } else if (right and local_x >= square - radius and !bottom and local_y >= square - radius) {
+                    const dx = local_x - (square - radius);
+                    const dy = local_y - (square - radius);
+                    if (dx * dx + dy * dy > radius_sq) white = false;
+                }
             }
-            checkerboard[(y * 1280 + x) * 4 + 3] = 0xFF;
+
+            if (white) {
+                checkerboard[(y * width + x) * 4 + 0] = 0xFF;
+                checkerboard[(y * width + x) * 4 + 1] = 0xFF;
+                checkerboard[(y * width + x) * 4 + 2] = 0xFF;
+            }
+            checkerboard[(y * width + x) * 4 + 3] = 0xFF;
         }
     }
-    return renderer.createImage(&checkerboard, 1280, 800);
+    return renderer.createImage(&checkerboard, width, height);
 }
