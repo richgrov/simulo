@@ -216,7 +216,6 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         runtime.linkSystemLibrary("vulkan-1");
     } else if (os == .macos) {
         cpp_sources.appendSlice(&[_][]const u8{
-            "runtime/gpu/metal/buffer.mm",
             "runtime/gpu/metal/command_queue.mm",
             "runtime/gpu/metal/gpu.mm",
             "runtime/gpu/metal/image.mm",

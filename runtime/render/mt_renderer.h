@@ -12,8 +12,8 @@
 #import <QuartzCore/QuartzCore.h>
 #endif
 
+#include "ffi.h"
 #include "gpu/gpu.h"
-#include "gpu/metal/buffer.h"
 #include "gpu/metal/command_queue.h"
 #include "gpu/metal/image.h"
 #include "gpu/metal/render_pipeline.h"
@@ -65,7 +65,11 @@ private:
 
 struct Material {
    RenderPipeline pipeline;
-   Buffer uniform_buffer;
+#ifdef __OBJC__
+   id<MTLBuffer> uniform_buffer;
+#else
+   void *uniform_buffer;
+#endif
    std::vector<RenderImage> images;
    std::unordered_map<RenderMesh, std::unordered_set<int>> mesh_instances;
 };
@@ -74,16 +78,8 @@ struct MaterialPipeline {
    Pipeline pipeline;
 };
 
-struct MeshInstance {
-   Mat4 transform;
-   RenderMesh mesh;
-   RenderMaterial material;
-};
-
 class Renderer {
 public:
-   using IndexBufferType = VertexIndexBuffer::IndexType;
-
    Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer);
    ~Renderer();
 
@@ -96,25 +92,7 @@ public:
       }
 
       Uniform data(Uniform::from_props(props));
-      int id = materials_.emplace(
-          Material{
-              .pipeline = pipeline_id,
-              .uniform_buffer =
-                  Buffer(gpu_, std::span(reinterpret_cast<uint8_t *>(&data), sizeof(data))),
-              .images = std::move(images),
-          }
-      );
-
-      return static_cast<RenderMaterial>(id);
-   }
-
-   RenderMesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data) {
-      int id = meshes_.emplace(VertexIndexBuffer::concat(gpu_, vertex_data, index_data));
-      return static_cast<RenderMesh>(id);
-   }
-
-   void delete_mesh(RenderMesh mesh) {
-      meshes_.release(static_cast<int>(mesh));
+      return do_create_material(pipeline_id, &data, sizeof(data), std::move(images));
    }
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height) {
@@ -131,6 +109,10 @@ public:
    const Pipelines &pipelines() {
       return pipelines_;
    }
+
+   RenderMaterial do_create_material(
+       RenderPipeline pipeline_id, void *data, size_t size, std::vector<RenderImage> &&images
+   );
 
    Gpu &gpu_;
 
@@ -155,9 +137,7 @@ public:
    std::vector<MaterialPipeline> render_pipelines_;
    Slab<Image> images_;
    Slab<Material> materials_;
-   Slab<VertexIndexBuffer> meshes_;
-   int last_mesh_id_;
-   VertexIndexBuffer geometry_;
+   Mesh *last_binded_mesh_;
    Pipelines pipelines_;
    CommandQueue command_queue_;
 };

@@ -8,6 +8,7 @@
 
 #if defined(VKAD_APPLE) && defined(__OBJC__)
 #include <AVFoundation/AVFoundation.h>
+#import <Metal/Metal.h>
 #endif
 
 #ifdef __cplusplus
@@ -90,6 +91,18 @@ typedef struct {
    double data[9];
 } FfiMat3;
 
+typedef uint16_t IndexBufferType;
+
+typedef struct {
+#if defined(VKAD_APPLE) && defined(__OBJC__)
+   id<MTLBuffer> buffer;
+#else
+   void *buffer;
+#endif
+   size_t indices_start;
+   IndexBufferType num_indices;
+} Mesh;
+
 OpenCvMat *create_opencv_mat(int rows, int cols);
 void destroy_opencv_mat(OpenCvMat *mat);
 unsigned char *get_opencv_mat_data(OpenCvMat *mat);
@@ -99,11 +112,11 @@ Renderer *create_renderer(Gpu *gpu, const Window *window);
 void destroy_renderer(Renderer *renderer);
 uint32_t create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b);
 uint32_t create_mesh_material(Renderer *renderer, float r, float g, float b);
-uint32_t create_mesh(
-    Renderer *renderer, uint8_t *vertex_data, size_t vertex_size, uint16_t *index_data,
+Mesh create_mesh(
+    Renderer *renderer, uint8_t *vertex_data, size_t vertex_data_size, IndexBufferType *index_data,
     size_t index_count
 );
-void delete_mesh(Renderer *renderer, uint32_t mesh_id);
+void delete_mesh(Renderer *renderer, Mesh *mesh);
 uint32_t
 add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_t material_id);
 void delete_object(Renderer *renderer, uint32_t object_id);
@@ -116,7 +129,7 @@ bool render(
 bool begin_render(Renderer *renderer);
 void set_pipeline(Renderer *renderer, uint32_t pipeline_id);
 void set_material(Renderer *renderer, uint32_t material_id);
-void set_mesh(Renderer *renderer, uint32_t mesh_id);
+void set_mesh(Renderer *renderer, Mesh *mesh);
 void render_object(Renderer *renderer, const float *transform);
 void end_render(Renderer *renderer);
 

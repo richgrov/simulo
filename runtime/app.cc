@@ -119,7 +119,8 @@ uint32_t create_mesh_material(Renderer *renderer, float r, float g, float b) {
    );
 }
 
-uint32_t create_mesh(
+#ifndef VKAD_APPLE
+Mesh create_mesh(
     Renderer *renderer, uint8_t *vertex_data, size_t vertex_size, uint16_t *index_data,
     size_t index_count
 ) {
@@ -134,7 +135,6 @@ void delete_mesh(Renderer *renderer, uint32_t mesh_id) {
    renderer->delete_mesh(static_cast<RenderMesh>(mesh_id));
 }
 
-#ifndef VKAD_APPLE
 uint32_t
 add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_t material_id) {
    Mat4 mat4_transform;

@@ -12,44 +12,23 @@
 
 #include "ffi.h"
 #include "gpu/gpu.h"
-#include "gpu/metal/buffer.h"
 #include "gpu/metal/command_queue.h"
 #include "gpu/metal/image.h"
 #include "math/vector.h"
 #include "render/model.h"
 #include "render/ui.h"
 #include "ui.h"
+#include "util/memory.h"
 
 using namespace simulo;
 
-namespace {
-
-constexpr UiVertex triangle[] = {
-    {{0, 0, 0.0f}, {0.0f, 1.0f}},
-    {{0, 1, 0.0f}, {0.0f, 0.0f}},
-    {{1, 0, 0.0f}, {1.0f, 1.0f}},
-    {{1, 1, 0.0f}, {1.0f, 0.0f}},
-};
-
-constexpr uint16_t indices[] = {0, 1, 2, 1, 3, 2};
-
-} // namespace
+namespace {} // namespace
 
 Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
     : gpu_(gpu),
       images_(4),
       materials_(1024),
-      meshes_(32),
       metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)),
-      geometry_(
-          VertexIndexBuffer::concat(
-              gpu_,
-              std::span<const uint8_t>(
-                  reinterpret_cast<const uint8_t *>(triangle), sizeof(triangle)
-              ),
-              std::span<const uint16_t>(indices, 6)
-          )
-      ),
       command_queue_(gpu) {
    pipelines_.ui = static_cast<RenderPipeline>(render_pipelines_.size());
    render_pipelines_.emplace_back(
@@ -76,6 +55,47 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
 }
 
 Renderer::~Renderer() {}
+
+RenderMaterial Renderer::do_create_material(
+    RenderPipeline pipeline_id, void *data, size_t size, std::vector<RenderImage> &&images
+) {
+   id<MTLBuffer> buf = [gpu_.device() newBufferWithBytes:data
+                                                  length:size
+                                                 options:MTLResourceStorageModeShared];
+   int id = materials_.emplace(
+       Material{
+           .pipeline = pipeline_id,
+           .uniform_buffer = buf,
+           .images = std::move(images),
+       }
+   );
+
+   return static_cast<RenderMaterial>(id);
+}
+
+Mesh create_mesh(
+    Renderer *renderer, uint8_t *vertex_data, size_t vertex_data_size, IndexBufferType *index_data,
+    size_t index_count
+) {
+   size_t indices_start = align_to(vertex_data_size, (size_t)4);
+   size_t indices_size = index_count * sizeof(IndexBufferType);
+
+   std::vector<uint8_t> data(indices_start + indices_size);
+   memcpy(data.data(), vertex_data, vertex_data_size);
+   memcpy(data.data() + indices_start, index_data, indices_size);
+
+   return Mesh{
+       .buffer = [renderer->gpu_.device() newBufferWithBytes:data.data()
+                                                      length:data.size()
+                                                     options:MTLResourceStorageModeShared],
+       .indices_start = indices_start,
+       .num_indices = static_cast<IndexBufferType>(index_count),
+   };
+}
+
+void delete_mesh(Renderer *renderer, Mesh *mesh) {
+   [mesh->buffer release];
+}
 
 bool begin_render(Renderer *renderer) {
    renderer->render_pool_ = [[NSAutoreleasePool alloc] init];
@@ -116,7 +136,7 @@ void set_pipeline(Renderer *renderer, uint32_t pipeline_id_unused) {
 
 void set_material(Renderer *renderer, uint32_t material_id) {
    const Material &mat = renderer->materials_.get(material_id);
-   [renderer->render_encoder_ setFragmentBuffer:mat.uniform_buffer.buffer() offset:0 atIndex:0];
+   [renderer->render_encoder_ setFragmentBuffer:mat.uniform_buffer offset:0 atIndex:0];
 
    for (int i = 0; i < mat.images.size(); ++i) {
       RenderImage img_id = mat.images[i];
@@ -125,10 +145,9 @@ void set_material(Renderer *renderer, uint32_t material_id) {
    }
 }
 
-void set_mesh(Renderer *renderer, uint32_t mesh_id) {
-   renderer->last_mesh_id_ = mesh_id;
-   VertexIndexBuffer &buf = renderer->meshes_.get(mesh_id);
-   [renderer->render_encoder_ setVertexBuffer:buf.buffer() offset:0 atIndex:0];
+void set_mesh(Renderer *renderer, Mesh *mesh) {
+   renderer->last_binded_mesh_ = mesh;
+   [renderer->render_encoder_ setVertexBuffer:mesh->buffer offset:0 atIndex:0];
 }
 
 void render_object(Renderer *renderer, const float *transform) {
@@ -136,10 +155,11 @@ void render_object(Renderer *renderer, const float *transform) {
                                       length:sizeof(Mat4)
                                      atIndex:1];
 
-   VertexIndexBuffer &buf = renderer->meshes_.get(renderer->last_mesh_id_);
+   static_assert(sizeof(IndexBufferType) == 2, "IndexBufferType != MTLIndexTypeUInt16");
+
    [renderer->render_encoder_ drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-                                         indexCount:buf.num_indices()
-                                          indexType:VertexIndexBuffer::kIndexType
-                                        indexBuffer:buf.buffer()
-                                  indexBufferOffset:buf.index_offset()];
+                                         indexCount:renderer->last_binded_mesh_->num_indices
+                                          indexType:MTLIndexTypeUInt16
+                                        indexBuffer:renderer->last_binded_mesh_->buffer
+                                  indexBufferOffset:renderer->last_binded_mesh_->indices_start];
 }

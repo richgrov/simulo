@@ -64,7 +64,7 @@ pub const Renderer = struct {
     allocator: std.mem.Allocator,
     handle: *ffi.Renderer,
     objects: Slab(Object),
-    meshes: FixedSlab(u32, MAX_MESHES),
+    meshes: FixedSlab(ffi.Mesh, MAX_MESHES),
     mesh_passes: Slab(MeshPass),
     materials: FixedSlab(u32, MAX_MATERIALS),
     material_passes: FixedSlab(MaterialPass, MAX_MATERIALS),
@@ -90,7 +90,7 @@ pub const Renderer = struct {
             .allocator = allocator,
             .handle = renderer,
             .objects = objects,
-            .meshes = FixedSlab(u32, MAX_MESHES).init(),
+            .meshes = FixedSlab(ffi.Mesh, MAX_MESHES).init(),
             .mesh_passes = mesh_passes,
             .materials = FixedSlab(u32, MAX_MATERIALS).init(),
             .material_passes = FixedSlab(MaterialPass, MAX_MATERIALS).init(),
@@ -132,13 +132,14 @@ pub const Renderer = struct {
     }
 
     pub fn createMesh(self: *Renderer, vertices: []const u8, indices: []const u16) !MeshHandle {
-        const id = ffi.create_mesh(self.handle, @constCast(@ptrCast(vertices.ptr)), vertices.len, @constCast(@ptrCast(indices.ptr)), indices.len);
-        const key, _ = try self.meshes.append(id);
+        const mesh = ffi.create_mesh(self.handle, @constCast(@ptrCast(vertices.ptr)), vertices.len, @constCast(@ptrCast(indices.ptr)), indices.len);
+        const key, _ = try self.meshes.append(mesh);
         return MeshHandle{ .id = key };
     }
 
-    pub fn deleteMesh(self: *Renderer, mesh: MeshHandle) void {
-        ffi.delete_mesh(self.handle, mesh.id);
+    pub fn deleteMesh(self: *Renderer, id: MeshHandle) void {
+        const mesh = self.meshes.get(id.id).?;
+        ffi.delete_mesh(self.handle, mesh);
     }
 
     pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle, render_order: u8) !ObjectHandle {
@@ -205,7 +206,10 @@ pub const Renderer = struct {
         if (collection.material_passes.get(material_id)) |mat_pass_id| {
             return self.material_passes.get(mat_pass_id).?;
         } else {
-            const mat_pass_id, const result = try self.material_passes.append(MaterialPass.init(self.allocator)); // todo handle error
+            var new_pass = MaterialPass.init(self.allocator);
+            errdefer new_pass.deinit();
+            const mat_pass_id, const result = try self.material_passes.append(new_pass);
+            errdefer self.material_passes.delete(mat_pass_id) catch unreachable;
             try collection.material_passes.put(material_id, @intCast(mat_pass_id));
             return result;
         }
@@ -215,7 +219,8 @@ pub const Renderer = struct {
         if (pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
             return self.mesh_passes.get(mesh_pass_id).?;
         } else {
-            const mesh_pass_id, const result = try self.mesh_passes.insert(.{}); // todo handle error
+            const mesh_pass_id, const result = try self.mesh_passes.insert(.{});
+            errdefer self.mesh_passes.delete(mesh_pass_id) catch unreachable;
             try pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
             return result;
         }
@@ -246,7 +251,7 @@ pub const Renderer = struct {
                     const mesh_pass_id = mesh_entry.value_ptr.*;
 
                     const mesh = self.meshes.get(mesh_id).?;
-                    ffi.set_mesh(self.handle, mesh.*);
+                    ffi.set_mesh(self.handle, mesh);
 
                     const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
                     for (mesh_pass.objects.items()) |instance| {
