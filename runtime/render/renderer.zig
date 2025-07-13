@@ -66,7 +66,7 @@ pub const Renderer = struct {
     objects: Slab(Object),
     meshes: FixedSlab(ffi.Mesh, MAX_MESHES),
     mesh_passes: Slab(MeshPass),
-    materials: FixedSlab(u32, MAX_MATERIALS),
+    materials: FixedSlab(ffi.Material, MAX_MATERIALS),
     material_passes: FixedSlab(MaterialPass, MAX_MATERIALS),
     render_collections: [MAX_RENDER_LAYERS]RenderCollection = undefined,
 
@@ -92,7 +92,7 @@ pub const Renderer = struct {
             .objects = objects,
             .meshes = FixedSlab(ffi.Mesh, MAX_MESHES).init(),
             .mesh_passes = mesh_passes,
-            .materials = FixedSlab(u32, MAX_MATERIALS).init(),
+            .materials = FixedSlab(ffi.Material, MAX_MATERIALS).init(),
             .material_passes = FixedSlab(MaterialPass, MAX_MATERIALS).init(),
         };
 
@@ -120,16 +120,16 @@ pub const Renderer = struct {
     }
 
     pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32) !MaterialHandle {
-        const id = ffi.create_ui_material(self.handle, image.id, r, g, b);
-        const key, _ = try self.materials.append(id);
+        const mat = ffi.create_ui_material(self.handle, image.id, r, g, b);
+        const key, _ = try self.materials.append(mat);
         return .{ .id = key };
     }
 
-    pub fn createMeshMaterial(self: *Renderer, r: f32, g: f32, b: f32) !MaterialHandle {
-        const id = ffi.create_mesh_material(self.handle, r, g, b);
-        const key, _ = try self.materials.append(id);
-        return .{ .id = key };
-    }
+    //pub fn createMeshMaterial(self: *Renderer, r: f32, g: f32, b: f32) !MaterialHandle {
+    //    const id = ffi.create_mesh_material(self.handle, r, g, b);
+    //    const key, _ = try self.materials.append(id);
+    //    return .{ .id = key };
+    //}
 
     pub fn createMesh(self: *Renderer, vertices: []const u8, indices: []const u16) !MeshHandle {
         const mesh = ffi.create_mesh(self.handle, @constCast(@ptrCast(vertices.ptr)), vertices.len, @constCast(@ptrCast(indices.ptr)), indices.len);
@@ -242,7 +242,7 @@ pub const Renderer = struct {
                 const mat_pass_id = mat.value_ptr.*;
 
                 const material = self.materials.get(mat_id).?;
-                ffi.set_material(self.handle, material.*);
+                ffi.set_material(self.handle, material);
 
                 const material_pass = self.material_passes.get(mat_pass_id).?;
                 var mesh_passes = material_pass.mesh_passes.iterator();

@@ -27,7 +27,6 @@ namespace {} // namespace
 Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
     : gpu_(gpu),
       images_(4),
-      materials_(1024),
       metal_layer_(reinterpret_cast<CAMetalLayer *>(metal_layer)),
       command_queue_(gpu) {
    pipelines_.ui = static_cast<RenderPipeline>(render_pipelines_.size());
@@ -56,21 +55,24 @@ Renderer::Renderer(Gpu &gpu, void *pipeline_pixel_format, void *metal_layer)
 
 Renderer::~Renderer() {}
 
-RenderMaterial Renderer::do_create_material(
-    RenderPipeline pipeline_id, void *data, size_t size, std::vector<RenderImage> &&images
-) {
+Material
+Renderer::do_create_material(RenderPipeline pipeline_id, void *data, size_t size, int image) {
    id<MTLBuffer> buf = [gpu_.device() newBufferWithBytes:data
                                                   length:size
                                                  options:MTLResourceStorageModeShared];
-   int id = materials_.emplace(
-       Material{
-           .pipeline = pipeline_id,
-           .uniform_buffer = buf,
-           .images = std::move(images),
-       }
-   );
+   return Material{
+       .uniform_buffer = buf,
+       .image = image,
+   };
+}
 
-   return static_cast<RenderMaterial>(id);
+Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
+   return renderer->create_material<UiUniform>(
+       renderer->pipelines().ui, {
+                                     {"image", static_cast<RenderImage>(image)},
+                                     {"color", Vec3{r, g, b}},
+                                 }
+   );
 }
 
 Mesh create_mesh(
@@ -134,13 +136,11 @@ void set_pipeline(Renderer *renderer, uint32_t pipeline_id_unused) {
    [renderer->render_encoder_ setRenderPipelineState:mat_pipeline.pipeline.pipeline_state()];
 }
 
-void set_material(Renderer *renderer, uint32_t material_id) {
-   const Material &mat = renderer->materials_.get(material_id);
-   [renderer->render_encoder_ setFragmentBuffer:mat.uniform_buffer offset:0 atIndex:0];
+void set_material(Renderer *renderer, Material *material) {
+   [renderer->render_encoder_ setFragmentBuffer:material->uniform_buffer offset:0 atIndex:0];
 
-   for (int i = 0; i < mat.images.size(); ++i) {
-      RenderImage img_id = mat.images[i];
-      const Image &img = renderer->images_.get(img_id);
+   if (material->image != -1) {
+      const Image &img = renderer->images_.get(material->image);
       [renderer->render_encoder_ setFragmentTexture:img.texture() atIndex:0];
    }
 }

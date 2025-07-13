@@ -24,8 +24,6 @@
 namespace simulo {
 
 enum RenderPipeline : int {};
-enum RenderMaterial : int {};
-enum RenderMesh : int {};
 enum RenderImage : int {};
 
 struct Pipelines {
@@ -63,17 +61,6 @@ private:
    std::unordered_map<std::string, MaterialPropertyValue> properties_;
 };
 
-struct Material {
-   RenderPipeline pipeline;
-#ifdef __OBJC__
-   id<MTLBuffer> uniform_buffer;
-#else
-   void *uniform_buffer;
-#endif
-   std::vector<RenderImage> images;
-   std::unordered_map<RenderMesh, std::unordered_set<int>> mesh_instances;
-};
-
 struct MaterialPipeline {
    Pipeline pipeline;
 };
@@ -84,15 +71,14 @@ public:
    ~Renderer();
 
    template <class Uniform>
-   RenderMaterial create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
-      std::vector<RenderImage> images;
-
+   Material create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
+      int image = -1;
       if (props.has("image")) {
-         images.push_back(props.get<RenderImage>("image"));
+         image = static_cast<int>(props.get<RenderImage>("image"));
       }
 
       Uniform data(Uniform::from_props(props));
-      return do_create_material(pipeline_id, &data, sizeof(data), std::move(images));
+      return do_create_material(pipeline_id, &data, sizeof(data), image);
    }
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height) {
@@ -110,9 +96,7 @@ public:
       return pipelines_;
    }
 
-   RenderMaterial do_create_material(
-       RenderPipeline pipeline_id, void *data, size_t size, std::vector<RenderImage> &&images
-   );
+   Material do_create_material(RenderPipeline pipeline_id, void *data, size_t size, int image);
 
    Gpu &gpu_;
 
@@ -136,7 +120,6 @@ public:
 
    std::vector<MaterialPipeline> render_pipelines_;
    Slab<Image> images_;
-   Slab<Material> materials_;
    Mesh *last_binded_mesh_;
    Pipelines pipelines_;
    CommandQueue command_queue_;

@@ -102,6 +102,7 @@ void destroy_gpu(Gpu *gpu) {
    delete gpu;
 }
 
+#ifndef VKAD_APPLE
 uint32_t create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
    return renderer->create_material<UiUniform>(
        renderer->pipelines().ui, {
@@ -119,7 +120,6 @@ uint32_t create_mesh_material(Renderer *renderer, float r, float g, float b) {
    );
 }
 
-#ifndef VKAD_APPLE
 Mesh create_mesh(
     Renderer *renderer, uint8_t *vertex_data, size_t vertex_size, uint16_t *index_data,
     size_t index_count

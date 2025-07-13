@@ -94,6 +94,15 @@ typedef struct {
 typedef uint16_t IndexBufferType;
 
 typedef struct {
+#ifdef __OBJC__
+   id<MTLBuffer> uniform_buffer;
+#else
+   void *uniform_buffer;
+#endif
+   int image;
+} Material;
+
+typedef struct {
 #if defined(VKAD_APPLE) && defined(__OBJC__)
    id<MTLBuffer> buffer;
 #else
@@ -110,7 +119,7 @@ bool find_chessboard(OpenCvMat *mat, int pattern_width, int pattern_height, FfiM
 
 Renderer *create_renderer(Gpu *gpu, const Window *window);
 void destroy_renderer(Renderer *renderer);
-uint32_t create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b);
+Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b);
 uint32_t create_mesh_material(Renderer *renderer, float r, float g, float b);
 Mesh create_mesh(
     Renderer *renderer, uint8_t *vertex_data, size_t vertex_data_size, IndexBufferType *index_data,
@@ -128,7 +137,7 @@ bool render(
 
 bool begin_render(Renderer *renderer);
 void set_pipeline(Renderer *renderer, uint32_t pipeline_id);
-void set_material(Renderer *renderer, uint32_t material_id);
+void set_material(Renderer *renderer, Material *material);
 void set_mesh(Renderer *renderer, Mesh *mesh);
 void render_object(Renderer *renderer, const float *transform);
 void end_render(Renderer *renderer);
