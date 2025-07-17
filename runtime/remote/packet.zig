@@ -22,6 +22,14 @@ const Reader = struct {
         return value;
     }
 
+    pub fn readFull(self: *Reader, dest: []u8) !void {
+        if (self.read_index + dest.len > self.data.len) {
+            return error.PacketTooShort;
+        }
+        @memcpy(dest, self.data[self.read_index .. self.read_index + dest.len]);
+        self.read_index += dest.len;
+    }
+
     pub fn readString(self: *Reader, comptime max_len: usize, allocator: std.mem.Allocator) ![]u8 {
         const len: usize = @intCast(try self.readInt(u16));
         if (len > max_len) {
@@ -57,7 +65,8 @@ pub const Packet = union(enum) {
         switch (try reader.readInt(u8)) {
             0 => {
                 const program_url = try reader.readString(1024, allocator);
-                const program_hash: [32]u8 = @bitCast(try reader.readInt(u256));
+                var program_hash: [32]u8 = undefined;
+                try reader.readFull(&program_hash);
 
                 const num_files = try reader.readInt(u8);
                 if (num_files > 16) {
@@ -67,7 +76,7 @@ pub const Packet = union(enum) {
                 const assets = try allocator.alloc(DownloadFile, num_files);
                 for (assets) |*asset| {
                     asset.url = try reader.readString(1024, allocator);
-                    asset.hash = @bitCast(try reader.readInt(u256));
+                    try reader.readFull(&asset.hash);
                 }
 
                 return Packet{ .download = .{
