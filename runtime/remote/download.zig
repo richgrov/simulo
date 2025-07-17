@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn download(url: []const u8, allocator: std.mem.Allocator) !void {
+pub fn download(url: []const u8, dest: std.fs.File, allocator: std.mem.Allocator) !usize {
     var client = std.http.Client{ .allocator = allocator };
     defer client.deinit();
 
@@ -20,7 +20,6 @@ pub fn download(url: []const u8, allocator: std.mem.Allocator) !void {
         return error.DownloadFailed;
     }
 
-    const dest = try std.fs.cwd().createFile("program.wasm", .{});
-    defer dest.close();
     try dest.writeAll(body.items);
+    return body.items.len;
 }

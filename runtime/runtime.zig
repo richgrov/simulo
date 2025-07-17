@@ -207,7 +207,7 @@ pub const Runtime = struct {
         self.remote.deinit();
     }
 
-    fn runProgram(self: *Runtime, program_url: []const u8) !void {
+    fn runProgram(self: *Runtime) !void {
         self.wasm.deinit() catch |err| {
             self.remote.log("wasm deinit failed: {any}", .{err});
         };
@@ -221,15 +221,7 @@ pub const Runtime = struct {
             i += 1;
         }
 
-        const local_path = if (build_options.wasm_path) |path_override|
-            path_override
-        else cond: {
-            self.remote.fetchProgram(program_url) catch |err| {
-                self.remote.log("program download failed- attempting to use last downloaded program: ({any})", .{err});
-            };
-            break :cond "program.wasm";
-        };
-
+        const local_path = build_options.wasm_path orelse "program.wasm";
         const data = try std.fs.cwd().readFileAlloc(self.allocator, local_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
@@ -304,10 +296,34 @@ pub const Runtime = struct {
                 self.remote.log("render failed: {any}", .{err});
             };
 
-            if (self.remote.nextMessage()) |message| {
-                const url = message.buf[0..message.used];
-                self.remote.log("Downloading program from {s}", .{url});
-                try self.runProgram(url);
+            while (self.remote.nextMessage()) |msg| {
+                var message = msg;
+                defer message.deinit(self.allocator);
+
+                switch (message) {
+                    .download => |download| {
+                        var should_run = true;
+
+                        self.remote.fetch(download.program_url, &download.program_hash, "program.wasm") catch |err| {
+                            self.remote.log("program download failed: {s}", .{@errorName(err)});
+                            should_run = false;
+                        };
+
+                        for (download.assets, 0..) |asset, i| {
+                            var dest_path_buf: [16]u8 = undefined;
+                            const dest_path = std.fmt.bufPrint(&dest_path_buf, "asset_{d}.png", .{i}) catch unreachable;
+
+                            self.remote.fetch(asset.url, &asset.hash, dest_path) catch |err| {
+                                self.remote.log("asset download failed: {s}", .{@errorName(err)});
+                                should_run = false;
+                            };
+                        }
+
+                        if (should_run) {
+                            try self.runProgram();
+                        }
+                    },
+                }
             }
         }
     }

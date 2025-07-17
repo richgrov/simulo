@@ -6,6 +6,8 @@ const websocket = @import("websocket");
 
 const Spsc = util.Spsc;
 const download = @import("./download.zig");
+const packet = @import("./packet.zig");
+const Packet = packet.Packet;
 
 const MIN_RECONNECT_DELAY_MS: u64 = 1000;
 const MAX_RECONNECT_DELAY_MS: u64 = 16000;
@@ -34,7 +36,7 @@ pub const Remote = struct {
     authenticated: bool = false,
     reconnect_delay_ms: u64 = MIN_RECONNECT_DELAY_MS,
     log_queue: Spsc(LogEntry, 256),
-    inbound_queue: Spsc(LogEntry, 128),
+    inbound_queue: Spsc(Packet, 128),
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, private_key: *const [32]u8) !Remote {
         if (id.len > 64) {
@@ -56,7 +58,7 @@ pub const Remote = struct {
             .tls = build_options.api_tls,
             .websocket_cli = null,
             .log_queue = Spsc(LogEntry, 256).init(),
-            .inbound_queue = Spsc(LogEntry, 128).init(),
+            .inbound_queue = Spsc(Packet, 128).init(),
         };
     }
 
@@ -184,24 +186,30 @@ pub const Remote = struct {
     }
 
     pub fn serverMessage(self: *Remote, data: []u8, ty: websocket.MessageTextType) !void {
-        if (ty != .text) {
-            return;
+        errdefer self.exponentialSleep();
+
+        if (ty != .binary) {
+            std.log.err("got invalid {any} message type", .{ty});
+            return error.MessageNotBinary;
         }
 
-        if (data.len > 512) {
-            std.log.err("message '{s}' too large ({x})", .{ data, data.len });
-            return;
+        if (data.len > 8 * 1024) {
+            std.log.err("message too large ({x})", .{data.len});
+            return error.MessageTooLarge;
         }
+
+        const msg = Packet.from(self.allocator, data) catch |err| {
+            std.log.err("couldn't parse message: {any}", .{err});
+            return error.MessageParseError;
+        };
+
+        self.inbound_queue.enqueue(msg) catch |err| {
+            std.log.err("couldn't enqueue message: {any}", .{err});
+            return error.MessageEnqueueError;
+        };
 
         @atomicStore(bool, &self.authenticated, true, .release);
         @atomicStore(u64, &self.reconnect_delay_ms, MIN_RECONNECT_DELAY_MS, .seq_cst);
-
-        var entry: LogEntry = undefined;
-        entry.used = data.len;
-        @memcpy(entry.buf[0..data.len], data);
-        self.inbound_queue.enqueue(entry) catch |err| {
-            std.log.err("couldn't enqueue message '{s}': {any}", .{ data, err });
-        };
     }
 
     pub fn serverClose(self: *Remote, data: []u8) !void {
@@ -218,8 +226,6 @@ pub const Remote = struct {
             }
         }
 
-        @atomicStore(bool, &self.authenticated, false, .release);
-
         if (self.websocket_cli) |*ws| {
             try ws.close(.{});
             ws.deinit();
@@ -231,11 +237,38 @@ pub const Remote = struct {
         }
     }
 
-    pub fn nextMessage(self: *Remote) ?LogEntry {
+    pub fn nextMessage(self: *Remote) ?Packet {
         return self.inbound_queue.tryDequeue();
     }
 
-    pub fn fetchProgram(self: *Remote, url: []const u8) !void {
-        return download.download(url, self.allocator);
+    pub fn fetch(self: *Remote, url: []const u8, hash: *const [32]u8, dest_path: []const u8) !void {
+        self.log("Downloading {s} to {s}", .{ url, dest_path });
+
+        var check_hash = true;
+        const dest = std.fs.cwd().openFile(dest_path, .{ .mode = .read_write }) catch |err| file: {
+            if (err == error.FileNotFound) {
+                check_hash = false;
+                break :file try std.fs.cwd().createFile(dest_path, .{});
+            }
+
+            return err;
+        };
+        defer dest.close();
+
+        if (check_hash) {
+            const content = try dest.readToEndAlloc(self.allocator, 10 * 1024 * 1024);
+            defer self.allocator.free(content);
+
+            var hash_bytes: [32]u8 = undefined;
+            std.crypto.hash.sha2.Sha256.hash(content, &hash_bytes, .{});
+            if (std.mem.eql(u8, &hash_bytes, hash)) {
+                self.log("Hash matches, skipping download to {s}", .{dest_path});
+                return;
+            }
+        }
+
+        try dest.seekTo(0);
+        const length = try download.download(url, dest, self.allocator);
+        try dest.setEndPos(length);
     }
 };
