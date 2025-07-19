@@ -15,11 +15,7 @@ const FixedSlab = util.FixedSlab;
 const SparseIntSet = util.SparseIntSet;
 
 const MAX_RENDER_LAYERS = 32;
-const MAX_MATERIALS = 512;
-const MAX_MESHES = 2048;
-const MAX_MESH_PASSES = 256;
 const MAX_OBJECT_PASSES = 1024;
-const MAX_OBJECTS = 65536;
 
 const Object = struct {
     transform: Mat4,
@@ -64,10 +60,10 @@ pub const Renderer = struct {
     allocator: std.mem.Allocator,
     handle: *ffi.Renderer,
     objects: Slab(Object),
-    meshes: FixedSlab(ffi.Mesh, MAX_MESHES),
+    meshes: Slab(ffi.Mesh),
     mesh_passes: Slab(MeshPass),
-    materials: FixedSlab(ffi.Material, MAX_MATERIALS),
-    material_passes: FixedSlab(MaterialPass, MAX_MATERIALS),
+    materials: Slab(ffi.Material),
+    material_passes: Slab(MaterialPass),
     render_collections: [MAX_RENDER_LAYERS]RenderCollection = undefined,
 
     pub const PipelineHandle = struct { id: u32 };
@@ -83,17 +79,26 @@ pub const Renderer = struct {
         var objects = try Slab(Object).init(allocator, 1024);
         errdefer objects.deinit();
 
+        var meshes = try Slab(ffi.Mesh).init(allocator, 32);
+        errdefer meshes.deinit();
+
         var mesh_passes = try Slab(MeshPass).init(allocator, 64);
         errdefer mesh_passes.deinit();
+
+        var materials = try Slab(ffi.Material).init(allocator, 32);
+        errdefer materials.deinit();
+
+        var material_passes = try Slab(MaterialPass).init(allocator, 32);
+        errdefer material_passes.deinit();
 
         var result = Renderer{
             .allocator = allocator,
             .handle = renderer,
             .objects = objects,
-            .meshes = FixedSlab(ffi.Mesh, MAX_MESHES).init(),
+            .meshes = meshes,
             .mesh_passes = mesh_passes,
-            .materials = FixedSlab(ffi.Material, MAX_MATERIALS).init(),
-            .material_passes = FixedSlab(MaterialPass, MAX_MATERIALS).init(),
+            .materials = materials,
+            .material_passes = material_passes,
         };
 
         for (&result.render_collections) |*collection| {
@@ -106,7 +111,10 @@ pub const Renderer = struct {
     pub fn deinit(self: *Renderer) void {
         ffi.destroy_renderer(self.handle);
         self.objects.deinit();
+        self.meshes.deinit();
         self.mesh_passes.deinit();
+        self.materials.deinit();
+        self.material_passes.deinit();
 
         for (&self.render_collections) |*collection| {
             var material_passes = collection.material_passes.valueIterator();
@@ -119,10 +127,10 @@ pub const Renderer = struct {
         }
     }
 
-    pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32) !MaterialHandle {
+    pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32) error{OutOfMemory}!MaterialHandle {
         const mat = ffi.create_ui_material(self.handle, image.id, r, g, b);
-        const key, _ = try self.materials.append(mat);
-        return .{ .id = key };
+        const key, _ = try self.materials.insert(mat);
+        return .{ .id = @intCast(key) };
     }
 
     //pub fn createMeshMaterial(self: *Renderer, r: f32, g: f32, b: f32) !MaterialHandle {
@@ -131,10 +139,10 @@ pub const Renderer = struct {
     //    return .{ .id = key };
     //}
 
-    pub fn createMesh(self: *Renderer, vertices: []const u8, indices: []const u16) !MeshHandle {
+    pub fn createMesh(self: *Renderer, vertices: []const u8, indices: []const u16) error{OutOfMemory}!MeshHandle {
         const mesh = ffi.create_mesh(self.handle, @constCast(@ptrCast(vertices.ptr)), vertices.len, @constCast(@ptrCast(indices.ptr)), indices.len);
-        const key, _ = try self.meshes.append(mesh);
-        return MeshHandle{ .id = key };
+        const key, _ = try self.meshes.insert(mesh);
+        return MeshHandle{ .id = @intCast(key) };
     }
 
     pub fn deleteMesh(self: *Renderer, id: MeshHandle) void {
@@ -142,7 +150,7 @@ pub const Renderer = struct {
         ffi.delete_mesh(self.handle, mesh);
     }
 
-    pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle, render_order: u8) !ObjectHandle {
+    pub fn addObject(self: *Renderer, mesh: MeshHandle, transform: Mat4, material: MaterialHandle, render_order: u8) error{OutOfMemory}!ObjectHandle {
         const material_pass = try self.getOrInsertMaterialPass(&self.render_collections[render_order], @intCast(material.id));
         const mesh_pass = try self.getOrInsertMeshPass(material_pass, @intCast(mesh.id));
 
@@ -152,11 +160,11 @@ pub const Renderer = struct {
             .material = @intCast(material.id),
             .render_order = render_order,
         });
-        try mesh_pass.objects.put(@intCast(obj_id));
+        mesh_pass.objects.put(@intCast(obj_id)) catch return error.OutOfMemory; // TODO: handle this better
         return ObjectHandle{ .id = @intCast(obj_id) };
     }
 
-    pub fn setObjectMaterial(self: *Renderer, object: ObjectHandle, material: MaterialHandle) !void {
+    pub fn setObjectMaterial(self: *Renderer, object: ObjectHandle, material: MaterialHandle) error{OutOfMemory}!void {
         const obj = self.objects.get(object.id).?;
 
         if (obj.material == material.id) return;
@@ -171,7 +179,7 @@ pub const Renderer = struct {
         obj.material = @intCast(material.id);
         const new_mat_pass = try self.getOrInsertMaterialPass(collection, @intCast(material.id));
         const new_mesh_pass = try self.getOrInsertMeshPass(new_mat_pass, @intCast(obj.mesh));
-        try new_mesh_pass.objects.put(@intCast(object.id));
+        new_mesh_pass.objects.put(@intCast(object.id)) catch return error.OutOfMemory; // TODO: handle this better
     }
 
     pub fn setObjectTransform(self: *Renderer, object: ObjectHandle, transform: Mat4) void {
@@ -202,20 +210,20 @@ pub const Renderer = struct {
         }
     }
 
-    fn getOrInsertMaterialPass(self: *Renderer, collection: *RenderCollection, material_id: u16) !*MaterialPass {
+    fn getOrInsertMaterialPass(self: *Renderer, collection: *RenderCollection, material_id: u16) error{OutOfMemory}!*MaterialPass {
         if (collection.material_passes.get(material_id)) |mat_pass_id| {
             return self.material_passes.get(mat_pass_id).?;
         } else {
             var new_pass = MaterialPass.init(self.allocator);
             errdefer new_pass.deinit();
-            const mat_pass_id, const result = try self.material_passes.append(new_pass);
+            const mat_pass_id, const result = try self.material_passes.insert(new_pass);
             errdefer self.material_passes.delete(mat_pass_id) catch unreachable;
             try collection.material_passes.put(material_id, @intCast(mat_pass_id));
             return result;
         }
     }
 
-    fn getOrInsertMeshPass(self: *Renderer, pass: *MaterialPass, mesh_id: u16) !*MeshPass {
+    fn getOrInsertMeshPass(self: *Renderer, pass: *MaterialPass, mesh_id: u16) error{OutOfMemory}!*MeshPass {
         if (pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
             return self.mesh_passes.get(mesh_pass_id).?;
         } else {

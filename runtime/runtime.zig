@@ -45,7 +45,7 @@ pub const GameObject = struct {
     deleted: bool,
     internal: bool,
 
-    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32, internal: bool) !GameObject {
+    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32, internal: bool) error{OutOfMemory}!GameObject {
         const obj = GameObject{
             .pos = .{ x_, y_, 0 },
             .scale = .{ 1, 1, 1 },
@@ -190,7 +190,7 @@ pub const Runtime = struct {
         runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
 
         runtime.mask_material = try runtime.renderer.createUiMaterial(image, 0.0, 0.0, 0.0);
-        runtime.chessboard = try runtime.createObject(0, 0, chessboard_material, true);
+        runtime.chessboard = runtime.createObject(0, 0, chessboard_material, true);
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -407,7 +407,7 @@ pub const Runtime = struct {
             return mask_obj_id;
         }
 
-        const obj_id = try self.createObject(spawn_x, spawn_y, self.mask_material, true);
+        const obj_id = self.createObject(spawn_x, spawn_y, self.mask_material, true);
         const mask_obj = self.getObject(obj_id) orelse return error.CreatedMaskNotFound;
         mask_obj.scale = .{ MASK_WIDTH, MASK_HEIGHT, 1.0 };
         mask_obj.recalculateTransform(&self.renderer);
@@ -421,29 +421,18 @@ pub const Runtime = struct {
 
     fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32, material_id: u32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj_id = runtime.createObject(x, y, .{ .id = material_id }, false) catch |err| {
-            std.log.err("Failed to create object: {}", .{err});
-            return 0;
-        };
+        const obj_id = runtime.createObject(x, y, .{ .id = material_id }, false);
         return @intCast(obj_id);
     }
 
-    fn createObject(self: *Runtime, x: f32, y: f32, material: Renderer.MaterialHandle, internal: bool) !usize {
-        // For redundancy, allocate an object index in the set *before* creating the object.
-        // If creating the object fails, the index will be freed. Otherwise, the index will be later
-        // used to store the object's ID.
-        const object_id, const object_index = self.object_ids.insert(std.math.maxInt(usize)) catch {
-            return error.ReserveObjectIndexFailed;
+    fn createObject(self: *Runtime, x: f32, y: f32, material: Renderer.MaterialHandle, internal: bool) usize {
+        const object_id, const object_index = self.object_ids.insert(std.math.maxInt(usize)) catch |err| {
+            util.crash.oom(err);
         };
 
-        var obj = try GameObject.init(self, object_id, material, x, y, internal);
-        errdefer obj.delete(self);
-        self.objects.append(obj) catch { // todo handle failure
-            self.object_ids.delete(object_id) catch {
-                return error.ObjectCreateRecoveryFailed;
-            };
-            return error.ObjectCreateFailed;
-        };
+        const obj = GameObject.init(self, object_id, material, x, y, internal) catch |err| util.crash.oom(err);
+        self.objects.append(obj) catch |err| util.crash.oom(err);
+
         const index = self.objects.items.len - 1;
         self.objects.items[index].recalculateTransform(&self.renderer);
         object_index.* = index;
@@ -543,9 +532,7 @@ pub const Runtime = struct {
             runtime.remote.log("tried to set material of non-existent object {x}", .{id});
             return;
         };
-        runtime.renderer.setObjectMaterial(obj.handle, .{ .id = material_id }) catch |err| {
-            runtime.remote.log("failed to set material of object {d}: {any}", .{ id, err });
-        };
+        runtime.renderer.setObjectMaterial(obj.handle, .{ .id = material_id }) catch |err| util.crash.oom(err);
     }
 
     fn wasmRandom(user_ptr: *anyopaque) f32 {
@@ -565,10 +552,7 @@ pub const Runtime = struct {
 
     fn wasmCreateMaterial(user_ptr: *anyopaque, r: f32, g: f32, b: f32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const material = runtime.renderer.createUiMaterial(runtime.white_pixel_texture, r, g, b) catch |err| {
-            runtime.remote.log("failed to create material: {any}", .{err});
-            return std.math.maxInt(u32);
-        };
+        const material = runtime.renderer.createUiMaterial(runtime.white_pixel_texture, r, g, b) catch |err| util.crash.oom(err);
         return material.id;
     }
 };
