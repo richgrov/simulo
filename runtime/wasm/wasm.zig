@@ -69,6 +69,7 @@ pub const Wasm = struct {
                     1 => @constCast(@ptrCast(&one_arg)),
                     2 => @constCast(@ptrCast(&two_args)),
                     3 => @constCast(@ptrCast(&three_args)),
+                    4 => @constCast(@ptrCast(&four_args)),
                     else => @compileError("unsupported number of parameters"),
                 },
                 .signature = @ptrCast(createWasmSignature(func_info)),
@@ -113,6 +114,22 @@ pub const Wasm = struct {
                     arg1,
                     arg2,
                     arg3,
+                );
+            }
+
+            pub fn four_args(
+                env: wasm.wasm_exec_env_t,
+                arg1: func_info.params[1].type.?,
+                arg2: func_info.params[2].type.?,
+                arg3: func_info.params[3].type.?,
+                arg4: func_info.params[4].type.?,
+            ) callconv(.C) func_info.return_type.? {
+                return func(
+                    wasm.wasm_runtime_get_user_data(env).?,
+                    arg1,
+                    arg2,
+                    arg3,
+                    arg4,
                 );
             }
         };

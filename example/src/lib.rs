@@ -39,10 +39,12 @@ impl GameObject {
 pub struct Material(u32);
 
 impl Material {
-    pub fn new(r: f32, g: f32, b: f32) -> Self {
-        unsafe { Material(simulo_create_material(r, g, b)) }
+    pub fn new(image_id: u32, r: f32, g: f32, b: f32) -> Self {
+        unsafe { Material(simulo_create_material(image_id, r, g, b)) }
     }
 }
+
+pub const WHITE_PIXEL_IMAGE: u32 = std::u32::MAX;
 
 pub fn random_float() -> f32 {
     unsafe { simulo_random() }
@@ -174,7 +176,7 @@ unsafe extern "C" {
     fn simulo_random() -> f32;
     fn simulo_window_width() -> i32;
     fn simulo_window_height() -> i32;
-    fn simulo_create_material(r: f32, g: f32, b: f32) -> u32;
+    fn simulo_create_material(image: u32, r: f32, g: f32, b: f32) -> u32;
 }
 
 /////////
@@ -189,7 +191,7 @@ mod game {
 
     impl Game {
         pub fn new() -> Self {
-            let mat = Material::new(1.0, 1.0, 1.0);
+            let mat = Material::new(0, 1.0, 1.0, 1.0);
             let obj = GameObject::new(Vec2::new(500.0, 500.0), &mat);
             obj.set_scale(Vec2::new(100.0, 100.0));
             Game { obj }

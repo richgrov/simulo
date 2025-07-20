@@ -28,6 +28,8 @@ pub const Keypoint = inference.Keypoint;
 pub const Camera = @import("camera/camera.zig").Camera;
 pub const Gpu = @import("gpu/gpu.zig").Gpu;
 
+const loadImage = @import("image/image.zig").loadImage;
+
 const behaviors = @import("behaviors.zig");
 const events = @import("events.zig");
 
@@ -123,6 +125,7 @@ pub const Runtime = struct {
     pose_func: ?Wasm.Function,
     objects: std.ArrayList(GameObject),
     object_ids: Slab(usize),
+    images: std.ArrayList(Renderer.ImageHandle),
     pose_buffer: ?[*]f32,
     random: std.Random.Xoshiro256,
 
@@ -178,6 +181,8 @@ pub const Runtime = struct {
         errdefer runtime.objects.deinit();
         runtime.object_ids = try Slab(usize).init(runtime.allocator, 64);
         errdefer runtime.object_ids.deinit();
+        runtime.images = try std.ArrayList(Renderer.ImageHandle).initCapacity(runtime.allocator, 4);
+        errdefer runtime.images.deinit();
         runtime.pose_buffer = null;
         const now: u64 = @bitCast(std.time.microTimestamp());
         runtime.random = std.Random.Xoshiro256.init(now);
@@ -198,6 +203,7 @@ pub const Runtime = struct {
             self.remote.log("wasm deinit failed: {any}", .{err});
         };
         self.masks.deinit();
+        self.images.deinit();
         self.objects.deinit();
         self.object_ids.deinit();
         self.pose_detector.stop();
@@ -207,7 +213,7 @@ pub const Runtime = struct {
         self.remote.deinit();
     }
 
-    fn runProgram(self: *Runtime) !void {
+    fn runProgram(self: *Runtime, num_assets: usize) !void {
         self.wasm.deinit() catch |err| {
             self.remote.log("wasm deinit failed: {any}", .{err});
         };
@@ -221,13 +227,16 @@ pub const Runtime = struct {
             i += 1;
         }
 
+        // TODO: delete images
+        self.images.clearRetainingCapacity();
+
         const local_path = build_options.wasm_path orelse "program.wasm";
         const data = try std.fs.cwd().readFileAlloc(self.allocator, local_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
-        var err: ?WasmError = null;
-        self.wasm.init(self.allocator, @ptrCast(self), data, &err) catch |err_code| {
-            self.remote.log("wasm initialization failed: {any}: {any}", .{ err_code, err });
+        var wasm_err: ?WasmError = null;
+        self.wasm.init(self.allocator, @ptrCast(self), data, &wasm_err) catch |err_code| {
+            self.remote.log("wasm initialization failed: {any}: {any}", .{ err_code, wasm_err });
             return error.WasmInitFailed;
         };
 
@@ -243,6 +252,24 @@ pub const Runtime = struct {
             self.remote.log("program missing pose function", .{});
             return error.MissingPoseFunction;
         };
+
+        for (0..num_assets) |asset_idx| {
+            var image_path_buf: [16]u8 = undefined;
+            const image_path = std.fmt.bufPrint(&image_path_buf, "asset_{d}.png", .{asset_idx}) catch unreachable;
+            const image_data = std.fs.cwd().readFileAlloc(self.allocator, image_path, 10 * 1024 * 1024) catch |err| {
+                self.remote.log("failed to read asset file at {s}: {s}", .{ image_path, @errorName(err) });
+                return error.AssertReadFailed;
+            };
+            defer self.allocator.free(image_data);
+
+            const image_info = loadImage(image_data) catch |err| {
+                self.remote.log("failed to load data from {s}: {s}", .{ image_path, @errorName(err) });
+                return error.AssertLoadFailed;
+            };
+
+            const image = self.renderer.createImage(image_info.data, image_info.width, image_info.height);
+            self.images.append(image) catch |err| util.crash.oom(err);
+        }
     }
 
     fn isNativeBehavior(self: *const Runtime, ty: engine.Scripting.Type) bool {
@@ -330,7 +357,7 @@ pub const Runtime = struct {
                         }
 
                         if (should_run) {
-                            try self.runProgram();
+                            try self.runProgram(download.assets.len);
                         }
                     },
                 }
@@ -560,9 +587,10 @@ pub const Runtime = struct {
         return runtime.window.getHeight();
     }
 
-    fn wasmCreateMaterial(user_ptr: *anyopaque, r: f32, g: f32, b: f32) u32 {
+    fn wasmCreateMaterial(user_ptr: *anyopaque, image_id: u32, r: f32, g: f32, b: f32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const material = runtime.renderer.createUiMaterial(runtime.white_pixel_texture, r, g, b) catch |err| util.crash.oom(err);
+        const image = if (image_id == std.math.maxInt(u32)) runtime.white_pixel_texture else runtime.images.items[image_id];
+        const material = runtime.renderer.createUiMaterial(image, r, g, b) catch |err| util.crash.oom(err);
         return material.id;
     }
 };
