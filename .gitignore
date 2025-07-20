@@ -11,5 +11,6 @@ zig-out/
 *.metallib
 *.air
 *.wasm
+asset_*.png
 
 .aider*
