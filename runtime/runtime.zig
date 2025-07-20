@@ -405,47 +405,35 @@ pub const Runtime = struct {
             const ry = r_eye.pos[1] * window_height;
 
             if (self.masks.get(event.id)) |mask_data| {
-                _ = self.updateMaskObject(mask_data.left_id, lx, ly) catch |err| {
-                    self.remote.log("failed to update left mask: {any}", .{err});
-                };
-                _ = self.updateMaskObject(mask_data.right_id, rx, ry) catch |err| {
-                    self.remote.log("failed to update right mask: {any}", .{err});
-                };
+                _ = self.updateMaskObject(mask_data.left_id, lx, ly);
+                _ = self.updateMaskObject(mask_data.right_id, rx, ry);
             } else {
-                const left_id = self.updateMaskObject(null, lx, ly) catch |err| cat: {
-                    self.remote.log("failed to create left mask: {any}", .{err});
-                    break :cat std.math.maxInt(usize);
-                };
-                const right_id = self.updateMaskObject(null, rx, ry) catch |err| cat: {
-                    self.remote.log("failed to create right mask: {any}", .{err});
-                    break :cat std.math.maxInt(usize);
-                };
-                self.masks.put(event.id, .{ .left_id = left_id, .right_id = right_id }) catch |err| {
-                    self.remote.log("failed to track mask object: {any}", .{err});
-                    return;
-                };
+                const left_id = self.updateMaskObject(null, lx, ly);
+                const right_id = self.updateMaskObject(null, rx, ry);
+                self.masks.put(event.id, .{ .left_id = left_id, .right_id = right_id }) catch |err| util.crash.oom(err);
             }
         } else {
             if (self.masks.get(event.id)) |mask_data| {
                 self.deleteObject(mask_data.left_id);
                 self.deleteObject(mask_data.right_id);
+                std.debug.assert(self.masks.remove(event.id));
             }
         }
     }
 
-    fn updateMaskObject(self: *Runtime, object_id: ?usize, x: f32, y: f32) !usize {
+    fn updateMaskObject(self: *Runtime, object_id: ?usize, x: f32, y: f32) usize {
         const spawn_x = x - MASK_WIDTH / 2.0;
         const spawn_y = y - MASK_HEIGHT / 3.0;
 
         if (object_id) |mask_obj_id| {
-            const mask_obj = self.getObject(mask_obj_id) orelse return error.MaskNotFound;
+            const mask_obj = self.getObject(mask_obj_id).?;
             mask_obj.pos = .{ spawn_x, spawn_y, 0.0 };
             mask_obj.recalculateTransform(&self.renderer);
             return mask_obj_id;
         }
 
         const obj_id = self.createObject(spawn_x, spawn_y, self.mask_material, true);
-        const mask_obj = self.getObject(obj_id) orelse return error.CreatedMaskNotFound;
+        const mask_obj = self.getObject(obj_id).?;
         mask_obj.scale = .{ MASK_WIDTH, MASK_HEIGHT, 1.0 };
         mask_obj.recalculateTransform(&self.renderer);
         return obj_id;
