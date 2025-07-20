@@ -258,10 +258,20 @@ pub const Runtime = struct {
         try self.pose_detector.start();
         var last_time = std.time.milliTimestamp();
 
+        var frame_count: usize = 0;
+        var second_timer: i64 = std.time.milliTimestamp();
+
         while (self.window.poll()) {
             const now = std.time.milliTimestamp();
             const delta = now - last_time;
             last_time = now;
+
+            frame_count += 1;
+            if (now - second_timer >= 1000) {
+                std.debug.print("fps: {d}\n", .{frame_count});
+                frame_count = 0;
+                second_timer = now;
+            }
 
             const width: f32 = @floatFromInt(self.window.getWidth());
             const height: f32 = @floatFromInt(self.window.getHeight());
