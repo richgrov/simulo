@@ -34,7 +34,7 @@ pub fn Slab(T: type) type {
             self.data.deinit();
         }
 
-        pub fn insert(self: *Self, value: T) !std.meta.Tuple(&[_]type{ usize, *T }) {
+        pub fn insert(self: *Self, value: T) error{OutOfMemory}!std.meta.Tuple(&[_]type{ usize, *T }) {
             if (self.next_free == std.math.maxInt(usize)) {
                 const index = self.data.items.len;
                 try self.data.append(.{ .data = value });

@@ -9,10 +9,8 @@ const ffi = @cImport({
 const Gpu = @import("../gpu/gpu.zig").Gpu;
 const Window = @import("../window/window.zig").Window;
 const Mat4 = @import("engine").math.Mat4;
-const FixedArrayList = @import("util").FixedArrayList;
 const Slab = util.Slab;
-const FixedSlab = util.FixedSlab;
-const SparseIntSet = util.SparseIntSet;
+const IntSet = util.IntSet;
 
 const MAX_RENDER_LAYERS = 32;
 const MAX_OBJECT_PASSES = 1024;
@@ -25,7 +23,17 @@ const Object = struct {
 };
 
 const MeshPass = struct {
-    objects: SparseIntSet(u16, MAX_OBJECT_PASSES) = .{},
+    objects: IntSet(u32, 256),
+
+    pub fn init(allocator: std.mem.Allocator) error{OutOfMemory}!MeshPass {
+        return MeshPass{
+            .objects = try IntSet(u32, 256).init(allocator, 1),
+        };
+    }
+
+    pub fn deinit(self: *const MeshPass, allocator: std.mem.Allocator) void {
+        self.objects.deinit(allocator);
+    }
 };
 
 const MaterialPass = struct {
@@ -110,21 +118,29 @@ pub const Renderer = struct {
 
     pub fn deinit(self: *Renderer) void {
         ffi.destroy_renderer(self.handle);
-        self.objects.deinit();
-        self.meshes.deinit();
-        self.mesh_passes.deinit();
-        self.materials.deinit();
-        self.material_passes.deinit();
 
         for (&self.render_collections) |*collection| {
             var material_passes = collection.material_passes.valueIterator();
             while (material_passes.next()) |mat_pass_id| {
                 var material_pass = self.material_passes.get(mat_pass_id.*).?;
+
+                var mesh_passes = material_pass.mesh_passes.valueIterator();
+                while (mesh_passes.next()) |mesh_pass_id| {
+                    const mesh_pass = self.mesh_passes.get(mesh_pass_id.*).?;
+                    mesh_pass.deinit(self.allocator);
+                }
+
                 material_pass.deinit();
             }
 
             collection.deinit();
         }
+
+        self.objects.deinit();
+        self.meshes.deinit();
+        self.mesh_passes.deinit();
+        self.materials.deinit();
+        self.material_passes.deinit();
     }
 
     pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32) error{OutOfMemory}!MaterialHandle {
@@ -160,7 +176,7 @@ pub const Renderer = struct {
             .material = @intCast(material.id),
             .render_order = render_order,
         });
-        mesh_pass.objects.put(@intCast(obj_id)) catch return error.OutOfMemory; // TODO: handle this better
+        try mesh_pass.objects.put(self.allocator, @intCast(obj_id));
         return ObjectHandle{ .id = @intCast(obj_id) };
     }
 
@@ -174,12 +190,12 @@ pub const Renderer = struct {
         const material_pass = self.material_passes.get(material_pass_id).?;
         const mesh_pass_id = material_pass.mesh_passes.get(obj.mesh).?;
         const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
-        mesh_pass.objects.delete(@intCast(object.id)) catch unreachable;
+        std.debug.assert(mesh_pass.objects.delete(@intCast(object.id)));
 
         obj.material = @intCast(material.id);
         const new_mat_pass = try self.getOrInsertMaterialPass(collection, @intCast(material.id));
         const new_mesh_pass = try self.getOrInsertMeshPass(new_mat_pass, @intCast(obj.mesh));
-        new_mesh_pass.objects.put(@intCast(object.id)) catch return error.OutOfMemory; // TODO: handle this better
+        try new_mesh_pass.objects.put(self.allocator, @intCast(object.id));
     }
 
     pub fn setObjectTransform(self: *Renderer, object: ObjectHandle, transform: Mat4) void {
@@ -193,7 +209,7 @@ pub const Renderer = struct {
         const material_pass = self.material_passes.get(material_pass_id).?;
         const mesh_pass_id = material_pass.mesh_passes.get(obj.mesh).?;
         const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
-        mesh_pass.objects.delete(@intCast(object.id)) catch unreachable;
+        std.debug.assert(mesh_pass.objects.delete(@intCast(object.id)));
         self.objects.delete(object.id) catch unreachable;
     }
 
@@ -227,8 +243,12 @@ pub const Renderer = struct {
         if (pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
             return self.mesh_passes.get(mesh_pass_id).?;
         } else {
-            const mesh_pass_id, const result = try self.mesh_passes.insert(.{});
+            const mesh_pass = try MeshPass.init(self.allocator);
+            errdefer mesh_pass.deinit(self.allocator);
+
+            const mesh_pass_id, const result = try self.mesh_passes.insert(mesh_pass);
             errdefer self.mesh_passes.delete(mesh_pass_id) catch unreachable;
+
             try pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
             return result;
         }
@@ -262,10 +282,12 @@ pub const Renderer = struct {
                     ffi.set_mesh(self.handle, mesh);
 
                     const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
-                    for (mesh_pass.objects.items()) |instance| {
-                        const object = self.objects.get(instance).?;
-                        const transform = ui_view_projection.matmul(&object.transform);
-                        ffi.render_object(self.handle, transform.ptr());
+                    for (0..mesh_pass.objects.bucketCount()) |i| {
+                        for (mesh_pass.objects.bucketItems(i)) |instance| {
+                            const object = self.objects.get(instance).?;
+                            const transform = ui_view_projection.matmul(&object.transform);
+                            ffi.render_object(self.handle, transform.ptr());
+                        }
                     }
                 }
             }

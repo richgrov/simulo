@@ -7,8 +7,11 @@ pub const vulkan = @import("platform.zig").vulkan;
 pub const Slab = @import("slab.zig").Slab;
 pub const FixedSlab = @import("fixed_slab.zig").FixedSlab;
 pub const FixedArrayList = @import("fixed_arraylist.zig").FixedArrayList;
+pub const IntSet = @import("int_set.zig").IntSet;
 pub const SparseIntSet = @import("packed_set.zig").SparseIntSet;
 pub const Spsc = @import("spsc_ring.zig").Spsc;
+
+pub const crash = @import("crash.zig");
 
 pub fn getResourcePath(name: []const u8, buf: []u8) ![]const u8 {
     var path_buf: [128]u8 = undefined;
@@ -28,6 +31,7 @@ test {
         _ = Slab;
         _ = FixedSlab;
         _ = FixedArrayList;
+        _ = IntSet;
         _ = SparseIntSet;
         _ = Spsc;
     }
