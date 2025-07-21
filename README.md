@@ -39,3 +39,7 @@ Linux:
 - `libx11`
 - `libxkbcommon`
 - Wayland protocols
+
+**Build**
+
+1. [Build WAMR](https://github.com/bytecodealliance/wasm-micro-runtime/blob/main/product-mini/README.md)
