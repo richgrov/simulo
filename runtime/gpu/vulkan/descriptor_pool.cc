@@ -6,35 +6,40 @@
 
 using namespace simulo;
 
-DescriptorPool::DescriptorPool(
+VkDescriptorPool create_descriptor_pool(
     VkDevice device, VkDescriptorSetLayout layout, const std::vector<VkDescriptorPoolSize> &sizes,
     uint32_t num_sets
 )
-    : device_(device) {
-
    VkDescriptorPoolCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
        .maxSets = num_sets,
        .poolSizeCount = static_cast<uint32_t>(sizes.size()),
        .pPoolSizes = sizes.data(),
    };
-   VKAD_VK(vkCreateDescriptorPool(device, &create_info, nullptr, &descriptor_pool_));
+
+   VkDescriptorPool result;
+   VKAD_VK(vkCreateDescriptorPool(device, &create_info, nullptr, &result));
+   return result;
 }
 
-VkDescriptorSet DescriptorPool::allocate(VkDescriptorSetLayout layout) {
+void delete_descriptor_pool(VkDevice device, VkDescriptorPool pool) {
+   vkDestroyDescriptorPool(device, pool, nullptr);
+}
+
+VkDescriptorSet allocate_descriptor_set(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout) {
    VkDescriptorSetAllocateInfo alloc_info = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-       .descriptorPool = descriptor_pool_,
+       .descriptorPool = pool,
        .descriptorSetCount = 1,
        .pSetLayouts = &layout,
    };
 
    VkDescriptorSet descriptor_set;
-   VKAD_VK(vkAllocateDescriptorSets(device_, &alloc_info, &descriptor_set));
+   VKAD_VK(vkAllocateDescriptorSets(device, &alloc_info, &descriptor_set));
    return descriptor_set;
 }
 
-void DescriptorPool::write(VkDescriptorSet set, const std::vector<DescriptorWrite> &writes) {
+void write_descriptor_set(VkDevice device, VkDescriptorSet set, const std::vector<DescriptorWrite> &writes) {
    std::vector<VkWriteDescriptorSet> write_commands(writes.size());
    for (int i = 0; i < writes.size(); ++i) {
       write_commands[i] = writes[i].write;
@@ -42,6 +47,6 @@ void DescriptorPool::write(VkDescriptorSet set, const std::vector<DescriptorWrit
    }
 
    vkUpdateDescriptorSets(
-       device_, static_cast<uint32_t>(write_commands.size()), write_commands.data(), 0, nullptr
+       device, static_cast<uint32_t>(write_commands.size()), write_commands.data(), 0, nullptr
    );
 }

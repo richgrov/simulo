@@ -128,8 +128,8 @@ Renderer::Renderer(
        std::span(text_vertex_bytes(), text_vertex_len()),
        std::span(text_fragment_bytes(), text_fragment_len()),
        {
-           DescriptorPool::uniform_buffer_dynamic(0),
-           DescriptorPool::combined_image_sampler(1),
+           uniform_buffer_dynamic(0),
+           combined_image_sampler(1),
        }
    );
 
@@ -151,7 +151,7 @@ Renderer::Renderer(
        },
        std::span(model_vertex_bytes(), model_vertex_len()),
        std::span(model_fragment_bytes(), model_fragment_len()),
-       {DescriptorPool::uniform_buffer_dynamic(0)}
+       {uniform_buffer_dynamic(0)}
    );
 }
 
@@ -270,7 +270,7 @@ RenderPipeline Renderer::create_pipeline(
        .descriptor_set_layout = layout,
        .pipeline =
            Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
-       .descriptor_pool = DescriptorPool(device_.handle(), layout, sizes, 1),
+       .descriptor_pool = create_descriptor_pool(device_.handle(), layout, sizes, 1),
        .uniforms = UniformBuffer(uniform_size, 4, device_.handle(), physical_device_),
        .vertex_shader = std::move(vertex),
        .fragment_shader = std::move(fragment),

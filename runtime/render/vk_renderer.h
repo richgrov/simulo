@@ -79,7 +79,7 @@ public:
    RenderMaterial create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
       MaterialPipeline &pipe = pipelines_[pipeline_id];
       int material_id = materials_.emplace(Material{
-          .descriptor_set = pipe.descriptor_pool.allocate(pipe.descriptor_set_layout),
+          .descriptor_set = allocate_descriptor_set(device_.handle(), pipe.descriptor_pool, pipe.descriptor_set_layout),
       });
       Material &mat = materials_.get(material_id);
 
@@ -89,18 +89,17 @@ public:
       pipe.uniforms.upload_memory(&u, sizeof(Uniform), 0);
 
       std::vector<DescriptorWrite> writes = {
-          DescriptorPool::write_uniform_buffer_dynamic(pipe.uniforms),
+          write_uniform_buffer_dynamic(pipe.uniforms),
       };
 
       if (props.has("image")) {
          RenderImage image_id = props.get<RenderImage>("image");
          writes.push_back(
-             DescriptorPool::write_combined_image_sampler(image_sampler(), images_.get(image_id))
+             write_combined_image_sampler(image_sampler(), images_.get(image_id))
          );
       }
 
-      pipe.descriptor_pool.write(mat.descriptor_set, writes);
-
+      write_descriptor_set(device_.handle(), mat.descriptor_set, writes);
       return static_cast<RenderMaterial>(material_id);
    }
 
@@ -182,7 +181,7 @@ private:
    struct MaterialPipeline {
       VkDescriptorSetLayout descriptor_set_layout;
       Pipeline pipeline;
-      DescriptorPool descriptor_pool;
+      VkDescriptorPool descriptor_pool;
       UniformBuffer uniforms;
       Shader vertex_shader;
       Shader fragment_shader;
