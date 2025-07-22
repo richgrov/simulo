@@ -53,3 +53,59 @@ void write_descriptor_set(
        device, static_cast<uint32_t>(write_commands.size()), write_commands.data(), 0, nullptr
    );
 }
+
+DescriptorWrite simulo::write_uniform_buffer_dynamic(UniformBuffer &buf) {
+   DescriptorWrite write = {
+       .buffer_info =
+           {
+               .buffer = buf.buffer(),
+               .offset = 0,
+               .range = buf.element_size(),
+           },
+       .write = {
+           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+           .dstBinding = 0,
+           .descriptorCount = 1,
+           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+           .pBufferInfo = &write.buffer_info,
+       },
+   };
+   return write;
+}
+
+VkDescriptorSetLayoutBinding simulo::uniform_buffer_dynamic(uint32_t binding) {
+   return VkDescriptorSetLayoutBinding{
+       .binding = binding,
+       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+       .descriptorCount = 1,
+       .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+   };
+}
+
+VkDescriptorSetLayoutBinding simulo::combined_image_sampler(uint32_t binding) {
+   return VkDescriptorSetLayoutBinding{
+       .binding = binding,
+       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+       .descriptorCount = 1,
+       .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+   };
+}
+
+DescriptorWrite simulo::write_combined_image_sampler(VkSampler sampler, const Image &image) {
+   DescriptorWrite write = {
+       .image_info =
+           {
+               .sampler = sampler,
+               .imageView = image.view(),
+               .imageLayout = image.layout(),
+           },
+       .write = {
+           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+           .dstBinding = 1,
+           .descriptorCount = 1,
+           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+           .pImageInfo = &write.image_info,
+       },
+   };
+   return write;
+}
