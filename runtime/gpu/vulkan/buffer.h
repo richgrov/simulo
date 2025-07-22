@@ -15,11 +15,6 @@ void buffer_init(
 );
 void buffer_destroy(VkBuffer *buffer, VkDeviceMemory *allocation, VkDevice device);
 
-void vertex_index_buffer_init(
-    VertexIndexBuffer *vib, size_t vertex_data_size, IndexBufferType num_indices, VkDevice device,
-    const PhysicalDevice &physical_device
-);
-
 class StagingBuffer {
 public:
    explicit StagingBuffer(

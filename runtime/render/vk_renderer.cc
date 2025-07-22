@@ -175,14 +175,21 @@ Renderer::~Renderer() {
    }
 }
 
-Mesh Renderer::create_mesh(
-    std::span<uint8_t> vertex_data, std::span<VertexIndexBuffer::IndexType> index_data
-) {
+Mesh Renderer::create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data) {
    Mesh mesh;
-   vertex_index_buffer_init(
-       &mesh.vertices_indices, vertex_data.size_bytes(), index_data.size_bytes(), device_.handle(),
-       physical_device_
+
+   buffer_init(
+       &mesh.buffer, &mesh.allocation, vertex_data.size_bytes() + index_data.size_bytes(),
+       static_cast<VkBufferUsageFlags>(
+           VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+       ),
+       static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), device_.handle(),
+       physical_device
    );
+
+   mesh.num_indices = index_data.size();
+   mesh.vertex_data_size = vertex_data.size_bytes();
+
    update_mesh(mesh, vertex_data, index_data);
    return mesh;
 }

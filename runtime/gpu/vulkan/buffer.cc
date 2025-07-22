@@ -41,26 +41,6 @@ void buffer_destroy(VkBuffer *buffer, VkDeviceMemory *allocation, VkDevice devic
    vkFreeMemory(device, *allocation, nullptr);
 }
 
-void vertex_index_buffer_init(
-    VertexIndexBuffer *vib, size_t vertex_data_size, IndexBufferType num_indices, VkDevice device,
-    const PhysicalDevice &physical_device
-) {
-   size_t index_data_size = num_indices * sizeof(IndexBufferType);
-   size_t total_size = vertex_data_size + index_data_size;
-
-   buffer_init(
-       &vib->buffer, &vib->allocation, total_size,
-       static_cast<VkBufferUsageFlags>(
-           VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-       ),
-       static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), device,
-       physical_device
-   );
-
-   vib->vertex_data_size = vertex_data_size;
-   vib->num_indices = num_indices;
-}
-
 StagingBuffer::StagingBuffer(
     VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
 )
