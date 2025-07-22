@@ -184,7 +184,8 @@ Mesh create_mesh(
    buffer_init(
        &mesh.buffer, &mesh.allocation, vertex_data_size + index_count * sizeof(IndexBufferType),
        static_cast<VkBufferUsageFlags>(
-           VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+           VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+           VK_BUFFER_USAGE_TRANSFER_DST_BIT
        ),
        static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
        renderer->device().handle(), renderer->physical_device()
