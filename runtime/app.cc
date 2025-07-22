@@ -83,13 +83,23 @@ int get_typed_chars_length(const Window *window) {
    return static_cast<int>(window->typed_chars().length());
 }
 
-Renderer *create_renderer(Gpu *gpu, const Window *window) {
 #ifdef VKAD_APPLE
+
+Renderer *create_renderer(Gpu *gpu, const Window *window) {
    return new Renderer(*gpu, window->layer_pixel_format(), window->metal_layer());
-#else
-   return new Renderer(*gpu, window->surface(), window->width(), window->height());
-#endif
 }
+
+#else
+
+void recreate_swapchain(Renderer *renderer, Window *window) {
+   renderer->recreate_swapchain(window->width(), window->height(), window->surface());
+}
+
+Renderer *create_renderer(Gpu *gpu, const Window *window) {
+   return new Renderer(*gpu, window->surface(), window->width(), window->height());
+}
+
+#endif
 
 void destroy_renderer(Renderer *renderer) {
    delete renderer;

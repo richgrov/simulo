@@ -143,12 +143,14 @@ public:
    uint32_t current_framebuffer_;
    VkSampler sampler_;
    CommandPool command_pool_;
-   MaterialPipeline *last_bound_pipeline_;
    VkCommandBuffer preframe_cmd_buf_;
    VkCommandBuffer command_buffer_;
    VkSemaphore sem_img_avail;
    VkSemaphore sem_render_complete;
    VkFence draw_cycle_complete;
+
+   MaterialPipeline *last_bound_pipeline_;
+   IndexBufferType last_bound_mesh_index_count_;
 
    StagingBuffer staging_buffer_;
 

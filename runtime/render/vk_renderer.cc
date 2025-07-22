@@ -464,7 +464,7 @@ void end_render(Renderer *renderer) {
 }
 
 void set_pipeline(Renderer *renderer, uint32_t pipeline_id) {
-   MaterialPipeline &pipe = renderer->pipelines_[pipeline_id];
+   Renderer::MaterialPipeline &pipe = renderer->pipelines_[pipeline_id];
    vkCmdBindPipeline(
        renderer->command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline.handle()
    );
@@ -487,17 +487,16 @@ void set_mesh(Renderer *renderer, Mesh *mesh) {
    vkCmdBindIndexBuffer(
        renderer->command_buffer_, mesh->buffer, mesh->vertex_data_size, VK_INDEX_TYPE_UINT16
    );
+   renderer->last_bound_mesh_index_count_ = mesh->num_indices;
 }
 
 void render_object(Renderer *renderer, const float *transform) {
-   MeshInstance &obj = objects_.get(instance_id);
-   Mat4 mvp = view_projection * obj.transform;
-
    vkCmdPushConstants(
-       command_buffer_, pipe.pipeline.layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &mvp
+       renderer->command_buffer_, renderer->last_bound_pipeline_->pipeline.layout(),
+       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), transform
    );
 
-   vkCmdDrawIndexed(command_buffer_, mesh.vertices_indices.num_indices(), 1, 0, 0, 0);
+   vkCmdDrawIndexed(renderer->command_buffer_, renderer->last_bound_mesh_index_count_, 1, 0, 0, 0);
 }
 
 void Renderer::create_framebuffers() {
@@ -517,8 +516,4 @@ void Renderer::create_framebuffers() {
       };
       VKAD_VK(vkCreateFramebuffer(device_.handle(), &create_info, nullptr, &framebuffers_[i]));
    }
-}
-
-void recreate_swapchain(Renderer *renderer, Window *window) {
-   renderer->recreate_swapchain(window->width(), window->height(), window->surface());
 }
