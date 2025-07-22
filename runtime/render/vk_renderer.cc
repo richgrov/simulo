@@ -175,27 +175,32 @@ Renderer::~Renderer() {
    }
 }
 
-Mesh Renderer::create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data) {
+Mesh create_mesh(
+    Renderer *renderer, uint8_t *vertex_data, size_t vertex_data_size, IndexBufferType *index_data,
+    size_t index_count
+) {
    Mesh mesh;
 
    buffer_init(
-       &mesh.buffer, &mesh.allocation, vertex_data.size_bytes() + index_data.size_bytes(),
+       &mesh.buffer, &mesh.allocation, vertex_data_size + index_count * sizeof(IndexBufferType),
        static_cast<VkBufferUsageFlags>(
            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
        ),
-       static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), device_.handle(),
-       physical_device_
+       static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+       renderer->device().handle(), renderer->physical_device()
    );
 
-   mesh.num_indices = index_data.size();
-   mesh.vertex_data_size = vertex_data.size_bytes();
+   mesh.num_indices = index_count;
+   mesh.vertex_data_size = vertex_data_size;
 
-   update_mesh(mesh, vertex_data, index_data);
+   renderer->update_mesh(
+       mesh, std::span(vertex_data, vertex_data_size), std::span(index_data, index_count)
+   );
    return mesh;
 }
 
-void Renderer::delete_mesh(Mesh &mesh) {
-   buffer_destroy(&mesh.buffer, &mesh.allocation, device_.handle());
+void delete_mesh(Renderer *renderer, Mesh &mesh) {
+   buffer_destroy(&mesh.buffer, &mesh.allocation, renderer->device().handle());
 }
 
 RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int height) {
