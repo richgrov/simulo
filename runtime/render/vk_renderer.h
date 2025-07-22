@@ -10,6 +10,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "ffi.h"
 #include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/command_pool.h"
 #include "gpu/vulkan/descriptor_pool.h"
@@ -65,8 +66,6 @@ private:
 
 class Renderer {
 public:
-   using IndexBufferType = VertexIndexBuffer::IndexType;
-
    explicit Renderer(
        Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
    );
@@ -75,10 +74,11 @@ public:
    template <class Uniform>
    Material create_material(int32_t pipeline_id, const MaterialProperties &props) {
       MaterialPipeline &pipe = pipelines_[pipeline_id];
-      int material_id = materials_.emplace(Material{
-          .descriptor_set = allocate_descriptor_set(device_.handle(), pipe.descriptor_pool, pipe.descriptor_set_layout),
-      });
-      Material &mat = materials_.get(material_id);
+      Material mat = {
+          .descriptor_set = allocate_descriptor_set(
+              device_.handle(), pipe.descriptor_pool, pipe.descriptor_set_layout
+          ),
+      };
 
       Uniform u(Uniform::from_props(props));
       pipe.uniforms.upload_memory(&u, sizeof(Uniform), 0);
@@ -89,30 +89,26 @@ public:
 
       if (props.has("image")) {
          RenderImage image_id = props.get<RenderImage>("image");
-         writes.push_back(
-             write_combined_image_sampler(image_sampler(), images_.get(image_id))
-         );
+         writes.push_back(write_combined_image_sampler(image_sampler(), images_.get(image_id)));
       }
 
       write_descriptor_set(device_.handle(), mat.descriptor_set, writes);
       return mat;
    }
 
-   RenderMesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
+   Mesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
 
-   inline void delete_mesh(RenderMesh mesh) {
-      vertex_index_buffer_destroy(&mesh.vertices_indices);
+   inline void delete_mesh(Mesh mesh) {
+      buffer_destroy(&mesh.buffer, &mesh.allocation, device_.handle());
    }
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height);
 
-   void update_mesh(
-       Mesh mesh, std::span<uint8_t> vertex_data,
-       std::span<VertexIndexBuffer::IndexType> index_data
-   ) {
+   void
+   update_mesh(Mesh mesh, std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data) {
       staging_buffer_.upload_mesh(vertex_data, index_data);
       begin_preframe();
-      buffer_copy(staging_buffer_, mesh.vertices_indices);
+      buffer_copy(staging_buffer_, mesh.buffer);
       end_preframe();
    }
 
@@ -132,7 +128,7 @@ public:
 
    void begin_preframe();
 
-   void buffer_copy(const StagingBuffer &src, Buffer &dst);
+   void buffer_copy(const StagingBuffer &src, VkBuffer dst);
 
    void upload_texture(const StagingBuffer &src, Image &image);
 
@@ -171,14 +167,6 @@ private:
       UniformBuffer uniforms;
       Shader vertex_shader;
       Shader fragment_shader;
-   };
-
-   struct Material {
-      VkDescriptorSet descriptor_set;
-   };
-
-   struct Mesh {
-      VertexIndexBuffer vertices_indices;
    };
 
    Gpu &vk_instance_;

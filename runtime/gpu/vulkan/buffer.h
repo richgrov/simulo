@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ffi.h"
 #include "physical_device.h"
 #include "vulkan/vulkan_core.h"
 #include <cstring>
@@ -7,35 +8,17 @@
 
 namespace simulo {
 
-typedef struct Buffer {
-   VkBuffer buffer;
-   VkDeviceMemory allocation;
-   VkDevice device;
-} Buffer;
-
 void buffer_init(
-    Buffer* buffer, size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memory_properties,
-    VkDevice device, const PhysicalDevice &physical_device
+    VkBuffer *buffer, VkDeviceMemory *allocation, size_t size, VkBufferUsageFlags usage,
+    VkMemoryPropertyFlagBits memory_properties, VkDevice device,
+    const PhysicalDevice &physical_device
 );
-void buffer_destroy(Buffer* buffer);
-Buffer buffer_move(Buffer* other);
-Buffer& buffer_move_assign(Buffer* self, Buffer* other);
-
-typedef uint16_t IndexType;
-
-typedef struct VertexIndexBuffer {
-   Buffer buffer;
-   size_t vertex_data_size;
-   IndexType num_indices;
-} VertexIndexBuffer;
+void buffer_destroy(VkBuffer *buffer, VkDeviceMemory *allocation, VkDevice device);
 
 void vertex_index_buffer_init(
-    VertexIndexBuffer* vib, size_t vertex_data_size, IndexType num_indices, 
-    VkDevice device, const PhysicalDevice &physical_device
+    VertexIndexBuffer *vib, size_t vertex_data_size, IndexBufferType num_indices, VkDevice device,
+    const PhysicalDevice &physical_device
 );
-void vertex_index_buffer_destroy(VertexIndexBuffer* vib);
-IndexType vertex_index_buffer_num_indices(const VertexIndexBuffer* vib);
-VkDeviceSize vertex_index_buffer_index_offset(const VertexIndexBuffer* vib);
 
 class StagingBuffer {
 public:
@@ -43,14 +26,19 @@ public:
        VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
    );
 
+   StagingBuffer(const StagingBuffer &) = delete;
+   StagingBuffer &operator=(const StagingBuffer &) = delete;
+
+   StagingBuffer(StagingBuffer &&other);
+
+   StagingBuffer &operator=(StagingBuffer &&other);
+
    inline void upload_raw(void *data, size_t size) const {
       std::memcpy(mem_map_, data, size);
    }
 
-   void upload_mesh(
-       const std::span<uint8_t> vertex_data,
-       const std::span<IndexType> index_data
-   );
+   void
+   upload_mesh(const std::span<uint8_t> vertex_data, const std::span<IndexBufferType> index_data);
 
    inline VkDeviceSize capacity() const {
       return capacity_;
@@ -61,11 +49,13 @@ public:
    }
 
    inline VkBuffer buffer() const {
-      return buffer_.buffer;
+      return buffer_;
    }
 
 private:
-   Buffer buffer_;
+   VkDevice device_;
+   VkBuffer buffer_;
+   VkDeviceMemory allocation_;
    VkDeviceSize capacity_;
    VkDeviceSize size_;
    void *mem_map_;
@@ -78,12 +68,16 @@ public:
        const PhysicalDevice &physical_device
    );
 
+   UniformBuffer(const UniformBuffer &) = delete;
+   UniformBuffer &operator=(const UniformBuffer &) = delete;
+
    UniformBuffer(UniformBuffer &&other);
+   UniformBuffer &operator=(UniformBuffer &&other);
 
    inline ~UniformBuffer() {
-      bool buffer_was_moved = buffer_.allocation == nullptr;
+      bool buffer_was_moved = allocation_ == nullptr;
       if (!buffer_was_moved) {
-         vkUnmapMemory(buffer_.device, buffer_.allocation);
+         vkUnmapMemory(device_, allocation_);
       }
    }
 
@@ -97,11 +91,13 @@ public:
    }
 
    inline VkBuffer buffer() const {
-      return buffer_.buffer;
+      return buffer_;
    }
 
 private:
-   Buffer buffer_;
+   VkDevice device_;
+   VkBuffer buffer_;
+   VkDeviceMemory allocation_;
    VkDeviceSize element_size_;
    void *mem_map_;
 };

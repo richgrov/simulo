@@ -147,8 +147,7 @@ Renderer::Renderer(
            },
        },
        std::span(model_vertex_bytes(), model_vertex_len()),
-       std::span(model_fragment_bytes(), model_fragment_len()),
-       {uniform_buffer_dynamic(0)}
+       std::span(model_fragment_bytes(), model_fragment_len()), {uniform_buffer_dynamic(0)}
    );
 }
 
@@ -181,7 +180,8 @@ Mesh Renderer::create_mesh(
 ) {
    Mesh mesh;
    vertex_index_buffer_init(
-      &mesh.vertices_indices, vertex_data.size_bytes(), index_data.size_bytes(), device_.handle(), physical_device_
+       &mesh.vertices_indices, vertex_data.size_bytes(), index_data.size_bytes(), device_.handle(),
+       physical_device_
    );
    update_mesh(mesh, vertex_data, index_data);
    return mesh;
@@ -207,11 +207,11 @@ RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int h
 }
 
 Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
-    return renderer->create_material<UiUniform>(
+   return renderer->create_material<UiUniform>(
        renderer->pipelines().ui, {
-            {"image", static_cast<RenderImage>(image)},
-            {"color", Vec3{r, g, b}},
-        }
+                                     {"image", static_cast<RenderImage>(image)},
+                                     {"color", Vec3{r, g, b}},
+                                 }
    );
 }
 
@@ -249,15 +249,18 @@ RenderPipeline Renderer::create_pipeline(
    Shader vertex(device_, vertex_shader);
    Shader fragment(device_, fragment_shader);
 
-   pipelines_.emplace_back(MaterialPipeline{
-       .descriptor_set_layout = layout,
-       .pipeline =
-           Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
-       .descriptor_pool = create_descriptor_pool(device_.handle(), layout, sizes, material_capacity),
-       .uniforms = UniformBuffer(uniform_size, 4, device_.handle(), physical_device_),
-       .vertex_shader = std::move(vertex),
-       .fragment_shader = std::move(fragment),
-   });
+   pipelines_.emplace_back(
+       MaterialPipeline{
+           .descriptor_set_layout = layout,
+           .pipeline =
+               Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
+           .descriptor_pool =
+               create_descriptor_pool(device_.handle(), layout, sizes, material_capacity),
+           .uniforms = UniformBuffer(uniform_size, 4, device_.handle(), physical_device_),
+           .vertex_shader = std::move(vertex),
+           .fragment_shader = std::move(fragment),
+       }
+   );
    return static_cast<RenderPipeline>(pipelines_.size() - 1);
 }
 
@@ -285,13 +288,13 @@ void Renderer::begin_preframe() {
    VKAD_VK(vkBeginCommandBuffer(preframe_cmd_buf_, &begin_info));
 }
 
-void Renderer::buffer_copy(const StagingBuffer &src, Buffer &dst) {
+void Renderer::buffer_copy(const StagingBuffer &src, VkBuffer dst) {
    VkBufferCopy copy_region = {
        .srcOffset = 0,
        .dstOffset = 0,
        .size = src.size(),
    };
-   vkCmdCopyBuffer(preframe_cmd_buf_, src.buffer(), dst.buffer(), 1, &copy_region);
+   vkCmdCopyBuffer(preframe_cmd_buf_, src.buffer(), dst, 1, &copy_region);
 }
 
 void Renderer::upload_texture(const StagingBuffer &src, Image &image) {
@@ -303,12 +306,11 @@ void Renderer::upload_texture(const StagingBuffer &src, Image &image) {
                .baseArrayLayer = 0,
                .layerCount = 1,
            },
-       .imageExtent =
-           {
-               .width = static_cast<uint32_t>(image.width()),
-               .height = static_cast<uint32_t>(image.height()),
-               .depth = 1,
-           },
+       .imageExtent = {
+           .width = static_cast<uint32_t>(image.width()),
+           .height = static_cast<uint32_t>(image.height()),
+           .depth = 1,
+       },
    };
 
    vkCmdCopyBufferToImage(
@@ -437,8 +439,7 @@ void render_object(Renderer *renderer, const float *transform) {
    Mat4 mvp = view_projection * obj.transform;
 
    vkCmdPushConstants(
-      command_buffer_, pipe.pipeline.layout(), VK_SHADER_STAGE_VERTEX_BIT, 0,
-      sizeof(Mat4), &mvp
+       command_buffer_, pipe.pipeline.layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), &mvp
    );
 
    vkCmdDrawIndexed(command_buffer_, mesh.vertices_indices.num_indices(), 1, 0, 0, 0);
@@ -462,7 +463,6 @@ void Renderer::create_framebuffers() {
       VKAD_VK(vkCreateFramebuffer(device_.handle(), &create_info, nullptr, &framebuffers_[i]));
    }
 }
-
 
 void recreate_swapchain(Renderer *renderer, Window *window) {
    renderer->recreate_swapchain(window->width(), window->height(), window->surface());

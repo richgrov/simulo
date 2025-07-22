@@ -115,13 +115,24 @@ typedef struct {
 } Material;
 
 typedef struct {
-#if defined(VKAD_APPLE) && defined(__OBJC__)
+#ifdef VKAD_APPLE
+
+#ifdef __OBJC__
    id<MTLBuffer> buffer;
 #else
    void *buffer;
 #endif
    size_t indices_start;
    IndexBufferType num_indices;
+
+#else
+
+   VkBuffer buffer;
+   VkDeviceMemory allocation;
+   size_t vertex_data_size;
+   IndexBufferType num_indices;
+
+#endif
 } Mesh;
 
 OpenCvMat *create_opencv_mat(int rows, int cols);

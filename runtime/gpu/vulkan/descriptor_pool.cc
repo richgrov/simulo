@@ -9,7 +9,7 @@ using namespace simulo;
 VkDescriptorPool create_descriptor_pool(
     VkDevice device, VkDescriptorSetLayout layout, const std::vector<VkDescriptorPoolSize> &sizes,
     uint32_t num_sets
-)
+) {
    VkDescriptorPoolCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
        .maxSets = num_sets,
@@ -26,7 +26,8 @@ void delete_descriptor_pool(VkDevice device, VkDescriptorPool pool) {
    vkDestroyDescriptorPool(device, pool, nullptr);
 }
 
-VkDescriptorSet allocate_descriptor_set(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout) {
+VkDescriptorSet
+allocate_descriptor_set(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout) {
    VkDescriptorSetAllocateInfo alloc_info = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
        .descriptorPool = pool,
@@ -39,7 +40,9 @@ VkDescriptorSet allocate_descriptor_set(VkDevice device, VkDescriptorPool pool, 
    return descriptor_set;
 }
 
-void write_descriptor_set(VkDevice device, VkDescriptorSet set, const std::vector<DescriptorWrite> &writes) {
+void write_descriptor_set(
+    VkDevice device, VkDescriptorSet set, const std::vector<DescriptorWrite> &writes
+) {
    std::vector<VkWriteDescriptorSet> write_commands(writes.size());
    for (int i = 0; i < writes.size(); ++i) {
       write_commands[i] = writes[i].write;
