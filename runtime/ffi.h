@@ -127,10 +127,15 @@ typedef struct {
 
 #else
 
+#ifdef VK_VERSION_1_0
    VkBuffer buffer;
    VkDeviceMemory allocation;
-   size_t vertex_data_size;
+#else
+   void *buffer;
+   void *allocation;
+#endif
    IndexBufferType num_indices;
+   size_t vertex_data_size;
 
 #endif
 } Mesh;
