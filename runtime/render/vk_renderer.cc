@@ -188,30 +188,6 @@ RenderMesh Renderer::create_mesh(
    return mesh_id;
 }
 
-RenderObject Renderer::add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material) {
-   RenderObject object_id = static_cast<RenderObject>(objects_.emplace(MeshInstance{
-       .transform = transform,
-       .mesh_id = mesh,
-       .material_id = material,
-   }));
-
-   Material &mat = materials_.get(material);
-   if (mat.instances.contains(mesh)) {
-      mat.instances.at(mesh).insert(object_id);
-   } else {
-      std::unordered_set<RenderObject> instances = {object_id};
-      mat.instances.emplace(mesh, std::move(instances));
-   }
-
-   return static_cast<RenderObject>(object_id);
-}
-
-void Renderer::delete_object(RenderObject object) {
-   MeshInstance &instance = objects_.get(object);
-   materials_.get(instance.material_id).instances.at(instance.mesh_id).erase(object);
-   objects_.release(object);
-}
-
 RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int height) {
    int image_id = images_.emplace(
        physical_device_, device_.handle(),
@@ -231,12 +207,12 @@ RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int h
    return static_cast<RenderImage>(image_id);
 }
 
-uint32_t create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
-   return renderer->create_material<UiUniform>(
+Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
+    return renderer->create_material<UiUniform>(
        renderer->pipelines().ui, {
-                                     {"image", static_cast<RenderImage>(image)},
-                                     {"color", Vec3{r, g, b}},
-                                 }
+            {"image", static_cast<RenderImage>(image)},
+            {"color", Vec3{r, g, b}},
+        }
    );
 }
 

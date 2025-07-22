@@ -26,9 +26,6 @@
 namespace simulo {
 
 enum RenderPipeline : int {};
-enum RenderMaterial : int {};
-enum RenderMesh : int {};
-enum RenderObject : int {};
 enum RenderImage : int {};
 
 struct Pipelines {
@@ -76,7 +73,7 @@ public:
    ~Renderer();
 
    template <class Uniform>
-   RenderMaterial create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
+   Material create_material(int32_t pipeline_id, const MaterialProperties &props) {
       MaterialPipeline &pipe = pipelines_[pipeline_id];
       int material_id = materials_.emplace(Material{
           .descriptor_set = allocate_descriptor_set(device_.handle(), pipe.descriptor_pool, pipe.descriptor_set_layout),
@@ -98,7 +95,7 @@ public:
       }
 
       write_descriptor_set(device_.handle(), mat.descriptor_set, writes);
-      return static_cast<RenderMaterial>(material_id);
+      return mat;
    }
 
    RenderMesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
@@ -107,15 +104,7 @@ public:
       meshes_.release(mesh);
    }
 
-   RenderObject add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material);
-
-   void delete_object(RenderObject object);
-
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height);
-
-   void set_object_transform(RenderObject object_id, const Mat4 &transform) {
-      objects_.get(static_cast<int>(object_id)).transform = transform;
-   }
 
    void update_mesh(
        RenderMesh mesh, std::span<uint8_t> vertex_data,

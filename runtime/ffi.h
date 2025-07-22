@@ -94,12 +94,24 @@ typedef struct {
 typedef uint16_t IndexBufferType;
 
 typedef struct {
+#ifdef VKAD_APPLE
+
 #ifdef __OBJC__
    id<MTLBuffer> uniform_buffer;
 #else
    void *uniform_buffer;
 #endif
    int image;
+
+#else
+
+#ifdef VK_VERSION_1_0
+   VkDescriptorSet descriptor_set;
+#else
+   void *descriptor_set;
+#endif
+
+#endif
 } Material;
 
 typedef struct {
