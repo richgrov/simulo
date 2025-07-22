@@ -83,8 +83,6 @@ public:
       });
       Material &mat = materials_.get(material_id);
 
-      pipe.materials.insert(material_id);
-
       Uniform u(Uniform::from_props(props));
       pipe.uniforms.upload_memory(&u, sizeof(Uniform), 0);
 
@@ -185,22 +183,14 @@ private:
       UniformBuffer uniforms;
       Shader vertex_shader;
       Shader fragment_shader;
-      std::unordered_set<int> materials;
    };
 
    struct Material {
       VkDescriptorSet descriptor_set;
-      std::unordered_map<RenderMesh, std::unordered_set<RenderObject>> instances;
    };
 
    struct Mesh {
       VertexIndexBuffer vertices_indices;
-   };
-
-   struct MeshInstance {
-      Mat4 transform;
-      RenderMesh mesh_id;
-      RenderMaterial material_id;
    };
 
    Gpu &vk_instance_;
@@ -209,9 +199,6 @@ private:
    Swapchain swapchain_;
    VkRenderPass render_pass_;
    std::vector<MaterialPipeline> pipelines_;
-   Slab<Material> materials_;
-   Slab<MeshInstance> objects_;
-   Slab<Mesh> meshes_;
    Slab<Image> images_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;

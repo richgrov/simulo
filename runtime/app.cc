@@ -82,6 +82,7 @@ const char *get_typed_chars(const Window *window) {
 int get_typed_chars_length(const Window *window) {
    return static_cast<int>(window->typed_chars().length());
 }
+
 Renderer *create_renderer(Gpu *gpu, const Window *window) {
 #ifdef VKAD_APPLE
    return new Renderer(*gpu, window->layer_pixel_format(), window->metal_layer());
@@ -102,81 +103,10 @@ void destroy_gpu(Gpu *gpu) {
    delete gpu;
 }
 
-#ifndef VKAD_APPLE
-uint32_t create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
-   return renderer->create_material<UiUniform>(
-       renderer->pipelines().ui, {
-                                     {"image", static_cast<RenderImage>(image)},
-                                     {"color", Vec3{r, g, b}},
-                                 }
-   );
-}
-
-uint32_t create_mesh_material(Renderer *renderer, float r, float g, float b) {
-   return renderer->create_material<ModelUniform>(
-       renderer->pipelines().mesh, {
-                                       {"color", Vec3{r, g, b}},
-                                   }
-   );
-}
-
-Mesh create_mesh(
-    Renderer *renderer, uint8_t *vertex_data, size_t vertex_size, uint16_t *index_data,
-    size_t index_count
-) {
-   std::span<uint8_t> vert_span(vertex_data, vertex_size);
-   std::span<Renderer::IndexBufferType> index_span(
-       reinterpret_cast<Renderer::IndexBufferType *>(index_data), index_count
-   );
-   return static_cast<uint32_t>(renderer->create_mesh(vert_span, index_span));
-}
-
-void delete_mesh(Renderer *renderer, uint32_t mesh_id) {
-   renderer->delete_mesh(static_cast<RenderMesh>(mesh_id));
-}
-
-uint32_t
-add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_t material_id) {
-   Mat4 mat4_transform;
-   std::memcpy(&mat4_transform, transform, sizeof(Mat4));
-
-   return static_cast<uint32_t>(renderer->add_object(
-       static_cast<RenderMesh>(mesh_id), mat4_transform, static_cast<RenderMaterial>(material_id)
-   ));
-}
-
-void set_object_transform(Renderer *renderer, uint32_t object_id, const float *transform) {
-   Mat4 mat4_transform;
-   std::memcpy(&mat4_transform, transform, sizeof(Mat4));
-   renderer->set_object_transform(static_cast<RenderObject>(object_id), mat4_transform);
-}
-
-void delete_object(Renderer *renderer, uint32_t object_id) {
-   renderer->delete_object(static_cast<RenderObject>(object_id));
-}
-#endif // !VKAD_APPLE
-
 uint32_t create_image(Renderer *renderer, uint8_t *img_data, int width, int height) {
    std::span<uint8_t> data_span(img_data, width * height);
    return static_cast<uint32_t>(renderer->create_image(data_span, width, height));
 }
-
-#ifndef VKAD_APPLE
-bool render(
-    Renderer *renderer, const float *ui_view_projection, const float *world_view_projection
-) {
-   Mat4 ui_mat;
-   Mat4 world_mat;
-   std::memcpy(&ui_mat, ui_view_projection, sizeof(Mat4));
-   std::memcpy(&world_mat, world_view_projection, sizeof(Mat4));
-
-   return renderer->render(ui_mat, world_mat);
-}
-
-void recreate_swapchain(Renderer *renderer, Window *window) {
-   renderer->recreate_swapchain(window->width(), window->height(), window->surface());
-}
-#endif
 
 void wait_idle(Renderer *renderer) {
    renderer->wait_idle();

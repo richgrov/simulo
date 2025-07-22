@@ -30,9 +30,6 @@ Renderer::Renderer(
           physical_device_.handle(), device_.handle(), surface, initial_width, initial_height
       ),
       render_pass_(VK_NULL_HANDLE),
-      materials_(4),
-      objects_(16),
-      meshes_(16),
       images_(4),
       staging_buffer_(1024 * 1024 * 8, device_.handle(), physical_device_) {
 
@@ -234,6 +231,15 @@ RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int h
    return static_cast<RenderImage>(image_id);
 }
 
+uint32_t create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
+   return renderer->create_material<UiUniform>(
+       renderer->pipelines().ui, {
+                                     {"image", static_cast<RenderImage>(image)},
+                                     {"color", Vec3{r, g, b}},
+                                 }
+   );
+}
+
 RenderPipeline Renderer::create_pipeline(
     uint32_t vertex_size, VkDeviceSize uniform_size,
     const std::vector<VkVertexInputAttributeDescription> &attrs,
@@ -346,7 +352,7 @@ void Renderer::end_preframe() {
    vkQueueWaitIdle(device_.graphics_queue());
 }
 
-bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
+bool begin_render() {
    vkWaitForFences(device_.handle(), 1, &draw_cycle_complete, VK_TRUE, UINT64_MAX);
 
    VkResult next_image_res = vkAcquireNextImageKHR(
@@ -383,9 +389,20 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
 
    vkCmdBeginRenderPass(command_buffer_, &render_begin, VK_SUBPASS_CONTENTS_INLINE);
 
-   draw_pipeline(pipeline_ids_.mesh, world_view_projection);
-   draw_pipeline(pipeline_ids_.ui, ui_view_projection);
+   VkViewport viewport = {
+       .width = static_cast<float>(swapchain_.extent().width),
+       .height = static_cast<float>(swapchain_.extent().height),
+       .maxDepth = 1.0f,
+   };
+   vkCmdSetViewport(command_buffer_, 0, 1, &viewport);
 
+   VkRect2D scissor = {
+       .extent = swapchain_.extent(),
+   };
+   vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
+}
+
+void end_render(Renderer *renderer) {
    vkCmdEndRenderPass(command_buffer_);
    VKAD_VK(vkEndCommandBuffer(command_buffer_));
 
@@ -415,61 +432,39 @@ bool Renderer::render(Mat4 ui_view_projection, Mat4 world_view_projection) {
    return true;
 }
 
-void Renderer::draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection) {
+void set_pipeline(Renderer *renderer, uint32_t pipeline_id) {
    MaterialPipeline &pipe = pipelines_[pipeline_id];
    vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline.handle());
+}
 
-   VkViewport viewport = {
-       .width = static_cast<float>(swapchain_.extent().width),
-       .height = static_cast<float>(swapchain_.extent().height),
-       .maxDepth = 1.0f,
-   };
-   vkCmdSetViewport(command_buffer_, 0, 1, &viewport);
+void set_material(Renderer *renderer, Material *material) {
+   uint32_t offsets[] = {0};
+   vkCmdBindDescriptorSets(
+       command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline.layout(), 0, 1,
+       &mat.descriptor_set, 1, offsets
+   );
+}
 
-   VkRect2D scissor = {
-       .extent = swapchain_.extent(),
-   };
-   vkCmdSetScissor(command_buffer_, 0, 1, &scissor);
+void set_mesh(Renderer *renderer, Mesh *mesh) {
+   VkBuffer buffers[] = {mesh->vertices_indices.buffer()};
+   VkDeviceSize offsets[] = {0};
+   vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
+   vkCmdBindIndexBuffer(
+       command_buffer_, mesh->vertices_indices.buffer(), mesh->vertices_indices.index_offset(),
+       VK_INDEX_TYPE_UINT16
+   );
+}
 
-   for (const int material_id : pipe.materials) {
-      Material &mat = materials_.get(material_id);
+void render_object(Renderer *renderer, const float *transform) {
+   MeshInstance &obj = objects_.get(instance_id);
+   Mat4 mvp = view_projection * obj.transform;
 
-      uint32_t offsets[] = {0};
-      vkCmdBindDescriptorSets(
-          command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline.layout(), 0, 1,
-          &mat.descriptor_set, 1, offsets
-      );
+   vkCmdPushConstants(
+      command_buffer_, pipe.pipeline.layout(), VK_SHADER_STAGE_VERTEX_BIT, 0,
+      sizeof(Mat4), &mvp
+   );
 
-      for (const auto &[mesh_id, instances] : mat.instances) {
-         // When a mesh is deleted, it's list of instances will be cleared, but not deleted with it.
-         // It's important to check this here to prevent out of bounds access and save performance
-         if (instances.empty()) {
-            continue;
-         }
-
-         Mesh &mesh = meshes_.get(mesh_id);
-
-         VkBuffer buffers[] = {mesh.vertices_indices.buffer()};
-         VkDeviceSize offsets[] = {0};
-         vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
-         vkCmdBindIndexBuffer(
-             command_buffer_, mesh.vertices_indices.buffer(), mesh.vertices_indices.index_offset(),
-             VK_INDEX_TYPE_UINT16
-         );
-
-         for (const int instance_id : instances) {
-            MeshInstance &obj = objects_.get(instance_id);
-            Mat4 mvp = view_projection * obj.transform;
-
-            vkCmdPushConstants(
-                command_buffer_, pipe.pipeline.layout(), VK_SHADER_STAGE_VERTEX_BIT, 0,
-                sizeof(Mat4), &mvp
-            );
-
-            vkCmdDrawIndexed(command_buffer_, mesh.vertices_indices.num_indices(), 1, 0, 0, 0);
-         }
-      }
-   }
+   vkCmdDrawIndexed(command_buffer_, mesh.vertices_indices.num_indices(), 1, 0, 0, 0);
 }
 
 void Renderer::create_framebuffers() {
@@ -489,4 +484,9 @@ void Renderer::create_framebuffers() {
       };
       VKAD_VK(vkCreateFramebuffer(device_.handle(), &create_info, nullptr, &framebuffers_[i]));
    }
+}
+
+
+void recreate_swapchain(Renderer *renderer, Window *window) {
+   renderer->recreate_swapchain(window->width(), window->height(), window->surface());
 }

@@ -219,46 +219,18 @@ pub const Renderer = struct {
     }
 
     pub fn render(self: *Renderer, window: *const Window, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) !void {
-        if (comptime builtin.os.tag == .macos) {
-            self.renderMetal(ui_view_projection, world_view_projection);
-        } else {
-            try self.renderVulkan(window, ui_view_projection, world_view_projection);
-        }
-    }
-
-    fn getOrInsertMaterialPass(self: *Renderer, collection: *RenderCollection, material_id: u16) error{OutOfMemory}!*MaterialPass {
-        if (collection.material_passes.get(material_id)) |mat_pass_id| {
-            return self.material_passes.get(mat_pass_id).?;
-        } else {
-            var new_pass = MaterialPass.init(self.allocator);
-            errdefer new_pass.deinit();
-            const mat_pass_id, const result = try self.material_passes.insert(new_pass);
-            errdefer self.material_passes.delete(mat_pass_id) catch unreachable;
-            try collection.material_passes.put(material_id, @intCast(mat_pass_id));
-            return result;
-        }
-    }
-
-    fn getOrInsertMeshPass(self: *Renderer, pass: *MaterialPass, mesh_id: u16) error{OutOfMemory}!*MeshPass {
-        if (pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
-            return self.mesh_passes.get(mesh_pass_id).?;
-        } else {
-            const mesh_pass = try MeshPass.init(self.allocator);
-            errdefer mesh_pass.deinit(self.allocator);
-
-            const mesh_pass_id, const result = try self.mesh_passes.insert(mesh_pass);
-            errdefer self.mesh_passes.delete(mesh_pass_id) catch unreachable;
-
-            try pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
-            return result;
-        }
-    }
-
-    fn renderMetal(self: *Renderer, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) void {
         _ = world_view_projection;
 
         if (!ffi.begin_render(self.handle)) {
-            return;
+            if (comptime builtin.os.tag == .macos) {
+                return;
+            }
+
+            ffi.recreate_swapchain(self.handle, window.handle);
+
+            if (!ffi.begin_render(self.handle)) {
+                return error.RenderFailed;
+            }
         }
 
         ffi.set_pipeline(self.handle, 0); // pipeline id not currently used
@@ -296,14 +268,31 @@ pub const Renderer = struct {
         ffi.end_render(self.handle);
     }
 
-    fn renderVulkan(self: *Renderer, window: *const Window, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) !void {
-        const ok = ffi.render(self.handle, ui_view_projection.ptr(), world_view_projection.ptr());
-        if (!ok) {
-            ffi.recreate_swapchain(self.handle, window.handle);
+    fn getOrInsertMaterialPass(self: *Renderer, collection: *RenderCollection, material_id: u16) error{OutOfMemory}!*MaterialPass {
+        if (collection.material_passes.get(material_id)) |mat_pass_id| {
+            return self.material_passes.get(mat_pass_id).?;
+        } else {
+            var new_pass = MaterialPass.init(self.allocator);
+            errdefer new_pass.deinit();
+            const mat_pass_id, const result = try self.material_passes.insert(new_pass);
+            errdefer self.material_passes.delete(mat_pass_id) catch unreachable;
+            try collection.material_passes.put(material_id, @intCast(mat_pass_id));
+            return result;
+        }
+    }
 
-            if (!ffi.render(self.handle, ui_view_projection.ptr(), world_view_projection.ptr())) {
-                return error.RenderFailed;
-            }
+    fn getOrInsertMeshPass(self: *Renderer, pass: *MaterialPass, mesh_id: u16) error{OutOfMemory}!*MeshPass {
+        if (pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
+            return self.mesh_passes.get(mesh_pass_id).?;
+        } else {
+            const mesh_pass = try MeshPass.init(self.allocator);
+            errdefer mesh_pass.deinit(self.allocator);
+
+            const mesh_pass_id, const result = try self.mesh_passes.insert(mesh_pass);
+            errdefer self.mesh_passes.delete(mesh_pass_id) catch unreachable;
+
+            try pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
+            return result;
         }
     }
 
