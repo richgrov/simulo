@@ -221,6 +221,8 @@ RenderPipeline Renderer::create_pipeline(
     std::span<const uint8_t> vertex_shader, std::span<const uint8_t> fragment_shader,
     const std::vector<VkDescriptorSetLayoutBinding> &bindings
 ) {
+   const int material_capacity = 2;
+
    VkVertexInputBindingDescription binding = {
        .binding = 0,
        .stride = vertex_size,
@@ -240,7 +242,7 @@ RenderPipeline Renderer::create_pipeline(
    for (const auto &binding : bindings) {
       sizes.push_back({
           .type = binding.descriptorType,
-          .descriptorCount = binding.descriptorCount,
+          .descriptorCount = binding.descriptorCount * material_capacity,
       });
    }
 
@@ -251,7 +253,7 @@ RenderPipeline Renderer::create_pipeline(
        .descriptor_set_layout = layout,
        .pipeline =
            Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
-       .descriptor_pool = create_descriptor_pool(device_.handle(), layout, sizes, 1),
+       .descriptor_pool = create_descriptor_pool(device_.handle(), layout, sizes, material_capacity),
        .uniforms = UniformBuffer(uniform_size, 4, device_.handle(), physical_device_),
        .vertex_shader = std::move(vertex),
        .fragment_shader = std::move(fragment),
