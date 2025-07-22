@@ -176,16 +176,15 @@ Renderer::~Renderer() {
    }
 }
 
-RenderMesh Renderer::create_mesh(
+Mesh Renderer::create_mesh(
     std::span<uint8_t> vertex_data, std::span<VertexIndexBuffer::IndexType> index_data
 ) {
-   RenderMesh mesh_id = static_cast<RenderMesh>(meshes_.emplace(Mesh{
-       .vertices_indices = VertexIndexBuffer(
-           vertex_data.size_bytes(), index_data.size_bytes(), device_.handle(), physical_device_
-       ),
-   }));
-   update_mesh(mesh_id, vertex_data, index_data);
-   return mesh_id;
+   Mesh mesh;
+   vertex_index_buffer_init(
+      &mesh.vertices_indices, vertex_data.size_bytes(), index_data.size_bytes(), device_.handle(), physical_device_
+   );
+   update_mesh(mesh, vertex_data, index_data);
+   return mesh;
 }
 
 RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int height) {

@@ -101,19 +101,18 @@ public:
    RenderMesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
 
    inline void delete_mesh(RenderMesh mesh) {
-      meshes_.release(mesh);
+      vertex_index_buffer_destroy(&mesh.vertices_indices);
    }
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height);
 
    void update_mesh(
-       RenderMesh mesh, std::span<uint8_t> vertex_data,
+       Mesh mesh, std::span<uint8_t> vertex_data,
        std::span<VertexIndexBuffer::IndexType> index_data
    ) {
-      Mesh &renderer_mesh = meshes_.get(mesh);
       staging_buffer_.upload_mesh(vertex_data, index_data);
       begin_preframe();
-      buffer_copy(staging_buffer_, renderer_mesh.vertices_indices);
+      buffer_copy(staging_buffer_, mesh.vertices_indices);
       end_preframe();
    }
 
