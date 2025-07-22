@@ -255,7 +255,7 @@ Material create_material(Renderer *renderer, int32_t pipeline_id, const Material
 
 Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
    return create_material<UiUniform>(
-       renderer, renderer->pipelines().ui,
+       renderer, renderer->pipeline_ids_.ui,
        {
            {"image", static_cast<RenderImage>(image)},
            {"color", Vec3{r, g, b}},
@@ -385,8 +385,8 @@ bool begin_render(Renderer *renderer) {
    );
 
    VkResult next_image_res = vkAcquireNextImageKHR(
-       renderer->device().handle(), renderer->swapchain().handle(), UINT64_MAX,
-       renderer->sem_img_avail, VK_NULL_HANDLE, &current_framebuffer_
+       renderer->device().handle(), renderer->swapchain_.handle(), UINT64_MAX,
+       renderer->sem_img_avail, VK_NULL_HANDLE, &renderer->current_framebuffer_
    );
 
    if (next_image_res == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -410,7 +410,7 @@ bool begin_render(Renderer *renderer) {
        .framebuffer = renderer->framebuffers_[renderer->current_framebuffer_],
        .renderArea =
            {
-               .extent = swapchain_.extent(),
+               .extent = renderer->swapchain_.extent(),
            },
        .clearValueCount = 1,
        .pClearValues = &clear_color,
@@ -419,16 +419,17 @@ bool begin_render(Renderer *renderer) {
    vkCmdBeginRenderPass(renderer->command_buffer_, &render_begin, VK_SUBPASS_CONTENTS_INLINE);
 
    VkViewport viewport = {
-       .width = static_cast<float>(swapchain_.extent().width),
-       .height = static_cast<float>(swapchain_.extent().height),
+       .width = static_cast<float>(renderer->swapchain_.extent().width),
+       .height = static_cast<float>(renderer->swapchain_.extent().height),
        .maxDepth = 1.0f,
    };
    vkCmdSetViewport(renderer->command_buffer_, 0, 1, &viewport);
 
    VkRect2D scissor = {
-       .extent = swapchain_.extent(),
+       .extent = renderer->swapchain_.extent(),
    };
    vkCmdSetScissor(renderer->command_buffer_, 0, 1, &scissor);
+   return true;
 }
 
 void end_render(Renderer *renderer) {
@@ -439,28 +440,27 @@ void end_render(Renderer *renderer) {
    VkSubmitInfo submit_info = {
        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
        .waitSemaphoreCount = 1,
-       .pWaitSemaphores = &sem_img_avail,
+       .pWaitSemaphores = &renderer->sem_img_avail,
        .pWaitDstStageMask = wait_stages,
        .commandBufferCount = 1,
        .pCommandBuffers = &renderer->command_buffer_,
        .signalSemaphoreCount = 1,
-       .pSignalSemaphores = &sem_render_complete,
+       .pSignalSemaphores = &renderer->sem_render_complete,
    };
    VKAD_VK(vkQueueSubmit(
        renderer->device().graphics_queue(), 1, &submit_info, renderer->draw_cycle_complete
    ));
 
-   VkSwapchainKHR swap_chains[] = {swapchain_.handle()};
+   VkSwapchainKHR swap_chains[] = {renderer->swapchain_.handle()};
    VkPresentInfoKHR present_info = {
        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
        .waitSemaphoreCount = 1,
-       .pWaitSemaphores = &sem_render_complete,
+       .pWaitSemaphores = &renderer->sem_render_complete,
        .swapchainCount = VKAD_ARRAY_LEN(swap_chains),
        .pSwapchains = swap_chains,
-       .pImageIndices = &current_framebuffer_,
+       .pImageIndices = &renderer->current_framebuffer_,
    };
    vkQueuePresentKHR(renderer->device().present_queue(), &present_info);
-   return true;
 }
 
 void set_pipeline(Renderer *renderer, uint32_t pipeline_id) {
@@ -468,23 +468,24 @@ void set_pipeline(Renderer *renderer, uint32_t pipeline_id) {
    vkCmdBindPipeline(
        renderer->command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline.handle()
    );
+   renderer->last_bound_pipeline_ = &pipe;
 }
 
 void set_material(Renderer *renderer, Material *material) {
    uint32_t offsets[] = {0};
    vkCmdBindDescriptorSets(
-       renderer->command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline.layout(), 0, 1,
-       &mat.descriptor_set, 1, offsets
+       renderer->command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS,
+       renderer->last_bound_pipeline_->pipeline.layout(), 0, 1, &material->descriptor_set, 1,
+       offsets
    );
 }
 
 void set_mesh(Renderer *renderer, Mesh *mesh) {
-   VkBuffer buffers[] = {mesh->vertices_indices.buffer()};
+   VkBuffer buffers[] = {mesh->buffer};
    VkDeviceSize offsets[] = {0};
-   vkCmdBindVertexBuffers(command_buffer_, 0, 1, buffers, offsets);
+   vkCmdBindVertexBuffers(renderer->command_buffer_, 0, 1, buffers, offsets);
    vkCmdBindIndexBuffer(
-       command_buffer_, mesh->vertices_indices.buffer(), mesh->vertices_indices.index_offset(),
-       VK_INDEX_TYPE_UINT16
+       renderer->command_buffer_, mesh->buffer, mesh->vertex_data_size, VK_INDEX_TYPE_UINT16
    );
 }
 

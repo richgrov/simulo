@@ -112,10 +112,6 @@ public:
       device_.wait_idle();
    }
 
-   const Pipelines &pipelines() const {
-      return pipeline_ids_;
-   }
-
    void draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection);
 
    RenderPipeline create_pipeline(
@@ -147,6 +143,7 @@ public:
    uint32_t current_framebuffer_;
    VkSampler sampler_;
    CommandPool command_pool_;
+   MaterialPipeline *last_bound_pipeline_;
    VkCommandBuffer preframe_cmd_buf_;
    VkCommandBuffer command_buffer_;
    VkSemaphore sem_img_avail;
