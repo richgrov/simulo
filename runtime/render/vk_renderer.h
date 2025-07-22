@@ -71,46 +71,14 @@ public:
    );
    ~Renderer();
 
-   template <class Uniform>
-   Material create_material(int32_t pipeline_id, const MaterialProperties &props) {
-      MaterialPipeline &pipe = pipelines_[pipeline_id];
-      Material mat = {
-          .descriptor_set = allocate_descriptor_set(
-              device_.handle(), pipe.descriptor_pool, pipe.descriptor_set_layout
-          ),
-      };
-
-      Uniform u(Uniform::from_props(props));
-      pipe.uniforms.upload_memory(&u, sizeof(Uniform), 0);
-
-      std::vector<DescriptorWrite> writes = {
-          write_uniform_buffer_dynamic(pipe.uniforms),
-      };
-
-      if (props.has("image")) {
-         RenderImage image_id = props.get<RenderImage>("image");
-         writes.push_back(write_combined_image_sampler(image_sampler(), images_.get(image_id)));
-      }
-
-      write_descriptor_set(device_.handle(), mat.descriptor_set, writes);
-      return mat;
-   }
-
    Mesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
 
-   inline void delete_mesh(Mesh mesh) {
-      buffer_destroy(&mesh.buffer, &mesh.allocation, device_.handle());
-   }
+   void delete_mesh(Mesh &mesh);
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height);
 
    void
-   update_mesh(Mesh mesh, std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data) {
-      staging_buffer_.upload_mesh(vertex_data, index_data);
-      begin_preframe();
-      buffer_copy(staging_buffer_, mesh.buffer);
-      end_preframe();
-   }
+   update_mesh(Mesh &mesh, std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
 
    inline Device &device() {
       return device_;
@@ -148,7 +116,6 @@ public:
       return pipeline_ids_;
    }
 
-private:
    void draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection);
 
    RenderPipeline create_pipeline(

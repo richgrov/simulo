@@ -1,6 +1,7 @@
 #include "buffer.h"
 
 #include <cstring>
+
 #include <vulkan/vulkan_core.h>
 
 #include "physical_device.h"
@@ -9,7 +10,7 @@
 
 using namespace simulo;
 
-void buffer_init(
+void simulo::buffer_init(
     VkBuffer *buffer, VkDeviceMemory *allocation, size_t size, VkBufferUsageFlags usage,
     VkMemoryPropertyFlagBits memory_properties, VkDevice device,
     const PhysicalDevice &physical_device
@@ -36,7 +37,7 @@ void buffer_init(
    VKAD_VK(vkBindBufferMemory(device, *buffer, *allocation, 0));
 }
 
-void buffer_destroy(VkBuffer *buffer, VkDeviceMemory *allocation, VkDevice device) {
+void simulo::buffer_destroy(VkBuffer *buffer, VkDeviceMemory *allocation, VkDevice device) {
    vkDestroyBuffer(device, *buffer, nullptr);
    vkFreeMemory(device, *allocation, nullptr);
 }

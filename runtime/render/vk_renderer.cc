@@ -194,6 +194,10 @@ Mesh Renderer::create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBuffer
    return mesh;
 }
 
+void Renderer::delete_mesh(Mesh &mesh) {
+   buffer_destroy(&mesh.buffer, &mesh.allocation, device_.handle());
+}
+
 RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int height) {
    int image_id = images_.emplace(
        physical_device_, device_.handle(),
@@ -213,12 +217,49 @@ RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int h
    return static_cast<RenderImage>(image_id);
 }
 
+void Renderer::update_mesh(
+    Mesh &mesh, std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data
+) {
+   staging_buffer_.upload_mesh(vertex_data, index_data);
+   begin_preframe();
+   buffer_copy(staging_buffer_, mesh.buffer);
+   end_preframe();
+}
+
+template <class Uniform>
+Material create_material(Renderer *renderer, int32_t pipeline_id, const MaterialProperties &props) {
+   MaterialPipeline &pipe = renderer->pipelines_[pipeline_id];
+   Material mat = {
+       .descriptor_set = allocate_descriptor_set(
+           renderer->device().handle(), pipe.descriptor_pool, pipe.descriptor_set_layout
+       ),
+   };
+
+   Uniform u(Uniform::from_props(props));
+   pipe.uniforms.upload_memory(&u, sizeof(Uniform), 0);
+
+   std::vector<DescriptorWrite> writes = {
+       write_uniform_buffer_dynamic(pipe.uniforms),
+   };
+
+   if (props.has("image")) {
+      RenderImage image_id = props.get<RenderImage>("image");
+      writes.push_back(
+          write_combined_image_sampler(image_sampler(), renderer->images_.get(image_id))
+      );
+   }
+
+   write_descriptor_set(renderer->device().handle(), mat.descriptor_set, writes);
+   return mat;
+}
+
 Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
-   return renderer->create_material<UiUniform>(
-       renderer->pipelines().ui, {
-                                     {"image", static_cast<RenderImage>(image)},
-                                     {"color", Vec3{r, g, b}},
-                                 }
+   return create_material<UiUniform>(
+       *renderer, renderer->pipelines().ui,
+       {
+           {"image", static_cast<RenderImage>(image)},
+           {"color", Vec3{r, g, b}},
+       }
    );
 }
 

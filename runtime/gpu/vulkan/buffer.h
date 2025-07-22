@@ -1,10 +1,12 @@
 #pragma once
 
-#include "ffi.h"
-#include "physical_device.h"
-#include "vulkan/vulkan_core.h"
 #include <cstring>
 #include <span>
+
+#include <vulkan/vulkan_core.h>
+
+#include "ffi.h"
+#include "physical_device.h"
 
 namespace simulo {
 
