@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const custom_api_host = b.option([]const u8, "api_host", "Override API host") orelse "api.simulo.grover.sh";
+    const custom_api_host = b.option([]const u8, "api_host", "Override API host") orelse "api.simulo.tech";
     const custom_api_port = b.option(u16, "api_port", "Override API port") orelse 443;
     const api_tls = b.option(bool, "api_tls", "Use TLS for API connection") orelse true;
     const wasm_path = b.option([]const u8, "wasm_path", "Override path to read WASM binary from");
