@@ -94,22 +94,50 @@ typedef struct {
 typedef uint16_t IndexBufferType;
 
 typedef struct {
+#ifdef VKAD_APPLE
+
 #ifdef __OBJC__
    id<MTLBuffer> uniform_buffer;
 #else
    void *uniform_buffer;
 #endif
    int image;
+
+#else
+
+#ifdef VK_VERSION_1_0
+   VkDescriptorSet descriptor_set;
+#else
+   void *descriptor_set;
+#endif
+
+#endif
 } Material;
 
 typedef struct {
-#if defined(VKAD_APPLE) && defined(__OBJC__)
+#ifdef VKAD_APPLE
+
+#ifdef __OBJC__
    id<MTLBuffer> buffer;
 #else
    void *buffer;
 #endif
    size_t indices_start;
    IndexBufferType num_indices;
+
+#else
+
+#ifdef VK_VERSION_1_0
+   VkBuffer buffer;
+   VkDeviceMemory allocation;
+#else
+   void *buffer;
+   void *allocation;
+#endif
+   IndexBufferType num_indices;
+   size_t vertex_data_size;
+
+#endif
 } Mesh;
 
 OpenCvMat *create_opencv_mat(int rows, int cols);

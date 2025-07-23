@@ -10,6 +10,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "ffi.h"
 #include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/command_pool.h"
 #include "gpu/vulkan/descriptor_pool.h"
@@ -26,9 +27,6 @@
 namespace simulo {
 
 enum RenderPipeline : int {};
-enum RenderMaterial : int {};
-enum RenderMesh : int {};
-enum RenderObject : int {};
 enum RenderImage : int {};
 
 struct Pipelines {
@@ -68,68 +66,19 @@ private:
 
 class Renderer {
 public:
-   using IndexBufferType = VertexIndexBuffer::IndexType;
-
    explicit Renderer(
        Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
    );
    ~Renderer();
 
-   template <class Uniform>
-   RenderMaterial create_material(RenderPipeline pipeline_id, const MaterialProperties &props) {
-      MaterialPipeline &pipe = pipelines_[pipeline_id];
-      int material_id = materials_.emplace(Material{
-          .descriptor_set = pipe.descriptor_pool.allocate(pipe.descriptor_set_layout),
-      });
-      Material &mat = materials_.get(material_id);
+   Mesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
 
-      pipe.materials.insert(material_id);
-
-      Uniform u(Uniform::from_props(props));
-      pipe.uniforms.upload_memory(&u, sizeof(Uniform), 0);
-
-      std::vector<DescriptorWrite> writes = {
-          DescriptorPool::write_uniform_buffer_dynamic(pipe.uniforms),
-      };
-
-      if (props.has("image")) {
-         RenderImage image_id = props.get<RenderImage>("image");
-         writes.push_back(
-             DescriptorPool::write_combined_image_sampler(image_sampler(), images_.get(image_id))
-         );
-      }
-
-      pipe.descriptor_pool.write(mat.descriptor_set, writes);
-
-      return static_cast<RenderMaterial>(material_id);
-   }
-
-   RenderMesh create_mesh(std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
-
-   inline void delete_mesh(RenderMesh mesh) {
-      meshes_.release(mesh);
-   }
-
-   RenderObject add_object(RenderMesh mesh, Mat4 transform, RenderMaterial material);
-
-   void delete_object(RenderObject object);
+   void delete_mesh(Mesh &mesh);
 
    RenderImage create_image(std::span<uint8_t> img_data, int width, int height);
 
-   void set_object_transform(RenderObject object_id, const Mat4 &transform) {
-      objects_.get(static_cast<int>(object_id)).transform = transform;
-   }
-
-   void update_mesh(
-       RenderMesh mesh, std::span<uint8_t> vertex_data,
-       std::span<VertexIndexBuffer::IndexType> index_data
-   ) {
-      Mesh &renderer_mesh = meshes_.get(mesh);
-      staging_buffer_.upload_mesh(vertex_data, index_data);
-      begin_preframe();
-      buffer_copy(staging_buffer_, renderer_mesh.vertices_indices);
-      end_preframe();
-   }
+   void
+   update_mesh(Mesh &mesh, std::span<uint8_t> vertex_data, std::span<IndexBufferType> index_data);
 
    inline Device &device() {
       return device_;
@@ -147,7 +96,7 @@ public:
 
    void begin_preframe();
 
-   void buffer_copy(const StagingBuffer &src, Buffer &dst);
+   void buffer_copy(const StagingBuffer &src, VkBuffer dst);
 
    void upload_texture(const StagingBuffer &src, Image &image);
 
@@ -163,11 +112,6 @@ public:
       device_.wait_idle();
    }
 
-   const Pipelines &pipelines() const {
-      return pipeline_ids_;
-   }
-
-private:
    void draw_pipeline(RenderPipeline pipeline_id, Mat4 view_projection);
 
    RenderPipeline create_pipeline(
@@ -182,26 +126,10 @@ private:
    struct MaterialPipeline {
       VkDescriptorSetLayout descriptor_set_layout;
       Pipeline pipeline;
-      DescriptorPool descriptor_pool;
+      VkDescriptorPool descriptor_pool;
       UniformBuffer uniforms;
       Shader vertex_shader;
       Shader fragment_shader;
-      std::unordered_set<int> materials;
-   };
-
-   struct Material {
-      VkDescriptorSet descriptor_set;
-      std::unordered_map<RenderMesh, std::unordered_set<RenderObject>> instances;
-   };
-
-   struct Mesh {
-      VertexIndexBuffer vertices_indices;
-   };
-
-   struct MeshInstance {
-      Mat4 transform;
-      RenderMesh mesh_id;
-      RenderMaterial material_id;
    };
 
    Gpu &vk_instance_;
@@ -210,9 +138,6 @@ private:
    Swapchain swapchain_;
    VkRenderPass render_pass_;
    std::vector<MaterialPipeline> pipelines_;
-   Slab<Material> materials_;
-   Slab<MeshInstance> objects_;
-   Slab<Mesh> meshes_;
    Slab<Image> images_;
    std::vector<VkFramebuffer> framebuffers_;
    uint32_t current_framebuffer_;
@@ -223,6 +148,9 @@ private:
    VkSemaphore sem_img_avail;
    VkSemaphore sem_render_complete;
    VkFence draw_cycle_complete;
+
+   MaterialPipeline *last_bound_pipeline_;
+   IndexBufferType last_bound_mesh_index_count_;
 
    StagingBuffer staging_buffer_;
 
