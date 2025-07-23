@@ -48,6 +48,17 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             };
         }
 
+        pub fn rotateZ(angle: f32) Matrix(f32, 4, 4) {
+            return .{
+                .data = [_]@Vector(4, f32){
+                    .{ @cos(angle), @sin(angle), 0, 0 },
+                    .{ -@sin(angle), @cos(angle), 0, 0 },
+                    .{ 0, 0, 1, 0 },
+                    .{ 0, 0, 0, 1 },
+                },
+            };
+        }
+
         pub fn scale(v: @Vector(rows - 1, f32)) Matrix(f32, rows, rows) {
             if (rows != cols) {
                 @compileError("matrix must be square to scale");

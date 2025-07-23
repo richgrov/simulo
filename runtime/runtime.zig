@@ -40,6 +40,7 @@ const Vertex = struct {
 
 pub const GameObject = struct {
     pos: @Vector(3, f32),
+    rotation: f32,
     scale: @Vector(3, f32),
     id: usize,
     handle: Renderer.ObjectHandle,
@@ -50,6 +51,7 @@ pub const GameObject = struct {
     pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32, internal: bool) error{OutOfMemory}!GameObject {
         const obj = GameObject{
             .pos = .{ x_, y_, 0 },
+            .rotation = 0,
             .scale = .{ 1, 1, 1 },
             .id = id,
             .handle = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, if (internal) 1 else 0),
@@ -91,8 +93,9 @@ pub const GameObject = struct {
 
     pub fn recalculateTransform(self: *const GameObject, renderer: *Renderer) void {
         const translate = Mat4.translate(.{ self.pos[0], self.pos[1], self.pos[2] });
+        const rotate = Mat4.rotateZ(self.rotation);
         const scale = Mat4.scale(.{ self.scale[0], self.scale[1], self.scale[2] });
-        renderer.setObjectTransform(self.handle, translate.matmul(&scale));
+        renderer.setObjectTransform(self.handle, translate.matmul(&rotate).matmul(&scale));
     }
 };
 
@@ -143,9 +146,11 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
         try Wasm.exposeFunction("simulo_set_object_material", wasmSetObjectMaterial);
         try Wasm.exposeFunction("simulo_set_object_position", wasmSetObjectPosition);
+        try Wasm.exposeFunction("simulo_set_object_rotation", wasmSetObjectRotation);
         try Wasm.exposeFunction("simulo_set_object_scale", wasmSetObjectScale);
         try Wasm.exposeFunction("simulo_get_object_x", wasmGetObjectX);
         try Wasm.exposeFunction("simulo_get_object_y", wasmGetObjectY);
+        try Wasm.exposeFunction("simulo_get_object_rotation", wasmGetObjectRotation);
         try Wasm.exposeFunction("simulo_delete_object", wasmDeleteObject);
         try Wasm.exposeFunction("simulo_random", wasmRandom);
         try Wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
@@ -518,6 +523,16 @@ pub const Runtime = struct {
         obj.recalculateTransform(&runtime.renderer);
     }
 
+    fn wasmSetObjectRotation(user_ptr: *anyopaque, id: u32, rotation: f32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.getObject(id) orelse {
+            runtime.remote.log("tried to set rotation of non-existent object {x}", .{id});
+            return;
+        };
+        obj.rotation = rotation;
+        obj.recalculateTransform(&runtime.renderer);
+    }
+
     fn wasmSetObjectScale(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
@@ -544,6 +559,15 @@ pub const Runtime = struct {
             return 0.0;
         };
         return obj.pos[1];
+    }
+
+    fn wasmGetObjectRotation(user_ptr: *anyopaque, id: u32) f32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.getObject(id) orelse {
+            runtime.remote.log("tried to get rotation of non-existent object {x}", .{id});
+            return 0.0;
+        };
+        return obj.rotation;
     }
 
     fn wasmDeleteObject(user_ptr: *anyopaque, id: u32) void {
