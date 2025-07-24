@@ -203,7 +203,7 @@ mod game {
 
     impl Game {
         pub fn new() -> Self {
-            let mat = Material::new(0, 1.0, 1.0, 1.0);
+            let mat = Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0);
             let obj = GameObject::new(Vec2::new(500.0, 500.0), &mat);
             obj.set_scale(Vec2::new(100.0, 100.0));
             Game { obj }
