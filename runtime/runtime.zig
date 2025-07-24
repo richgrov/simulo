@@ -131,6 +131,7 @@ pub const Runtime = struct {
     images: std.ArrayList(Renderer.ImageHandle),
     pose_buffer: ?[*]f32,
     random: std.Random.Xoshiro256,
+    outdated_object_transforms: util.IntSet(u32, 128),
 
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: usize,
@@ -187,6 +188,10 @@ pub const Runtime = struct {
         runtime.object_ids = try Slab(usize).init(runtime.allocator, 64);
         errdefer runtime.object_ids.deinit();
         runtime.images = try std.ArrayList(Renderer.ImageHandle).initCapacity(runtime.allocator, 4);
+
+        runtime.outdated_object_transforms = try util.IntSet(u32, 128).init(runtime.allocator, 64);
+        errdefer runtime.outdated_object_transforms.deinit(runtime.allocator);
+
         errdefer runtime.images.deinit();
         runtime.pose_buffer = null;
         const now: u64 = @bitCast(std.time.microTimestamp());
@@ -210,6 +215,7 @@ pub const Runtime = struct {
         self.masks.deinit();
         self.images.deinit();
         self.objects.deinit();
+        self.outdated_object_transforms.deinit(self.allocator);
         self.object_ids.deinit();
         self.pose_detector.stop();
         self.renderer.deinit();
@@ -313,7 +319,7 @@ pub const Runtime = struct {
 
             if (self.getObject(self.chessboard)) |chessboard| {
                 chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
-                chessboard.recalculateTransform(&self.renderer);
+                self.markOutdatedTransform(self.chessboard);
             }
 
             if (self.calibrated) {
@@ -332,6 +338,8 @@ pub const Runtime = struct {
                     _ = self.wasm.callFunction(func, .{deltaf / 1000}) catch unreachable;
                 }
             }
+
+            self.recalculateOutdatedTransforms();
 
             const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
             self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
@@ -433,15 +441,29 @@ pub const Runtime = struct {
         if (object_id) |mask_obj_id| {
             const mask_obj = self.getObject(mask_obj_id).?;
             mask_obj.pos = .{ spawn_x, spawn_y, 0.0 };
-            mask_obj.recalculateTransform(&self.renderer);
+            self.markOutdatedTransform(mask_obj_id);
             return mask_obj_id;
         }
 
         const obj_id = self.createObject(spawn_x, spawn_y, self.mask_material, true);
         const mask_obj = self.getObject(obj_id).?;
         mask_obj.scale = .{ MASK_WIDTH, MASK_HEIGHT, 1.0 };
-        mask_obj.recalculateTransform(&self.renderer);
+        self.markOutdatedTransform(obj_id);
         return obj_id;
+    }
+
+    fn recalculateOutdatedTransforms(self: *Runtime) void {
+        for (0..self.outdated_object_transforms.bucketCount()) |bucket| {
+            for (self.outdated_object_transforms.bucketItems(bucket)) |obj_id| {
+                const obj = self.getObject(obj_id).?;
+                obj.recalculateTransform(&self.renderer);
+            }
+        }
+        self.outdated_object_transforms.clear();
+    }
+
+    fn markOutdatedTransform(self: *Runtime, id: usize) void {
+        self.outdated_object_transforms.put(self.allocator, @intCast(id)) catch |err| util.crash.oom(err);
     }
 
     fn wasmSetPoseBuffer(user_ptr: *anyopaque, buffer: [*]f32) void {
@@ -464,7 +486,6 @@ pub const Runtime = struct {
         self.objects.append(obj) catch |err| util.crash.oom(err);
 
         const index = self.objects.items.len - 1;
-        self.objects.items[index].recalculateTransform(&self.renderer);
         object_index.* = index;
 
         return object_id;
@@ -520,7 +541,7 @@ pub const Runtime = struct {
             return;
         };
         obj.pos = .{ x, y, 0 };
-        obj.recalculateTransform(&runtime.renderer);
+        runtime.markOutdatedTransform(id);
     }
 
     fn wasmSetObjectRotation(user_ptr: *anyopaque, id: u32, rotation: f32) void {
@@ -530,7 +551,7 @@ pub const Runtime = struct {
             return;
         };
         obj.rotation = rotation;
-        obj.recalculateTransform(&runtime.renderer);
+        runtime.markOutdatedTransform(id);
     }
 
     fn wasmSetObjectScale(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
@@ -540,7 +561,7 @@ pub const Runtime = struct {
             return;
         };
         obj.scale = .{ x, y, 1 };
-        obj.recalculateTransform(&runtime.renderer);
+        runtime.markOutdatedTransform(id);
     }
 
     fn wasmGetObjectX(user_ptr: *anyopaque, id: u32) f32 {

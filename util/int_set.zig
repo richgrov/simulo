@@ -75,6 +75,10 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
             return false;
         }
 
+        pub fn clear(self: *Self) void {
+            @memset(self.sizes, 0);
+        }
+
         pub fn bucketCount(self: *const Self) usize {
             return self.sizes.len;
         }
