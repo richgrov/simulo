@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const vulkan = @import("util").vulkan;
-const Y_AXIS = if (vulkan) -1 else 1;
 
 fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
     return struct {
@@ -28,7 +27,7 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
                     .{ 2.0 / width, 0, 0, 0 },
                     .{ 0, 2.0 / height, 0, 0 },
                     .{ 0, 0, 1.0 / depth, 0 },
-                    .{ -1, -Y_AXIS, -near / depth, 1 },
+                    .{ -1, -1, -near / depth, 1 },
                 },
             };
         }

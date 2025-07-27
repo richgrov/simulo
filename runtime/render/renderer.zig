@@ -226,7 +226,7 @@ pub const Renderer = struct {
                 return;
             }
 
-            ffi.recreate_swapchain(self.handle, window.handle);
+            ffi.recreate_swapchain(self.handle, window.getWidth(), window.getHeight(), window.surface());
 
             if (!ffi.begin_render(self.handle)) {
                 return error.RenderFailed;
@@ -294,6 +294,10 @@ pub const Renderer = struct {
             try pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
             return result;
         }
+    }
+
+    pub fn handleResize(self: *Renderer, width: i32, height: i32, surface: *anyopaque) void {
+        ffi.recreate_swapchain(self.handle, width, height, surface);
     }
 
     pub fn waitIdle(self: *Renderer) void {

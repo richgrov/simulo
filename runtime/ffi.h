@@ -171,7 +171,7 @@ void render_object(Renderer *renderer, const float *transform);
 void end_render(Renderer *renderer);
 
 #ifndef VKAD_APPLE
-void recreate_swapchain(Renderer *renderer, Window *window);
+void recreate_swapchain(Renderer *renderer, int32_t width, int32_t height, void *surface);
 #endif
 void wait_idle(Renderer *renderer);
 
@@ -194,6 +194,7 @@ bool is_key_down(const Window *window, uint8_t key_code);
 bool key_just_pressed(const Window *window, uint8_t key_code);
 const char *get_typed_chars(const Window *window);
 int get_typed_chars_length(const Window *window);
+void *get_window_surface(const Window *window);
 
 #ifdef __cplusplus
 }

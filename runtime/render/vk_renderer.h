@@ -92,8 +92,6 @@ public:
       return sampler_;
    }
 
-   void recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface);
-
    void begin_preframe();
 
    void buffer_copy(const StagingBuffer &src, VkBuffer dst);
@@ -127,6 +125,7 @@ public:
       VkDescriptorSetLayout descriptor_set_layout;
       Pipeline pipeline;
       VkDescriptorPool descriptor_pool;
+      int uniform_slot_usage;
       UniformBuffer uniforms;
       Shader vertex_shader;
       Shader fragment_shader;

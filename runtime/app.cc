@@ -91,8 +91,8 @@ Renderer *create_renderer(Gpu *gpu, const Window *window) {
 
 #else
 
-void recreate_swapchain(Renderer *renderer, Window *window) {
-   renderer->recreate_swapchain(window->width(), window->height(), window->surface());
+void *get_window_surface(const Window *window) {
+   return reinterpret_cast<void *>(window->surface());
 }
 
 Renderer *create_renderer(Gpu *gpu, const Window *window) {
@@ -114,7 +114,7 @@ void destroy_gpu(Gpu *gpu) {
 }
 
 uint32_t create_image(Renderer *renderer, uint8_t *img_data, int width, int height) {
-   std::span<uint8_t> data_span(img_data, width * height);
+   std::span<uint8_t> data_span(img_data, width * height * 4);
    return static_cast<uint32_t>(renderer->create_image(data_span, width, height));
 }
 

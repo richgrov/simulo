@@ -242,7 +242,7 @@ Material create_material(Renderer *renderer, int32_t pipeline_id, const Material
    };
 
    Uniform u(Uniform::from_props(props));
-   pipe.uniforms.upload_memory(&u, sizeof(Uniform), 0);
+   pipe.uniforms.upload_memory(&u, sizeof(Uniform), pipe.uniform_slot_usage++);
 
    std::vector<DescriptorWrite> writes = {
        write_uniform_buffer_dynamic(pipe.uniforms),
@@ -310,7 +310,9 @@ RenderPipeline Renderer::create_pipeline(
                Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
            .descriptor_pool =
                create_descriptor_pool(device_.handle(), layout, sizes, material_capacity),
-           .uniforms = UniformBuffer(uniform_size, 4, device_.handle(), physical_device_),
+           .uniform_slot_usage = 0,
+           .uniforms =
+               UniformBuffer(uniform_size, material_capacity, device_.handle(), physical_device_),
            .vertex_shader = std::move(vertex),
            .fragment_shader = std::move(fragment),
        }
@@ -318,18 +320,23 @@ RenderPipeline Renderer::create_pipeline(
    return static_cast<RenderPipeline>(pipelines_.size() - 1);
 }
 
-void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {
-   swapchain_.dispose();
-   swapchain_ = std::move(Swapchain(
-       {physical_device_.graphics_queue(), physical_device_.present_queue()},
-       physical_device_.handle(), device_.handle(), surface, width, height
+void recreate_swapchain(Renderer *renderer, int32_t width, int32_t height, void *surface_ptr) {
+   VKAD_ASSERT(width >= 0, "width must be >= 0");
+   VKAD_ASSERT(height >= 0, "height must be >= 0");
+
+   auto surface = reinterpret_cast<VkSurfaceKHR>(surface_ptr);
+
+   renderer->swapchain_.dispose();
+   renderer->swapchain_ = std::move(Swapchain(
+       {renderer->physical_device().graphics_queue(), renderer->physical_device().present_queue()},
+       renderer->physical_device().handle(), renderer->device().handle(), surface, width, height
    ));
 
-   for (const VkFramebuffer framebuffer : framebuffers_) {
-      vkDestroyFramebuffer(device_.handle(), framebuffer, nullptr);
+   for (const VkFramebuffer framebuffer : renderer->framebuffers_) {
+      vkDestroyFramebuffer(renderer->device().handle(), framebuffer, nullptr);
    }
 
-   create_framebuffers();
+   renderer->create_framebuffers();
 }
 
 void Renderer::begin_preframe() {
