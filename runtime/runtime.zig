@@ -322,7 +322,9 @@ pub const Runtime = struct {
                 self.last_window_width = width;
                 self.last_window_height = height;
 
+                if (comptime util.vulkan) {
                 self.renderer.handleResize(width, height, self.window.surface());
+                }
 
             if (self.getObject(self.chessboard)) |chessboard| {
                     chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ @floatFromInt(width), @floatFromInt(height), 1 };
