@@ -296,7 +296,7 @@ pub const Renderer = struct {
         }
     }
 
-    pub fn handleResize(self: *Renderer, width: i32, height: i32, surface: *const anyopaque) void {
+    pub fn handleResize(self: *Renderer, width: i32, height: i32, surface: *anyopaque) void {
         ffi.recreate_swapchain(self.handle, width, height, surface);
     }
 

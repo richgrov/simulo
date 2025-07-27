@@ -71,7 +71,7 @@ pub const Window = struct {
         return chars[0..@intCast(length)];
     }
 
-    pub fn surface(self: *const Window) *const anyopaque {
-        return ffi.get_window_surface(self.handle);
+    pub fn surface(self: *const Window) *anyopaque {
+        return ffi.get_window_surface(self.handle).?;
     }
 };

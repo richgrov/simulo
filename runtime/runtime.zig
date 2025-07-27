@@ -352,7 +352,12 @@ pub const Runtime = struct {
 
             self.recalculateOutdatedTransforms();
 
-            const ui_projection = Mat4.ortho(width, height, -1.0, 1.0);
+            const ui_projection = Mat4.ortho(
+                @floatFromInt(self.last_window_width),
+                @floatFromInt(self.last_window_height),
+                -1.0,
+                1.0,
+            );
             self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
                 self.remote.log("render failed: {any}", .{err});
             };
