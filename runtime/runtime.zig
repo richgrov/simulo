@@ -117,6 +117,8 @@ const MaskData = struct {
 pub const Runtime = struct {
     gpu: Gpu,
     window: Window,
+    last_window_width: i32,
+    last_window_height: i32,
     renderer: Renderer,
     pose_detector: PoseDetector,
     remote: Remote,
@@ -173,6 +175,8 @@ pub const Runtime = struct {
         errdefer runtime.gpu.deinit();
         runtime.window = Window.init(&runtime.gpu, "simulo runtime");
         errdefer runtime.window.deinit();
+        runtime.last_window_width = 0;
+        runtime.last_window_height = 0;
         runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
         errdefer runtime.renderer.deinit();
         runtime.pose_detector = PoseDetector.init();
@@ -311,16 +315,23 @@ pub const Runtime = struct {
                 second_timer = now;
             }
 
-            const width: f32 = @floatFromInt(self.window.getWidth());
-            const height: f32 = @floatFromInt(self.window.getHeight());
+            const width = self.window.getWidth();
+            const height = self.window.getHeight();
 
-            const was_calibrated = self.calibrated;
-            try self.processPoseDetections(width, height);
+            if (width != self.last_window_width or height != self.last_window_height) {
+                self.last_window_width = width;
+                self.last_window_height = height;
+
+                self.renderer.handleResize(width, height);
 
             if (self.getObject(self.chessboard)) |chessboard| {
-                chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ width, height, 1 };
+                    chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ @floatFromInt(width), @floatFromInt(height), 1 };
                 self.markOutdatedTransform(self.chessboard);
             }
+            }
+
+            const was_calibrated = self.calibrated;
+            try self.processPoseDetections();
 
             if (self.calibrated) {
                 if (!was_calibrated) {
@@ -378,8 +389,10 @@ pub const Runtime = struct {
         }
     }
 
-    fn processPoseDetections(self: *Runtime, width: f32, height: f32) !void {
+    fn processPoseDetections(self: *Runtime) !void {
         const was_calibrated = self.calibrated;
+        const width: f32 = @floatFromInt(self.last_window_width);
+        const height: f32 = @floatFromInt(self.last_window_height);
 
         while (self.pose_detector.nextEvent()) |event| {
             self.calibrated = true;

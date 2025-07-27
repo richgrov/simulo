@@ -92,8 +92,6 @@ public:
       return sampler_;
    }
 
-   void recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface);
-
    void begin_preframe();
 
    void buffer_copy(const StagingBuffer &src, VkBuffer dst);

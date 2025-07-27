@@ -320,18 +320,22 @@ RenderPipeline Renderer::create_pipeline(
    return static_cast<RenderPipeline>(pipelines_.size() - 1);
 }
 
-void Renderer::recreate_swapchain(uint32_t width, uint32_t height, VkSurfaceKHR surface) {
-   swapchain_.dispose();
-   swapchain_ = std::move(Swapchain(
-       {physical_device_.graphics_queue(), physical_device_.present_queue()},
-       physical_device_.handle(), device_.handle(), surface, width, height
+void recreate_swapchain(Renderer *renderer, int32_t width, int32_t height) {
+   VKAD_ASSERT(width >= 0, "width must be >= 0");
+   VKAD_ASSERT(height >= 0, "height must be >= 0");
+
+   renderer->swapchain_.dispose();
+   renderer->swapchain_ = std::move(Swapchain(
+       {renderer->physical_device().graphics_queue(), renderer->physical_device().present_queue()},
+       renderer->physical_device().handle(), renderer->device().handle(),
+       renderer->swapchain_.surface(), width, height
    ));
 
-   for (const VkFramebuffer framebuffer : framebuffers_) {
-      vkDestroyFramebuffer(device_.handle(), framebuffer, nullptr);
+   for (const VkFramebuffer framebuffer : renderer->framebuffers_) {
+      vkDestroyFramebuffer(renderer->device().handle(), framebuffer, nullptr);
    }
 
-   create_framebuffers();
+   renderer->create_framebuffers();
 }
 
 void Renderer::begin_preframe() {
