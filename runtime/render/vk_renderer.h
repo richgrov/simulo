@@ -127,6 +127,7 @@ public:
       VkDescriptorSetLayout descriptor_set_layout;
       Pipeline pipeline;
       VkDescriptorPool descriptor_pool;
+      int uniform_slot_usage;
       UniformBuffer uniforms;
       Shader vertex_shader;
       Shader fragment_shader;

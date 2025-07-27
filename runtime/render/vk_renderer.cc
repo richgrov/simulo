@@ -242,7 +242,7 @@ Material create_material(Renderer *renderer, int32_t pipeline_id, const Material
    };
 
    Uniform u(Uniform::from_props(props));
-   pipe.uniforms.upload_memory(&u, sizeof(Uniform), 0);
+   pipe.uniforms.upload_memory(&u, sizeof(Uniform), pipe.uniform_slot_usage++);
 
    std::vector<DescriptorWrite> writes = {
        write_uniform_buffer_dynamic(pipe.uniforms),
@@ -310,7 +310,9 @@ RenderPipeline Renderer::create_pipeline(
                Pipeline(device_.handle(), binding, attrs, vertex, fragment, layout, render_pass_),
            .descriptor_pool =
                create_descriptor_pool(device_.handle(), layout, sizes, material_capacity),
-           .uniforms = UniformBuffer(uniform_size, 4, device_.handle(), physical_device_),
+           .uniform_slot_usage = 0,
+           .uniforms =
+               UniformBuffer(uniform_size, material_capacity, device_.handle(), physical_device_),
            .vertex_shader = std::move(vertex),
            .fragment_shader = std::move(fragment),
        }
