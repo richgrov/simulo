@@ -93,6 +93,12 @@ Renderer *create_renderer(Gpu *gpu, const Window *window) {
    return new Renderer(*gpu, window->layer_pixel_format(), window->metal_layer());
 }
 
+#else
+
+Renderer *create_renderer(Gpu *gpu, const Window *window) {
+   return new Renderer(*gpu, window->surface(), window->width(), window->height());
+}
+
 #endif
 
 void destroy_renderer(Renderer *renderer) {
