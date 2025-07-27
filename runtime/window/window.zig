@@ -70,4 +70,8 @@ pub const Window = struct {
         const length = ffi.get_typed_chars_length(self.handle);
         return chars[0..@intCast(length)];
     }
+
+    pub fn surface(self: *const Window) *const anyopaque {
+        return ffi.get_window_surface(self.handle);
+    }
 };
