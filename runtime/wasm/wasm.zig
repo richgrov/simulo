@@ -151,6 +151,29 @@ pub const Wasm = struct {
     }
 
     pub fn init(self: *Wasm, allocator: std.mem.Allocator, user_data: *anyopaque, data: []const u8, err_out: *?Error) !void {
+        if (comptime build_options.new_wasm) {
+            var raw_module = try deserializer.parseModule(allocator, data);
+            errdefer raw_module.deinit(allocator);
+
+            const buffer = try allocation.allocateExecutable(4 * 1024);
+            errdefer allocation.free(buffer, 4 * 1024) catch {};
+
+            const compiled_module = switch (assembly.writeAssembly(buffer, &raw_module, allocator)) {
+                .ok => |mod| mod,
+                .err => |err| {
+                    err_out.* = err;
+                    return error.WasmCompileFailed;
+                },
+            };
+
+            allocation.finishAllocation(buffer, 4 * 1024);
+            const func = (try compiled_module.getFunction("add", fn (i32, i32) callconv(.C) i32)).?;
+            std.debug.print("{}\n", .{func(19, 2)});
+            std.process.exit(0);
+
+            self.buffer = buffer;
+        }
+
         var error_buf: [1024 * 10]u8 = undefined;
         const module = wasm.wasm_runtime_load(@constCast(data.ptr), @intCast(data.len), @ptrCast(&error_buf), error_buf.len) orelse return error.WasmLoadFailed;
         errdefer wasm.wasm_runtime_unload(module);
@@ -161,24 +184,6 @@ pub const Wasm = struct {
         const exec_env = wasm.wasm_runtime_create_exec_env(module_instance, 1024 * 8) orelse return error.WasmExecEnvCreateFailed;
         wasm.wasm_runtime_set_user_data(exec_env, user_data);
         errdefer wasm.wasm_runtime_destroy_exec_env(exec_env);
-
-        if (comptime build_options.new_wasm) {
-            var raw_module = try deserializer.parseModule(allocator, data);
-            errdefer raw_module.deinit(allocator);
-
-            const buffer = try allocation.allocateExecutable(4 * 1024);
-            errdefer allocation.free(buffer, 4 * 1024) catch {};
-
-            if (try assembly.writeAssembly(buffer, &raw_module)) |err| {
-                err_out.* = err;
-                return error.WasmCompileFailed;
-            }
-
-            allocation.finishAllocation(buffer, 4 * 1024);
-            const func: *const fn (x: u64) callconv(.C) u64 = @alignCast(@ptrCast(buffer));
-            _ = func;
-            self.buffer = buffer;
-        }
 
         self.module = module;
         self.module_instance = module_instance;

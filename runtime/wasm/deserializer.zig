@@ -5,6 +5,16 @@ pub const ValueType = enum(i8) {
     i64 = 0x7e,
     f32 = 0x7d,
     f64 = 0x7c,
+
+    pub fn from(ty: type) ValueType {
+        return switch (ty) {
+            i32 => .i32,
+            i64 => .i64,
+            f32 => .f32,
+            f64 => .f64,
+            else => @compileError("unsupported value type"),
+        };
+    }
 };
 
 pub const Local = struct {
