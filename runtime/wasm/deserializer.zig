@@ -29,6 +29,7 @@ pub const Instruction = union(enum) {
     Br: struct { label_index: u32 },
     BrIf: struct { label_index: u32 },
     BrTable: struct { targets: []u32, default_target: u32 },
+    Return: void,
     Call: struct { func_index: u32 },
     CallIndirect: struct { type_index: u32, table_index: u32 },
     LocalGet: struct { local_index: u32 },
@@ -65,6 +66,7 @@ pub const Instruction = union(enum) {
     I64Const: i64,
     F32Const: f32,
     F64Const: f64,
+    I32Add: void,
     Misc: struct { opcode: u8, bytes: []const u8 },
     Plain: u8,
 };
@@ -293,6 +295,7 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
                 const default_target = try d.readVarUint32();
                 instr = .{ .BrTable = .{ .targets = targets, .default_target = default_target } };
             },
+            0x0f => instr = .{ .Return = {} },
             0x10 => instr = .{ .Call = .{ .func_index = try d.readVarUint32() } },
             0x11 => {
                 const type_index = try d.readVarUint32();
@@ -341,6 +344,7 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
                 const bits = std.mem.readInt(u64, @as(*const [8]u8, @ptrCast(bytes.ptr)), .little);
                 instr = .{ .F64Const = @bitCast(bits) };
             },
+            0x6a => instr = .{ .I32Add = {} },
             0xfc, 0xfd => {
                 const start = d.index;
                 _ = try d.readVarUint32();
