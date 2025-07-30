@@ -71,6 +71,19 @@ pub const Instruction = union(enum) {
     Plain: u8,
 };
 
+pub const ExportType = enum(u8) {
+    function = 0x00,
+    table = 0x01,
+    memory = 0x02,
+    global = 0x03,
+};
+
+pub const Export = struct {
+    name: []const u8,
+    kind: ExportType,
+    index: u32,
+};
+
 pub const Code = struct {
     locals: []Local,
     body: []const u8,
@@ -81,6 +94,7 @@ pub const Module = struct {
     types: []FunctionType,
     functions: []u32,
     codes: []Code,
+    exports: []Export,
 
     pub fn deinit(self: *Module, allocator: std.mem.Allocator) void {
         for (self.types) |*t| {
@@ -94,6 +108,10 @@ pub const Module = struct {
             freeInstructions(allocator, c.instructions);
         }
         allocator.free(self.codes);
+        for (self.exports) |*e| {
+            allocator.free(e.name);
+        }
+        allocator.free(self.exports);
     }
 };
 
@@ -197,6 +215,13 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
         }
         codes.deinit();
     }
+    var exports = std.ArrayList(Export).init(allocator);
+    errdefer {
+        for (exports.items) |exp| {
+            allocator.free(exp.name);
+        }
+        exports.deinit();
+    }
 
     while (d.index < d.data.len) {
         const id = try d.readByte();
@@ -227,6 +252,25 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
                 const count = try d.readVarUint32();
                 for (0..count) |_| {
                     try functions.append(try d.readVarUint32());
+                }
+            },
+            7 => { // Export section
+                const count = try d.readVarUint32();
+                for (0..count) |_| {
+                    const name_len = try d.readVarUint32();
+                    const name_bytes = try d.readSlice(name_len);
+                    const name = try allocator.dupe(u8, name_bytes);
+                    errdefer allocator.free(name);
+                    const kind_byte = try d.readByte();
+                    const kind = switch (kind_byte) {
+                        0x00 => ExportType.function,
+                        0x01 => ExportType.table,
+                        0x02 => ExportType.memory,
+                        0x03 => ExportType.global,
+                        else => return error.InvalidExportType,
+                    };
+                    const index = try d.readVarUint32();
+                    try exports.append(.{ .name = name, .kind = kind, .index = index });
                 }
             },
             10 => { // Code section
@@ -265,6 +309,7 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
         .types = try types.toOwnedSlice(),
         .functions = try functions.toOwnedSlice(),
         .codes = try codes.toOwnedSlice(),
+        .exports = try exports.toOwnedSlice(),
     };
 }
 
