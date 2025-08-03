@@ -32,6 +32,7 @@ const loadImage = @import("image/image.zig").loadImage;
 
 const behaviors = @import("behaviors.zig");
 const events = @import("events.zig");
+const masks = @import("mask.zig");
 
 const Vertex = struct {
     position: @Vector(3, f32) align(16),
@@ -106,14 +107,6 @@ const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 1.0, 0.0 }, .tex_coord = .{ 0.0, 1.0 } },
 };
 
-const MASK_WIDTH = 100.0;
-const MASK_HEIGHT = 50.0;
-
-const MaskData = struct {
-    left_id: usize,
-    right_id: usize,
-};
-
 pub const Runtime = struct {
     gpu: Gpu,
     window: Window,
@@ -138,9 +131,8 @@ pub const Runtime = struct {
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: usize,
     mesh: Renderer.MeshHandle,
-    mask_material: Renderer.MaterialHandle,
-    masks: std.AutoHashMap(u64, MaskData),
     calibrated: bool,
+    masks: masks.MaskObjects,
 
     pub fn globalInit() !void {
         try Wasm.globalInit();
@@ -201,14 +193,12 @@ pub const Runtime = struct {
         const now: u64 = @bitCast(std.time.microTimestamp());
         runtime.random = std.Random.Xoshiro256.init(now);
 
-        runtime.masks = std.AutoHashMap(u64, MaskData).init(runtime.allocator);
-
         const image = createChessboard(&runtime.renderer);
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
         const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
         runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
+        runtime.masks = try masks.MaskObjects.init(runtime.allocator, &runtime.renderer, runtime.white_pixel_texture);
 
-        runtime.mask_material = try runtime.renderer.createUiMaterial(image, 0.0, 0.0, 0.0);
         runtime.chessboard = runtime.createObject(0, 0, chessboard_material, true);
     }
 
@@ -251,7 +241,7 @@ pub const Runtime = struct {
 
         var wasm_err: ?WasmError = null;
         self.wasm.init(self.allocator, @ptrCast(self), data, &wasm_err) catch |err_code| {
-            self.remote.log("wasm initialization failed: {any}: {any}", .{ err_code, wasm_err });
+            self.remote.log("wasm initialization failed: {s}: {any}", .{ @errorName(err_code), wasm_err });
             return error.WasmInitFailed;
         };
 
@@ -323,29 +313,18 @@ pub const Runtime = struct {
                 self.last_window_height = height;
 
                 if (comptime util.vulkan) {
-                self.renderer.handleResize(width, height, self.window.surface());
+                    self.renderer.handleResize(width, height, self.window.surface());
                 }
 
-            if (self.getObject(self.chessboard)) |chessboard| {
+                if (self.getObject(self.chessboard)) |chessboard| {
                     chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ @floatFromInt(width), @floatFromInt(height), 1 };
-                self.markOutdatedTransform(self.chessboard);
-            }
+                    self.markOutdatedTransform(self.chessboard);
+                }
             }
 
-            const was_calibrated = self.calibrated;
             try self.processPoseDetections();
 
             if (self.calibrated) {
-                if (!was_calibrated) {
-                    if (self.init_func) |init_func| {
-                        _ = self.wasm.callFunction(init_func, .{@as(u32, 0)}) catch unreachable;
-
-                        if (self.pose_buffer == null) {
-                            return error.PoseBufferNotInitialized;
-                        }
-                    }
-                }
-
                 const deltaf: f32 = @floatFromInt(delta);
                 if (self.update_func) |func| {
                     _ = self.wasm.callFunction(func, .{deltaf / 1000}) catch unreachable;
@@ -397,79 +376,52 @@ pub const Runtime = struct {
     }
 
     fn processPoseDetections(self: *Runtime) !void {
-        const was_calibrated = self.calibrated;
         const width: f32 = @floatFromInt(self.last_window_width);
         const height: f32 = @floatFromInt(self.last_window_height);
 
         while (self.pose_detector.nextEvent()) |event| {
-            self.calibrated = true;
+            switch (event) {
+                .calibrated => {
+                    self.calibrated = true;
 
-            self.updateMask(&event, width, height);
+                    if (self.init_func) |init_func| {
+                        _ = self.wasm.callFunction(init_func, .{@as(u32, 0)}) catch unreachable;
 
-            if (!was_calibrated) {
-                continue;
-            }
+                        if (self.pose_buffer == null) {
+                            return error.PoseBufferNotInitialized;
+                        }
+                    }
 
-            const pose_func = self.pose_func orelse return;
-            const pose_buffer = self.pose_buffer orelse return;
+                    if (self.getObject(self.chessboard)) |chessboard| {
+                        chessboard.scale = .{ 0, 0, 0 };
+                        self.markOutdatedTransform(self.chessboard);
+                    }
+                },
+                .move => |move| {
+                    self.masks.handleEvent(move.id, &move.detection, self, width, height);
 
-            const id_u32: u32 = @intCast(event.id);
-            const detection = event.detection orelse {
-                _ = self.wasm.callFunction(pose_func, .{ id_u32, false }) catch unreachable;
-                continue;
-            };
+                    const pose_func = self.pose_func orelse return;
+                    const pose_buffer = self.pose_buffer orelse return;
 
-            for (detection.keypoints, 0..) |kp, i| {
-                pose_buffer[i * 2] = kp.pos[0] * width;
-                pose_buffer[i * 2 + 1] = kp.pos[1] * height;
-            }
+                    const id_u32: u32 = @intCast(move.id);
 
-            _ = self.wasm.callFunction(pose_func, .{ id_u32, true }) catch unreachable;
-        }
-    }
+                    for (move.detection.keypoints, 0..) |kp, i| {
+                        pose_buffer[i * 2] = kp.pos[0] * width;
+                        pose_buffer[i * 2 + 1] = kp.pos[1] * height;
+                    }
 
-    fn updateMask(self: *Runtime, event: *const pose.PoseEvent, window_width: f32, window_height: f32) void {
-        if (event.detection) |det| {
-            const l_eye = det.keypoints[1];
-            const r_eye = det.keypoints[2];
-            const lx = l_eye.pos[0] * window_width;
-            const ly = l_eye.pos[1] * window_height;
-            const rx = r_eye.pos[0] * window_width;
-            const ry = r_eye.pos[1] * window_height;
+                    _ = self.wasm.callFunction(pose_func, .{ id_u32, true }) catch unreachable;
+                },
+                .lost => |id| {
+                    self.masks.handleDelete(self, id);
 
-            if (self.masks.get(event.id)) |mask_data| {
-                _ = self.updateMaskObject(mask_data.left_id, lx, ly);
-                _ = self.updateMaskObject(mask_data.right_id, rx, ry);
-            } else {
-                const left_id = self.updateMaskObject(null, lx, ly);
-                const right_id = self.updateMaskObject(null, rx, ry);
-                self.masks.put(event.id, .{ .left_id = left_id, .right_id = right_id }) catch |err| util.crash.oom(err);
-            }
-        } else {
-            if (self.masks.get(event.id)) |mask_data| {
-                self.deleteObject(mask_data.left_id);
-                self.deleteObject(mask_data.right_id);
-                std.debug.assert(self.masks.remove(event.id));
+                    const pose_func = self.pose_func orelse return;
+
+                    const id_u32: u32 = @intCast(id);
+                    _ = self.wasm.callFunction(pose_func, .{ id_u32, false }) catch unreachable;
+                },
             }
         }
-    }
-
-    fn updateMaskObject(self: *Runtime, object_id: ?usize, x: f32, y: f32) usize {
-        const spawn_x = x - MASK_WIDTH / 2.0;
-        const spawn_y = y - MASK_HEIGHT / 3.0;
-
-        if (object_id) |mask_obj_id| {
-            const mask_obj = self.getObject(mask_obj_id).?;
-            mask_obj.pos = .{ spawn_x, spawn_y, 0.0 };
-            self.markOutdatedTransform(mask_obj_id);
-            return mask_obj_id;
-        }
-
-        const obj_id = self.createObject(spawn_x, spawn_y, self.mask_material, true);
-        const mask_obj = self.getObject(obj_id).?;
-        mask_obj.scale = .{ MASK_WIDTH, MASK_HEIGHT, 1.0 };
-        self.markOutdatedTransform(obj_id);
-        return obj_id;
     }
 
     fn recalculateOutdatedTransforms(self: *Runtime) void {
@@ -482,7 +434,7 @@ pub const Runtime = struct {
         self.outdated_object_transforms.clear();
     }
 
-    fn markOutdatedTransform(self: *Runtime, id: usize) void {
+    pub fn markOutdatedTransform(self: *Runtime, id: usize) void {
         self.outdated_object_transforms.put(self.allocator, @intCast(id)) catch |err| util.crash.oom(err);
     }
 
@@ -497,7 +449,7 @@ pub const Runtime = struct {
         return @intCast(obj_id);
     }
 
-    fn createObject(self: *Runtime, x: f32, y: f32, material: Renderer.MaterialHandle, internal: bool) usize {
+    pub fn createObject(self: *Runtime, x: f32, y: f32, material: Renderer.MaterialHandle, internal: bool) usize {
         const object_id, const object_index = self.object_ids.insert(std.math.maxInt(usize)) catch |err| {
             util.crash.oom(err);
         };
@@ -511,13 +463,13 @@ pub const Runtime = struct {
         return object_id;
     }
 
-    fn getObject(self: *Runtime, id: usize) ?*GameObject {
+    pub fn getObject(self: *Runtime, id: usize) ?*GameObject {
         const object_index = self.object_ids.get(id) orelse return null;
         if (object_index.* >= self.objects.items.len) return null;
         return &self.objects.items[object_index.*];
     }
 
-    fn deleteObject(self: *Runtime, id: usize) void {
+    pub fn deleteObject(self: *Runtime, id: usize) void {
         const object_index = self.object_ids.get(id) orelse {
             self.remote.log("tried to delete non-existent object {x}", .{id});
             return;
@@ -530,6 +482,8 @@ pub const Runtime = struct {
             );
             return;
         }
+
+        _ = self.outdated_object_transforms.delete(@intCast(id));
 
         // Perform swap-removal. If the object is at the end, simply remove it. Otherwise, swap it
         // with the last one and update the object ID's target index.

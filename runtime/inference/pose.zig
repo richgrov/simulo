@@ -29,9 +29,13 @@ fn perspective_transform(x: f32, y: f32, transform: *const DMat3) @Vector(2, f32
     return @Vector(2, f32){ @floatCast(res[0] / res[2]), @floatCast(res[1] / res[2]) };
 }
 
-pub const PoseEvent = struct {
-    id: u64,
-    detection: ?Detection,
+pub const PoseEvent = union(enum) {
+    calibrated: void,
+    move: struct {
+        id: u64,
+        detection: Detection,
+    },
+    lost: u64,
 };
 
 const TrackedBox = struct {
@@ -96,6 +100,9 @@ pub const PoseDetector = struct {
                         inference.input_buffers[1],
                     });
                     calibrated = true;
+                    self.output.enqueue(.calibrated) catch {
+                        std.log.warn("Detection processing queue full", .{});
+                    };
                 }
                 continue;
             }
@@ -124,7 +131,7 @@ pub const PoseDetector = struct {
                     det.keypoints[k].score = @floatCast(kp.score);
                 }
 
-                self.output.enqueue(PoseEvent{ .id = tracking_id, .detection = det }) catch {
+                self.output.enqueue(.{ .move = .{ .id = tracking_id, .detection = det } }) catch {
                     std.log.warn("Detection processing queue full", .{});
                 };
             }
@@ -139,7 +146,7 @@ pub const PoseDetector = struct {
                     }
                 }
                 if (!survived) {
-                    self.output.enqueue(PoseEvent{ .id = id, .detection = null }) catch {
+                    self.output.enqueue(.{ .lost = id }) catch {
                         std.log.warn("Detection processing queue full", .{});
                     };
                 }
