@@ -30,6 +30,12 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
                 const bucket = value % self.sizes.len;
                 const index = self.sizes[bucket];
 
+                for (0..index) |i| {
+                    if (self.data[bucket * max_bucket_capacity + i] == value) {
+                        return;
+                    }
+                }
+
                 if (index < max_bucket_capacity) {
                     self.data[bucket * max_bucket_capacity + index] = value;
                     self.sizes[bucket] += 1;
@@ -63,11 +69,12 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
             const bucket = value % self.sizes.len;
             const bucket_size = self.sizes[bucket];
             for (0..bucket_size) |i| {
-                if (self.data[bucket * max_bucket_capacity + i] != value) {
+                const start = bucket * max_bucket_capacity;
+                if (self.data[start + i] != value) {
                     continue;
                 }
 
-                self.data[bucket * max_bucket_capacity + i] = self.data[bucket * max_bucket_capacity + bucket_size - 1];
+                self.data[start + i] = self.data[start + bucket_size - 1];
                 self.sizes[bucket] -= 1;
                 return true;
             }
