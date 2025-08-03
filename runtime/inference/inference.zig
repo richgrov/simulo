@@ -71,7 +71,7 @@ pub const Inference = struct {
 
         const execution_provider: ?[:0]const u8 = switch (builtin.os.tag) {
             .macos => "CoreML",
-            .linux => "NvTensorRtRtx",
+            //.linux => "NvTensorRtRtx",
             else => null,
         };
 
@@ -80,6 +80,10 @@ pub const Inference = struct {
                 ort_api.*.SessionOptionsAppendExecutionProvider.?(ort_options, ep, null, null, 0),
                 ort_api,
             );
+        } else {
+            var rt_options: ?*ort.OrtTensorRTProviderOptionsV2 = null;
+            try errIfStatus(ort_api.CreateTensorRTProviderOptions.?(&rt_options), ort_api);
+            try errIfStatus(ort_api.SessionOptionsAppendExecutionProvider_TensorRT_V2.?(ort_options, rt_options), ort_api);
         }
 
         var model_path_buf: [512]u8 = undefined;
