@@ -54,6 +54,7 @@ pub const Inference = struct {
     ort_env: *ort.OrtEnv,
     ort_options: *ort.OrtSessionOptions,
     ort_session: *ort.OrtSession,
+    ort_rt_options: ?*ort.OrtTensorRTProviderOptionsV2,
     ort_allocator: *ort.OrtAllocator,
     input_tensors: [2]*ort.OrtValue,
     input_buffers: [2][*]f32,
@@ -69,17 +70,20 @@ pub const Inference = struct {
         try errIfStatus(ort_api.CreateSessionOptions.?(&ort_options), ort_api);
         errdefer ort_api.ReleaseSessionOptions.?(ort_options);
 
-        const execution_provider: ?[:0]const u8 = switch (builtin.os.tag) {
-            .macos => "CoreML",
-            .linux => "NvTensorRtRtx",
-            else => null,
-        };
-
-        if (execution_provider) |ep| {
-            try errIfStatus(
-                ort_api.*.SessionOptionsAppendExecutionProvider.?(ort_options, ep, null, null, 0),
-                ort_api,
-            );
+        var ort_rt_options: ?*ort.OrtTensorRTProviderOptionsV2 = null;
+        switch (comptime builtin.os.tag) {
+            .macos => {
+                try errIfStatus(
+                    ort_api.*.SessionOptionsAppendExecutionProvider.?(ort_options, "CoreML", null, null, 0),
+                    ort_api,
+                );
+            },
+            .linux => {
+                try errIfStatus(ort_api.CreateTensorRTProviderOptions.?(&ort_rt_options), ort_api);
+                errdefer ort_api.ReleaseTensorRTProviderOptions.?(ort_rt_options);
+                try errIfStatus(ort_api.SessionOptionsAppendExecutionProvider_TensorRT_V2.?(ort_options, ort_rt_options), ort_api);
+            },
+            else => {},
         }
 
         var model_path_buf: [512]u8 = undefined;
@@ -122,6 +126,7 @@ pub const Inference = struct {
             .ort_env = ort_env.?,
             .ort_options = ort_options.?,
             .ort_session = ort_session.?,
+            .ort_rt_options = ort_rt_options,
             .ort_allocator = ort_allocator.?,
             .input_tensors = input_tensors,
             .input_buffers = input_buffers,
@@ -135,6 +140,9 @@ pub const Inference = struct {
         self.ort_api.ReleaseAllocator.?(self.ort_allocator);
         self.ort_api.ReleaseSession.?(self.ort_session);
         self.ort_api.ReleaseSessionOptions.?(self.ort_options);
+        if (self.ort_rt_options) |ort_rt_options| {
+            self.ort_api.ReleaseTensorRTProviderOptions.?(ort_rt_options);
+        }
         self.ort_api.ReleaseEnv.?(self.ort_env);
     }
 
