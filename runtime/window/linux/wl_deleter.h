@@ -20,6 +20,7 @@ struct zwp_relative_pointer_v1;
 struct wp_fractional_scale_manager_v1;
 struct wp_fractional_scale_v1;
 struct wp_viewporter;
+struct wp_viewport;
 struct zwp_locked_pointer_v1;
 struct zwp_pointer_constraints_v1;
 

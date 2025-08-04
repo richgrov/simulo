@@ -110,6 +110,7 @@ WaylandWindow::WaylandWindow(const Gpu &vk_instance, const char *title)
    init_pointer();
    init_relative_pointer();
    init_fractional_scale();
+   init_viewport();
 
    mouse_lock_region_ = wl_compositor_create_region(compositor_.get());
    wl_region_add(mouse_lock_region_, 0, 0, 1, 1);
@@ -129,6 +130,7 @@ WaylandWindow::~WaylandWindow() {
    wp_fractional_scale_v1_destroy(fractional_scale_);
    wp_fractional_scale_manager_v1_destroy(fractional_scale_manager_);
    wp_viewporter_destroy(viewporter_);
+   wp_viewport_destroy(viewport_);
    wl_pointer_destroy(pointer_);
 
    xkb_state_unref(xkb_state_);
@@ -482,6 +484,10 @@ void WaylandWindow::init_fractional_scale() {
    };
 
    wp_fractional_scale_v1_add_listener(fractional_scale_, &listener, this);
+}
+
+void WaylandWindow::init_viewport() {
+   viewport_ = wp_viewporter_get_viewport(viewporter_, surface_.get());
 }
 
 void WaylandWindow::init_locked_pointer() {
