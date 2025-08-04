@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const zcc = @import("compile_commands");
 
 const ArrayList = std.ArrayList;
 const mem = std.mem;
@@ -285,6 +286,10 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
             "-std=c++20",
         },
     });
+
+    var targets = std.ArrayList(*std.Build.Step.Compile).init(b.allocator);
+    targets.append(runtime) catch @panic("OOM");
+    _ = zcc.createStep(b, "cdb", targets.toOwnedSlice() catch @panic("OOM"));
 
     return runtime;
 }
