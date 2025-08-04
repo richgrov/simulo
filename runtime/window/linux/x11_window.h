@@ -39,7 +39,7 @@ public:
    }
 
    virtual int scale() const override {
-      return 1;
+      return 120;
    }
 
    virtual int mouse_x() const override {

@@ -5,6 +5,7 @@
 #include "gpu/vulkan/status.h"
 #include "pointer-constraints-unstable-v1-protocol.h"
 #include "relative-pointer-unstable-v1-protocol.h"
+#include "viewporter-protocol.h"
 #include "window/linux/keys.h"
 #include "xdg-shell-protocol.h"
 
@@ -99,6 +100,7 @@ WaylandWindow::WaylandWindow(const Gpu &vk_instance, const char *title)
    VERIFY_INIT(pointer_);
    VERIFY_INIT(relative_pointer_manager_);
    VERIFY_INIT(fractional_scale_manager_);
+   VERIFY_INIT(viewporter_);
    VERIFY_INIT(pointer_constraints_);
 
    init_xdg_wm_base();
@@ -126,6 +128,7 @@ WaylandWindow::~WaylandWindow() {
    zwp_relative_pointer_manager_v1_destroy(relative_pointer_manager_);
    wp_fractional_scale_v1_destroy(fractional_scale_);
    wp_fractional_scale_manager_v1_destroy(fractional_scale_manager_);
+   wp_viewporter_destroy(viewporter_);
    wl_pointer_destroy(pointer_);
 
    xkb_state_unref(xkb_state_);
@@ -214,6 +217,13 @@ void WaylandWindow::init_registry() {
                  );
                  window->fractional_scale_manager_ =
                      reinterpret_cast<wp_fractional_scale_manager_v1 *>(fractional_scale);
+                 return;
+              }
+
+              if (std::strcmp(interface, wp_viewporter_interface.name) == 0) {
+                 void *viewporter =
+                     wl_registry_bind(registry, id, &wp_viewporter_interface, version);
+                 window->viewporter_ = reinterpret_cast<wp_viewporter *>(viewporter);
                  return;
               }
 
