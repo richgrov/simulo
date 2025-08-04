@@ -24,6 +24,10 @@ struct xkb_state;
 struct xkb_keymap;
 struct zwp_relative_pointer_manager_v1;
 struct zwp_relative_pointer_v1;
+struct wp_fractional_scale_manager_v1;
+struct wp_fractional_scale_v1;
+struct wp_viewporter;
+struct wp_viewport;
 struct zwp_locked_pointer_v1;
 struct zwp_pointer_constraints_v1;
 
@@ -46,11 +50,15 @@ public:
    }
 
    virtual int width() const override {
-      return width_;
+      float floatScale = (float)scale_ / 120.0;
+      float floatWidth = (float)width_ * floatScale;
+      return (int)floatWidth;
    }
 
    virtual int height() const override {
-      return height_;
+      float floatScale = (float)scale_ / 120.0;
+      float floatHeight = (float)height_ * floatScale;
+      return (int)floatHeight;
    }
 
    virtual int mouse_x() const override {
@@ -95,6 +103,8 @@ private:
    void init_keyboard();
    void init_pointer();
    void init_relative_pointer();
+   void init_fractional_scale();
+   void init_viewport();
    void init_locked_pointer();
 
    void process_utf8_keyboard_input(uint32_t evdev_key);
@@ -118,12 +128,17 @@ private:
    wl_pointer *pointer_ = nullptr;
    zwp_relative_pointer_manager_v1 *relative_pointer_manager_ = nullptr;
    zwp_relative_pointer_v1 *relative_pointer_ = nullptr;
+   wp_fractional_scale_manager_v1 *fractional_scale_manager_ = nullptr;
+   wp_fractional_scale_v1 *fractional_scale_ = nullptr;
+   wp_viewporter *viewporter_ = nullptr;
+   wp_viewport *viewport_ = nullptr;
    zwp_pointer_constraints_v1 *pointer_constraints_ = nullptr;
    wl_region *mouse_lock_region_ = nullptr;
    zwp_locked_pointer_v1 *locked_pointer_ = nullptr;
 
    int width_ = 0;
    int height_ = 0;
+   int scale_ = 120;
    bool open_ = true;
    std::bitset<256> pressed_keys_;
    std::bitset<256> prev_pressed_keys_;
