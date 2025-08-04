@@ -55,6 +55,10 @@ public:
       return height_;
    }
 
+   virtual int scale() const override {
+      return scale_;
+   }
+
    virtual int mouse_x() const override {
       return 0;
    }
@@ -129,6 +133,7 @@ private:
 
    int width_ = 0;
    int height_ = 0;
+   int scale_ = 120;
    bool open_ = true;
    std::bitset<256> pressed_keys_;
    std::bitset<256> prev_pressed_keys_;

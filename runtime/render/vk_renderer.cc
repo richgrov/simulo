@@ -20,14 +20,16 @@
 using namespace simulo;
 
 Renderer::Renderer(
-    Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
+    Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height,
+    uint32_t initial_scale
 )
     : vk_instance_(vk_instance),
       physical_device_(vk_instance_, surface),
       device_(physical_device_),
       swapchain_(
           {physical_device_.graphics_queue(), physical_device_.present_queue()},
-          physical_device_.handle(), device_.handle(), surface, initial_width, initial_height
+          physical_device_.handle(), device_.handle(), surface, initial_width, initial_height,
+          initial_scale
       ),
       render_pass_(VK_NULL_HANDLE),
       images_(4),
@@ -320,7 +322,9 @@ RenderPipeline Renderer::create_pipeline(
    return static_cast<RenderPipeline>(pipelines_.size() - 1);
 }
 
-void recreate_swapchain(Renderer *renderer, int32_t width, int32_t height, void *surface_ptr) {
+void recreate_swapchain(
+    Renderer *renderer, int32_t width, int32_t height, int32_t scale, void *surface_ptr
+) {
    VKAD_ASSERT(width >= 0, "width must be >= 0");
    VKAD_ASSERT(height >= 0, "height must be >= 0");
 
@@ -329,7 +333,8 @@ void recreate_swapchain(Renderer *renderer, int32_t width, int32_t height, void 
    renderer->swapchain_.dispose();
    renderer->swapchain_ = std::move(Swapchain(
        {renderer->physical_device().graphics_queue(), renderer->physical_device().present_queue()},
-       renderer->physical_device().handle(), renderer->device().handle(), surface, width, height
+       renderer->physical_device().handle(), renderer->device().handle(), surface, width, height,
+       scale
    ));
 
    for (const VkFramebuffer framebuffer : renderer->framebuffers_) {

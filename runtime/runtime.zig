@@ -112,6 +112,7 @@ pub const Runtime = struct {
     window: Window,
     last_window_width: i32,
     last_window_height: i32,
+    last_window_scale: i32,
     renderer: Renderer,
     pose_detector: PoseDetector,
     remote: Remote,
@@ -169,6 +170,7 @@ pub const Runtime = struct {
         errdefer runtime.window.deinit();
         runtime.last_window_width = 0;
         runtime.last_window_height = 0;
+        runtime.last_window_scale = 0;
         runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
         errdefer runtime.renderer.deinit();
         runtime.pose_detector = PoseDetector.init();
@@ -307,13 +309,15 @@ pub const Runtime = struct {
 
             const width = self.window.getWidth();
             const height = self.window.getHeight();
+            const scale = self.window.getScale();
 
-            if (width != self.last_window_width or height != self.last_window_height) {
+            if (width != self.last_window_width or height != self.last_window_height or scale != self.last_window_scale) {
                 self.last_window_width = width;
                 self.last_window_height = height;
+                self.last_window_scale = scale;
 
                 if (comptime util.vulkan) {
-                    self.renderer.handleResize(width, height, self.window.surface());
+                    self.renderer.handleResize(width, height, scale, self.window.surface());
                 }
 
                 if (self.getObject(self.chessboard)) |chessboard| {

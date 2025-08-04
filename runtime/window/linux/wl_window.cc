@@ -264,7 +264,11 @@ void WaylandWindow::init_surfaces() {
    static constexpr wl_surface_listener surface_listener = {
        .enter = [](void *user_data, wl_surface *surface, wl_output *) {},
        .leave = [](void *user_data, wl_surface *surface, wl_output *) {},
-       .preferred_buffer_scale = [](void *user_data, wl_surface *surface, int32_t) {},
+       .preferred_buffer_scale =
+           [](void *user_data, wl_surface *surface, int32_t scale) {
+              WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_data);
+              window->scale_ = scale * 120;
+           },
        .preferred_buffer_transform = [](void *user_data, wl_surface *surface, uint32_t) {},
    };
    wl_surface_add_listener(surface_.get(), &surface_listener, this);
@@ -461,7 +465,10 @@ void WaylandWindow::init_fractional_scale() {
 
    static constexpr wp_fractional_scale_v1_listener listener = {
        .preferred_scale = [](void *user_data, struct wp_fractional_scale_v1 *wp_fractional_scale_v1,
-                             uint32_t) {},
+                             uint32_t scale) {
+          auto *window = reinterpret_cast<WaylandWindow *>(user_data);
+          window->scale_ = (int32_t)scale;
+       },
    };
 
    wp_fractional_scale_v1_add_listener(fractional_scale_, &listener, this);

@@ -28,6 +28,8 @@ public:
 
    virtual int height() const = 0;
 
+   virtual int scale() const = 0;
+
    virtual int mouse_x() const = 0;
 
    virtual int mouse_y() const = 0;

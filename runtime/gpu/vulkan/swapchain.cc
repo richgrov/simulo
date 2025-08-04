@@ -56,13 +56,19 @@ VkPresentModeKHR best_present_mode(const std::vector<VkPresentModeKHR> &present_
    return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D
-create_swap_extent(const VkSurfaceCapabilitiesKHR &capa, uint32_t width, uint32_t height) {
+VkExtent2D create_swap_extent(
+    const VkSurfaceCapabilitiesKHR &capa, uint32_t width, uint32_t height, uint32_t scale
+) {
    VkExtent2D result = capa.currentExtent;
+   float floatScale = (float)scale / 120.0;
+   float floatHeight = (float)height / floatScale;
+   float floatWidth = (float)width / floatScale;
 
    if (capa.currentExtent.width == static_cast<uint32_t>(-1)) {
-      result.width = std::clamp(width, capa.minImageExtent.width, capa.maxImageExtent.width);
-      result.height = std::clamp(height, capa.minImageExtent.height, capa.maxImageExtent.height);
+      result.width =
+          std::clamp((uint32_t)floatWidth, capa.minImageExtent.width, capa.maxImageExtent.width);
+      result.height =
+          std::clamp((uint32_t)floatHeight, capa.minImageExtent.height, capa.maxImageExtent.height);
    }
 
    return result;
@@ -70,7 +76,7 @@ create_swap_extent(const VkSurfaceCapabilitiesKHR &capa, uint32_t width, uint32_
 
 Swapchain::Swapchain(
     const std::vector<uint32_t> &queue_families, VkPhysicalDevice physical_device, VkDevice device,
-    VkSurfaceKHR surface, uint32_t width, uint32_t height
+    VkSurfaceKHR surface, uint32_t width, uint32_t height, uint32_t scale
 )
     : device_(device), swapchain_(VK_NULL_HANDLE) {
 
@@ -99,7 +105,7 @@ Swapchain::Swapchain(
    VkSurfaceFormatKHR format = best_surface_format(surface_formats);
    img_format_ = format.format;
 
-   extent_ = create_swap_extent(capabilities, width, height);
+   extent_ = create_swap_extent(capabilities, width, height, scale);
 
    VkSwapchainCreateInfoKHR create_info = {
        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -136,12 +142,11 @@ Swapchain::Swapchain(
           .image = images_[i],
           .viewType = VK_IMAGE_VIEW_TYPE_2D,
           .format = img_format_,
-          .subresourceRange =
-              {
-                  .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                  .levelCount = 1,
-                  .layerCount = 1,
-              },
+          .subresourceRange = {
+              .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+              .levelCount = 1,
+              .layerCount = 1,
+          },
       };
       VKAD_VK(vkCreateImageView(device_, &create_info, nullptr, &image_views_[i]));
    }

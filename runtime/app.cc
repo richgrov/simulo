@@ -42,6 +42,10 @@ int get_window_height(const Window *window) {
    return window->height();
 }
 
+int get_window_scale(const Window *window) {
+   return window->scale();
+}
+
 int get_mouse_x(const Window *window) {
    return window->mouse_x();
 }
@@ -96,7 +100,7 @@ void *get_window_surface(const Window *window) {
 }
 
 Renderer *create_renderer(Gpu *gpu, const Window *window) {
-   return new Renderer(*gpu, window->surface(), window->width(), window->height());
+   return new Renderer(*gpu, window->surface(), window->width(), window->height(), window->scale());
 }
 
 #endif
