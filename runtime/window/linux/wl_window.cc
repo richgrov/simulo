@@ -278,8 +278,8 @@ void WaylandWindow::init_surfaces() {
        .leave = [](void *user_data, wl_surface *surface, wl_output *) {},
        .preferred_buffer_scale =
            [](void *user_data, wl_surface *surface, int32_t scale) {
-              WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_data);
-              window->scale_ = scale * 120;
+              // WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_data);
+              // window->scale_ = scale * 120;
            },
        .preferred_buffer_transform = [](void *user_data, wl_surface *surface, uint32_t) {},
    };
@@ -289,12 +289,7 @@ void WaylandWindow::init_surfaces() {
    static constexpr xdg_surface_listener xdg_surf_listener = {
        .configure = [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
           auto window = reinterpret_cast<WaylandWindow *>(data);
-          float scale = (float)window->scale() / 120.0;
-          float logicalWidth = (float)window->width() / scale;
-          float logicalHeight = (float)window->height() / scale;
-          wp_viewport_set_destination(
-              window->viewport_, (int32_t)logicalWidth, (int32_t)logicalHeight
-          );
+          wp_viewport_set_destination(window->viewport_, window->width(), window->height());
           xdg_surface_ack_configure(xdg_surface, serial);
        },
    };
