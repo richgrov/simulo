@@ -128,11 +128,11 @@ pub const LinuxCamera = struct {
         switch (self.out) {
             .bytes => |out_bufs| {
                 const out_buf = out_bufs[out_idx];
-                try convertYUYVToRGBBytes(frame, out_buf, width, height);
+                yuyvToRgbu8(frame, out_buf, width, height);
             },
             .floats => |out_bufs| {
                 const out_buf = out_bufs[out_idx];
-                try convertYUYVToRGBFloats(frame, out_buf, width, height);
+                yuyvToRgbf32(frame, out_buf, width, height);
             },
         }
 
@@ -142,8 +142,7 @@ pub const LinuxCamera = struct {
     }
 };
 
-fn convertYUYVToRGBBytes(yuyv_data: []const u8, rgb_data: [*]u8, width: u32, height: u32) !void {
-    if (yuyv_data.len < width * height * 2) return error.InvalidYUYVDataSize;
+fn yuyvToRgbu8(yuyv_data: []const u8, rgb_data: [*]u8, width: u32, height: u32) void {
     for (0..height) |i| {
         var j: u32 = 0;
         while (j < width) : (j += 2) {
@@ -181,8 +180,7 @@ fn convertYUYVToRGBBytes(yuyv_data: []const u8, rgb_data: [*]u8, width: u32, hei
     }
 }
 
-fn convertYUYVToRGBFloats(yuyv_data: []const u8, rgb_data: [*]f32, width: u32, height: u32) !void {
-    if (yuyv_data.len < width * height * 2) return error.InvalidYUYVDataSize;
+fn yuyvToRgbf32(yuyv_data: []const u8, rgb_data: [*]f32, width: u32, height: u32) void {
     for (0..height) |i| {
         var j: u32 = 0;
         while (j < width) : (j += 2) {
@@ -241,7 +239,7 @@ test "YUYV to RGB bytes exact conversion" {
 
     var rgb_data: [6]u8 = undefined;
 
-    try convertYUYVToRGBBytes(&yuyv_data, &rgb_data, 2, 1);
+    try yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1);
 
     try testing.expectEqual(@as(u8, 53), rgb_data[0]);
     try testing.expectEqual(@as(u8, 112), rgb_data[1]);
@@ -260,7 +258,7 @@ test "YUYV to RGB floats exact conversion" {
 
     var rgb_data: [6]f32 = undefined;
 
-    try convertYUYVToRGBFloats(&yuyv_data, &rgb_data, 2, 1);
+    try yuyvToRgbf32(&yuyv_data, &rgb_data, 2, 1);
 
     try testing.expectApproxEqAbs(@as(f32, 53.0 / 255.0), rgb_data[0], 0.001);
     try testing.expectApproxEqAbs(@as(f32, 169.0 / 255.0), rgb_data[1], 0.001);
@@ -276,10 +274,10 @@ test "YUYV conversion error on invalid data size" {
     const yuyv_data = [_]u8{ 76, 84, 255 };
     var rgb_data: [12]u8 = undefined;
 
-    try testing.expectError(error.InvalidYUYVDataSize, convertYUYVToRGBBytes(&yuyv_data, &rgb_data, 2, 1));
+    try testing.expectError(error.InvalidYUYVDataSize, yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1));
 
     var rgb_floats: [6]f32 = undefined;
-    try testing.expectError(error.InvalidYUYVDataSize, convertYUYVToRGBFloats(&yuyv_data, &rgb_floats, 2, 1));
+    try testing.expectError(error.InvalidYUYVDataSize, yuyvToRgbf32(&yuyv_data, &rgb_floats, 2, 1));
 }
 
 test "YUYV black exact values" {
@@ -291,7 +289,7 @@ test "YUYV black exact values" {
 
     var rgb_data: [6]u8 = undefined;
 
-    try convertYUYVToRGBBytes(&yuyv_data, &rgb_data, 2, 1);
+    try yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1);
 
     try testing.expectEqual(@as(u8, 0), rgb_data[0]);
     try testing.expectEqual(@as(u8, 0), rgb_data[1]);
@@ -310,7 +308,7 @@ test "YUYV white exact values" {
 
     var rgb_data: [6]u8 = undefined;
 
-    try convertYUYVToRGBBytes(&yuyv_data, &rgb_data, 2, 1);
+    try yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1);
 
     try testing.expectEqual(@as(u8, 255), rgb_data[0]);
     try testing.expectEqual(@as(u8, 255), rgb_data[1]);
@@ -329,7 +327,7 @@ test "YUYV chroma sharing verification" {
 
     var rgb_data: [6]u8 = undefined;
 
-    try convertYUYVToRGBBytes(&yuyv_data, &rgb_data, 2, 1);
+    try yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1);
 
     try testing.expectEqual(@as(u8, 0), rgb_data[0]);
     try testing.expectEqual(@as(u8, 75), rgb_data[1]);
