@@ -136,12 +136,11 @@ Swapchain::Swapchain(
           .image = images_[i],
           .viewType = VK_IMAGE_VIEW_TYPE_2D,
           .format = img_format_,
-          .subresourceRange =
-              {
-                  .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                  .levelCount = 1,
-                  .layerCount = 1,
-              },
+          .subresourceRange = {
+              .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+              .levelCount = 1,
+              .layerCount = 1,
+          },
       };
       VKAD_VK(vkCreateImageView(device_, &create_info, nullptr, &image_views_[i]));
    }

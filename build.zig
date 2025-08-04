@@ -246,6 +246,8 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
             .files = &[_][]const u8{
                 "runtime/window/linux/pointer-constraints-unstable-v1-protocol.c",
                 "runtime/window/linux/relative-pointer-unstable-v1-protocol.c",
+                "runtime/window/linux/fractional-scale-protocol.c",
+                "runtime/window/linux/viewporter-protocol.c",
                 "runtime/window/linux/xdg-shell-protocol.c",
             },
         });
