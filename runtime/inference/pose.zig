@@ -36,6 +36,15 @@ pub const PoseEvent = union(enum) {
         detection: Detection,
     },
     lost: u64,
+    fault: struct {
+        category: enum {
+            camera_init,
+            inference_init,
+            inference_run,
+            camera_swap,
+        },
+        err: anyerror,
+    },
 };
 
 const TrackedBox = struct {
@@ -77,21 +86,30 @@ pub const PoseDetector = struct {
         return self.output.tryDequeue();
     }
 
-    fn run(self: *PoseDetector) !void {
+    fn run(self: *PoseDetector) void {
         var transform: DMat3 = undefined;
 
         var calibrated = false;
         var calibrator = Calibrator.init();
         defer calibrator.deinit();
 
-        var camera = try Camera.init(calibrator.buffers());
+        var camera = Camera.init(calibrator.buffers()) catch |err| {
+            self.logEvent(.{ .fault = .{ .category = .camera_init, .err = err } });
+            return;
+        };
         defer camera.deinit();
 
-        var inference = try Inference.init();
+        var inference = Inference.init() catch |err| {
+            self.logEvent(.{ .fault = .{ .category = .inference_init, .err = err } });
+            return;
+        };
         defer inference.deinit();
 
         while (@atomicLoad(bool, &self.running, .monotonic)) {
-            const frame_idx = try camera.swapBuffers();
+            const frame_idx = camera.swapBuffers() catch |err| {
+                self.logEvent(.{ .fault = .{ .category = .camera_swap, .err = err } });
+                continue;
+            };
 
             if (!calibrated) {
                 if (calibrator.calibrate(frame_idx, CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT, &transform)) {
@@ -100,24 +118,23 @@ pub const PoseDetector = struct {
                         inference.input_buffers[1],
                     });
                     calibrated = true;
-                    self.output.enqueue(.calibrated) catch {
-                        std.log.warn("Detection processing queue full", .{});
-                    };
+                    self.logEvent(.calibrated);
                 }
                 continue;
             }
 
             var local_detections: [DETECTION_CAPACITY]Detection = undefined;
-            const n_dets = try inference.run(frame_idx, &local_detections);
+            const n_dets = inference.run(frame_idx, &local_detections) catch |err| {
+                self.logEvent(.{ .fault = .{ .category = .inference_run, .err = err } });
+                continue;
+            };
 
             var next_tracked_boxes = FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2).init();
 
             for (0..n_dets) |i| {
                 var det = local_detections[i];
                 const tracking_id = self.nearestPreviousDetection(&det.box) orelse self.nextDetectionId();
-                next_tracked_boxes.append(.{ .id = tracking_id, .box = det.box }) catch {
-                    std.log.err("impossible: next track list full", .{});
-                };
+                next_tracked_boxes.append(.{ .id = tracking_id, .box = det.box }) catch unreachable;
 
                 const transformed_pos = perspective_transform(det.box.pos[0], det.box.pos[1], &transform);
                 det.box.pos = .{ transformed_pos[0], 1 - transformed_pos[1] };
@@ -131,9 +148,7 @@ pub const PoseDetector = struct {
                     det.keypoints[k].score = @floatCast(kp.score);
                 }
 
-                self.output.enqueue(.{ .move = .{ .id = tracking_id, .detection = det } }) catch {
-                    std.log.warn("Detection processing queue full", .{});
-                };
+                self.logEvent(.{ .move = .{ .id = tracking_id, .detection = det } });
             }
 
             for (0..self.last_tracked_boxes.len) |i| {
@@ -146,9 +161,7 @@ pub const PoseDetector = struct {
                     }
                 }
                 if (!survived) {
-                    self.output.enqueue(.{ .lost = id }) catch {
-                        std.log.warn("Detection processing queue full", .{});
-                    };
+                    self.logEvent(.{ .lost = id });
                 }
             }
 
@@ -176,5 +189,11 @@ pub const PoseDetector = struct {
         const id = self.next_tracked_box_id;
         self.next_tracked_box_id += 1;
         return id;
+    }
+
+    fn logEvent(self: *PoseDetector, event: PoseEvent) void {
+        self.output.enqueue(event) catch {
+            std.log.warn("detection output message queue full", .{});
+        };
     }
 };

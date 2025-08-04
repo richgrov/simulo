@@ -420,6 +420,9 @@ pub const Runtime = struct {
                     const id_u32: u32 = @intCast(id);
                     _ = self.wasm.callFunction(pose_func, .{ id_u32, false }) catch unreachable;
                 },
+                .fault => |fault| {
+                    self.remote.log("pose detector fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
+                },
             }
         }
     }
