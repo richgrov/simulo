@@ -99,8 +99,6 @@ WaylandWindow::WaylandWindow(const Gpu &vk_instance, const char *title)
    VERIFY_INIT(keyboard_);
    VERIFY_INIT(pointer_);
    VERIFY_INIT(relative_pointer_manager_);
-   VERIFY_INIT(fractional_scale_manager_);
-   VERIFY_INIT(viewporter_);
    VERIFY_INIT(pointer_constraints_);
 
    init_xdg_wm_base();
@@ -214,9 +212,8 @@ void WaylandWindow::init_registry() {
               }
 
               if (std::strcmp(interface, wp_fractional_scale_manager_v1_interface.name) == 0) {
-                 void *fractional_scale = wl_registry_bind(
-                     registry, id, &wp_fractional_scale_manager_v1_interface, version
-                 );
+                 void *fractional_scale =
+                     wl_registry_bind(registry, id, &wp_fractional_scale_manager_v1_interface, 1);
                  window->fractional_scale_manager_ =
                      reinterpret_cast<wp_fractional_scale_manager_v1 *>(fractional_scale);
                  return;
@@ -278,8 +275,10 @@ void WaylandWindow::init_surfaces() {
        .leave = [](void *user_data, wl_surface *surface, wl_output *) {},
        .preferred_buffer_scale =
            [](void *user_data, wl_surface *surface, int32_t scale) {
-              // WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_data);
-              // window->scale_ = scale * 120;
+              WaylandWindow *window = reinterpret_cast<WaylandWindow *>(user_data);
+              if (window->fractional_scale_ == nullptr) {
+                 window->scale_ = scale * 120;
+              }
            },
        .preferred_buffer_transform = [](void *user_data, wl_surface *surface, uint32_t) {},
    };
@@ -289,7 +288,11 @@ void WaylandWindow::init_surfaces() {
    static constexpr xdg_surface_listener xdg_surf_listener = {
        .configure = [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
           auto window = reinterpret_cast<WaylandWindow *>(data);
-          wp_viewport_set_destination(window->viewport_, window->width_, window->height_);
+          if (window->viewport_ != nullptr && window->fractional_scale_ != nullptr) {
+             wp_viewport_set_destination(window->viewport_, window->width_, window->height_);
+          } else {
+             wl_surface_set_buffer_scale(window->surface_.get(), window->scale_ / 120);
+          }
           xdg_surface_ack_configure(xdg_surface, serial);
        },
    };
@@ -472,23 +475,28 @@ void WaylandWindow::init_relative_pointer() {
 }
 
 void WaylandWindow::init_fractional_scale() {
-   fractional_scale_ = wp_fractional_scale_manager_v1_get_fractional_scale(
-       fractional_scale_manager_, surface_.get()
-   );
+   if (fractional_scale_manager_ != nullptr) {
+      fractional_scale_ = wp_fractional_scale_manager_v1_get_fractional_scale(
+          fractional_scale_manager_, surface_.get()
+      );
 
-   static constexpr wp_fractional_scale_v1_listener listener = {
-       .preferred_scale = [](void *user_data, struct wp_fractional_scale_v1 *wp_fractional_scale_v1,
-                             uint32_t scale) {
-          auto *window = reinterpret_cast<WaylandWindow *>(user_data);
-          window->scale_ = (int32_t)scale;
-       },
-   };
+      static constexpr wp_fractional_scale_v1_listener listener = {
+          .preferred_scale = [](void *user_data,
+                                struct wp_fractional_scale_v1 *wp_fractional_scale_v1,
+                                uint32_t scale) {
+             auto *window = reinterpret_cast<WaylandWindow *>(user_data);
+             window->scale_ = (int32_t)scale;
+          },
+      };
 
-   wp_fractional_scale_v1_add_listener(fractional_scale_, &listener, this);
+      wp_fractional_scale_v1_add_listener(fractional_scale_, &listener, this);
+   }
 }
 
 void WaylandWindow::init_viewport() {
-   viewport_ = wp_viewporter_get_viewport(viewporter_, surface_.get());
+   if (viewporter_ != nullptr) {
+      viewport_ = wp_viewporter_get_viewport(viewporter_, surface_.get());
+   }
 }
 
 void WaylandWindow::init_locked_pointer() {
