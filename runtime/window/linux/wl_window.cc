@@ -1,5 +1,6 @@
 #include "wl_window.h"
 
+#include "fractional-scale-protocol.h"
 #include "gpu/vulkan/gpu.h"
 #include "gpu/vulkan/status.h"
 #include "pointer-constraints-unstable-v1-protocol.h"
@@ -97,6 +98,7 @@ WaylandWindow::WaylandWindow(const Gpu &vk_instance, const char *title)
    VERIFY_INIT(keyboard_);
    VERIFY_INIT(pointer_);
    VERIFY_INIT(relative_pointer_manager_);
+   VERIFY_INIT(fractional_scale_manager_);
    VERIFY_INIT(pointer_constraints_);
 
    init_xdg_wm_base();
@@ -105,6 +107,7 @@ WaylandWindow::WaylandWindow(const Gpu &vk_instance, const char *title)
    init_keyboard();
    init_pointer();
    init_relative_pointer();
+   init_fractional_scale();
 
    mouse_lock_region_ = wl_compositor_create_region(compositor_.get());
    wl_region_add(mouse_lock_region_, 0, 0, 1, 1);
@@ -121,6 +124,8 @@ WaylandWindow::~WaylandWindow() {
    wl_region_destroy(mouse_lock_region_);
    zwp_relative_pointer_v1_destroy(relative_pointer_);
    zwp_relative_pointer_manager_v1_destroy(relative_pointer_manager_);
+   wp_fractional_scale_v1_destroy(fractional_scale_);
+   wp_fractional_scale_manager_v1_destroy(fractional_scale_manager_);
    wl_pointer_destroy(pointer_);
 
    xkb_state_unref(xkb_state_);
@@ -203,6 +208,15 @@ void WaylandWindow::init_registry() {
                  return;
               }
 
+              if (std::strcmp(interface, wp_fractional_scale_manager_v1_interface.name) == 0) {
+                 void *fractional_scale = wl_registry_bind(
+                     registry, id, &wp_fractional_scale_manager_v1_interface, version
+                 );
+                 window->fractional_scale_manager_ =
+                     reinterpret_cast<wp_fractional_scale_manager_v1 *>(fractional_scale);
+                 return;
+              }
+
               if (std::strcmp(interface, wl_seat_interface.name) == 0) {
                  void *seat = wl_registry_bind(registry, id, &wl_seat_interface, version);
                  window->seat_ = reinterpret_cast<wl_seat *>(seat);
@@ -237,10 +251,9 @@ void WaylandWindow::init_registry() {
 
 void WaylandWindow::init_xdg_wm_base() {
    static constexpr xdg_wm_base_listener xdg_listener = {
-       .ping =
-           [](void *user_ptr, xdg_wm_base *xdg_wm_base, uint32_t serial) {
-              xdg_wm_base_pong(xdg_wm_base, serial);
-           },
+       .ping = [](void *user_ptr, xdg_wm_base *xdg_wm_base, uint32_t serial) {
+          xdg_wm_base_pong(xdg_wm_base, serial);
+       },
    };
    xdg_wm_base_add_listener(xdg_base_, &xdg_listener, this);
 }
@@ -258,11 +271,10 @@ void WaylandWindow::init_surfaces() {
 
    xdg_surface_ = xdg_wm_base_get_xdg_surface(xdg_base_, surface_.get());
    static constexpr xdg_surface_listener xdg_surf_listener = {
-       .configure =
-           [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
-              auto window = reinterpret_cast<WaylandWindow *>(data);
-              xdg_surface_ack_configure(xdg_surface, serial);
-           },
+       .configure = [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
+          auto window = reinterpret_cast<WaylandWindow *>(data);
+          xdg_surface_ack_configure(xdg_surface, serial);
+       },
    };
    xdg_surface_add_listener(xdg_surface_, &xdg_surf_listener, this);
 
@@ -429,17 +441,30 @@ void WaylandWindow::init_relative_pointer() {
        zwp_relative_pointer_manager_v1_get_relative_pointer(relative_pointer_manager_, pointer_);
 
    static constexpr zwp_relative_pointer_v1_listener listener = {
-       .relative_motion =
-           [](void *user_data, struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1,
-              uint32_t utime_hi, uint32_t utime_lo, wl_fixed_t dx, wl_fixed_t dy,
-              wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel) {
-              auto *window = reinterpret_cast<WaylandWindow *>(user_data);
-              window->delta_mouse_x_ += dx_unaccel / 256;
-              window->delta_mouse_y_ -= dy_unaccel / 256;
-           },
+       .relative_motion = [](void *user_data,
+                             struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1,
+                             uint32_t utime_hi, uint32_t utime_lo, wl_fixed_t dx, wl_fixed_t dy,
+                             wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel) {
+          auto *window = reinterpret_cast<WaylandWindow *>(user_data);
+          window->delta_mouse_x_ += dx_unaccel / 256;
+          window->delta_mouse_y_ -= dy_unaccel / 256;
+       },
    };
 
    zwp_relative_pointer_v1_add_listener(relative_pointer_, &listener, this);
+}
+
+void WaylandWindow::init_fractional_scale() {
+   fractional_scale_ = wp_fractional_scale_manager_v1_get_fractional_scale(
+       fractional_scale_manager_, surface_.get()
+   );
+
+   static constexpr wp_fractional_scale_v1_listener listener = {
+       .preferred_scale = [](void *user_data, struct wp_fractional_scale_v1 *wp_fractional_scale_v1,
+                             uint32_t) {},
+   };
+
+   wp_fractional_scale_v1_add_listener(fractional_scale_, &listener, this);
 }
 
 void WaylandWindow::init_locked_pointer() {
