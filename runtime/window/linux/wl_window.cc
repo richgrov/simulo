@@ -289,6 +289,12 @@ void WaylandWindow::init_surfaces() {
    static constexpr xdg_surface_listener xdg_surf_listener = {
        .configure = [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
           auto window = reinterpret_cast<WaylandWindow *>(data);
+          float scale = (float)window->scale() / 120.0;
+          float logicalWidth = (float)window->width() / scale;
+          float logicalHeight = (float)window->height() / scale;
+          wp_viewport_set_destination(
+              window->viewport_, (int32_t)logicalWidth, (int32_t)logicalHeight
+          );
           xdg_surface_ack_configure(xdg_surface, serial);
        },
    };
