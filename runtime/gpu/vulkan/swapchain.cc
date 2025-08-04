@@ -60,10 +60,15 @@ VkExtent2D create_swap_extent(
     const VkSurfaceCapabilitiesKHR &capa, uint32_t width, uint32_t height, uint32_t scale
 ) {
    VkExtent2D result = capa.currentExtent;
+   float floatScale = (float)scale / 120.0;
+   float floatHeight = (float)height * floatScale;
+   float floatWidth = (float)width * floatScale;
 
    if (capa.currentExtent.width == static_cast<uint32_t>(-1)) {
-      result.width = std::clamp(width, capa.minImageExtent.width, capa.maxImageExtent.width);
-      result.height = std::clamp(height, capa.minImageExtent.height, capa.maxImageExtent.height);
+      result.width =
+          std::clamp((uint32_t)floatWidth, capa.minImageExtent.width, capa.maxImageExtent.width);
+      result.height =
+          std::clamp((uint32_t)floatHeight, capa.minImageExtent.height, capa.maxImageExtent.height);
    }
 
    return result;
