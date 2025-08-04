@@ -4,13 +4,8 @@
 /build/
 /dist/
 .cache/
-.ccls-cache/
 .zig-cache/
 zig-out/
-extern/
-docs/
-doxygen-docs/
-compile_commands.json
 
 *.spv
 *.metallib

@@ -40,10 +40,6 @@
             .url = "git+https://github.com/karlseguin/websocket.zig#10b0e7be2158ff22733f1e59c1ae0bace5bf3a0c",
             .hash = "websocket-0.1.0-ZPISdbhVAwCL-zrOIFLKLr6CHtwV92raAnObudtbYQjJ",
         },
-        .compile_commands = .{
-            .url = "git+https://github.com/the-argus/zig-compile-commands#d0a01d6cc9090e62291805d87702842cdd787d4d",
-            .hash = "N-V-__8AAFbOAADWdt__Qs3GpRdZiQ5hGxc2AQyI_k4BEjC8",
-        },
     },
     .paths = .{
         "build.zig",
