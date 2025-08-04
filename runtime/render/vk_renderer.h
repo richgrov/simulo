@@ -67,8 +67,7 @@ private:
 class Renderer {
 public:
    explicit Renderer(
-       Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height,
-       uint32_t initial_scale
+       Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
    );
    ~Renderer();
 

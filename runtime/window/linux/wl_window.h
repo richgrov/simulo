@@ -50,15 +50,15 @@ public:
    }
 
    virtual int width() const override {
-      return width_;
+      float floatScale = (float)scale_ / 120.0;
+      float floatWidth = (float)width_ * floatScale;
+      return (int)floatWidth;
    }
 
    virtual int height() const override {
-      return height_;
-   }
-
-   virtual int scale() const override {
-      return scale_;
+      float floatScale = (float)scale_ / 120.0;
+      float floatHeight = (float)height_ * floatScale;
+      return (int)floatHeight;
    }
 
    virtual int mouse_x() const override {

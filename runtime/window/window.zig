@@ -37,10 +37,6 @@ pub const Window = struct {
         return ffi.get_window_height(self.handle);
     }
 
-    pub fn getScale(self: *const Window) i32 {
-        return ffi.get_window_scale(self.handle);
-    }
-
     pub fn getMouseX(self: *const Window) i32 {
         return ffi.get_mouse_x(self.handle);
     }

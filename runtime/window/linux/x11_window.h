@@ -38,10 +38,6 @@ public:
       return height_;
    }
 
-   virtual int scale() const override {
-      return 120;
-   }
-
    virtual int mouse_x() const override {
       return 0;
    }

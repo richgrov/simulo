@@ -171,9 +171,7 @@ void render_object(Renderer *renderer, const float *transform);
 void end_render(Renderer *renderer);
 
 #ifndef VKAD_APPLE
-void recreate_swapchain(
-    Renderer *renderer, int32_t width, int32_t height, int32_t scale, void *surface
-);
+void recreate_swapchain(Renderer *renderer, int32_t width, int32_t height, void *surface);
 #endif
 void wait_idle(Renderer *renderer);
 
@@ -187,7 +185,6 @@ void set_capture_mouse(Window *window, bool capture);
 void request_close_window(Window *window);
 int get_window_width(const Window *window);
 int get_window_height(const Window *window);
-int get_window_scale(const Window *window);
 int get_mouse_x(const Window *window);
 int get_mouse_y(const Window *window);
 int get_delta_mouse_x(const Window *window);

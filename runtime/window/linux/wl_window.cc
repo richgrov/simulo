@@ -289,7 +289,7 @@ void WaylandWindow::init_surfaces() {
    static constexpr xdg_surface_listener xdg_surf_listener = {
        .configure = [](void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
           auto window = reinterpret_cast<WaylandWindow *>(data);
-          wp_viewport_set_destination(window->viewport_, window->width(), window->height());
+          wp_viewport_set_destination(window->viewport_, window->width_, window->height_);
           xdg_surface_ack_configure(xdg_surface, serial);
        },
    };

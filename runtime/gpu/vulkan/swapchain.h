@@ -9,7 +9,7 @@ class Swapchain {
 public:
    Swapchain(
        const std::vector<uint32_t> &queue_families, VkPhysicalDevice physical_device,
-       VkDevice device, VkSurfaceKHR surface, uint32_t width, uint32_t height, uint32_t scale
+       VkDevice device, VkSurfaceKHR surface, uint32_t width, uint32_t height
    );
 
    Swapchain &operator=(const Swapchain &other) = delete;
