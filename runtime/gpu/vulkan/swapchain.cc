@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <iostream>
 
 #include <vulkan/vulkan_core.h>
 
@@ -64,10 +63,6 @@ VkExtent2D create_swap_extent(
    float floatScale = (float)scale / 120.0;
    float floatHeight = (float)height * floatScale;
    float floatWidth = (float)width * floatScale;
-
-   std::cout << floatScale << std::endl;
-   std::cout << floatWidth << std::endl;
-   std::cout << floatHeight << std::endl;
 
    if (capa.currentExtent.width == static_cast<uint32_t>(-1)) {
       result.width =
