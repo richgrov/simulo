@@ -9,9 +9,10 @@ Software for creating and managing projection mapping experiences.
 - 🎥 Make interactive experiences through real-time pose detection
 - 📡 Automatically calibrate cameras and projectors
 - 🎨 Low-overhead rendering directly to HDMI output
-- 🤖 AI-powered editor and simulation engine
+- 🤖 [AI-powered editor and simulation engine](https://github.com/richgrov/simulo-editor)
 - 🌐 Cloud connectivity for remote control and monitoring
 - 🔒 Robust error handling & fully offline capable
+- 🕶️ Real-time masking to avoid shining light directly into eyes
 
 ## Mission
 
@@ -39,6 +40,7 @@ Linux:
 - `libx11`
 - `libxkbcommon`
 - Wayland protocols
+- TensorRT
 
 **Build**
 
