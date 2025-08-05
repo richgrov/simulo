@@ -32,7 +32,7 @@ const loadImage = @import("image/image.zig").loadImage;
 
 const behaviors = @import("behaviors.zig");
 const events = @import("events.zig");
-const masks = @import("mask.zig");
+const EyeGuard = @import("eyeguard.zig").EyeGuard;
 
 const Vertex = struct {
     position: @Vector(3, f32) align(16),
@@ -132,7 +132,7 @@ pub const Runtime = struct {
     chessboard: usize,
     mesh: Renderer.MeshHandle,
     calibrated: bool,
-    masks: masks.MaskObjects,
+    eyeguard: EyeGuard,
 
     pub fn globalInit() !void {
         try Wasm.globalInit();
@@ -197,7 +197,8 @@ pub const Runtime = struct {
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
         const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
         runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
-        runtime.masks = try masks.MaskObjects.init(runtime.allocator, &runtime.renderer, runtime.white_pixel_texture);
+        runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.white_pixel_texture);
+        errdefer runtime.eyeguard.deinit();
 
         runtime.chessboard = runtime.createObject(0, 0, chessboard_material, true);
     }
@@ -206,7 +207,7 @@ pub const Runtime = struct {
         self.wasm.deinit() catch |err| {
             self.remote.log("wasm deinit failed: {any}", .{err});
         };
-        self.masks.deinit();
+        self.eyeguard.deinit();
         self.images.deinit();
         self.objects.deinit();
         self.outdated_object_transforms.deinit(self.allocator);
@@ -398,7 +399,7 @@ pub const Runtime = struct {
                     }
                 },
                 .move => |move| {
-                    self.masks.handleEvent(move.id, &move.detection, self, width, height);
+                    self.eyeguard.handleEvent(move.id, &move.detection, self, width, height);
 
                     const pose_func = self.pose_func orelse return;
                     const pose_buffer = self.pose_buffer orelse return;
@@ -413,7 +414,7 @@ pub const Runtime = struct {
                     _ = self.wasm.callFunction(pose_func, .{ id_u32, true }) catch unreachable;
                 },
                 .lost => |id| {
-                    self.masks.handleDelete(self, id);
+                    self.eyeguard.handleDelete(self, id);
 
                     const pose_func = self.pose_func orelse return;
 

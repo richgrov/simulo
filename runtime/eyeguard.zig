@@ -5,7 +5,6 @@ const util = @import("util");
 const Runtime = @import("runtime.zig").Runtime;
 const Renderer = @import("render/renderer.zig").Renderer;
 const Detection = @import("inference/inference.zig").Detection;
-const pose = @import("inference/pose.zig");
 
 const MASK_WIDTH = 100.0;
 const MASK_HEIGHT = 50.0;
@@ -15,22 +14,22 @@ const MaskData = struct {
     right_id: usize,
 };
 
-pub const MaskObjects = struct {
+pub const EyeGuard = struct {
     mask_material: Renderer.MaterialHandle,
     masks: std.AutoHashMap(u64, MaskData),
 
-    pub fn init(allocator: std.mem.Allocator, renderer: *Renderer, white_pixel_texture: Renderer.ImageHandle) !MaskObjects {
+    pub fn init(allocator: std.mem.Allocator, renderer: *Renderer, white_pixel_texture: Renderer.ImageHandle) !EyeGuard {
         return .{
             .mask_material = try renderer.createUiMaterial(white_pixel_texture, 0.0, 0.0, 0.0),
             .masks = std.AutoHashMap(u64, MaskData).init(allocator),
         };
     }
 
-    pub fn deinit(self: *MaskObjects) void {
+    pub fn deinit(self: *EyeGuard) void {
         self.masks.deinit();
     }
 
-    pub fn handleEvent(self: *MaskObjects, id: u64, det: *const Detection, runtime: *Runtime, window_width: f32, window_height: f32) void {
+    pub fn handleEvent(self: *EyeGuard, id: u64, det: *const Detection, runtime: *Runtime, window_width: f32, window_height: f32) void {
         const l_eye = det.keypoints[1];
         const r_eye = det.keypoints[2];
         const lx = l_eye.pos[0] * window_width;
@@ -48,7 +47,7 @@ pub const MaskObjects = struct {
         }
     }
 
-    pub fn handleDelete(self: *MaskObjects, runtime: *Runtime, id: u64) void {
+    pub fn handleDelete(self: *EyeGuard, runtime: *Runtime, id: u64) void {
         if (self.masks.get(id)) |mask_data| {
             runtime.deleteObject(mask_data.left_id);
             runtime.deleteObject(mask_data.right_id);
@@ -56,7 +55,7 @@ pub const MaskObjects = struct {
         }
     }
 
-    fn updateMaskObject(self: *MaskObjects, runtime: *Runtime, object_id: ?usize, x: f32, y: f32) usize {
+    fn updateMaskObject(self: *EyeGuard, runtime: *Runtime, object_id: ?usize, x: f32, y: f32) usize {
         const spawn_x = x - MASK_WIDTH / 2.0;
         const spawn_y = y - MASK_HEIGHT / 3.0;
 
