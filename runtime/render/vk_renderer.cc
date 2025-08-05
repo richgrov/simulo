@@ -275,7 +275,7 @@ RenderPipeline Renderer::create_pipeline(
     std::span<const uint8_t> vertex_shader, std::span<const uint8_t> fragment_shader,
     const std::vector<VkDescriptorSetLayoutBinding> &bindings
 ) {
-   const int material_capacity = 2;
+   const int material_capacity = 8;
 
    VkVertexInputBindingDescription binding = {
        .binding = 0,
