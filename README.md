@@ -28,6 +28,16 @@ come with it.
 - macOS: Metal
 - Linux: Vulkan & NVIDIA
 
+In order to authenticate with the backend and receive live updates, a keypair and machine ID is
+needed. Generate one like so:
+
+```
+export SIMULO_MACHINE_ID=0 # any non-negative number
+mkdir -p ~/.simulo
+openssl genpkey -algorithm ED25519 -outform DER -out ~/.simulo/private.der
+openssl pkey -in ~/.simulo/private.der -inform DER -pubout -outform PEM -out ~/.simulo/public.pem
+```
+
 **Dependencies:**
 
 - OpenCV
