@@ -57,7 +57,6 @@ Linux:
 - Install the dependencies using homebrew
 ```
 brew install zig
-brew install opencv
 brew install opencv wasm-micro-runtime
 ```
 
