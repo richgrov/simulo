@@ -30,8 +30,6 @@ pub const Gpu = @import("gpu/gpu.zig").Gpu;
 
 const loadImage = @import("image/image.zig").loadImage;
 
-const behaviors = @import("behaviors.zig");
-const events = @import("events.zig");
 const EyeGuard = @import("eyeguard.zig").EyeGuard;
 
 const Vertex = struct {
@@ -45,7 +43,6 @@ pub const GameObject = struct {
     scale: @Vector(3, f32),
     id: usize,
     handle: Renderer.ObjectHandle,
-    native_behaviors: std.ArrayListUnmanaged(behaviors.Behavior),
     deleted: bool,
     internal: bool,
 
@@ -56,31 +53,11 @@ pub const GameObject = struct {
             .scale = .{ 1, 1, 1 },
             .id = id,
             .handle = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, if (internal) 1 else 0),
-            .native_behaviors = .{},
             .deleted = false,
             .internal = internal,
         };
         obj.recalculateTransform(&runtime.renderer);
         return obj;
-    }
-
-    pub fn callEvent(self: *GameObject, runtime: *Runtime, event: anytype) void {
-        const EventType = @TypeOf(event);
-
-        const struct_type = switch (@typeInfo(EventType)) {
-            .pointer => |ptr| reflect.typeId(ptr.child),
-            else => @compileError("event must be a pointer to a struct"),
-        };
-
-        for (self.native_behaviors.items) |behavior| {
-            for (0..behavior.num_event_handlers) |i| {
-                if (behavior.event_handler_types[i] != struct_type) {
-                    continue;
-                }
-
-                behavior.event_handlers[i](runtime, behavior.behavior_instance, event);
-            }
-        }
     }
 
     pub fn delete(self: *GameObject, runtime: *Runtime) void {
@@ -276,15 +253,6 @@ pub const Runtime = struct {
             const image = self.renderer.createImage(image_info.data, image_info.width, image_info.height);
             self.images.append(image) catch |err| util.crash.oom(err);
         }
-    }
-
-    fn isNativeBehavior(self: *const Runtime, ty: engine.Scripting.Type) bool {
-        for (self.native_behaviors.items) |behavior| {
-            if (behavior == ty) {
-                return true;
-            }
-        }
-        return false;
     }
 
     pub fn run(self: *Runtime) !void {
