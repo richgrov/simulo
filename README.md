@@ -44,15 +44,7 @@ openssl pkey -in ~/.simulo/private.der -inform DER -pubout -outform PEM -out ~/.
 - ONNXRuntime
 - WebAssembly Micro Runtime
 
-Linux:
-
-- [Vulkan SDK](https://vulkan.lunarg.com/)
-- `libx11`
-- `libxkbcommon`
-- Wayland protocols
-- TensorRT
-
-**Building and Running Tests for MacOS**
+MacOS:
 
 - Install the dependencies using homebrew
 ```
@@ -76,6 +68,14 @@ zig build install --search-prefix extern/onnxruntime
 ```
 zig build test
 ```
+
+Linux:
+
+- [Vulkan SDK](https://vulkan.lunarg.com/)
+- `libx11`
+- `libxkbcommon`
+- Wayland protocols
+- TensorRT
 
 **Build**
 
