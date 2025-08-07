@@ -155,7 +155,7 @@ pub const Remote = struct {
 
         try ws.handshake("/", .{
             .timeout_ms = 5000,
-            .headers = "Host: localhost:9224",
+            .headers = "Host: " ++ build_options.api_host,
         });
 
         self.ws_read_thread = try ws.readLoopInNewThread(self);
