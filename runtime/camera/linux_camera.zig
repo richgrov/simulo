@@ -198,9 +198,9 @@ fn yuyvToRgbf32(yuyv_data: []const u8, rgb_data: [*]f32, width: u32, height: u32
             const g0_int = @max(0, @min(255, (298 * c - 100 * d - 208 * e + 128) >> 8));
             const b0_int = @max(0, @min(255, (298 * c + 516 * d + 128) >> 8));
 
-            const r0 = @as(f32, @floatFromInt(r0_int)) / 255.0;
-            const g0 = @as(f32, @floatFromInt(g0_int)) / 255.0;
-            const b0 = @as(f32, @floatFromInt(b0_int)) / 255.0;
+            const r0 = @as(f32, @floatFromInt(r0_int));
+            const g0 = @as(f32, @floatFromInt(g0_int));
+            const b0 = @as(f32, @floatFromInt(b0_int));
 
             const ch_stride = 640 * 640;
             const adjusted_y0 = (640 - 480) / 2 + i;
@@ -214,9 +214,9 @@ fn yuyvToRgbf32(yuyv_data: []const u8, rgb_data: [*]f32, width: u32, height: u32
                 const g1_int = @max(0, @min(255, (298 * c1 - 100 * d - 208 * e + 128) >> 8));
                 const b1_int = @max(0, @min(255, (298 * c1 + 516 * d + 128) >> 8));
 
-                const r1 = @as(f32, @floatFromInt(r1_int)) / 255.0;
-                const g1 = @as(f32, @floatFromInt(g1_int)) / 255.0;
-                const b1 = @as(f32, @floatFromInt(b1_int)) / 255.0;
+                const r1 = @as(f32, @floatFromInt(r1_int));
+                const g1 = @as(f32, @floatFromInt(g1_int));
+                const b1 = @as(f32, @floatFromInt(b1_int));
 
                 const adjusted_y1 = (640 - 480) / 2 + i;
                 rgb_data[ch_stride * 0 + adjusted_y1 * width + j + 1] = r1;
