@@ -242,7 +242,8 @@ Material create_material(Renderer *renderer, int32_t pipeline_id, const Material
    };
 
    Uniform u(Uniform::from_props(props));
-   pipe.uniforms.upload_memory(&u, sizeof(Uniform), pipe.uniform_slot_usage++);
+   pipe.uniforms.upload_memory(&u, sizeof(Uniform), pipe.uniform_slot_usage);
+   mat.uniform_buffer_index = pipe.uniform_slot_usage++ * pipe.uniforms.element_size();
 
    std::vector<DescriptorWrite> writes = {
        write_uniform_buffer_dynamic(pipe.uniforms),
@@ -485,7 +486,7 @@ void set_pipeline(Renderer *renderer, uint32_t pipeline_id) {
 }
 
 void set_material(Renderer *renderer, Material *material) {
-   uint32_t offsets[] = {0};
+   uint32_t offsets[] = {static_cast<uint32_t>(material->uniform_buffer_index)};
    vkCmdBindDescriptorSets(
        renderer->command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS,
        renderer->last_bound_pipeline_->pipeline.layout(), 0, 1, &material->descriptor_set, 1,

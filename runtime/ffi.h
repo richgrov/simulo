@@ -110,6 +110,7 @@ typedef struct {
 #else
    void *descriptor_set;
 #endif
+   size_t uniform_buffer_index;
 
 #endif
 } Material;
