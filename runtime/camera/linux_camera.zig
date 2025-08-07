@@ -202,12 +202,11 @@ fn yuyvToRgbf32(yuyv_data: []const u8, rgb_data: [*]f32, width: u32, height: u32
             const g0 = @as(f32, @floatFromInt(g0_int)) / 255.0;
             const b0 = @as(f32, @floatFromInt(b0_int)) / 255.0;
 
-            const r_idx0 = i * width + j;
-            const g_idx0 = width * height + i * width + j;
-            const b_idx0 = 2 * width * height + i * width + j;
-            rgb_data[r_idx0] = r0;
-            rgb_data[g_idx0] = g0;
-            rgb_data[b_idx0] = b0;
+            const ch_stride = 640 * 640;
+            const adjusted_y0 = (640 - 480) / 2 + i;
+            rgb_data[ch_stride * 0 + adjusted_y0 * width + j] = r0;
+            rgb_data[ch_stride * 1 + adjusted_y0 * width + j] = g0;
+            rgb_data[ch_stride * 2 + adjusted_y0 * width + j] = b0;
 
             if (j + 1 < width) {
                 const c1 = y1 - 16;
@@ -219,12 +218,10 @@ fn yuyvToRgbf32(yuyv_data: []const u8, rgb_data: [*]f32, width: u32, height: u32
                 const g1 = @as(f32, @floatFromInt(g1_int)) / 255.0;
                 const b1 = @as(f32, @floatFromInt(b1_int)) / 255.0;
 
-                const r_idx1 = i * width + j + 1;
-                const g_idx1 = width * height + i * width + j + 1;
-                const b_idx1 = 2 * width * height + i * width + j + 1;
-                rgb_data[r_idx1] = r1;
-                rgb_data[g_idx1] = g1;
-                rgb_data[b_idx1] = b1;
+                const adjusted_y1 = (640 - 480) / 2 + i;
+                rgb_data[ch_stride * 0 + adjusted_y1 * width + j + 1] = r1;
+                rgb_data[ch_stride * 1 + adjusted_y1 * width + j + 1] = g1;
+                rgb_data[ch_stride * 2 + adjusted_y1 * width + j + 1] = b1;
             }
         }
     }
