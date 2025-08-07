@@ -95,13 +95,15 @@ pub const Runtime = struct {
     allocator: std.mem.Allocator,
 
     wasm: Wasm,
-    init_func: ?Wasm.Function,
-    update_func: ?Wasm.Function,
-    pose_func: ?Wasm.Function,
+    wasm_funcs: ?struct {
+        init: Wasm.Function,
+        update: Wasm.Function,
+        pose: Wasm.Function,
+    },
+    wasm_pose_buffer: ?[*]f32,
     objects: std.ArrayList(GameObject),
     object_ids: Slab(usize),
     images: std.ArrayList(Renderer.ImageHandle),
-    pose_buffer: ?[*]f32,
     random: std.Random.Xoshiro256,
     outdated_object_transforms: util.IntSet(u32, 128),
 
@@ -153,9 +155,8 @@ pub const Runtime = struct {
         runtime.calibrated = false;
 
         runtime.wasm.zeroInit();
-        runtime.init_func = null;
-        runtime.update_func = null;
-        runtime.pose_func = null;
+        runtime.wasm_funcs = null;
+        runtime.wasm_pose_buffer = null;
         runtime.objects = try std.ArrayList(GameObject).initCapacity(runtime.allocator, 64);
         errdefer runtime.objects.deinit();
         runtime.object_ids = try Slab(usize).init(runtime.allocator, 64);
@@ -166,7 +167,6 @@ pub const Runtime = struct {
         errdefer runtime.outdated_object_transforms.deinit(runtime.allocator);
 
         errdefer runtime.images.deinit();
-        runtime.pose_buffer = null;
         const now: u64 = @bitCast(std.time.microTimestamp());
         runtime.random = std.Random.Xoshiro256.init(now);
 
@@ -223,18 +223,25 @@ pub const Runtime = struct {
             return error.WasmInitFailed;
         };
 
-        self.init_func = self.wasm.getFunction("init") orelse {
+        const init_func = self.wasm.getFunction("init") orelse {
             self.remote.log("program missing init function", .{});
             return error.MissingInitFunction;
         };
-        self.update_func = self.wasm.getFunction("update") orelse {
+        const update_func = self.wasm.getFunction("update") orelse {
             self.remote.log("program missing update function", .{});
             return error.MissingUpdateFunction;
         };
-        self.pose_func = self.wasm.getFunction("pose") orelse {
+        const pose_func = self.wasm.getFunction("pose") orelse {
             self.remote.log("program missing pose function", .{});
             return error.MissingPoseFunction;
         };
+
+        self.wasm_funcs = .{
+            .init = init_func,
+            .update = update_func,
+            .pose = pose_func,
+        };
+        self.wasm_pose_buffer = null;
 
         for (0..num_assets) |asset_idx| {
             var image_path_buf: [16]u8 = undefined;
@@ -252,6 +259,14 @@ pub const Runtime = struct {
 
             const image = self.renderer.createImage(image_info.data, image_info.width, image_info.height);
             self.images.append(image) catch |err| util.crash.oom(err);
+        }
+
+        if (self.calibrated) {
+            _ = self.wasm.callFunction(init_func, .{@as(u32, 0)}) catch unreachable;
+
+            if (self.wasm_pose_buffer == null) {
+                return error.PoseBufferNotInitialized;
+            }
         }
     }
 
@@ -295,8 +310,8 @@ pub const Runtime = struct {
 
             if (self.calibrated) {
                 const deltaf: f32 = @floatFromInt(delta);
-                if (self.update_func) |func| {
-                    _ = self.wasm.callFunction(func, .{deltaf / 1000}) catch unreachable;
+                if (self.wasm_funcs) |funcs| {
+                    _ = self.wasm.callFunction(funcs.update, .{deltaf / 1000}) catch unreachable;
                 }
             }
 
@@ -353,11 +368,13 @@ pub const Runtime = struct {
                 .calibrated => {
                     self.calibrated = true;
 
-                    if (self.init_func) |init_func| {
-                        _ = self.wasm.callFunction(init_func, .{@as(u32, 0)}) catch unreachable;
+                    if (self.wasm_pose_buffer == null) {
+                        if (self.wasm_funcs) |funcs| {
+                            _ = self.wasm.callFunction(funcs.init, .{@as(u32, 0)}) catch unreachable;
 
-                        if (self.pose_buffer == null) {
-                            return error.PoseBufferNotInitialized;
+                            if (self.wasm_pose_buffer == null) {
+                                return error.PoseBufferNotInitialized;
+                            }
                         }
                     }
 
@@ -369,8 +386,8 @@ pub const Runtime = struct {
                 .move => |move| {
                     self.eyeguard.handleEvent(move.id, &move.detection, self, width, height);
 
-                    const pose_func = self.pose_func orelse return;
-                    const pose_buffer = self.pose_buffer orelse return;
+                    const funcs = self.wasm_funcs orelse return;
+                    const pose_buffer = self.wasm_pose_buffer orelse return;
 
                     const id_u32: u32 = @intCast(move.id);
 
@@ -379,15 +396,15 @@ pub const Runtime = struct {
                         pose_buffer[i * 2 + 1] = kp.pos[1] * height;
                     }
 
-                    _ = self.wasm.callFunction(pose_func, .{ id_u32, true }) catch unreachable;
+                    _ = self.wasm.callFunction(funcs.pose, .{ id_u32, true }) catch unreachable;
                 },
                 .lost => |id| {
                     self.eyeguard.handleDelete(self, id);
 
-                    const pose_func = self.pose_func orelse return;
+                    const funcs = self.wasm_funcs orelse return;
 
                     const id_u32: u32 = @intCast(id);
-                    _ = self.wasm.callFunction(pose_func, .{ id_u32, false }) catch unreachable;
+                    _ = self.wasm.callFunction(funcs.pose, .{ id_u32, false }) catch unreachable;
                 },
                 .fault => |fault| {
                     self.remote.log("pose detector fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
@@ -412,7 +429,7 @@ pub const Runtime = struct {
 
     fn wasmSetPoseBuffer(user_ptr: *anyopaque, buffer: [*]f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        runtime.pose_buffer = buffer;
+        runtime.wasm_pose_buffer = buffer;
     }
 
     fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32, material_id: u32) u32 {
