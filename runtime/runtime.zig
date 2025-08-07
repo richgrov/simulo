@@ -146,6 +146,8 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_get_object_x", wasmGetObjectX);
         try Wasm.exposeFunction("simulo_get_object_y", wasmGetObjectY);
         try Wasm.exposeFunction("simulo_get_object_rotation", wasmGetObjectRotation);
+        try Wasm.exposeFunction("simulo_get_object_scale_x", wasmGetObjectScaleX);
+        try Wasm.exposeFunction("simulo_get_object_scale_y", wasmGetObjectScaleY);
         try Wasm.exposeFunction("simulo_delete_object", wasmDeleteObject);
         try Wasm.exposeFunction("simulo_random", wasmRandom);
         try Wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
@@ -567,6 +569,33 @@ pub const Runtime = struct {
             return 0.0;
         };
         return obj.rotation;
+    }
+
+    fn wasmGetObjectScaleX(user_ptr: *anyopaque, id: u32) f32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.getObject(id) orelse {
+            runtime.remote.log("tried to get scale of non-existent object {x}", .{id});
+            return 0.0;
+        };
+        return obj.scale[0];
+    }
+
+    fn wasmGetObjectScaleY(user_ptr: *anyopaque, id: u32) f32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.getObject(id) orelse {
+            runtime.remote.log("tried to get scale of non-existent object {x}", .{id});
+            return 0.0;
+        };
+        return obj.scale[1];
+    }
+
+    fn wasmGetObjectScaleZ(user_ptr: *anyopaque, id: u32) f32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.getObject(id) orelse {
+            runtime.remote.log("tried to get scale of non-existent object {x}", .{id});
+            return 0.0;
+        };
+        return obj.scale[2];
     }
 
     fn wasmDeleteObject(user_ptr: *anyopaque, id: u32) void {
