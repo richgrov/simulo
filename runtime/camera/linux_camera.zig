@@ -3,16 +3,25 @@ const linux = std.os.linux;
 const v42l = @cImport({
     @cInclude("linux/videodev2.h");
 });
+const mjpg = @cImport({
+    @cInclude("camera/mjpg.h");
+});
 
 const OutMode = union(enum) {
     bytes: [2][*]u8,
     floats: [2][*]f32,
 };
 
+const OutFormat = enum {
+    yuyv,
+    mjpg,
+};
+
 pub const LinuxCamera = struct {
     fd: i32,
     buffer: [*]u8,
     buffer_len: usize,
+    out_format: OutFormat,
 
     out: OutMode,
     out_idx: usize,
@@ -33,7 +42,7 @@ pub const LinuxCamera = struct {
             .fmt = .{ .pix = .{
                 .width = 640,
                 .height = 480,
-                .pixelformat = v42l.V4L2_PIX_FMT_YUYV,
+                .pixelformat = v42l.V4L2_PIX_FMT_MJPG,
                 .field = v42l.V4L2_FIELD_ANY,
             } },
         };
@@ -84,6 +93,7 @@ pub const LinuxCamera = struct {
             .fd = fd,
             .buffer = @ptrFromInt(mmap_ptr),
             .buffer_len = buf.length,
+            .out_format = .mjpg,
 
             .out = .{ .bytes = out_bufs },
             .out_idx = 0,
@@ -128,11 +138,17 @@ pub const LinuxCamera = struct {
         switch (self.out) {
             .bytes => |out_bufs| {
                 const out_buf = out_bufs[out_idx];
-                yuyvToRgbu8(frame, out_buf, width, height);
+                switch (self.out_format) {
+                    .yuyv => yuyvToRgbu8(frame, out_buf, width, height),
+                    .mjpg => mjpg.to_rgbu8(frame, out_buf, width, height),
+                }
             },
             .floats => |out_bufs| {
                 const out_buf = out_bufs[out_idx];
-                yuyvToRgbf32(frame, out_buf, width, height);
+                switch (self.out_format) {
+                    .yuyv => yuyvToRgbf32(frame, out_buf, width, height),
+                    .mjpg => mjpg.to_rgbf32(frame, out_buf),
+                }
             },
         }
 
