@@ -9,8 +9,8 @@
 bool to_rgbu8(unsigned char *mjpg_data, unsigned char *rgb_data, int width, int height, int data_size) {
     try {
         cv::Mat jpeg_data(1, data_size, CV_8UC1, mjpg_data);
-        cv::Mat output(height, width, CV_8UC3, rgb_data);
-        cv::Mat result = cv::imdecode(jpeg_data, cv::IMREAD_COLOR_RGB);
+        static thread_local cv::Mat bgr(height, width, CV_8UC3);
+        cv::Mat result = cv::imdecode(jpeg_data, cv::IMREAD_COLOR, &bgr);
         if (result.empty()) {
             std::cerr << "Failed to decode JPEG data" << std::endl;
             return false;
@@ -22,6 +22,8 @@ bool to_rgbu8(unsigned char *mjpg_data, unsigned char *rgb_data, int width, int 
             return false;
         }
 
+        cv::Mat output(height, width, CV_8UC3, rgb_data);
+        cv::cvtColor(result, output, cv::COLOR_BGR2RGB);
         return true;
     } catch (const cv::Exception& e) {
         std::cerr << "OpenCV error in to_rgbu8: " << e.what() << std::endl;
@@ -39,7 +41,7 @@ bool to_rgbf32(unsigned char *mjpg_data, float *rgb_data, int data_size) {
     try {
         cv::Mat jpeg_data(1, data_size, CV_8UC1, mjpg_data);
         static thread_local cv::Mat buffer;
-        cv::Mat decoded = cv::imdecode(jpeg_data, cv::IMREAD_COLOR_RGB, &buffer);
+        cv::Mat decoded = cv::imdecode(jpeg_data, cv::IMREAD_COLOR, &buffer);
         
         if (decoded.empty()) {
             std::cerr << "Failed to decode JPEG data in to_rgbf32" << std::endl;
@@ -57,7 +59,7 @@ bool to_rgbf32(unsigned char *mjpg_data, float *rgb_data, int data_size) {
 
         static thread_local cv::Mat channel;
         for (int c = 0; c < 3; c++) {
-            cv::extractChannel(float_mat, channel, c);
+            cv::extractChannel(float_mat, channel, 2 - c);
             float* channel_buffer = rgb_data + c * 640 * 640 + (640 - 480) / 2 * 640;
             std::memcpy(channel_buffer, channel.data, 480 * 640 * sizeof(float));
         }
