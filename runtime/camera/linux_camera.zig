@@ -137,7 +137,7 @@ pub const LinuxCamera = struct {
                 switch (self.out_format) {
                     .yuyv => try yuyvToRgbu8(frame, out_buf, width, height),
                     .mjpg => {
-                        const success = mjpg.to_rgbu8(frame.ptr, out_buf, width, height);
+                        const success = mjpg.to_rgbu8(frame.ptr, out_buf, width, height, @intCast(frame.len));
                         if (!success) {
                             return error.OpenCvException;
                         }
@@ -149,7 +149,7 @@ pub const LinuxCamera = struct {
                 switch (self.out_format) {
                     .yuyv => try yuyvToRgbf32(frame, out_buf, width, height),
                     .mjpg => {
-                        const success = mjpg.to_rgbf32(frame.ptr, out_buf);
+                        const success = mjpg.to_rgbf32(frame.ptr, out_buf, @intCast(frame.len));
                         if (!success) {
                             return error.OpenCvException;
                         }
