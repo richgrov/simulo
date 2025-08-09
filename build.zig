@@ -26,15 +26,21 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("util/util.zig"),
     });
 
-    const util_tests = b.addTest(.{
+    const runtime_tests = b.addRunArtifact(b.addTest(.{
+        .root_source_file = b.path("runtime/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    }));
+
+    const util_tests = b.addRunArtifact(b.addTest(.{
         .root_source_file = b.path("util/util.zig"),
         .target = target,
         .optimize = optimize,
-    });
+    }));
 
-    const run_tests = b.addRunArtifact(util_tests);
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_tests.step);
+    test_step.dependOn(&runtime_tests.step);
+    test_step.dependOn(&util_tests.step);
 
     const engine = createEngine(b, target);
     engine.addImport("util", util);
