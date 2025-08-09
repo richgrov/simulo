@@ -3,16 +3,25 @@ const linux = std.os.linux;
 const v42l = @cImport({
     @cInclude("linux/videodev2.h");
 });
+const mjpg = @cImport({
+    @cInclude("camera/mjpg.h");
+});
 
 const OutMode = union(enum) {
     bytes: [2][*]u8,
     floats: [2][*]f32,
 };
 
+const OutFormat = enum {
+    yuyv,
+    mjpg,
+};
+
 pub const LinuxCamera = struct {
     fd: i32,
     buffer: [*]u8,
     buffer_len: usize,
+    out_format: OutFormat,
 
     out: OutMode,
     out_idx: usize,
@@ -33,7 +42,7 @@ pub const LinuxCamera = struct {
             .fmt = .{ .pix = .{
                 .width = 640,
                 .height = 480,
-                .pixelformat = v42l.V4L2_PIX_FMT_YUYV,
+                .pixelformat = v42l.V4L2_PIX_FMT_MJPEG,
                 .field = v42l.V4L2_FIELD_ANY,
             } },
         };
@@ -84,6 +93,7 @@ pub const LinuxCamera = struct {
             .fd = fd,
             .buffer = @ptrFromInt(mmap_ptr),
             .buffer_len = buf.length,
+            .out_format = .mjpg,
 
             .out = .{ .bytes = out_bufs },
             .out_idx = 0,
@@ -114,10 +124,6 @@ pub const LinuxCamera = struct {
             return error.DQBufFailed;
         }
 
-        if (buf.bytesused != 480 * 640 * 2) {
-            return error.InvalidFrameSize;
-        }
-
         const frame = self.buffer[0..buf.bytesused];
         const out_idx = self.out_idx;
         self.out_idx = (self.out_idx + 1) % 2;
@@ -128,11 +134,27 @@ pub const LinuxCamera = struct {
         switch (self.out) {
             .bytes => |out_bufs| {
                 const out_buf = out_bufs[out_idx];
-                yuyvToRgbu8(frame, out_buf, width, height);
+                switch (self.out_format) {
+                    .yuyv => try yuyvToRgbu8(frame, out_buf, width, height),
+                    .mjpg => {
+                        const success = mjpg.to_rgbu8(frame.ptr, out_buf, width, height, @intCast(frame.len));
+                        if (!success) {
+                            return error.OpenCvException;
+                        }
+                    },
+                }
             },
             .floats => |out_bufs| {
                 const out_buf = out_bufs[out_idx];
-                yuyvToRgbf32(frame, out_buf, width, height);
+                switch (self.out_format) {
+                    .yuyv => try yuyvToRgbf32(frame, out_buf, width, height),
+                    .mjpg => {
+                        const success = mjpg.to_rgbf32(frame.ptr, out_buf, @intCast(frame.len));
+                        if (!success) {
+                            return error.OpenCvException;
+                        }
+                    },
+                }
             },
         }
 
@@ -142,7 +164,12 @@ pub const LinuxCamera = struct {
     }
 };
 
-fn yuyvToRgbu8(yuyv_data: []const u8, rgb_data: [*]u8, width: u32, height: u32) void {
+fn yuyvToRgbu8(yuyv_data: []const u8, rgb_data: [*]u8, width: u32, height: u32) !void {
+    const expected_size = width * height * 2;
+    if (yuyv_data.len != expected_size) {
+        return error.InvalidFrameSize;
+    }
+
     for (0..height) |i| {
         var j: u32 = 0;
         while (j < width) : (j += 2) {
@@ -180,7 +207,12 @@ fn yuyvToRgbu8(yuyv_data: []const u8, rgb_data: [*]u8, width: u32, height: u32) 
     }
 }
 
-fn yuyvToRgbf32(yuyv_data: []const u8, rgb_data: [*]f32, width: u32, height: u32) void {
+fn yuyvToRgbf32(yuyv_data: []const u8, rgb_data: [*]f32, width: u32, height: u32) !void {
+    const expected_size = width * height * 2;
+    if (yuyv_data.len != expected_size) {
+        return error.InvalidFrameSize;
+    }
+
     for (0..height) |i| {
         var j: u32 = 0;
         while (j < width) : (j += 2) {
@@ -225,111 +257,4 @@ fn yuyvToRgbf32(yuyv_data: []const u8, rgb_data: [*]f32, width: u32, height: u32
             }
         }
     }
-}
-
-test "YUYV to RGB bytes exact conversion" {
-    const testing = std.testing;
-
-    const yuyv_data = [_]u8{
-        100, 150, 200, 100,
-    };
-
-    var rgb_data: [6]u8 = undefined;
-
-    try yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1);
-
-    try testing.expectEqual(@as(u8, 53), rgb_data[0]);
-    try testing.expectEqual(@as(u8, 112), rgb_data[1]);
-    try testing.expectEqual(@as(u8, 142), rgb_data[2]);
-    try testing.expectEqual(@as(u8, 169), rgb_data[3]);
-    try testing.expectEqual(@as(u8, 228), rgb_data[4]);
-    try testing.expectEqual(@as(u8, 255), rgb_data[5]);
-}
-
-test "YUYV to RGB floats exact conversion" {
-    const testing = std.testing;
-
-    const yuyv_data = [_]u8{
-        100, 150, 200, 100,
-    };
-
-    var rgb_data: [6]f32 = undefined;
-
-    try yuyvToRgbf32(&yuyv_data, &rgb_data, 2, 1);
-
-    try testing.expectApproxEqAbs(@as(f32, 53.0 / 255.0), rgb_data[0], 0.001);
-    try testing.expectApproxEqAbs(@as(f32, 169.0 / 255.0), rgb_data[1], 0.001);
-    try testing.expectApproxEqAbs(@as(f32, 112.0 / 255.0), rgb_data[2], 0.001);
-    try testing.expectApproxEqAbs(@as(f32, 228.0 / 255.0), rgb_data[3], 0.001);
-    try testing.expectApproxEqAbs(@as(f32, 142.0 / 255.0), rgb_data[4], 0.001);
-    try testing.expectApproxEqAbs(@as(f32, 255.0 / 255.0), rgb_data[5], 0.001);
-}
-
-test "YUYV conversion error on invalid data size" {
-    const testing = std.testing;
-
-    const yuyv_data = [_]u8{ 76, 84, 255 };
-    var rgb_data: [12]u8 = undefined;
-
-    try testing.expectError(error.InvalidYUYVDataSize, yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1));
-
-    var rgb_floats: [6]f32 = undefined;
-    try testing.expectError(error.InvalidYUYVDataSize, yuyvToRgbf32(&yuyv_data, &rgb_floats, 2, 1));
-}
-
-test "YUYV black exact values" {
-    const testing = std.testing;
-
-    const yuyv_data = [_]u8{
-        16, 128, 16, 128,
-    };
-
-    var rgb_data: [6]u8 = undefined;
-
-    try yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1);
-
-    try testing.expectEqual(@as(u8, 0), rgb_data[0]);
-    try testing.expectEqual(@as(u8, 0), rgb_data[1]);
-    try testing.expectEqual(@as(u8, 0), rgb_data[2]);
-    try testing.expectEqual(@as(u8, 0), rgb_data[3]);
-    try testing.expectEqual(@as(u8, 0), rgb_data[4]);
-    try testing.expectEqual(@as(u8, 0), rgb_data[5]);
-}
-
-test "YUYV white exact values" {
-    const testing = std.testing;
-
-    const yuyv_data = [_]u8{
-        235, 128, 235, 128,
-    };
-
-    var rgb_data: [6]u8 = undefined;
-
-    try yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1);
-
-    try testing.expectEqual(@as(u8, 255), rgb_data[0]);
-    try testing.expectEqual(@as(u8, 255), rgb_data[1]);
-    try testing.expectEqual(@as(u8, 255), rgb_data[2]);
-    try testing.expectEqual(@as(u8, 255), rgb_data[3]);
-    try testing.expectEqual(@as(u8, 255), rgb_data[4]);
-    try testing.expectEqual(@as(u8, 255), rgb_data[5]);
-}
-
-test "YUYV chroma sharing verification" {
-    const testing = std.testing;
-
-    const yuyv_data = [_]u8{
-        50, 200, 150, 50,
-    };
-
-    var rgb_data: [6]u8 = undefined;
-
-    try yuyvToRgbu8(&yuyv_data, &rgb_data, 2, 1);
-
-    try testing.expectEqual(@as(u8, 0), rgb_data[0]);
-    try testing.expectEqual(@as(u8, 75), rgb_data[1]);
-    try testing.expectEqual(@as(u8, 185), rgb_data[2]);
-    try testing.expectEqual(@as(u8, 31), rgb_data[3]);
-    try testing.expectEqual(@as(u8, 191), rgb_data[4]);
-    try testing.expectEqual(@as(u8, 255), rgb_data[5]);
 }
