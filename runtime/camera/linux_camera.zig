@@ -140,14 +140,14 @@ pub const LinuxCamera = struct {
                 const out_buf = out_bufs[out_idx];
                 switch (self.out_format) {
                     .yuyv => yuyvToRgbu8(frame, out_buf, width, height),
-                    .mjpg => mjpg.to_rgbu8(frame, out_buf, width, height),
+                    .mjpg => mjpg.to_rgbu8(frame.ptr, out_buf, width, height),
                 }
             },
             .floats => |out_bufs| {
                 const out_buf = out_bufs[out_idx];
                 switch (self.out_format) {
                     .yuyv => yuyvToRgbf32(frame, out_buf, width, height),
-                    .mjpg => mjpg.to_rgbf32(frame, out_buf),
+                    .mjpg => mjpg.to_rgbf32(frame.ptr, out_buf),
                 }
             },
         }

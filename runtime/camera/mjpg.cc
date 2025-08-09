@@ -5,13 +5,13 @@
 
 #include <opencv2/opencv.hpp>
 
-void to_rgbu8(const unsigned char *mjpg_data, unsigned char *rgb_data, int width, int height) {
+void to_rgbu8(unsigned char *mjpg_data, unsigned char *rgb_data, int width, int height) {
     cv::Mat mjpg_mat(height, width, CV_8UC1, mjpg_data);
     cv::Mat rgb_mat(height, width, CV_8UC3, rgb_data);
     cv::cvtColor(mjpg_mat, rgb_mat, cv::COLOR_YUV2RGB_YUYV);
 }
 
-void to_rgbf32(const unsigned char *mjpg_data, float *rgb_data) {
+void to_rgbf32(unsigned char *mjpg_data, float *rgb_data) {
     cv::Mat mjpg_mat(480, 640, CV_8UC1, mjpg_data);
     static cv::Mat rgb_mat(480, 640, CV_32FC3);
     cv::cvtColor(mjpg_mat, rgb_mat, cv::COLOR_YUV2RGB_YUYV);
