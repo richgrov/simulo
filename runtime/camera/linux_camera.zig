@@ -42,7 +42,7 @@ pub const LinuxCamera = struct {
             .fmt = .{ .pix = .{
                 .width = 640,
                 .height = 480,
-                .pixelformat = v42l.V4L2_PIX_FMT_MJPG,
+                .pixelformat = v42l.V4L2_PIX_FMT_MJPEG,
                 .field = v42l.V4L2_FIELD_ANY,
             } },
         };
