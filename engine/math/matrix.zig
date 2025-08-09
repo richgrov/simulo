@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const vulkan = @import("util").vulkan;
+const y_direction = if (vulkan) -1 else 1;
 
 fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
     return struct {
@@ -25,9 +26,9 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             return .{
                 .data = [_]@Vector(4, f32){
                     .{ 2.0 / width, 0, 0, 0 },
-                    .{ 0, 2.0 / height, 0, 0 },
+                    .{ 0, y_direction * 2.0 / height, 0, 0 },
                     .{ 0, 0, 1.0 / depth, 0 },
-                    .{ -1, -1, -near / depth, 1 },
+                    .{ -1, y_direction * -1, -near / depth, 1 },
                 },
             };
         }
