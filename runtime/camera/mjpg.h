@@ -7,8 +7,8 @@
 extern "C" {
 #endif
 
-void to_rgbu8(const unsigned char *mjpg_data, unsigned char *rgb_data, int width, int height);
-void to_rgbf32(const unsigned char *mjpg_data, float *rgb_data);
+void to_rgbu8(unsigned char *mjpg_data, unsigned char *rgb_data, int width, int height);
+void to_rgbf32(unsigned char *mjpg_data, float *rgb_data);
 
 #ifdef __cplusplus
 }
