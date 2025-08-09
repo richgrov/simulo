@@ -124,7 +124,7 @@ pub const LinuxCamera = struct {
             return error.DQBufFailed;
         }
 
-        if (buf.bytesused != 480 * 640 * 2) {
+        if (self.out_format == .yuyv and buf.bytesused != 480 * 640 * 2) {
             return error.InvalidFrameSize;
         }
 
