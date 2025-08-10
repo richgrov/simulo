@@ -106,6 +106,7 @@ pub const Runtime = struct {
     images: std.ArrayList(Renderer.ImageHandle),
     random: std.Random.Xoshiro256,
     outdated_object_transforms: util.IntSet(u32, 128),
+    last_ping: i64,
 
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: usize,
@@ -167,6 +168,8 @@ pub const Runtime = struct {
 
         runtime.outdated_object_transforms = try util.IntSet(u32, 128).init(runtime.allocator, 64);
         errdefer runtime.outdated_object_transforms.deinit(runtime.allocator);
+
+        runtime.last_ping = std.time.milliTimestamp();
 
         errdefer runtime.images.deinit();
         const now: u64 = @bitCast(std.time.microTimestamp());
@@ -328,6 +331,11 @@ pub const Runtime = struct {
             self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
                 self.remote.log("render failed: {any}", .{err});
             };
+
+            if (now - self.last_ping >= 1000 * 30) {
+                self.last_ping = now;
+                self.remote.sendPing();
+            }
 
             while (self.remote.nextMessage()) |msg| {
                 var message = msg;

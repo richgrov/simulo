@@ -12,6 +12,11 @@ const Packet = packet.Packet;
 const MIN_RECONNECT_DELAY_MS: u64 = 1000;
 const MAX_RECONNECT_DELAY_MS: u64 = 16000;
 
+const OutboundMessage = union(enum) {
+    log: Remote.LogEntry,
+    ping: void,
+};
+
 pub const Remote = struct {
     pub const LogEntry = struct {
         buf: [512]u8,
@@ -35,7 +40,7 @@ pub const Remote = struct {
     running: bool = true,
     authenticated: bool = false,
     reconnect_delay_ms: u64 = MIN_RECONNECT_DELAY_MS,
-    log_queue: Spsc(LogEntry, 256),
+    log_queue: Spsc(OutboundMessage, 256),
     inbound_queue: Spsc(Packet, 128),
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, private_key: *const [32]u8) !Remote {
@@ -57,7 +62,7 @@ pub const Remote = struct {
             .port = build_options.api_port,
             .tls = build_options.api_tls,
             .websocket_cli = null,
-            .log_queue = Spsc(LogEntry, 256).init(),
+            .log_queue = Spsc(OutboundMessage, 256).init(),
             .inbound_queue = Spsc(Packet, 128).init(),
         };
     }
@@ -88,20 +93,31 @@ pub const Remote = struct {
     }
 
     pub fn log(self: *Remote, comptime fmt: []const u8, args: anytype) void {
-        var log_entry = LogEntry{
-            .buf = undefined,
-            .used = undefined,
+        var log_entry = OutboundMessage{
+            .log = .{
+                .buf = undefined,
+                .used = undefined,
+            },
         };
 
-        const msg = std.fmt.bufPrintZ(&log_entry.buf, fmt, args) catch |err| {
+        const msg = std.fmt.bufPrintZ(&log_entry.log.buf, fmt, args) catch |err| {
             std.log.err("couldn't format log message: {any}", .{err});
             return;
         };
-        log_entry.used = msg.len;
+        log_entry.log.used = msg.len;
 
         std.log.info("{s}", .{msg});
         self.log_queue.enqueue(log_entry) catch {
             std.log.err("log queue is full for {s}", .{msg});
+        };
+    }
+
+    pub fn sendPing(self: *Remote) void {
+        const log_entry = OutboundMessage{
+            .ping = {},
+        };
+        self.log_queue.enqueue(log_entry) catch {
+            std.log.err("log queue is full for ping", .{});
         };
     }
 
@@ -118,11 +134,20 @@ pub const Remote = struct {
             const ws = if (self.websocket_cli) |*cli| cli else continue;
 
             while (self.log_queue.tryDequeue()) |log_entry| {
-                var entry = log_entry;
-                const msg = entry.buf[0..entry.used];
-                ws.writeText(msg) catch |err| {
-                    std.log.err("couldn't write log message '{s}': {any}", .{ msg, err });
-                };
+                switch (log_entry) {
+                    .log => |entry| {
+                        var entry_mut = entry;
+                        const msg = entry_mut.buf[0..entry_mut.used];
+                        ws.writeText(msg) catch |err| {
+                            std.log.err("couldn't write log message '{s}': {any}", .{ msg, err });
+                        };
+                    },
+                    .ping => {
+                        ws.writePing(&[0]u8{}) catch |err| {
+                            std.log.err("couldn't write ping: {any}", .{err});
+                        };
+                    },
+                }
             }
         }
         std.log.info("remote write loop has exited", .{});
