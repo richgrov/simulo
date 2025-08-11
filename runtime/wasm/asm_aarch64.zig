@@ -113,6 +113,13 @@ const Assembler = struct {
         self.write_index += 1;
     }
 
+    pub fn mov_imm_to_reg(self: *Assembler, value: i32, dst: Register) void {
+        const base = 0b11010010100000000000000000000000;
+        const value_u: u32 = @bitCast(value);
+        self.memory[self.write_index] = base | (value_u << 5) | (@intFromEnum(dst) << 0);
+        self.write_index += 1;
+    }
+
     pub fn add_reg_to_reg(self: *Assembler, src_a: Register, src_b: Register, dst: Register) void {
         const base = 0b00001011001000000000000000000000;
         self.memory[self.write_index] = base | (@intFromEnum(src_a) << 16) | (@intFromEnum(src_b) << 5) | @intFromEnum(dst);
@@ -128,6 +135,12 @@ const Assembler = struct {
     pub fn cmp_reg_to_imm32(self: *Assembler, src: Register, imm: u12) void {
         const base = 0b11110001000000000000000000011111;
         self.memory[self.write_index] = base | (@as(u32, @intCast(imm)) << 10) | (@intFromEnum(src) << 5);
+        self.write_index += 1;
+    }
+
+    pub fn cmp_reg_to_reg(self: *Assembler, src_a: Register, src_b: Register) void {
+        const base = 0b11101011000000000000000000011111;
+        self.memory[self.write_index] = base | (@intFromEnum(src_a) << 16) | (@intFromEnum(src_b) << 5);
         self.write_index += 1;
     }
 
