@@ -33,9 +33,12 @@ pub const Instruction = union(enum) {
         offset: u32,
     };
 
+    Unreachable: void,
     Block: struct { block_type: i32 },
     Loop: struct { block_type: i32 },
-    If: struct { block_type: i32 },
+    If: struct { block_type: i32, num_instructions: u32 },
+    Else: struct { num_instructions: u32 },
+    End: void,
     Br: struct { label_index: u32 },
     BrIf: struct { label_index: u32 },
     BrTable: struct { targets: []u32, default_target: u32 },
@@ -76,6 +79,7 @@ pub const Instruction = union(enum) {
     I64Const: i64,
     F32Const: f32,
     F64Const: f64,
+    I32Eq: void,
     I32Add: void,
     Misc: struct { opcode: u8, bytes: []const u8 },
     Plain: u8,
@@ -324,6 +328,9 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
 }
 
 fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruction {
+    var block_stack = std.ArrayList(usize).init(allocator);
+    defer block_stack.deinit();
+
     var d = Deserializer{ .data = data, .allocator = allocator };
     var list = std.ArrayList(Instruction).init(allocator);
     errdefer {
@@ -335,9 +342,17 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
         const opcode = try d.readByte();
         var instr: Instruction = .{ .Plain = opcode };
         switch (opcode) {
+            0x00 => instr = .{ .Unreachable = {} },
             0x02 => instr = .{ .Block = .{ .block_type = @intCast(try d.readByte()) } },
             0x03 => instr = .{ .Loop = .{ .block_type = @intCast(try d.readByte()) } },
-            0x04 => instr = .{ .If = .{ .block_type = @intCast(try d.readByte()) } },
+            0x04 => {
+                try block_stack.append(list.items.len);
+                instr = .{ .If = .{ .block_type = @intCast(try d.readByte()), .num_instructions = std.math.maxInt(u32) } };
+            },
+            0x05 => {
+                instr = .{ .Else = .{ .num_instructions = std.math.maxInt(u32) } };
+            },
+            0x0b => instr = .{ .End = {} },
             0x0c => instr = .{ .Br = .{ .label_index = try d.readVarUint32() } },
             0x0d => instr = .{ .BrIf = .{ .label_index = try d.readVarUint32() } },
             0x0e => {
@@ -399,6 +414,7 @@ fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruct
                 const bits = std.mem.readInt(u64, @as(*const [8]u8, @ptrCast(bytes.ptr)), .little);
                 instr = .{ .F64Const = @bitCast(bits) };
             },
+            0x46 => instr = .{ .I32Eq = {} },
             0x6a => instr = .{ .I32Add = {} },
             0xfc, 0xfd => {
                 const start = d.index;

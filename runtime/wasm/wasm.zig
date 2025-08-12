@@ -4,7 +4,6 @@ const build_options = @import("build_options");
 const allocation = @import("allocate.zig");
 const assembly = @import("asm.zig");
 const deserializer = @import("deserializer.zig");
-pub const Error = @import("error.zig").Error;
 const reflect = @import("util").reflect;
 
 const wasm = @cImport({
@@ -45,7 +44,7 @@ pub const Wasm = struct {
     module: wasm.wasm_module_t = null,
     module_instance: wasm.wasm_module_inst_t = null,
     exec_env: wasm.wasm_exec_env_t = null,
-    buffer: ?*anyopaque = null,
+    buffer: ?[]u8 = null,
 
     pub const Function = *wasm.WASMFunctionInstanceCommon;
 
@@ -150,7 +149,7 @@ pub const Wasm = struct {
         self.buffer = null;
     }
 
-    pub fn init(self: *Wasm, allocator: std.mem.Allocator, user_data: *anyopaque, data: []const u8, err_out: *?Error) !void {
+    pub fn init(self: *Wasm, allocator: std.mem.Allocator, user_data: *anyopaque, data: []const u8) !void {
         if (comptime build_options.new_wasm) {
             var raw_module = try deserializer.parseModule(allocator, data);
             errdefer raw_module.deinit(allocator);
@@ -158,17 +157,11 @@ pub const Wasm = struct {
             const buffer = try allocation.allocateExecutable(4 * 1024);
             errdefer allocation.free(buffer, 4 * 1024) catch {};
 
-            const compiled_module = switch (assembly.writeAssembly(buffer, &raw_module, allocator)) {
-                .ok => |mod| mod,
-                .err => |err| {
-                    err_out.* = err;
-                    return error.WasmCompileFailed;
-                },
-            };
+            const compiled_module = try assembly.writeAssembly(buffer, &raw_module, allocator);
 
             allocation.finishAllocation(buffer, 4 * 1024);
-            const func = (try compiled_module.getFunction("add", fn (i32, i32) callconv(.C) i32)).?;
-            std.debug.print("{}\n", .{func(19, 2)});
+            const func = (try compiled_module.getFunction("compare_ten", fn (i32) callconv(.C) i32)).?;
+            std.debug.print("{}\n", .{func(2)});
             std.process.exit(0);
 
             self.buffer = buffer;

@@ -12,23 +12,24 @@ extern fn munmap(addr: *anyopaque, len: usize) callconv(.C) c_int;
 extern fn pthread_jit_write_protect_np(enable: c_int) callconv(.C) void;
 extern fn sys_icache_invalidate(addr: *anyopaque, len: usize) callconv(.C) void;
 
-pub fn allocateExecutable(len: usize) !*anyopaque {
+pub fn allocateExecutable(len: usize) ![]u8 {
     const ptr = mmap(null, len, PROT.EXEC | PROT.WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);
     if (ptr == MAP_FAILED) {
         return error.MmapFailed;
     }
 
     pthread_jit_write_protect_np(0);
-    return ptr;
+    const u8_ptr: [*]u8 = @ptrCast(ptr);
+    return u8_ptr[0..len];
 }
 
-pub fn finishAllocation(ptr: *anyopaque, len: usize) void {
+pub fn finishAllocation(ptr: []u8, len: usize) void {
     pthread_jit_write_protect_np(1);
-    sys_icache_invalidate(ptr, len);
+    sys_icache_invalidate(@ptrCast(ptr.ptr), len);
 }
 
-pub fn free(ptr: *anyopaque, len: usize) !void {
-    if (munmap(ptr, len) != 0) {
+pub fn free(ptr: []u8, len: usize) !void {
+    if (munmap(@ptrCast(ptr.ptr), len) != 0) {
         return error.MunmapFailed;
     }
 }

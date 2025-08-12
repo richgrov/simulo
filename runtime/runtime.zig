@@ -18,7 +18,6 @@ pub const Window = @import("window/window.zig").Window;
 
 const wasm = @import("wasm/wasm.zig");
 pub const Wasm = wasm.Wasm;
-pub const WasmError = wasm.Error;
 
 const inference = @import("inference/inference.zig");
 pub const Inference = inference.Inference;
@@ -222,9 +221,8 @@ pub const Runtime = struct {
         const data = try std.fs.cwd().readFileAlloc(self.allocator, local_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
-        var wasm_err: ?WasmError = null;
-        self.wasm.init(self.allocator, @ptrCast(self), data, &wasm_err) catch |err_code| {
-            self.remote.log("wasm initialization failed: {s}: {any}", .{ @errorName(err_code), wasm_err });
+        self.wasm.init(self.allocator, @ptrCast(self), data) catch |err_code| {
+            self.remote.log("wasm initialization failed: {s}", .{@errorName(err_code)});
             return error.WasmInitFailed;
         };
 
