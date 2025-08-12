@@ -191,14 +191,33 @@ fn compile(cpu_instructions: *std.ArrayList(u32), wasm_instructions: []const des
     var stack_depth = current_stack_depth;
     var last_condition: ?Condition = null;
 
-    for (wasm_instructions) |instruction| {
+    var i: usize = 0;
+    while (i < wasm_instructions.len) : (i += 1) {
+        const instruction = wasm_instructions[i];
+
         switch (instruction) {
             .Unreachable => {},
             .If => |instr| {
-                _ = instr;
+                var true_asm = try std.ArrayList(u32).initCapacity(cpu_instructions.allocator, 16);
+                try compile(&true_asm, instr.when_true, stack_depth);
+
+                const false_asm = if (instr.when_false) |false_wasm_instructions| blk: {
+                    var false_instructions = try std.ArrayList(u32).initCapacity(cpu_instructions.allocator, 16);
+                    try compile(&false_instructions, false_wasm_instructions, stack_depth);
+
+                    var true_assembler = Assembler.wrap(&true_asm);
+                    try true_assembler.b(@intCast(false_instructions.items.len));
+
+                    break :blk false_instructions;
+                } else null;
+
+                try assembler.b_cond(.ne, @intCast(true_asm.items.len + 1));
+                try cpu_instructions.appendSlice(true_asm.items);
+
+                if (false_asm) |false_asm_list| {
+                    try cpu_instructions.appendSlice(false_asm_list.items);
+                }
             },
-            .Else => {},
-            .End => {},
             .LocalGet => |local_get| {
                 const index: isize = @intCast(local_get.local_index);
                 const depth: isize = @intCast(stack_depth);
@@ -233,7 +252,6 @@ fn compile(cpu_instructions: *std.ArrayList(u32), wasm_instructions: []const des
                     try assembler.pop(Register.x1);
                     stack_depth -= 1;
                 }
-                //try assembler.brk();
                 try assembler.ret();
             },
             else => return error.InvalidInstruction,
