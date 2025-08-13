@@ -7,6 +7,8 @@ const ffi = @cImport({
     @cInclude("ffi.h");
 });
 
+const fs_storage = @import("../fs_storage.zig");
+
 const detection_threshold = 0.5;
 
 fn errIfStatus(status: ort.OrtStatusPtr, ort_api: [*c]const ort.OrtApi) !void {
@@ -81,6 +83,30 @@ pub const Inference = struct {
             .linux => {
                 try errIfStatus(ort_api.CreateTensorRTProviderOptions.?(&ort_rt_options), ort_api);
                 errdefer ort_api.ReleaseTensorRTProviderOptions.?(ort_rt_options);
+
+                const option_keys = [_][*:0]const u8{
+                    "trt_engine_cache_enable",
+                    "trt_engine_cache_path",
+                    "trt_timing_cache_enable",
+                    "trt_timing_cache_path",
+                };
+
+                var cache_dir_buf: [128]u8 = undefined;
+                const cache_dir = fs_storage.getFilePath(&cache_dir_buf, "trt_cache") catch unreachable;
+
+                const option_values = [_][*:0]const u8{
+                    "1",
+                    cache_dir,
+                    "1",
+                    cache_dir,
+                };
+
+                try errIfStatus(ort_api.UpdateTensorRTProviderOptions.?(
+                    ort_rt_options,
+                    @ptrCast(&option_keys),
+                    @ptrCast(&option_values),
+                    option_keys.len,
+                ), ort_api);
                 try errIfStatus(ort_api.SessionOptionsAppendExecutionProvider_TensorRT_V2.?(ort_options, ort_rt_options), ort_api);
             },
             else => {},

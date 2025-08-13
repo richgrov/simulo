@@ -5,16 +5,12 @@ const engine = @import("engine");
 const util = @import("util");
 const Runtime = @import("runtime.zig").Runtime;
 
-fn readPrivateKey(allocator: std.mem.Allocator) ![32]u8 {
-    const home_dir = try std.process.getEnvVarOwned(allocator, "HOME");
-    defer allocator.free(home_dir);
+const fs_storage = @import("fs_storage.zig");
 
+fn readPrivateKey() ![32]u8 {
     // From the macOS and Linux user name length limit, 512 bytes should be enough
     var private_key_path_buf: [512]u8 = undefined;
-    const private_key_path = switch (comptime builtin.target.os.tag) {
-        .macos, .linux => std.fmt.bufPrint(&private_key_path_buf, "{s}/.simulo/private.der", .{home_dir}) catch unreachable,
-        else => @compileError("unsupported platform"),
-    };
+    const private_key_path = fs_storage.getFilePath(&private_key_path_buf, "private.der") catch unreachable;
 
     var private_key_buf: [68]u8 = undefined;
     const private_key_der = try std.fs.cwd().readFile(private_key_path, &private_key_buf);
@@ -36,7 +32,12 @@ pub fn main() !void {
     }
     const allocator = dba.allocator();
 
-    const private_key = readPrivateKey(allocator) catch |err| {
+    fs_storage.globalInit(allocator) catch |err| {
+        std.log.err("error: failed to initialize fs storage: {s}", .{@errorName(err)});
+        return;
+    };
+
+    const private_key = readPrivateKey() catch |err| {
         if (err == error.OutOfMemory) {
             util.crash.oom(error.OutOfMemory);
         }
