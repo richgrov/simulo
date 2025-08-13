@@ -1,5 +1,10 @@
 const std = @import("std");
 
+const util = @import("util");
+
+const engine = @import("engine");
+const profile = engine.profiler;
+
 const Reader = struct {
     data: []u8,
     read_index: usize,
@@ -47,6 +52,66 @@ const Reader = struct {
         return try allocator.dupe(u8, str);
     }
 };
+
+pub const PacketWriteError = error{PacketTooLong};
+
+pub const Writer = struct {
+    const max_capacity = 1024;
+    data: util.FixedArrayList(u8, max_capacity),
+
+    pub fn init() Writer {
+        return Writer{
+            .data = util.FixedArrayList(u8, max_capacity).init(),
+        };
+    }
+
+    pub fn writeInt(self: *Writer, comptime T: type, value: T) PacketWriteError!void {
+        const end = self.data.len + @sizeOf(T);
+        if (end > max_capacity) {
+            return error.PacketTooLong;
+        }
+
+        std.mem.writeInt(T, @ptrCast(self.data.data[self.data.len..end]), value, .big);
+        self.data.len += @sizeOf(T);
+    }
+
+    pub fn writeString(self: *Writer, value: []const u8) PacketWriteError!void {
+        try self.writeInt(u16, @intCast(value.len));
+        try self.writeFull(value);
+    }
+
+    pub fn writeFull(self: *Writer, value: []const u8) PacketWriteError!void {
+        if (self.data.len + value.len > max_capacity) {
+            return error.PacketTooLong;
+        }
+
+        @memcpy(self.data.data[self.data.len..], value);
+        self.data.len += @intCast(value.len);
+    }
+
+    pub fn bytes(self: *Writer) []u8 {
+        return self.data.itemsMut();
+    }
+};
+
+pub fn outboundProfile(profiler: []const u8, labels: profile.Labels, logs: []const profile.Logs) PacketWriteError!Writer {
+    var writer = Writer.init();
+    try writer.writeString(profiler);
+    try writer.writeInt(u8, @intCast(labels.len));
+    for (labels.items()) |label| {
+        try writer.writeString(label);
+    }
+
+    try writer.writeInt(u16, @intCast(logs.len));
+    for (logs) |log| {
+        for (log.items()) |log_point| {
+            try writer.writeInt(u32, log_point.label);
+            try writer.writeInt(u32, log_point.us);
+        }
+    }
+
+    return writer;
+}
 
 pub const DownloadFile = struct {
     url: []u8,

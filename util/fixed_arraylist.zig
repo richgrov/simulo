@@ -47,6 +47,10 @@ pub fn FixedArrayList(comptime T: type, comptime capacity: u32) type {
         pub fn items(self: *const Self) []const T {
             return self.data[0..self.len];
         }
+
+        pub fn itemsMut(self: *Self) []T {
+            return self.data[0..self.len];
+        }
     };
 }
 

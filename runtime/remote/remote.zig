@@ -1,6 +1,9 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
+const engine = @import("engine");
+const profile = engine.profiler;
+
 const util = @import("util");
 const websocket = @import("websocket");
 
@@ -15,6 +18,11 @@ const MAX_RECONNECT_DELAY_MS: u64 = 16000;
 const OutboundMessage = union(enum) {
     log: Remote.LogEntry,
     ping: void,
+    profile: struct {
+        name: []const u8,
+        labels: profile.Labels,
+        logs: []const profile.Logs,
+    },
 };
 
 pub const Remote = struct {
@@ -121,6 +129,20 @@ pub const Remote = struct {
         };
     }
 
+    pub fn sendProfile(self: *Remote, profiler: anytype, logs: []const profile.Logs) void {
+        const log_entry = OutboundMessage{
+            .profile = .{
+                .name = profiler.profilerName(),
+                .labels = profiler.labels(),
+                .logs = logs,
+            },
+        };
+
+        self.log_queue.enqueue(log_entry) catch {
+            std.log.err("log queue is full for profiler logs", .{});
+        };
+    }
+
     fn writeLoop(self: *Remote) void {
         while (@atomicLoad(bool, &self.running, .monotonic)) {
             std.time.sleep(std.time.ns_per_ms * 100);
@@ -145,6 +167,17 @@ pub const Remote = struct {
                     .ping => {
                         ws.writePing(&[0]u8{}) catch |err| {
                             std.log.err("couldn't write ping: {any}", .{err});
+                        };
+                    },
+                    .profile => |profile_result| {
+                        var pkt = packet.outboundProfile(profile_result.name, profile_result.labels, profile_result.logs) catch |err| {
+                            comptime if (@TypeOf(err) != error{PacketTooLong}) unreachable;
+                            std.log.err("profile packet was too long to serialize", .{});
+                            continue;
+                        };
+
+                        ws.writeBin(pkt.bytes()) catch |err| {
+                            std.log.err("couldn't write profile: {any}", .{err});
                         };
                     },
                 }

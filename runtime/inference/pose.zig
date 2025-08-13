@@ -1,6 +1,9 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
+const engine = @import("engine");
+const profile = engine.profiler;
+
 const util = @import("util");
 const Spsc = util.Spsc;
 const FixedArrayList = util.FixedArrayList;
@@ -29,6 +32,13 @@ fn perspective_transform(x: f32, y: f32, transform: *const DMat3) @Vector(2, f32
     return @Vector(2, f32){ @floatCast(res[0] / res[2]), @floatCast(res[1] / res[2]) };
 }
 
+const Profiler = profile.Profiler("pose", enum {
+    camera_swap,
+    calibrate,
+    inference,
+    tracking,
+});
+
 pub const PoseEvent = union(enum) {
     calibrated: void,
     move: struct {
@@ -36,6 +46,7 @@ pub const PoseEvent = union(enum) {
         detection: Detection,
     },
     lost: u64,
+    profile: profile.Logs,
     fault: struct {
         category: enum {
             camera_init,
@@ -60,6 +71,7 @@ pub const PoseDetector = struct {
     last_tracked_boxes: FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2),
     next_tracked_box_id: u64 = 0,
     thread: std.Thread,
+    profiler: Profiler,
 
     pub fn init() PoseDetector {
         return PoseDetector{
@@ -67,6 +79,7 @@ pub const PoseDetector = struct {
             .running = false,
             .last_tracked_boxes = FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2).init(),
             .thread = undefined,
+            .profiler = Profiler.init(),
         };
     }
 
@@ -106,10 +119,17 @@ pub const PoseDetector = struct {
         defer inference.deinit();
 
         while (@atomicLoad(bool, &self.running, .monotonic)) {
+            // Having this line at the end of the loop could result in errors continuing early and
+            // preventing the profiler from being reset (filling the log buffer). So do it here to
+            // ensure it's always reset.
+            self.logEvent(.{ .profile = self.profiler.end() });
+
             const frame_idx = camera.swapBuffers() catch |err| {
                 self.logEvent(.{ .fault = .{ .category = .camera_swap, .err = err } });
                 continue;
             };
+
+            self.profiler.log(.camera_swap);
 
             if (!calibrated) {
                 if (calibrator.calibrate(frame_idx, CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT, &transform)) {
@@ -120,6 +140,8 @@ pub const PoseDetector = struct {
                     calibrated = true;
                     self.logEvent(.calibrated);
                 }
+
+                self.profiler.log(.calibrate);
                 continue;
             }
 
@@ -128,6 +150,8 @@ pub const PoseDetector = struct {
                 self.logEvent(.{ .fault = .{ .category = .inference_run, .err = err } });
                 continue;
             };
+
+            self.profiler.log(.inference);
 
             var next_tracked_boxes = FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2).init();
 
@@ -166,6 +190,7 @@ pub const PoseDetector = struct {
             }
 
             self.last_tracked_boxes = next_tracked_boxes;
+            self.profiler.log(.tracking);
         }
     }
 
