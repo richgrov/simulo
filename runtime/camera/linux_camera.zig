@@ -27,10 +27,7 @@ pub const LinuxCamera = struct {
     out_idx: usize,
 
     pub fn init(out_bufs: [2][*]u8) !LinuxCamera {
-        const fd: i32 = @intCast(linux.open("/dev/video0", .{ .ACCMODE = .RDWR, .NONBLOCK = true }, 0));
-        if (fd < 0) {
-            return error.OpenFailed;
-        }
+        const fd = try std.posix.open("/dev/video0", .{ .ACCMODE = .RDWR, .NONBLOCK = true }, 0);
 
         var caps = v42l.v4l2_capability{};
         if (linux.ioctl(fd, v42l.VIDIOC_QUERYCAP, @intFromPtr(&caps)) < 0) {
