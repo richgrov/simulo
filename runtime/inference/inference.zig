@@ -96,9 +96,9 @@ pub const Inference = struct {
 
                 const option_values = [_][*:0]const u8{
                     "1",
-                    cache_dir,
+                    @ptrCast(cache_dir),
                     "1",
-                    cache_dir,
+                    @ptrCast(cache_dir),
                 };
 
                 try errIfStatus(ort_api.UpdateTensorRTProviderOptions.?(
