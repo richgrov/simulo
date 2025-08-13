@@ -10,7 +10,5 @@ zig-out/
 *.spv
 *.metallib
 *.air
-*.wasm
-asset_*.png
 
 .aider*
