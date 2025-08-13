@@ -183,6 +183,7 @@ pub const Runtime = struct {
         errdefer runtime.eyeguard.deinit();
 
         runtime.chessboard = runtime.createObject(0, 0, chessboard_material, true);
+        try runtime.runProgram(0);
     }
 
     pub fn deinit(self: *Runtime) void {

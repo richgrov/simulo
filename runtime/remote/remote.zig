@@ -62,6 +62,8 @@ pub const Remote = struct {
 
         const key_pair = try std.crypto.sign.Ed25519.KeyPair.generateDeterministic(private_key.*);
 
+        std.log.info("Attemping to connect to websocket on {s}", .{build_options.api_host});
+
         return Remote{
             .allocator = allocator,
             .id = id,
@@ -93,11 +95,14 @@ pub const Remote = struct {
         if (self.websocket_cli) |*ws| {
             ws.deinit();
         }
+
+        std.log.info("Closed websocket {s}\n", .{build_options.api_host});
     }
 
     pub fn start(self: *Remote) !void {
         self.ws_write_thread = try std.Thread.spawn(.{}, Remote.writeLoop, .{self});
         self.ws_conn_thread = try std.Thread.spawn(.{}, Remote.connectionLoop, .{self});
+        std.log.info("Connected to websocket on {s}", .{build_options.api_host});
     }
 
     pub fn log(self: *Remote, comptime fmt: []const u8, args: anytype) void {
