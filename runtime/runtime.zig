@@ -8,6 +8,8 @@ const util = @import("util");
 const reflect = util.reflect;
 const Slab = util.Slab;
 
+const fs_storage = @import("fs_storage.zig");
+
 const pose = @import("inference/pose.zig");
 pub const PoseDetector = pose.PoseDetector;
 
@@ -183,7 +185,6 @@ pub const Runtime = struct {
         errdefer runtime.eyeguard.deinit();
 
         runtime.chessboard = runtime.createObject(0, 0, chessboard_material, true);
-        try runtime.runProgram(0);
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -202,7 +203,7 @@ pub const Runtime = struct {
         self.remote.deinit();
     }
 
-    fn runProgram(self: *Runtime, num_assets: usize) !void {
+    fn runProgram(self: *Runtime, program_hash: *const [32]u8, asset_hashes: []const [32]u8) !void {
         self.wasm.deinit() catch |err| {
             self.remote.log("wasm deinit failed: {any}", .{err});
         };
@@ -219,7 +220,8 @@ pub const Runtime = struct {
         // TODO: delete images
         self.images.clearRetainingCapacity();
 
-        const local_path = build_options.wasm_path orelse "program.wasm";
+        var local_path_buf: [1024]u8 = undefined;
+        const local_path = build_options.wasm_path orelse (fs_storage.getCachePath(&local_path_buf, program_hash) catch unreachable);
         const data = try std.fs.cwd().readFileAlloc(self.allocator, local_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
@@ -249,9 +251,9 @@ pub const Runtime = struct {
         };
         self.wasm_pose_buffer = null;
 
-        for (0..num_assets) |asset_idx| {
-            var image_path_buf: [16]u8 = undefined;
-            const image_path = std.fmt.bufPrint(&image_path_buf, "asset_{d}.png", .{asset_idx}) catch unreachable;
+        for (asset_hashes) |asset_hash| {
+            var image_path_buf: [1024]u8 = undefined;
+            const image_path = fs_storage.getCachePath(&image_path_buf, &asset_hash) catch unreachable;
             const image_data = std.fs.cwd().readFileAlloc(self.allocator, image_path, 10 * 1024 * 1024) catch |err| {
                 self.remote.log("failed to read asset file at {s}: {s}", .{ image_path, @errorName(err) });
                 return error.AssertReadFailed;
@@ -276,7 +278,26 @@ pub const Runtime = struct {
         }
     }
 
+    fn tryRunLatestProgram(self: *Runtime) void {
+        const program_info = fs_storage.loadLatestProgram() catch |err| {
+            self.remote.log("failed to load latest program: {s}", .{@errorName(err)});
+            return;
+        };
+
+        if (program_info) |info| {
+            self.runProgram(&info.program_hash, info.asset_hashes.items()) catch |err| {
+                self.remote.log("failed to run latest program: {s}", .{@errorName(err)});
+            };
+        }
+    }
+
     pub fn run(self: *Runtime) !void {
+        if (build_options.wasm_path) |_| {
+            self.runProgram(undefined, &[_][32]u8{}) catch unreachable;
+        } else {
+            self.tryRunLatestProgram();
+        }
+
         try self.pose_detector.start();
         var last_time = std.time.milliTimestamp();
 
@@ -346,14 +367,17 @@ pub const Runtime = struct {
                     .download => |download| {
                         var should_run = true;
 
-                        self.remote.fetch(download.program_url, &download.program_hash, "program.wasm") catch |err| {
+                        var program_path_buf: [1024]u8 = undefined;
+                        const program_path = fs_storage.getCachePath(&program_path_buf, &download.program_hash) catch unreachable;
+
+                        self.remote.fetch(download.program_url, &download.program_hash, program_path) catch |err| {
                             self.remote.log("program download failed: {s}", .{@errorName(err)});
                             should_run = false;
                         };
 
-                        for (download.assets, 0..) |asset, i| {
-                            var dest_path_buf: [16]u8 = undefined;
-                            const dest_path = std.fmt.bufPrint(&dest_path_buf, "asset_{d}.png", .{i}) catch unreachable;
+                        for (download.assets) |asset| {
+                            var dest_path_buf: [1024]u8 = undefined;
+                            const dest_path = fs_storage.getCachePath(&dest_path_buf, &asset.hash) catch unreachable;
 
                             self.remote.fetch(asset.url, &asset.hash, dest_path) catch |err| {
                                 self.remote.log("asset download failed: {s}", .{@errorName(err)});
@@ -361,8 +385,17 @@ pub const Runtime = struct {
                             };
                         }
 
+                        var asset_hashes = util.FixedArrayList([32]u8, 64).init();
+                        for (download.assets) |asset| {
+                            try asset_hashes.append(asset.hash);
+                        }
+
+                        fs_storage.storeLatestProgram(&download.program_hash, asset_hashes.items()) catch |err| {
+                            self.remote.log("failed to store latest info: {s}", .{@errorName(err)});
+                        };
+
                         if (should_run) {
-                            try self.runProgram(download.assets.len);
+                            try self.runProgram(&download.program_hash, asset_hashes.items());
                         }
                     },
                 }
