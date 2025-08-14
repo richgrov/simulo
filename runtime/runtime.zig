@@ -47,7 +47,10 @@ pub const GameObject = struct {
     handle: Renderer.ObjectHandle,
     deleted: bool,
 
-    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32) error{OutOfMemory}!GameObject {
+    children: ?util.IntSet(usize, 64),
+    parent: ?usize,
+
+    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32, parent: ?usize) error{OutOfMemory}!GameObject {
         const obj = GameObject{
             .pos = .{ x_, y_, 0 },
             .rotation = 0,
@@ -55,18 +58,59 @@ pub const GameObject = struct {
             .id = id,
             .handle = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, 0),
             .deleted = false,
+            .children = null,
+            .parent = parent,
         };
         obj.recalculateTransform(&runtime.renderer);
         return obj;
     }
 
-    pub fn delete(self: *GameObject, runtime: *Runtime) void {
+    pub fn addChild(self: *GameObject, runtime: *Runtime, child: usize) void {
+        if (self.children) |*children| {
+            children.put(runtime.allocator, child) catch |err| util.crash.oom(err);
+        } else {
+            var children = try util.IntSet(usize, 64).init(runtime.allocator, 1);
+            children.put(runtime.allocator, child) catch |err| util.crash.oom(err);
+            self.children = children;
+        }
+
+        const child_obj = runtime.getObject(child) orelse {
+            runtime.remote.log("tried to add non-existent child {x} to object {x}", .{ child, self.id });
+            return;
+        };
+        child_obj.parent = self.id;
+    }
+
+    pub fn delete(self: *GameObject, runtime: *Runtime, remove_from_parent: bool) void {
         if (self.deleted) {
             return;
         }
 
-        runtime.renderer.deleteObject(self.handle);
+        if (remove_from_parent) {
+            if (self.parent) |parent| {
+                const parent_obj = runtime.getObject(parent) orelse {
+                    runtime.remote.log("tried to delete from non-existent parent {x} of object {x}", .{ parent, self.id });
+                    return;
+                };
+                std.debug.assert(parent_obj.children.?.delete(self.id));
+            }
+        }
+
+        if (self.children) |*children| {
+            for (0..children.bucketCount()) |bucket| {
+                for (children.bucketItems(bucket)) |child_id| {
+                    const child = runtime.getObject(child_id) orelse {
+                        runtime.remote.log("tried to delete non-existent child {x} of object {x}", .{ child_id, self.id });
+                        return;
+                    };
+                    child.delete(runtime, false);
+                }
+            }
+            children.deinit(runtime.allocator);
+        }
+
         self.deleted = true;
+        runtime.renderer.deleteObject(self.handle);
     }
 
     pub fn recalculateTransform(self: *const GameObject, renderer: *Renderer) void {
@@ -481,7 +525,7 @@ pub const Runtime = struct {
             util.crash.oom(err);
         };
 
-        const obj = GameObject.init(self, object_id, material, x, y) catch |err| util.crash.oom(err);
+        const obj = GameObject.init(self, object_id, material, x, y, null) catch |err| util.crash.oom(err);
         self.objects.append(obj) catch |err| util.crash.oom(err);
 
         const index = self.objects.items.len - 1;
@@ -532,7 +576,7 @@ pub const Runtime = struct {
             self.remote.log("impossible: couldn't delete existing object id {d}: {any}", .{ id, err });
         };
 
-        obj.delete(self);
+        obj.delete(self, true);
     }
 
     fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
