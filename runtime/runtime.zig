@@ -46,17 +46,15 @@ pub const GameObject = struct {
     id: usize,
     handle: Renderer.ObjectHandle,
     deleted: bool,
-    internal: bool,
 
-    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32, internal: bool) error{OutOfMemory}!GameObject {
+    pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32) error{OutOfMemory}!GameObject {
         const obj = GameObject{
             .pos = .{ x_, y_, 0 },
             .rotation = 0,
             .scale = .{ 1, 1, 1 },
             .id = id,
-            .handle = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, if (internal) 1 else 0),
+            .handle = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, 0),
             .deleted = false,
-            .internal = internal,
         };
         obj.recalculateTransform(&runtime.renderer);
         return obj;
@@ -212,9 +210,7 @@ pub const Runtime = struct {
         var i: usize = 0;
         while (i < self.objects.items.len) {
             const obj = &self.objects.items[i];
-            if (!obj.internal) {
-                self.deleteObject(obj.id);
-            }
+            self.deleteObject(obj.id);
             i += 1;
         }
 
@@ -476,16 +472,16 @@ pub const Runtime = struct {
 
     fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32, material_id: u32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj_id = runtime.createObject(x, y, .{ .id = material_id }, false);
+        const obj_id = runtime.createObject(x, y, .{ .id = material_id });
         return @intCast(obj_id);
     }
 
-    pub fn createObject(self: *Runtime, x: f32, y: f32, material: Renderer.MaterialHandle, internal: bool) usize {
+    pub fn createObject(self: *Runtime, x: f32, y: f32, material: Renderer.MaterialHandle) usize {
         const object_id, const object_index = self.object_ids.insert(std.math.maxInt(usize)) catch |err| {
             util.crash.oom(err);
         };
 
-        const obj = GameObject.init(self, object_id, material, x, y, internal) catch |err| util.crash.oom(err);
+        const obj = GameObject.init(self, object_id, material, x, y) catch |err| util.crash.oom(err);
         self.objects.append(obj) catch |err| util.crash.oom(err);
 
         const index = self.objects.items.len - 1;
