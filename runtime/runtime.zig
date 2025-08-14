@@ -111,7 +111,7 @@ pub const Runtime = struct {
     last_ping: i64,
 
     white_pixel_texture: Renderer.ImageHandle,
-    chessboard: usize,
+    chessboard: Renderer.ObjectHandle,
     mesh: Renderer.MeshHandle,
     calibrated: bool,
     eyeguard: EyeGuard,
@@ -184,7 +184,8 @@ pub const Runtime = struct {
         runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.mesh, runtime.white_pixel_texture);
         errdefer runtime.eyeguard.deinit();
 
-        runtime.chessboard = runtime.createObject(0, 0, chessboard_material, true);
+        runtime.chessboard = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), chessboard_material, 1);
+        errdefer runtime.renderer.deleteObject(runtime.chessboard);
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -327,10 +328,7 @@ pub const Runtime = struct {
                     self.renderer.handleResize(width, height, self.window.surface());
                 }
 
-                if (self.getObject(self.chessboard)) |chessboard| {
-                    chessboard.scale = if (self.calibrated) .{ 0, 0, 0 } else .{ @floatFromInt(width), @floatFromInt(height), 1 };
-                    self.markOutdatedTransform(self.chessboard);
-                }
+                self.renderer.setObjectTransform(self.chessboard, if (self.calibrated) Mat4.zero() else Mat4.scale(.{ @floatFromInt(width), @floatFromInt(height), 1 }));
             }
 
             try self.processPoseDetections();
@@ -422,10 +420,7 @@ pub const Runtime = struct {
                         }
                     }
 
-                    if (self.getObject(self.chessboard)) |chessboard| {
-                        chessboard.scale = .{ 0, 0, 0 };
-                        self.markOutdatedTransform(self.chessboard);
-                    }
+                    self.renderer.setObjectTransform(self.chessboard, Mat4.zero());
                 },
                 .move => |move| {
                     self.eyeguard.handleEvent(move.id, &move.detection, &self.renderer, width, height);

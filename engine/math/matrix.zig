@@ -9,6 +9,10 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
 
         data: [cols]@Vector(rows, T),
 
+        pub fn zero() Self {
+            return std.mem.zeroInit(Self, .{});
+        }
+
         pub fn identity() Self {
             if (rows != cols) {
                 @compileError("matrix must be square to produce identity");
