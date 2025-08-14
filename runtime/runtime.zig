@@ -181,7 +181,7 @@ pub const Runtime = struct {
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
         const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
         runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
-        runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.white_pixel_texture);
+        runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.mesh, runtime.white_pixel_texture);
         errdefer runtime.eyeguard.deinit();
 
         runtime.chessboard = runtime.createObject(0, 0, chessboard_material, true);
@@ -428,7 +428,7 @@ pub const Runtime = struct {
                     }
                 },
                 .move => |move| {
-                    self.eyeguard.handleEvent(move.id, &move.detection, self, width, height);
+                    self.eyeguard.handleEvent(move.id, &move.detection, &self.renderer, width, height);
 
                     const funcs = self.wasm_funcs orelse return;
                     const pose_buffer = self.wasm_pose_buffer orelse return;
@@ -443,7 +443,7 @@ pub const Runtime = struct {
                     _ = self.wasm.callFunction(funcs.pose, .{ id_u32, true }) catch unreachable;
                 },
                 .lost => |id| {
-                    self.eyeguard.handleDelete(self, id);
+                    self.eyeguard.handleDelete(&self.renderer, id);
 
                     const funcs = self.wasm_funcs orelse return;
 
