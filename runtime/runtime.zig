@@ -39,6 +39,11 @@ const Vertex = struct {
     tex_coord: @Vector(2, f32) align(8),
 };
 
+const ObjectEventHandlers = struct {
+    update: Wasm.Function,
+    drop: Wasm.Function,
+};
+
 pub const GameObject = struct {
     pos: @Vector(3, f32),
     rotation: f32,
@@ -49,6 +54,8 @@ pub const GameObject = struct {
 
     children: ?util.IntSet(usize, 64),
     parent: ?usize,
+    event_handlers: *ObjectEventHandlers,
+    wasm_this: i32,
 
     pub fn init(runtime: *Runtime, id: usize, material: Renderer.MaterialHandle, x_: f32, y_: f32, parent: ?usize) error{OutOfMemory}!GameObject {
         const obj = GameObject{
@@ -60,6 +67,8 @@ pub const GameObject = struct {
             .deleted = false,
             .children = null,
             .parent = parent,
+            .event_handlers = undefined,
+            .wasm_this = undefined,
         };
         obj.recalculateTransform(&runtime.renderer);
         return obj;
@@ -69,7 +78,7 @@ pub const GameObject = struct {
         if (self.children) |*children| {
             children.put(runtime.allocator, child) catch |err| util.crash.oom(err);
         } else {
-            var children = try util.IntSet(usize, 64).init(runtime.allocator, 1);
+            var children = util.IntSet(usize, 64).init(runtime.allocator, 1) catch |err| util.crash.oom(err);
             children.put(runtime.allocator, child) catch |err| util.crash.oom(err);
             self.children = children;
         }
@@ -111,6 +120,8 @@ pub const GameObject = struct {
 
         self.deleted = true;
         runtime.renderer.deleteObject(self.handle);
+
+        _ = runtime.wasm.callFunction(self.event_handlers.drop, .{self.wasm_this}) catch unreachable;
     }
 
     pub fn recalculateTransform(self: *const GameObject, renderer: *Renderer) void {
@@ -141,12 +152,12 @@ pub const Runtime = struct {
     wasm: Wasm,
     wasm_funcs: ?struct {
         init: Wasm.Function,
-        update: Wasm.Function,
         pose: Wasm.Function,
     },
     wasm_pose_buffer: ?[*]f32,
     objects: std.ArrayList(GameObject),
     object_ids: Slab(usize),
+    object_event_handlers: std.AutoHashMap(u32, ObjectEventHandlers),
     images: std.ArrayList(Renderer.ImageHandle),
     random: std.Random.Xoshiro256,
     outdated_object_transforms: util.IntSet(u32, 128),
@@ -163,6 +174,8 @@ pub const Runtime = struct {
         errdefer Wasm.globalDeinit();
         try Wasm.exposeFunction("simulo_set_pose_buffer", wasmSetPoseBuffer);
         try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
+        try Wasm.exposeFunction("simulo_add_object_child", wasmAddObjectChild);
+        try Wasm.exposeFunction("simulo_set_object_ptr", wasmSetObjectPtr);
         try Wasm.exposeFunction("simulo_set_object_material", wasmSetObjectMaterial);
         try Wasm.exposeFunction("simulo_set_object_position", wasmSetObjectPosition);
         try Wasm.exposeFunction("simulo_set_object_rotation", wasmSetObjectRotation);
@@ -172,7 +185,8 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_get_object_rotation", wasmGetObjectRotation);
         try Wasm.exposeFunction("simulo_get_object_scale_x", wasmGetObjectScaleX);
         try Wasm.exposeFunction("simulo_get_object_scale_y", wasmGetObjectScaleY);
-        try Wasm.exposeFunction("simulo_delete_object", wasmDeleteObject);
+        try Wasm.exposeFunction("simulo_remove_object", wasmRemoveObject);
+        try Wasm.exposeFunction("simulo_drop_object", wasmDropObject);
         try Wasm.exposeFunction("simulo_random", wasmRandom);
         try Wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
         try Wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
@@ -208,6 +222,10 @@ pub const Runtime = struct {
         errdefer runtime.objects.deinit();
         runtime.object_ids = try Slab(usize).init(runtime.allocator, 64);
         errdefer runtime.object_ids.deinit();
+
+        runtime.object_event_handlers = std.AutoHashMap(u32, ObjectEventHandlers).init(runtime.allocator);
+        errdefer runtime.object_event_handlers.deinit();
+
         runtime.images = try std.ArrayList(Renderer.ImageHandle).initCapacity(runtime.allocator, 4);
 
         runtime.outdated_object_transforms = try util.IntSet(u32, 128).init(runtime.allocator, 64);
@@ -236,9 +254,16 @@ pub const Runtime = struct {
         };
         self.eyeguard.deinit();
         self.images.deinit();
+
+        while (self.objects.items.len > 0) {
+            const obj = &self.objects.items[0].id;
+            self.deleteObject(obj);
+        }
+
         self.objects.deinit();
         self.outdated_object_transforms.deinit(self.allocator);
         self.object_ids.deinit();
+        self.object_event_handlers.deinit();
         self.pose_detector.stop();
         self.renderer.deinit();
         self.window.deinit();
@@ -251,11 +276,9 @@ pub const Runtime = struct {
             self.remote.log("wasm deinit failed: {any}", .{err});
         };
 
-        var i: usize = 0;
-        while (i < self.objects.items.len) {
-            const obj = &self.objects.items[i];
-            self.deleteObject(obj.id);
-            i += 1;
+        while (self.objects.items.len > 0) {
+            const obj = &self.objects.items[0];
+            obj.delete(self, true);
         }
 
         // TODO: delete images
@@ -276,10 +299,6 @@ pub const Runtime = struct {
             self.remote.log("program missing init function", .{});
             return error.MissingInitFunction;
         };
-        const update_func = self.wasm.getFunction("update") orelse {
-            self.remote.log("program missing update function", .{});
-            return error.MissingUpdateFunction;
-        };
         const pose_func = self.wasm.getFunction("pose") orelse {
             self.remote.log("program missing pose function", .{});
             return error.MissingPoseFunction;
@@ -287,10 +306,35 @@ pub const Runtime = struct {
 
         self.wasm_funcs = .{
             .init = init_func,
-            .update = update_func,
             .pose = pose_func,
         };
         self.wasm_pose_buffer = null;
+
+        self.object_event_handlers.clearRetainingCapacity();
+        var exported_functions = self.wasm.exportedFunctions();
+        while (exported_functions.next()) |func_name| {
+            const prefix = "__vupdate_";
+            const name = std.mem.span(func_name);
+            if (std.mem.startsWith(u8, name, prefix)) {
+                const type_hash = name[prefix.len..];
+                const type_hash_u32 = std.fmt.parseInt(u32, type_hash, 10) catch {
+                    self.remote.log("failed to parse type hash {s}", .{type_hash});
+                    return error.InvalidTypeHash;
+                };
+
+                var drop_handler_buf: [64]u8 = undefined;
+                const drop_handler_name = std.fmt.bufPrintZ(&drop_handler_buf, "__vdrop_{s}", .{type_hash}) catch unreachable;
+                const drop_handler = self.wasm.getFunction(drop_handler_name) orelse {
+                    self.remote.log("program missing drop handler {s}", .{drop_handler_name});
+                    return error.MissingDropHandler;
+                };
+
+                self.object_event_handlers.put(type_hash_u32, .{
+                    .update = self.wasm.getFunction(name).?,
+                    .drop = drop_handler,
+                }) catch |err| util.crash.oom(err);
+            }
+        }
 
         for (asset_hashes) |asset_hash| {
             var image_path_buf: [1024]u8 = undefined;
@@ -311,7 +355,7 @@ pub const Runtime = struct {
         }
 
         if (self.calibrated) {
-            _ = self.wasm.callFunction(init_func, .{@as(u32, 0)}) catch unreachable;
+            _ = self.wasm.callFunction(init_func, .{}) catch unreachable;
 
             if (self.wasm_pose_buffer == null) {
                 return error.PoseBufferNotInitialized;
@@ -375,8 +419,8 @@ pub const Runtime = struct {
 
             if (self.calibrated) {
                 const deltaf: f32 = @floatFromInt(delta);
-                if (self.wasm_funcs) |funcs| {
-                    _ = self.wasm.callFunction(funcs.update, .{deltaf / 1000}) catch unreachable;
+                for (self.objects.items) |*obj| {
+                    _ = self.wasm.callFunction(obj.event_handlers.update, .{ obj.wasm_this, deltaf / 1000 }) catch unreachable;
                 }
             }
 
@@ -520,6 +564,31 @@ pub const Runtime = struct {
         return @intCast(obj_id);
     }
 
+    fn wasmAddObjectChild(user_ptr: *anyopaque, parent: u32, child: u32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const parent_obj = runtime.getObject(parent) orelse {
+            runtime.remote.log("tried to add non-existent child {d} to object {d}", .{ child, parent });
+            return;
+        };
+        parent_obj.addChild(runtime, child);
+    }
+
+    fn wasmSetObjectPtr(user_ptr: *anyopaque, id: u32, type_hash: u32, ptr: i32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.getObject(id) orelse {
+            runtime.remote.log("tried to set object ptr of non-existent object {d}", .{id});
+            return;
+        };
+
+        const event_handlers = runtime.object_event_handlers.getPtr(type_hash) orelse {
+            runtime.remote.log("tried to set object ptr of non-existent type {d}", .{type_hash});
+            return;
+        };
+
+        obj.event_handlers = event_handlers;
+        obj.wasm_this = ptr;
+    }
+
     pub fn createObject(self: *Runtime, x: f32, y: f32, material: Renderer.MaterialHandle) usize {
         const object_id, const object_index = self.object_ids.insert(std.math.maxInt(usize)) catch |err| {
             util.crash.oom(err);
@@ -575,8 +644,6 @@ pub const Runtime = struct {
         self.object_ids.delete(id) catch |err| {
             self.remote.log("impossible: couldn't delete existing object id {d}: {any}", .{ id, err });
         };
-
-        obj.delete(self, true);
     }
 
     fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
@@ -663,7 +730,16 @@ pub const Runtime = struct {
         return obj.scale[2];
     }
 
-    fn wasmDeleteObject(user_ptr: *anyopaque, id: u32) void {
+    fn wasmRemoveObject(user_ptr: *anyopaque, id: u32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.getObject(id) orelse {
+            runtime.remote.log("tried to remove non-existent object {d}", .{id});
+            return;
+        };
+        obj.delete(runtime, true);
+    }
+
+    fn wasmDropObject(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         runtime.deleteObject(id);
     }

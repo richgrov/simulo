@@ -218,6 +218,34 @@ pub const Wasm = struct {
         return wasm.wasm_runtime_lookup_function(self.module_instance, @ptrCast(name));
     }
 
+    pub const ExportedFunctionIterator = struct {
+        module: wasm.wasm_module_t,
+        count: i32,
+        index: i32,
+
+        pub fn next(self: *ExportedFunctionIterator) ?[*c]const u8 {
+            if (self.index >= self.count) {
+                return null;
+            }
+
+            var exp: wasm.wasm_export_t = undefined;
+            wasm.wasm_runtime_get_export_type(self.module, self.index, &exp);
+            self.index += 1;
+            if (exp.kind != wasm.WASM_IMPORT_EXPORT_KIND_FUNC) {
+                return self.next();
+            }
+            return exp.name;
+        }
+    };
+
+    pub fn exportedFunctions(self: *Wasm) ExportedFunctionIterator {
+        return .{
+            .module = self.module,
+            .count = wasm.wasm_runtime_get_export_count(self.module),
+            .index = 0,
+        };
+    }
+
     pub fn callFunction(self: *Wasm, func: Function, args: anytype) !u32 {
         var wasm_args: [@max(1, args.len)]u32 = undefined;
         inline for (args, 0..) |arg, i| {

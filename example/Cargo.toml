@@ -1,10 +1,15 @@
 [package]
 name = "example"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
-glam = "0.30.4"
+glam = "0.25"
+paste = "1.0"
 
 [lib]
+name = "example"
 crate-type = ["cdylib"]
+
+[dependencies.simulo-declare-type]
+path = "simulo-declare-type"
