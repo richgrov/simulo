@@ -1,23 +1,35 @@
 use std::ffi::c_void;
-use simulo_declare_type::declare_type;
+use simulo_declare_type::ObjectClass;
 
 pub trait TypeIdentifiable {
     const TYPE_ID: u32;
 }
 
-pub struct GameObject(u32);
+pub struct BaseObject(u32);
 
-pub trait Node {
-    fn object(&self) -> &GameObject;
+pub trait Object {
+    fn base(&self) -> &BaseObject;
     fn update(&mut self, _delta: f32) {}
     fn delete(&mut self) {}
+
+    fn new<T: Object + TypeIdentifiable + 'static>(position: glam::Vec2, material: &Material, f: impl FnOnce(BaseObject) -> T) -> Box<T> {
+        let id = unsafe { simulo_create_object(position.x, position.y, material.0) };
+        let obj = BaseObject(id);
+        let node = f(obj);
+        let b = Box::new(node);
+        let ptr: *const T = &*b;
+
+        let type_id = T::TYPE_ID;
+        unsafe { simulo_set_object_ptr(id, type_id, ptr as *mut T as *mut c_void); }
+        b
+    }
 }
 
 #[allow(dead_code)]
-impl GameObject {
-    pub fn new<T: Node + TypeIdentifiable + 'static>(position: glam::Vec2, material: &Material, f: impl FnOnce(GameObject) -> T) -> Box<T> {
+impl BaseObject {
+    pub fn new<T: Object + TypeIdentifiable + 'static>(position: glam::Vec2, material: &Material, f: impl FnOnce(BaseObject) -> T) -> Box<T> {
         let id = unsafe { simulo_create_object(position.x, position.y, material.0) };
-        let obj = GameObject(id);
+        let obj = BaseObject(id);
         let node = f(obj);
         let b = Box::new(node);
         let ptr: *const T = &*b;
@@ -27,8 +39,8 @@ impl GameObject {
         b
     }
 
-    pub fn add_child(&self, child: Box<impl Node>) {
-        let child_id = child.object().0;
+    pub fn add_child(&self, child: Box<impl Object>) {
+        let child_id = child.base().0;
         _ = Box::into_raw(child);
         unsafe { simulo_add_object_child(self.0, child_id); }
     }
@@ -81,7 +93,7 @@ impl GameObject {
     }
 }
 
-impl std::ops::Drop for GameObject {
+impl std::ops::Drop for BaseObject {
     fn drop(&mut self) {
         unsafe { simulo_drop_object(self.0); }
     }
@@ -239,17 +251,17 @@ mod game {
     use super::*;
     use glam::Vec2;
 
-    #[declare_type]
+    #[ObjectClass]
     pub struct Game {
-        obj: GameObject,
+        base: BaseObject,
         mat: Material,
     }
 
     impl Game {
         pub fn new() -> Box<Self> {
-            GameObject::new(Vec2::new(0.0, 0.0), &Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0), |obj| {
+            BaseObject::new(Vec2::new(0.0, 0.0), &Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0), |base| {
                 return Game {
-                    obj,
+                    base,
                     mat: Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0),
                 }
             })
@@ -257,44 +269,41 @@ mod game {
 
         pub fn on_pose_update(&mut self, _id: u32, pose: Option<&Pose>) {
             if let Some(pose) = pose {
-                let particle = GameObject::new(pose.nose(), &self.mat, |obj| Particle {
-                    obj,
+                let particle = BaseObject::new(pose.nose(), &self.mat, |obj| Particle {
+                    base: obj,
                     lifetime: 1.0,
                     vel: Vec2::new(50.0, 50.0),
                 });
-                self.obj.add_child(particle);
+                self.base.add_child(particle);
             }
         }
     }
 
-    impl Node for Game {
-        fn object(&self) -> &GameObject {
-            &self.obj
-        }
-
-        fn update(&mut self, _delta: f32) {
+    impl Object for Game {
+        fn base(&self) -> &BaseObject {
+            &self.base
         }
     }
 
-    #[declare_type]
+    #[ObjectClass]
     struct Particle {
-        obj: GameObject,
+        base: BaseObject,
         lifetime: f32,
         vel: Vec2,
     }
 
-    impl Node for Particle {
-        fn object(&self) -> &GameObject {
-            &self.obj
+    impl Object for Particle {
+        fn base(&self) -> &BaseObject {
+            &self.base
         }
 
         fn update(&mut self, delta: f32) {
-            let pos = self.obj.position();
+            let pos = self.base.position();
             let dpos = self.vel * delta;
-            self.obj.set_position(pos + dpos);
+            self.base.set_position(pos + dpos);
             self.lifetime -= delta;
             if self.lifetime <= 0.0 {
-                self.obj.delete();
+                self.base.delete();
             }
         }
     }
