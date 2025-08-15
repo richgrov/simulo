@@ -131,6 +131,18 @@ pub const GameObject = struct {
     }
 };
 
+// pub const Material = struct {
+//     id: u32,
+//     handle: Renderer.MaterialHandle,
+
+//     pub fn init(runtime: *Runtime, id: u32) error{OutOfMemory}!Material {
+//         const mat = Material{
+//             .id = id,
+//             .handle = try runtime.renderer.createUiMaterial(image: ImageHandle, r: f32, g: f32, b: f32)
+//         };
+//     }
+// };
+
 const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 0.0, 0.0 }, .tex_coord = .{ 0.0, 0.0 } },
     .{ .position = .{ 1.0, 0.0, 0.0 }, .tex_coord = .{ 1.0, 0.0 } },
@@ -190,6 +202,7 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
         try Wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
         try Wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
+        try Wasm.exposeFunction("simulo_delete_material", wasmDeleteMaterial);
     }
 
     pub fn globalDeinit() void {
@@ -646,6 +659,11 @@ pub const Runtime = struct {
         };
     }
 
+    fn deleteMaterial(self: *Runtime, id: u32) void {
+        const material_handle = Renderer.MaterialHandle{ .id = id };
+        self.renderer.deleteMaterial(material_handle);
+    }
+
     fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
@@ -743,6 +761,11 @@ pub const Runtime = struct {
     fn wasmDropObject(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         runtime.deleteObject(id);
+    }
+
+    fn wasmDeleteMaterial(user_ptr: *anyopaque, id: u32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.deleteMaterial(id);
     }
 
     fn wasmSetObjectMaterial(user_ptr: *anyopaque, id: u32, material_id: u32) void {

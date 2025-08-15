@@ -24,10 +24,16 @@ const Object = struct {
 
 const MeshPass = struct {
     objects: IntSet(u32, 256),
+    mesh_id: u16,
+    material_id: u16,
+    render_order: u8,
 
     pub fn init(allocator: std.mem.Allocator) error{OutOfMemory}!MeshPass {
         return MeshPass{
             .objects = try IntSet(u32, 256).init(allocator, 1),
+            .mesh_id = undefined,
+            .material_id = undefined,
+            .render_order = undefined,
         };
     }
 
@@ -38,10 +44,14 @@ const MeshPass = struct {
 
 const MaterialPass = struct {
     mesh_passes: std.AutoHashMap(u16, u16),
+    material_id: u16,
+    render_order: u8,
 
     pub fn init(allocator: std.mem.Allocator) MaterialPass {
         return MaterialPass{
             .mesh_passes = std.AutoHashMap(u16, u16).init(allocator),
+            .material_id = undefined,
+            .render_order = undefined,
         };
     }
 
@@ -52,10 +62,12 @@ const MaterialPass = struct {
 
 const RenderCollection = struct {
     material_passes: std.AutoHashMap(u16, u16),
+    render_order: u8,
 
     pub fn init(allocator: std.mem.Allocator) RenderCollection {
         return RenderCollection{
             .material_passes = std.AutoHashMap(u16, u16).init(allocator),
+            .render_order = undefined,
         };
     }
 
@@ -109,8 +121,9 @@ pub const Renderer = struct {
             .material_passes = material_passes,
         };
 
-        for (&result.render_collections) |*collection| {
+        for (&result.render_collections, 0..) |*collection, i| {
             collection.* = RenderCollection.init(allocator);
+            collection.render_order = @intCast(i);
         }
 
         return result;
@@ -213,6 +226,33 @@ pub const Renderer = struct {
         self.objects.delete(object.id) catch unreachable;
     }
 
+    pub fn deleteMaterial(self: *Renderer, material: MaterialHandle) void {
+        std.debug.print("{d}\n", .{material.id});
+        for (self.material_passes.data.items) |pass| {
+            switch (pass) {
+                .data => {
+                    std.debug.print("{d}\n", .{pass.data.material_id});
+                },
+                else => {},
+            }
+        }
+        const material_pass = self.material_passes.get(material.id).?;
+        const render_order_id = material_pass.render_order;
+        const collection = &self.render_collections[render_order_id];
+
+        var it = material_pass.mesh_passes.keyIterator();
+        while (it.next()) |key| {
+            const mesh: *MeshPass = self.mesh_passes.get(key.*).?;
+            defer mesh.deinit(self.allocator);
+            for (mesh.objects.data) |id| {
+                self.objects.delete(id) catch unreachable;
+            }
+        }
+
+        std.debug.assert(collection.material_passes.remove(@intCast(material.id)));
+        material_pass.deinit();
+    }
+
     pub fn createImage(self: *Renderer, image_data: []const u8, width: i32, height: i32) ImageHandle {
         const id = ffi.create_image(self.handle, @constCast(@ptrCast(image_data.ptr)), width, height);
         return ImageHandle{ .id = id };
@@ -274,24 +314,33 @@ pub const Renderer = struct {
         } else {
             var new_pass = MaterialPass.init(self.allocator);
             errdefer new_pass.deinit();
-            const mat_pass_id, const result = try self.material_passes.insert(new_pass);
+
+            const mat_pass_id, const result: *MaterialPass = try self.material_passes.insert(new_pass);
             errdefer self.material_passes.delete(mat_pass_id) catch unreachable;
+
+            result.material_id = @intCast(mat_pass_id);
+            result.render_order = collection.render_order;
+
             try collection.material_passes.put(material_id, @intCast(mat_pass_id));
             return result;
         }
     }
 
-    fn getOrInsertMeshPass(self: *Renderer, pass: *MaterialPass, mesh_id: u16) error{OutOfMemory}!*MeshPass {
-        if (pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
+    fn getOrInsertMeshPass(self: *Renderer, material_pass: *MaterialPass, mesh_id: u16) error{OutOfMemory}!*MeshPass {
+        if (material_pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
             return self.mesh_passes.get(mesh_pass_id).?;
         } else {
             const mesh_pass = try MeshPass.init(self.allocator);
             errdefer mesh_pass.deinit(self.allocator);
 
-            const mesh_pass_id, const result = try self.mesh_passes.insert(mesh_pass);
+            const mesh_pass_id, const result: *MeshPass = try self.mesh_passes.insert(mesh_pass);
             errdefer self.mesh_passes.delete(mesh_pass_id) catch unreachable;
 
-            try pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
+            result.material_id = material_pass.material_id;
+            result.mesh_id = @intCast(mesh_pass_id);
+            result.render_order = material_pass.render_order;
+
+            try material_pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
             return result;
         }
     }

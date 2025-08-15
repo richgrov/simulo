@@ -105,6 +105,12 @@ impl Material {
     pub fn new(image_id: u32, r: f32, g: f32, b: f32) -> Self {
         unsafe { Material(simulo_create_material(image_id, r, g, b)) }
     }
+
+    pub fn delete(&self) {
+        unsafe {
+            simulo_delete_material(self.0);
+        }
+    }
 }
 
 pub const WHITE_PIXEL_IMAGE: u32 = std::u32::MAX;
@@ -243,6 +249,7 @@ unsafe extern "C" {
     fn simulo_window_width() -> i32;
     fn simulo_window_height() -> i32;
     fn simulo_create_material(image: u32, r: f32, g: f32, b: f32) -> u32;
+    fn simulo_delete_material(id: u32);
 }
 
 /////////
@@ -253,8 +260,8 @@ mod game {
 
     #[ObjectClass]
     pub struct Game {
-        base: BaseObject,
-        mat: Material,
+        obj: Option<GameObject>,
+        mat: Option<Material>
     }
 
     impl Game {
