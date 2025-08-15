@@ -131,18 +131,6 @@ pub const GameObject = struct {
     }
 };
 
-// pub const Material = struct {
-//     id: u32,
-//     handle: Renderer.MaterialHandle,
-
-//     pub fn init(runtime: *Runtime, id: u32) error{OutOfMemory}!Material {
-//         const mat = Material{
-//             .id = id,
-//             .handle = try runtime.renderer.createUiMaterial(image: ImageHandle, r: f32, g: f32, b: f32)
-//         };
-//     }
-// };
-
 const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 0.0, 0.0 }, .tex_coord = .{ 0.0, 0.0 } },
     .{ .position = .{ 1.0, 0.0, 0.0 }, .tex_coord = .{ 1.0, 0.0 } },
