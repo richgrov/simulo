@@ -257,7 +257,7 @@ pub const Remote = struct {
         }
 
         if (data.len > 8 * 1024) {
-            std.log.err("message too large ({x})", .{data.len});
+            std.log.err("message too large ({d})", .{data.len});
             return error.MessageTooLarge;
         }
 
