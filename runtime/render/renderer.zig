@@ -302,8 +302,8 @@ pub const Renderer = struct {
         }
     }
 
-    fn getOrInsertMeshPass(self: *Renderer, material_pass: *MaterialPass, mesh_id: u16) error{OutOfMemory}!*MeshPass {
-        if (material_pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
+    fn getOrInsertMeshPass(self: *Renderer, pass: *MaterialPass, mesh_id: u16) error{OutOfMemory}!*MeshPass {
+        if (pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
             return self.mesh_passes.get(mesh_pass_id).?;
         } else {
             const mesh_pass = try MeshPass.init(self.allocator);
@@ -312,7 +312,7 @@ pub const Renderer = struct {
             const mesh_pass_id, const result = try self.mesh_passes.insert(mesh_pass);
             errdefer self.mesh_passes.delete(mesh_pass_id) catch unreachable;
 
-            try material_pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
+            try pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
             return result;
         }
     }
