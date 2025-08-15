@@ -24,16 +24,10 @@ const Object = struct {
 
 const MeshPass = struct {
     objects: IntSet(u32, 256),
-    mesh_id: u16,
-    material_id: u16,
-    render_order: u8,
 
     pub fn init(allocator: std.mem.Allocator) error{OutOfMemory}!MeshPass {
         return MeshPass{
             .objects = try IntSet(u32, 256).init(allocator, 1),
-            .mesh_id = undefined,
-            .material_id = undefined,
-            .render_order = undefined,
         };
     }
 
@@ -44,14 +38,10 @@ const MeshPass = struct {
 
 const MaterialPass = struct {
     mesh_passes: std.AutoHashMap(u16, u16),
-    material_id: u16,
-    render_order: u8,
 
     pub fn init(allocator: std.mem.Allocator) MaterialPass {
         return MaterialPass{
             .mesh_passes = std.AutoHashMap(u16, u16).init(allocator),
-            .material_id = undefined,
-            .render_order = undefined,
         };
     }
 
@@ -62,12 +52,10 @@ const MaterialPass = struct {
 
 const RenderCollection = struct {
     material_passes: std.AutoHashMap(u16, u16),
-    render_order: u8,
 
     pub fn init(allocator: std.mem.Allocator) RenderCollection {
         return RenderCollection{
             .material_passes = std.AutoHashMap(u16, u16).init(allocator),
-            .render_order = undefined,
         };
     }
 
@@ -121,9 +109,8 @@ pub const Renderer = struct {
             .material_passes = material_passes,
         };
 
-        for (&result.render_collections, 0..) |*collection, i| {
+        for (&result.render_collections) |*collection| {
             collection.* = RenderCollection.init(allocator);
-            collection.render_order = @intCast(i);
         }
 
         return result;
@@ -310,9 +297,6 @@ pub const Renderer = struct {
             const mat_pass_id, const result: *MaterialPass = try self.material_passes.insert(new_pass);
             errdefer self.material_passes.delete(mat_pass_id) catch unreachable;
 
-            result.material_id = @intCast(mat_pass_id);
-            result.render_order = collection.render_order;
-
             try collection.material_passes.put(material_id, @intCast(mat_pass_id));
             return result;
         }
@@ -327,10 +311,6 @@ pub const Renderer = struct {
 
             const mesh_pass_id, const result: *MeshPass = try self.mesh_passes.insert(mesh_pass);
             errdefer self.mesh_passes.delete(mesh_pass_id) catch unreachable;
-
-            result.material_id = material_pass.material_id;
-            result.mesh_id = @intCast(mesh_pass_id);
-            result.render_order = material_pass.render_order;
 
             try material_pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
             return result;
