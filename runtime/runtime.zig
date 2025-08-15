@@ -75,7 +75,7 @@ pub const GameObject = struct {
         }
 
         const child_obj = runtime.getObject(child) orelse {
-            runtime.remote.log("tried to add non-existent child {x} to object {x}", .{ child, self.id });
+            runtime.remote.log("tried to add non-existent child {d} to object {d}", .{ child, self.id });
             return;
         };
         child_obj.parent = self.id;
@@ -89,7 +89,7 @@ pub const GameObject = struct {
         if (remove_from_parent) {
             if (self.parent) |parent| {
                 const parent_obj = runtime.getObject(parent) orelse {
-                    runtime.remote.log("tried to delete from non-existent parent {x} of object {x}", .{ parent, self.id });
+                    runtime.remote.log("tried to delete from non-existent parent {d} of object {d}", .{ parent, self.id });
                     return;
                 };
                 std.debug.assert(parent_obj.children.?.delete(self.id));
@@ -100,7 +100,7 @@ pub const GameObject = struct {
             for (0..children.bucketCount()) |bucket| {
                 for (children.bucketItems(bucket)) |child_id| {
                     const child = runtime.getObject(child_id) orelse {
-                        runtime.remote.log("tried to delete non-existent child {x} of object {x}", .{ child_id, self.id });
+                        runtime.remote.log("tried to delete non-existent child {d} of object {d}", .{ child_id, self.id });
                         return;
                     };
                     child.delete(runtime, false);
@@ -542,7 +542,7 @@ pub const Runtime = struct {
 
     pub fn deleteObject(self: *Runtime, id: usize) void {
         const object_index = self.object_ids.get(id) orelse {
-            self.remote.log("tried to delete non-existent object {x}", .{id});
+            self.remote.log("tried to delete non-existent object {d}", .{id});
             return;
         };
 
@@ -582,7 +582,7 @@ pub const Runtime = struct {
     fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to set position of non-existent object {x}", .{id});
+            runtime.remote.log("tried to set position of non-existent object {d}", .{id});
             return;
         };
         obj.pos = .{ x, y, 0 };
@@ -592,7 +592,7 @@ pub const Runtime = struct {
     fn wasmSetObjectRotation(user_ptr: *anyopaque, id: u32, rotation: f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to set rotation of non-existent object {x}", .{id});
+            runtime.remote.log("tried to set rotation of non-existent object {d}", .{id});
             return;
         };
         obj.rotation = rotation;
@@ -602,7 +602,7 @@ pub const Runtime = struct {
     fn wasmSetObjectScale(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to set scale of non-existent object {x}", .{id});
+            runtime.remote.log("tried to set scale of non-existent object {d}", .{id});
             return;
         };
         obj.scale = .{ x, y, 1 };
@@ -612,7 +612,7 @@ pub const Runtime = struct {
     fn wasmGetObjectX(user_ptr: *anyopaque, id: u32) f32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to get x position of non-existent object {x}", .{id});
+            runtime.remote.log("tried to get x position of non-existent object {d}", .{id});
             return 0.0;
         };
         return obj.pos[0];
@@ -621,7 +621,7 @@ pub const Runtime = struct {
     fn wasmGetObjectY(user_ptr: *anyopaque, id: u32) f32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to get y position of non-existent object {x}", .{id});
+            runtime.remote.log("tried to get y position of non-existent object {d}", .{id});
             return 0.0;
         };
         return obj.pos[1];
@@ -630,7 +630,7 @@ pub const Runtime = struct {
     fn wasmGetObjectRotation(user_ptr: *anyopaque, id: u32) f32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to get rotation of non-existent object {x}", .{id});
+            runtime.remote.log("tried to get rotation of non-existent object {d}", .{id});
             return 0.0;
         };
         return obj.rotation;
@@ -639,7 +639,7 @@ pub const Runtime = struct {
     fn wasmGetObjectScaleX(user_ptr: *anyopaque, id: u32) f32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to get scale of non-existent object {x}", .{id});
+            runtime.remote.log("tried to get scale of non-existent object {d}", .{id});
             return 0.0;
         };
         return obj.scale[0];
@@ -648,7 +648,7 @@ pub const Runtime = struct {
     fn wasmGetObjectScaleY(user_ptr: *anyopaque, id: u32) f32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to get scale of non-existent object {x}", .{id});
+            runtime.remote.log("tried to get scale of non-existent object {d}", .{id});
             return 0.0;
         };
         return obj.scale[1];
@@ -657,7 +657,7 @@ pub const Runtime = struct {
     fn wasmGetObjectScaleZ(user_ptr: *anyopaque, id: u32) f32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to get scale of non-existent object {x}", .{id});
+            runtime.remote.log("tried to get scale of non-existent object {d}", .{id});
             return 0.0;
         };
         return obj.scale[2];
@@ -671,7 +671,7 @@ pub const Runtime = struct {
     fn wasmSetObjectMaterial(user_ptr: *anyopaque, id: u32, material_id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
-            runtime.remote.log("tried to set material of non-existent object {x}", .{id});
+            runtime.remote.log("tried to set material of non-existent object {d}", .{id});
             return;
         };
         runtime.renderer.setObjectMaterial(obj.handle, .{ .id = material_id }) catch |err| util.crash.oom(err);
