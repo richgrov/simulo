@@ -294,7 +294,7 @@ pub const Renderer = struct {
             var new_pass = MaterialPass.init(self.allocator);
             errdefer new_pass.deinit();
 
-            const mat_pass_id, const result: *MaterialPass = try self.material_passes.insert(new_pass);
+            const mat_pass_id, const result = try self.material_passes.insert(new_pass);
             errdefer self.material_passes.delete(mat_pass_id) catch unreachable;
 
             try collection.material_passes.put(material_id, @intCast(mat_pass_id));
@@ -309,7 +309,7 @@ pub const Renderer = struct {
             const mesh_pass = try MeshPass.init(self.allocator);
             errdefer mesh_pass.deinit(self.allocator);
 
-            const mesh_pass_id, const result: *MeshPass = try self.mesh_passes.insert(mesh_pass);
+            const mesh_pass_id, const result = try self.mesh_passes.insert(mesh_pass);
             errdefer self.mesh_passes.delete(mesh_pass_id) catch unreachable;
 
             try material_pass.mesh_passes.put(mesh_id, @intCast(mesh_pass_id));
