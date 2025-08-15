@@ -113,6 +113,7 @@ pub const GameObject = struct {
                         return;
                     };
                     child.delete(runtime, false);
+                    _ = runtime.wasm.callFunction(child.event_handlers.drop, .{child.wasm_this}) catch unreachable;
                 }
             }
             children.deinit(runtime.allocator);
@@ -120,8 +121,6 @@ pub const GameObject = struct {
 
         self.deleted = true;
         runtime.renderer.deleteObject(self.handle);
-
-        _ = runtime.wasm.callFunction(self.event_handlers.drop, .{self.wasm_this}) catch unreachable;
     }
 
     pub fn recalculateTransform(self: *const GameObject, renderer: *Renderer) void {
@@ -256,8 +255,9 @@ pub const Runtime = struct {
         self.images.deinit();
 
         while (self.objects.items.len > 0) {
-            const obj = &self.objects.items[0].id;
-            self.deleteObject(obj);
+            const obj = &self.objects.items[0];
+            obj.delete(self, false);
+            self.deleteObject(obj.id);
         }
 
         self.objects.deinit();
@@ -737,6 +737,7 @@ pub const Runtime = struct {
             return;
         };
         obj.delete(runtime, true);
+        _ = runtime.wasm.callFunction(obj.event_handlers.drop, .{obj.wasm_this}) catch unreachable;
     }
 
     fn wasmDropObject(user_ptr: *anyopaque, id: u32) void {
