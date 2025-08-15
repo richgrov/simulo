@@ -227,30 +227,22 @@ pub const Renderer = struct {
     }
 
     pub fn deleteMaterial(self: *Renderer, material: MaterialHandle) void {
-        std.debug.print("{d}\n", .{material.id});
-        for (self.material_passes.data.items) |pass| {
-            switch (pass) {
-                .data => {
-                    std.debug.print("{d}\n", .{pass.data.material_id});
-                },
-                else => {},
-            }
-        }
-        const material_pass = self.material_passes.get(material.id).?;
-        const render_order_id = material_pass.render_order;
-        const collection = &self.render_collections[render_order_id];
+        for (&self.render_collections) |*collection| {
+            const material_pass_id = collection.material_passes.get(@intCast(material.id)) orelse continue;
+            const material_pass: *MaterialPass = self.material_passes.get(material_pass_id).?;
+            defer material_pass.deinit();
 
-        var it = material_pass.mesh_passes.keyIterator();
-        while (it.next()) |key| {
-            const mesh: *MeshPass = self.mesh_passes.get(key.*).?;
-            defer mesh.deinit(self.allocator);
-            for (mesh.objects.data) |id| {
-                self.objects.delete(id) catch unreachable;
+            var it = material_pass.mesh_passes.keyIterator();
+            while (it.next()) |key| {
+                const mesh: *MeshPass = self.mesh_passes.get(key.*).?;
+                defer mesh.deinit(self.allocator);
+                for (mesh.objects.data) |id| {
+                    self.objects.delete(id) catch unreachable;
+                }
             }
-        }
 
-        std.debug.assert(collection.material_passes.remove(@intCast(material.id)));
-        material_pass.deinit();
+            std.debug.assert(collection.material_passes.remove(@intCast(material.id)));
+        }
     }
 
     pub fn createImage(self: *Renderer, image_data: []const u8, width: i32, height: i32) ImageHandle {

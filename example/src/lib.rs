@@ -260,7 +260,7 @@ mod game {
 
     #[ObjectClass]
     pub struct Game {
-        obj: Option<GameObject>,
+        base: BaseObject,
         mat: Option<Material>
     }
 
@@ -269,19 +269,22 @@ mod game {
             BaseObject::new(Vec2::new(0.0, 0.0), &Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0), |base| {
                 return Game {
                     base,
-                    mat: Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0),
+                    mat: Some(Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0)),
                 }
             })
         }
 
         pub fn on_pose_update(&mut self, _id: u32, pose: Option<&Pose>) {
-            if let Some(pose) = pose {
-                let particle = BaseObject::new(pose.nose(), &self.mat, |obj| Particle {
-                    base: obj,
-                    lifetime: 1.0,
-                    vel: Vec2::new(50.0, 50.0),
-                });
-                self.base.add_child(particle);
+            // if let Some(pose) = pose {
+            //     let particle = BaseObject::new(pose.nose(), &self.mat, |obj| Particle {
+            //         base: obj,
+            //         lifetime: 1.0,
+            //         vel: Vec2::new(50.0, 50.0),
+            //     });
+            //     self.base.add_child(particle);
+            // }
+            if let Some(mat) = self.mat.take() {
+                mat.delete();
             }
         }
     }
@@ -305,13 +308,13 @@ mod game {
         }
 
         fn update(&mut self, delta: f32) {
-            let pos = self.base.position();
-            let dpos = self.vel * delta;
-            self.base.set_position(pos + dpos);
-            self.lifetime -= delta;
-            if self.lifetime <= 0.0 {
-                self.base.delete();
-            }
+            // let pos = self.base.position();
+            // let dpos = self.vel * delta;
+            // self.base.set_position(pos + dpos);
+            // self.lifetime -= delta;
+            // if self.lifetime <= 0.0 {
+            //     self.base.delete();
+            // }
         }
     }
 }

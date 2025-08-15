@@ -2,7 +2,7 @@ const std = @import("std");
 const testing = std.testing;
 
 pub fn Slab(T: type) type {
-    const Cell = union(enum) {
+    const Cell = union {
         data: T,
         next: usize,
     };
