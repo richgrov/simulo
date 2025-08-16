@@ -32,7 +32,6 @@ VkDescriptorSet simulo::allocate_descriptor_set(
    VkDescriptorSetAllocateInfo alloc_info = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
        .descriptorPool = pool,
-       //.descriptorSetLayout = layout,
        .descriptorSetCount = 1,
        .pSetLayouts = &layout,
    };
