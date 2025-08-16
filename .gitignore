@@ -6,6 +6,7 @@
 .cache/
 .zig-cache/
 zig-out/
+extern/
 
 *.spv
 *.metallib

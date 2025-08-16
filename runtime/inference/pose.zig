@@ -18,6 +18,9 @@ const Calibrator = @import("calibrate.zig").Calibrator;
 const Camera = @import("../camera/camera.zig").Camera;
 const DMat3 = @import("engine").math.DMat3;
 
+const time_until_low_power = @as(i64, 10000);
+var last_detection_time = @as(i64, 0);
+
 const ffi = @cImport({
     @cInclude("ffi.h");
 });
@@ -86,6 +89,7 @@ pub const PoseDetector = struct {
     pub fn start(self: *PoseDetector) !void {
         @atomicStore(bool, &self.running, true, .seq_cst);
         self.thread = try std.Thread.spawn(.{}, PoseDetector.run, .{self});
+        last_detection_time = std.time.milliTimestamp();
     }
 
     pub fn stop(self: *PoseDetector) void {
@@ -123,6 +127,10 @@ pub const PoseDetector = struct {
             // preventing the profiler from being reset (filling the log buffer). So do it here to
             // ensure it's always reset.
             self.logEvent(.{ .profile = self.profiler.end() });
+
+            if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
+                std.time.sleep(std.time.ns_per_s / 2);
+            }
 
             const frame_idx = camera.swapBuffers() catch |err| {
                 self.logEvent(.{ .fault = .{ .category = .camera_swap, .err = err } });
@@ -194,9 +202,11 @@ pub const PoseDetector = struct {
         }
     }
 
-    fn nearestPreviousDetection(self: *const PoseDetector, box: *const Box) ?u64 {
+    fn nearestPreviousDetection(self: *PoseDetector, box: *const Box) ?u64 {
         var closest_distance: f32 = std.math.floatMax(f32);
         var closest_id: ?u64 = null;
+
+        last_detection_time = std.time.milliTimestamp();
 
         for (self.last_tracked_boxes.items()) |other| {
             const diff = box.pos - other.box.pos;
