@@ -1,37 +1,33 @@
 use std::ffi::c_void;
 use simulo_declare_type::ObjectClass;
 
-pub trait TypeIdentifiable {
+pub trait ObjectClassed {
     const TYPE_ID: u32;
 }
 
+type Handle<T> = Box<T>;
+
+#[ObjectClass]
 pub struct BaseObject(u32);
+
+impl Object for BaseObject {
+    fn base(&self) -> &BaseObject {
+        self
+    }
+}
 
 pub trait Object {
     fn base(&self) -> &BaseObject;
     fn update(&mut self, _delta: f32) {}
-    fn delete(&mut self) {}
-
-    fn new<T: Object + TypeIdentifiable + 'static>(position: glam::Vec2, material: &Material, f: impl FnOnce(BaseObject) -> T) -> Box<T> {
-        let id = unsafe { simulo_create_object(position.x, position.y, material.0) };
-        let obj = BaseObject(id);
-        let node = f(obj);
-        let b = Box::new(node);
-        let ptr: *const T = &*b;
-
-        let type_id = T::TYPE_ID;
-        unsafe { simulo_set_object_ptr(id, type_id, ptr as *mut T as *mut c_void); }
-        b
-    }
 }
 
 #[allow(dead_code)]
 impl BaseObject {
-    pub fn new<T: Object + TypeIdentifiable + 'static>(position: glam::Vec2, material: &Material, f: impl FnOnce(BaseObject) -> T) -> Box<T> {
+    pub fn new<T: Object + ObjectClassed + 'static>(position: glam::Vec2, material: &Material, f: impl FnOnce(BaseObject) -> T) -> Handle<T> {
         let id = unsafe { simulo_create_object(position.x, position.y, material.0) };
         let obj = BaseObject(id);
         let node = f(obj);
-        let b = Box::new(node);
+        let b = Handle::new(node);
         let ptr: *const T = &*b;
 
         let type_id = T::TYPE_ID;
@@ -39,9 +35,9 @@ impl BaseObject {
         b
     }
 
-    pub fn add_child(&self, child: Box<impl Object>) {
+    pub fn add_child(&self, child: Handle<impl Object>) {
         let child_id = child.base().0;
-        _ = Box::into_raw(child);
+        _ = Handle::into_raw(child);
         unsafe { simulo_add_object_child(self.0, child_id); }
     }
 
@@ -210,7 +206,7 @@ static mut POSE_DATA: PoseData = [0.0; 17 * 2];
 pub extern "C" fn init() {
     let g = crate::game::Game::new();
     unsafe {
-        GAME = Box::leak(g);
+        GAME = Handle::leak(g);
         simulo_set_pose_buffer(POSE_DATA.as_mut_ptr());
     }
 }
@@ -265,7 +261,7 @@ mod game {
     }
 
     impl Game {
-        pub fn new() -> Box<Self> {
+        pub fn new() -> Handle<Self> {
             BaseObject::new(Vec2::new(0.0, 0.0), &Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0), |base| {
                 return Game {
                     base,

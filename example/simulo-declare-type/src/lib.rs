@@ -15,7 +15,7 @@ pub fn ObjectClass(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let output = quote! {
         #input
         
-        impl crate::TypeIdentifiable for #struct_name {
+        impl crate::ObjectClassed for #struct_name {
             const TYPE_ID: u32 = #hash;
         }
         
