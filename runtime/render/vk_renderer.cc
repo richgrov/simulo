@@ -205,7 +205,7 @@ void delete_mesh(Renderer *renderer, Mesh &mesh) {
 }
 
 void delete_material(Renderer *renderer, Material &material) {
-   const MaterialPipeline &pipe = renderer->pipelines_[0];
+   const Renderer::MaterialPipeline &pipe = renderer->pipelines_[0];
    free_descriptor_set(renderer->device().handle(), pipe.descriptor_pool, material.descriptor_set);
 }
 
