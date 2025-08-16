@@ -32,6 +32,7 @@ VkDescriptorSet simulo::allocate_descriptor_set(
    VkDescriptorSetAllocateInfo alloc_info = {
        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
        .descriptorPool = pool,
+       //.descriptorSetLayout = layout,
        .descriptorSetCount = 1,
        .pSetLayouts = &layout,
    };
@@ -39,6 +40,10 @@ VkDescriptorSet simulo::allocate_descriptor_set(
    VkDescriptorSet descriptor_set;
    VKAD_VK(vkAllocateDescriptorSets(device, &alloc_info, &descriptor_set));
    return descriptor_set;
+}
+
+void simulo::free_descriptor_set(VkDevice device, VkDescriptorPool pool, VkDescriptorSet set) {
+   vkFreeDescriptorSets(device, pool, 1, &set);
 }
 
 void simulo::write_descriptor_set(

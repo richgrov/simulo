@@ -230,6 +230,10 @@ pub const Renderer = struct {
 
             std.debug.assert(collection.material_passes.remove(@intCast(material.id)));
         }
+
+        const mat = self.materials.get(@intCast(material.id)).?;
+        ffi.delete_material(self.handle, mat);
+        self.materials.delete(@intCast(material.id)) catch unreachable;
     }
 
     pub fn createImage(self: *Renderer, image_data: []const u8, width: i32, height: i32) ImageHandle {

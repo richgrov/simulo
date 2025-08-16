@@ -27,6 +27,8 @@ void delete_descriptor_pool(VkDevice device, VkDescriptorPool pool);
 VkDescriptorSet
 allocate_descriptor_set(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout);
 
+void free_descriptor_set(VkDevice device, VkDescriptorPool pool, VkDescriptorSet set);
+
 void write_descriptor_set(
     VkDevice device, VkDescriptorSet set, const std::vector<DescriptorWrite> &writes
 );
