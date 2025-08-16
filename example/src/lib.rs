@@ -5,8 +5,6 @@ pub trait ObjectClassed {
     const TYPE_ID: u32;
 }
 
-type Handle<T> = Box<T>;
-
 #[ObjectClass]
 pub struct BaseObject(u32);
 
@@ -23,22 +21,20 @@ pub trait Object {
 
 #[allow(dead_code)]
 impl BaseObject {
-    pub fn new<T: Object + ObjectClassed + 'static>(position: glam::Vec2, material: &Material, f: impl FnOnce(BaseObject) -> T) -> Handle<T> {
+    pub fn new(position: glam::Vec2, material: &Material) -> BaseObject {
         let id = unsafe { simulo_create_object(position.x, position.y, material.0) };
-        let obj = BaseObject(id);
-        let node = f(obj);
-        let b = Handle::new(node);
-        let ptr: *const T = &*b;
-
-        let type_id = T::TYPE_ID;
-        unsafe { simulo_set_object_ptr(id, type_id, ptr as *mut T as *mut c_void); }
-        b
+        BaseObject(id)
     }
 
-    pub fn add_child(&self, child: Handle<impl Object>) {
-        let child_id = child.base().0;
-        _ = Handle::into_raw(child);
-        unsafe { simulo_add_object_child(self.0, child_id); }
+    pub fn add_child<T: Object + ObjectClassed + 'static>(&self, child: T) {
+        let boxed = Box::new(child);
+        let child_id = boxed.base().0;
+        let ptr = Box::into_raw(boxed);
+        let type_id = T::TYPE_ID;
+        unsafe {
+            simulo_set_object_ptr(child_id, type_id, ptr as *mut c_void);
+            simulo_add_object_child(self.0, child_id);
+        }
     }
 
     pub fn position(&self) -> glam::Vec2 {
@@ -61,7 +57,7 @@ impl BaseObject {
         }
     }
 
-    pub fn get_scale(&self) -> glam::Vec2 {
+    pub fn scale(&self) -> glam::Vec2 {
         unsafe {
             glam::Vec2::new(
                 simulo_get_object_scale_x(self.0),
@@ -84,7 +80,7 @@ impl BaseObject {
 
     pub fn delete(&self) {
         unsafe {
-            simulo_remove_object(self.0);
+            simulo_remove_object_from_parent(self.0);
         }
     }
 }
@@ -206,8 +202,10 @@ static mut POSE_DATA: PoseData = [0.0; 17 * 2];
 pub extern "C" fn init() {
     let g = crate::game::Game::new();
     unsafe {
-        GAME = Handle::leak(g);
+        let id = g.base().0;
+        GAME = Box::leak(Box::new(g));
         simulo_set_pose_buffer(POSE_DATA.as_mut_ptr());
+        simulo_set_root(id, crate::game::Game::TYPE_ID, GAME as *mut c_void);
     }
 }
 
@@ -223,6 +221,7 @@ pub extern "C" fn pose(id: u32, alive: bool) {
 }
 
 unsafe extern "C" {
+    fn simulo_set_root(id: u32, type_hash: u32, ptr: *mut c_void);
     fn simulo_set_pose_buffer(data: *mut f32);
     fn simulo_create_object(x: f32, y: f32, material: u32) -> u32;
     fn simulo_set_object_ptr(id: u32, type_hash: u32, ptr: *mut c_void);
@@ -239,7 +238,7 @@ unsafe extern "C" {
     fn simulo_get_object_scale_y(id: u32) -> f32;
 
     fn simulo_set_object_material(id: u32, material: u32);
-    fn simulo_remove_object(id: u32);
+    fn simulo_remove_object_from_parent(id: u32);
     fn simulo_drop_object(id: u32);
     fn simulo_random() -> f32;
     fn simulo_window_width() -> i32;
@@ -257,30 +256,25 @@ mod game {
     #[ObjectClass]
     pub struct Game {
         base: BaseObject,
-        mat: Option<Material>
+        mat: Material,
     }
 
     impl Game {
-        pub fn new() -> Handle<Self> {
-            BaseObject::new(Vec2::new(0.0, 0.0), &Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0), |base| {
-                return Game {
-                    base,
-                    mat: Some(Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0)),
+        pub fn new() -> Self {
+                Game {
+                    base: BaseObject::new(Vec2::new(0.0, 0.0), &Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0)),
+                    mat: Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0),
                 }
-            })
         }
 
         pub fn on_pose_update(&mut self, _id: u32, pose: Option<&Pose>) {
-            // if let Some(pose) = pose {
-            //     let particle = BaseObject::new(pose.nose(), &self.mat, |obj| Particle {
-            //         base: obj,
-            //         lifetime: 1.0,
-            //         vel: Vec2::new(50.0, 50.0),
-            //     });
-            //     self.base.add_child(particle);
-            // }
-            if let Some(mat) = self.mat.take() {
-                mat.delete();
+            if let Some(pose) = pose {
+                let particle = Particle {
+                    base: BaseObject::new(pose.nose(), &self.mat),
+                    lifetime: 1.0,
+                    vel: Vec2::new(50.0, 50.0),
+                };
+                self.base.add_child(particle);
             }
         }
     }
@@ -304,13 +298,13 @@ mod game {
         }
 
         fn update(&mut self, delta: f32) {
-            // let pos = self.base.position();
-            // let dpos = self.vel * delta;
-            // self.base.set_position(pos + dpos);
-            // self.lifetime -= delta;
-            // if self.lifetime <= 0.0 {
-            //     self.base.delete();
-            // }
+            let pos = self.base.position();
+            let dpos = self.vel * delta;
+            self.base.set_position(pos + dpos);
+            self.lifetime -= delta;
+            if self.lifetime <= 0.0 {
+                self.base.delete();
+            }
         }
     }
 }
