@@ -204,9 +204,9 @@ void delete_mesh(Renderer *renderer, Mesh &mesh) {
    buffer_destroy(&mesh.buffer, &mesh.allocation, renderer->device().handle());
 }
 
-void delete_material(Renderer *renderer, Material &material) {
+void delete_material(Renderer *renderer, Material *material) {
    const Renderer::MaterialPipeline &pipe = renderer->pipelines_[0];
-   free_descriptor_set(renderer->device().handle(), pipe.descriptor_pool, material.descriptor_set);
+   free_descriptor_set(renderer->device().handle(), pipe.descriptor_pool, material->descriptor_set);
 }
 
 RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int height) {
