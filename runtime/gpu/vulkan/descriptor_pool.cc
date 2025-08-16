@@ -41,6 +41,10 @@ VkDescriptorSet simulo::allocate_descriptor_set(
    return descriptor_set;
 }
 
+void simulo::free_descriptor_set(VkDevice device, VkDescriptorPool pool, VkDescriptorSet set) {
+   vkFreeDescriptorSets(device, pool, 1, &set);
+}
+
 void simulo::write_descriptor_set(
     VkDevice device, VkDescriptorSet set, const std::vector<DescriptorWrite> &writes
 ) {

@@ -190,6 +190,7 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
         try Wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
         try Wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
+        try Wasm.exposeFunction("simulo_delete_material", wasmDeleteMaterial);
     }
 
     pub fn globalDeinit() void {
@@ -646,6 +647,11 @@ pub const Runtime = struct {
         };
     }
 
+    fn deleteMaterial(self: *Runtime, id: u32) void {
+        const material_handle = Renderer.MaterialHandle{ .id = id };
+        self.renderer.deleteMaterial(material_handle);
+    }
+
     fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.getObject(id) orelse {
@@ -743,6 +749,11 @@ pub const Runtime = struct {
     fn wasmDropObject(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         runtime.deleteObject(id);
+    }
+
+    fn wasmDeleteMaterial(user_ptr: *anyopaque, id: u32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.deleteMaterial(id);
     }
 
     fn wasmSetObjectMaterial(user_ptr: *anyopaque, id: u32, material_id: u32) void {

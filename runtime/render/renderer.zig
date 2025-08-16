@@ -213,6 +213,29 @@ pub const Renderer = struct {
         self.objects.delete(object.id) catch unreachable;
     }
 
+    pub fn deleteMaterial(self: *Renderer, material: MaterialHandle) void {
+        for (&self.render_collections) |*collection| {
+            const material_pass_id = collection.material_passes.get(@intCast(material.id)) orelse continue;
+            const material_pass: *MaterialPass = self.material_passes.get(material_pass_id).?;
+            defer material_pass.deinit();
+
+            var it = material_pass.mesh_passes.keyIterator();
+            while (it.next()) |key| {
+                const mesh: *MeshPass = self.mesh_passes.get(key.*).?;
+                defer mesh.deinit(self.allocator);
+                for (mesh.objects.data) |id| {
+                    self.objects.delete(id) catch unreachable;
+                }
+            }
+
+            std.debug.assert(collection.material_passes.remove(@intCast(material.id)));
+        }
+
+        const mat = self.materials.get(@intCast(material.id)).?;
+        ffi.delete_material(self.handle, mat);
+        self.materials.delete(@intCast(material.id)) catch unreachable;
+    }
+
     pub fn createImage(self: *Renderer, image_data: []const u8, width: i32, height: i32) ImageHandle {
         const id = ffi.create_image(self.handle, @constCast(@ptrCast(image_data.ptr)), width, height);
         return ImageHandle{ .id = id };
@@ -274,8 +297,10 @@ pub const Renderer = struct {
         } else {
             var new_pass = MaterialPass.init(self.allocator);
             errdefer new_pass.deinit();
+
             const mat_pass_id, const result = try self.material_passes.insert(new_pass);
             errdefer self.material_passes.delete(mat_pass_id) catch unreachable;
+
             try collection.material_passes.put(material_id, @intCast(mat_pass_id));
             return result;
         }

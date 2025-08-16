@@ -155,6 +155,7 @@ Mesh create_mesh(
     size_t index_count
 );
 void delete_mesh(Renderer *renderer, Mesh *mesh);
+void delete_material(Renderer *renderer, Material *material);
 uint32_t
 add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_t material_id);
 void delete_object(Renderer *renderer, uint32_t object_id);

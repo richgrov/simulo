@@ -105,6 +105,12 @@ impl Material {
     pub fn new(image_id: u32, r: f32, g: f32, b: f32) -> Self {
         unsafe { Material(simulo_create_material(image_id, r, g, b)) }
     }
+
+    pub fn delete(&self) {
+        unsafe {
+            simulo_delete_material(self.0);
+        }
+    }
 }
 
 pub const WHITE_PIXEL_IMAGE: u32 = std::u32::MAX;
@@ -243,6 +249,7 @@ unsafe extern "C" {
     fn simulo_window_width() -> i32;
     fn simulo_window_height() -> i32;
     fn simulo_create_material(image: u32, r: f32, g: f32, b: f32) -> u32;
+    fn simulo_delete_material(id: u32);
 }
 
 /////////
@@ -254,7 +261,7 @@ mod game {
     #[ObjectClass]
     pub struct Game {
         base: BaseObject,
-        mat: Material,
+        mat: Option<Material>
     }
 
     impl Game {
@@ -262,19 +269,22 @@ mod game {
             BaseObject::new(Vec2::new(0.0, 0.0), &Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0), |base| {
                 return Game {
                     base,
-                    mat: Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0),
+                    mat: Some(Material::new(WHITE_PIXEL_IMAGE, 1.0, 1.0, 1.0)),
                 }
             })
         }
 
         pub fn on_pose_update(&mut self, _id: u32, pose: Option<&Pose>) {
-            if let Some(pose) = pose {
-                let particle = BaseObject::new(pose.nose(), &self.mat, |obj| Particle {
-                    base: obj,
-                    lifetime: 1.0,
-                    vel: Vec2::new(50.0, 50.0),
-                });
-                self.base.add_child(particle);
+            // if let Some(pose) = pose {
+            //     let particle = BaseObject::new(pose.nose(), &self.mat, |obj| Particle {
+            //         base: obj,
+            //         lifetime: 1.0,
+            //         vel: Vec2::new(50.0, 50.0),
+            //     });
+            //     self.base.add_child(particle);
+            // }
+            if let Some(mat) = self.mat.take() {
+                mat.delete();
             }
         }
     }
@@ -298,13 +308,13 @@ mod game {
         }
 
         fn update(&mut self, delta: f32) {
-            let pos = self.base.position();
-            let dpos = self.vel * delta;
-            self.base.set_position(pos + dpos);
-            self.lifetime -= delta;
-            if self.lifetime <= 0.0 {
-                self.base.delete();
-            }
+            // let pos = self.base.position();
+            // let dpos = self.vel * delta;
+            // self.base.set_position(pos + dpos);
+            // self.lifetime -= delta;
+            // if self.lifetime <= 0.0 {
+            //     self.base.delete();
+            // }
         }
     }
 }

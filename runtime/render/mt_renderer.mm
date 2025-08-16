@@ -99,6 +99,10 @@ void delete_mesh(Renderer *renderer, Mesh *mesh) {
    [mesh->buffer release];
 }
 
+void delete_material(Renderer *renderer, Material *material) {
+   [material->uniform_buffer release];
+}
+
 bool begin_render(Renderer *renderer) {
    renderer->render_pool_ = [[NSAutoreleasePool alloc] init];
 
