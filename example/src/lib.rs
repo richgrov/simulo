@@ -26,7 +26,7 @@ impl BaseObject {
         BaseObject(id)
     }
 
-    pub fn add_child<T: Object + ObjectClassed + 'static>(&self, child: T) {
+    pub fn add_child<T: Object + ObjectClassed + 'static>(&mut self, child: T) {
         let boxed = Box::new(child);
         let child_id = boxed.base().0;
         let ptr = Box::into_raw(boxed);
