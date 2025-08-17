@@ -15,7 +15,7 @@ pub fn ObjectClass(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let output = quote! {
         #input
         
-        impl crate::ObjectClassed for #struct_name {
+        impl ObjectClassed for #struct_name {
             const TYPE_ID: u32 = #hash;
         }
         
@@ -25,6 +25,16 @@ pub fn ObjectClass(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 let ptr = this as *mut #struct_name;
                 let obj = unsafe { &mut *ptr };
                 obj.update(delta);
+            }
+
+            #[unsafe(no_mangle)]
+            pub extern "C" fn [< __vrecalculate_transform_ #hash_str >](this: *mut std::ffi::c_void) {
+                let ptr = this as *mut #struct_name;
+                let obj = unsafe { &mut *ptr };
+                let transform = obj.recalculate_transform();
+                unsafe {
+                    TRANSFORM_DATA = transform.to_cols_array();
+                }
             }
 
             #[unsafe(no_mangle)]

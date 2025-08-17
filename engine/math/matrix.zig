@@ -88,6 +88,16 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             return result;
         }
 
+        pub fn fromColumnMajorPtr(p: [*]const T) Self {
+            var result: Self = undefined;
+            for (0..rows) |r| {
+                for (0..cols) |c| {
+                    result.data[c][r] = p[c * rows + r];
+                }
+            }
+            return result;
+        }
+
         pub fn matmul(self: *const Self, other: *const Self) Matrix(T, rows, cols) {
             var result: Matrix(T, rows, cols) = undefined;
             for (0..rows) |r| {

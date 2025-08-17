@@ -41,13 +41,11 @@ const Vertex = struct {
 
 const ObjectEventHandlers = struct {
     update: Wasm.Function,
+    recalculate_transform: Wasm.Function,
     drop: Wasm.Function,
 };
 
 pub const GameObject = struct {
-    pos: @Vector(3, f32),
-    rotation: f32,
-    scale: @Vector(3, f32),
     id: usize,
     handle: Renderer.ObjectHandle,
     deleted: bool,
@@ -57,11 +55,8 @@ pub const GameObject = struct {
     event_handlers: *ObjectEventHandlers,
     wasm_this: i32,
 
-    pub fn init(runtime: *Runtime, material: Renderer.MaterialHandle, x_: f32, y_: f32, parent: ?usize) error{OutOfMemory}!GameObject {
-        const obj = GameObject{
-            .pos = .{ x_, y_, 0 },
-            .rotation = 0,
-            .scale = .{ 1, 1, 1 },
+    pub fn init(runtime: *Runtime, material: Renderer.MaterialHandle, parent: ?usize) error{OutOfMemory}!GameObject {
+        return .{
             .id = undefined,
             .handle = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, 0),
             .deleted = false,
@@ -70,8 +65,6 @@ pub const GameObject = struct {
             .event_handlers = undefined,
             .wasm_this = undefined,
         };
-        obj.recalculateTransform(&runtime.renderer);
-        return obj;
     }
 
     pub fn addChild(self: *GameObject, runtime: *Runtime, child: usize) void {
@@ -102,13 +95,6 @@ pub const GameObject = struct {
         self.deleted = true;
         runtime.renderer.deleteObject(self.handle);
     }
-
-    pub fn recalculateTransform(self: *const GameObject, renderer: *Renderer) void {
-        const translate = Mat4.translate(.{ self.pos[0], self.pos[1], self.pos[2] });
-        const rotate = Mat4.rotateZ(self.rotation);
-        const scale = Mat4.scale(.{ self.scale[0], self.scale[1], self.scale[2] });
-        renderer.setObjectTransform(self.handle, translate.matmul(&rotate).matmul(&scale));
-    }
 };
 
 const vertices = [_]Vertex{
@@ -134,6 +120,7 @@ pub const Runtime = struct {
         pose: Wasm.Function,
     },
     wasm_pose_buffer: ?[*]f32,
+    wasm_transform_buffer: ?[*]f32,
     objects: Slab(GameObject),
     isolated_objects: util.IntSet(usize, 16),
     object_event_handlers: std.AutoHashMap(u32, ObjectEventHandlers),
@@ -153,19 +140,12 @@ pub const Runtime = struct {
         try Wasm.globalInit();
         errdefer Wasm.globalDeinit();
         try Wasm.exposeFunction("simulo_set_root", wasmSetRoot);
-        try Wasm.exposeFunction("simulo_set_pose_buffer", wasmSetPoseBuffer);
+        try Wasm.exposeFunction("simulo_set_buffers", wasmSetBuffers);
         try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
         try Wasm.exposeFunction("simulo_add_object_child", wasmAddObjectChild);
         try Wasm.exposeFunction("simulo_set_object_ptr", wasmSetObjectPtr);
         try Wasm.exposeFunction("simulo_set_object_material", wasmSetObjectMaterial);
-        try Wasm.exposeFunction("simulo_set_object_position", wasmSetObjectPosition);
-        try Wasm.exposeFunction("simulo_set_object_rotation", wasmSetObjectRotation);
-        try Wasm.exposeFunction("simulo_set_object_scale", wasmSetObjectScale);
-        try Wasm.exposeFunction("simulo_get_object_x", wasmGetObjectX);
-        try Wasm.exposeFunction("simulo_get_object_y", wasmGetObjectY);
-        try Wasm.exposeFunction("simulo_get_object_rotation", wasmGetObjectRotation);
-        try Wasm.exposeFunction("simulo_get_object_scale_x", wasmGetObjectScaleX);
-        try Wasm.exposeFunction("simulo_get_object_scale_y", wasmGetObjectScaleY);
+        try Wasm.exposeFunction("simulo_mark_transform_outdated", wasmMarkTransformOutdated);
         try Wasm.exposeFunction("simulo_remove_object_from_parent", wasmRemoveObjectFromParent);
         try Wasm.exposeFunction("simulo_drop_object", wasmDropObject);
         try Wasm.exposeFunction("simulo_random", wasmRandom);
@@ -200,6 +180,7 @@ pub const Runtime = struct {
         runtime.wasm.zeroInit();
         runtime.wasm_funcs = null;
         runtime.wasm_pose_buffer = null;
+        runtime.wasm_transform_buffer = null;
         runtime.objects = try Slab(GameObject).init(runtime.allocator, 64);
         errdefer runtime.objects.deinit();
 
@@ -306,6 +287,7 @@ pub const Runtime = struct {
             .pose = pose_func,
         };
         self.wasm_pose_buffer = null;
+        self.wasm_transform_buffer = null;
 
         self.object_event_handlers.clearRetainingCapacity();
         var exported_functions = self.wasm.exportedFunctions();
@@ -319,15 +301,23 @@ pub const Runtime = struct {
                     return error.InvalidTypeHash;
                 };
 
-                var drop_handler_buf: [64]u8 = undefined;
-                const drop_handler_name = std.fmt.bufPrintZ(&drop_handler_buf, "__vdrop_{s}", .{type_hash}) catch unreachable;
+                var function_name_buf: [64]u8 = undefined;
+
+                const drop_handler_name = std.fmt.bufPrintZ(&function_name_buf, "__vdrop_{s}", .{type_hash}) catch unreachable;
                 const drop_handler = self.wasm.getFunction(drop_handler_name) orelse {
                     self.remote.log("program missing drop handler {s}", .{drop_handler_name});
                     return error.MissingDropHandler;
                 };
 
+                const recalculate_transform_handler_name = std.fmt.bufPrintZ(&function_name_buf, "__vrecalculate_transform_{s}", .{type_hash}) catch unreachable;
+                const recalculate_transform_handler = self.wasm.getFunction(recalculate_transform_handler_name) orelse {
+                    self.remote.log("program missing recalculate transform handler {s}", .{recalculate_transform_handler_name});
+                    return error.MissingRecalculateTransformHandler;
+                };
+
                 self.object_event_handlers.put(type_hash_u32, .{
                     .update = self.wasm.getFunction(name).?,
+                    .recalculate_transform = recalculate_transform_handler,
                     .drop = drop_handler,
                 }) catch |err| util.crash.oom(err);
             }
@@ -354,8 +344,8 @@ pub const Runtime = struct {
         if (self.calibrated) {
             _ = self.wasm.callFunction(init_func, .{}) catch unreachable;
 
-            if (self.wasm_pose_buffer == null) {
-                return error.PoseBufferNotInitialized;
+            if (self.wasm_pose_buffer == null or self.wasm_transform_buffer == null) {
+                return error.BuffersNotInitialized;
             }
         }
     }
@@ -525,8 +515,8 @@ pub const Runtime = struct {
                         if (self.wasm_funcs) |funcs| {
                             _ = self.wasm.callFunction(funcs.init, .{@as(u32, 0)}) catch unreachable;
 
-                            if (self.wasm_pose_buffer == null) {
-                                return error.PoseBufferNotInitialized;
+                            if (self.wasm_pose_buffer == null or self.wasm_transform_buffer == null) {
+                                return error.BuffersNotInitialized;
                             }
                         }
                     }
@@ -570,7 +560,10 @@ pub const Runtime = struct {
         for (0..self.outdated_object_transforms.bucketCount()) |bucket| {
             for (self.outdated_object_transforms.bucketItems(bucket)) |obj_id| {
                 const obj = self.objects.get(obj_id).?;
-                obj.recalculateTransform(&self.renderer);
+                _ = self.wasm.callFunction(obj.event_handlers.recalculate_transform, .{obj.wasm_this}) catch unreachable;
+                const col_array = self.wasm_transform_buffer.?;
+                const transform = Mat4.fromColumnMajorPtr(col_array);
+                self.renderer.setObjectTransform(obj.handle, transform);
             }
         }
         self.outdated_object_transforms.clear();
@@ -597,14 +590,15 @@ pub const Runtime = struct {
         std.debug.assert(runtime.isolated_objects.delete(@intCast(id)));
     }
 
-    fn wasmSetPoseBuffer(user_ptr: *anyopaque, buffer: [*]f32) void {
+    fn wasmSetBuffers(user_ptr: *anyopaque, pose_buffer: [*]f32, transform_buffer: [*]f32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        runtime.wasm_pose_buffer = buffer;
+        runtime.wasm_pose_buffer = pose_buffer;
+        runtime.wasm_transform_buffer = transform_buffer;
     }
 
-    fn wasmCreateObject(user_ptr: *anyopaque, x: f32, y: f32, material_id: u32) u32 {
+    fn wasmCreateObject(user_ptr: *anyopaque, material_id: u32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj_id = runtime.createObject(x, y, .{ .id = material_id });
+        const obj_id = runtime.createObject(.{ .id = material_id });
         runtime.isolated_objects.put(runtime.allocator, obj_id) catch |err| util.crash.oom(err);
         return @intCast(obj_id);
     }
@@ -635,8 +629,8 @@ pub const Runtime = struct {
         obj.wasm_this = ptr;
     }
 
-    pub fn createObject(self: *Runtime, x: f32, y: f32, material: Renderer.MaterialHandle) usize {
-        const obj = GameObject.init(self, material, x, y, null) catch |err| util.crash.oom(err);
+    pub fn createObject(self: *Runtime, material: Renderer.MaterialHandle) usize {
+        const obj = GameObject.init(self, material, null) catch |err| util.crash.oom(err);
         const object_id, const obj_ptr = self.objects.insert(obj) catch |err| util.crash.oom(err);
         obj_ptr.*.id = object_id;
         return object_id;
@@ -655,90 +649,6 @@ pub const Runtime = struct {
     fn deleteMaterial(self: *Runtime, id: u32) void {
         const material_handle = Renderer.MaterialHandle{ .id = id };
         self.renderer.deleteMaterial(material_handle);
-    }
-
-    fn wasmSetObjectPosition(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to set position of non-existent object {d}", .{id});
-            return;
-        };
-        obj.pos = .{ x, y, 0 };
-        runtime.markOutdatedTransform(id);
-    }
-
-    fn wasmSetObjectRotation(user_ptr: *anyopaque, id: u32, rotation: f32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to set rotation of non-existent object {d}", .{id});
-            return;
-        };
-        obj.rotation = rotation;
-        runtime.markOutdatedTransform(id);
-    }
-
-    fn wasmSetObjectScale(user_ptr: *anyopaque, id: u32, x: f32, y: f32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to set scale of non-existent object {d}", .{id});
-            return;
-        };
-        obj.scale = .{ x, y, 1 };
-        runtime.markOutdatedTransform(id);
-    }
-
-    fn wasmGetObjectX(user_ptr: *anyopaque, id: u32) f32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to get x position of non-existent object {d}", .{id});
-            return 0.0;
-        };
-        return obj.pos[0];
-    }
-
-    fn wasmGetObjectY(user_ptr: *anyopaque, id: u32) f32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to get y position of non-existent object {d}", .{id});
-            return 0.0;
-        };
-        return obj.pos[1];
-    }
-
-    fn wasmGetObjectRotation(user_ptr: *anyopaque, id: u32) f32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to get rotation of non-existent object {d}", .{id});
-            return 0.0;
-        };
-        return obj.rotation;
-    }
-
-    fn wasmGetObjectScaleX(user_ptr: *anyopaque, id: u32) f32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to get scale of non-existent object {d}", .{id});
-            return 0.0;
-        };
-        return obj.scale[0];
-    }
-
-    fn wasmGetObjectScaleY(user_ptr: *anyopaque, id: u32) f32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to get scale of non-existent object {d}", .{id});
-            return 0.0;
-        };
-        return obj.scale[1];
-    }
-
-    fn wasmGetObjectScaleZ(user_ptr: *anyopaque, id: u32) f32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to get scale of non-existent object {d}", .{id});
-            return 0.0;
-        };
-        return obj.scale[2];
     }
 
     fn wasmRemoveObjectFromParent(user_ptr: *anyopaque, id: u32) void {
@@ -793,6 +703,11 @@ pub const Runtime = struct {
             return;
         };
         runtime.renderer.setObjectMaterial(obj.handle, .{ .id = material_id }) catch |err| util.crash.oom(err);
+    }
+
+    fn wasmMarkTransformOutdated(user_ptr: *anyopaque, id: u32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.markOutdatedTransform(@intCast(id));
     }
 
     fn wasmRandom(user_ptr: *anyopaque) f32 {
