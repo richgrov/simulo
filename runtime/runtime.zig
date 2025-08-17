@@ -209,6 +209,8 @@ pub const Runtime = struct {
         runtime.object_event_handlers = std.AutoHashMap(u32, ObjectEventHandlers).init(runtime.allocator);
         errdefer runtime.object_event_handlers.deinit();
 
+        runtime.root_object = null;
+
         runtime.images = try std.ArrayList(Renderer.ImageHandle).initCapacity(runtime.allocator, 4);
 
         runtime.outdated_object_transforms = try util.IntSet(u32, 128).init(runtime.allocator, 64);
@@ -274,6 +276,7 @@ pub const Runtime = struct {
                 self.deinitObject(id);
             }
         }
+        self.isolated_objects.clear();
 
         // TODO: delete images
         self.images.clearRetainingCapacity();
@@ -358,8 +361,7 @@ pub const Runtime = struct {
     }
 
     fn deinitObject(self: *Runtime, id: usize) void {
-        const obj = self.objects.get(id) orelse return;
-        obj.deinit(self);
+        const obj = self.objects.get(id).?;
 
         if (obj.children) |*children| {
             for (0..children.bucketCount()) |bucket| {
@@ -369,6 +371,7 @@ pub const Runtime = struct {
             }
         }
 
+        obj.deinit(self);
         self.objects.delete(id) catch {
             self.remote.log("tried to delete non-existent object {d}", .{id});
         };
@@ -591,6 +594,7 @@ pub const Runtime = struct {
 
         obj.wasm_this = ptr;
         runtime.root_object = id;
+        std.debug.assert(runtime.isolated_objects.delete(@intCast(id)));
     }
 
     fn wasmSetPoseBuffer(user_ptr: *anyopaque, buffer: [*]f32) void {
@@ -645,6 +649,7 @@ pub const Runtime = struct {
         };
 
         _ = self.outdated_object_transforms.delete(@intCast(id));
+        _ = self.isolated_objects.delete(@intCast(id));
     }
 
     fn deleteMaterial(self: *Runtime, id: u32) void {
