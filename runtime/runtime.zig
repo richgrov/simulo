@@ -53,7 +53,8 @@ pub const GameObject = struct {
     children: ?util.IntSet(usize, 64),
     parent: ?usize,
     event_handlers: *ObjectEventHandlers,
-    wasm_this: i32,
+    wasm_concrete: i32,
+    wasm_dynamic: i32,
 
     pub fn init(runtime: *Runtime, material: Renderer.MaterialHandle, parent: ?usize) error{OutOfMemory}!GameObject {
         return .{
@@ -63,7 +64,8 @@ pub const GameObject = struct {
             .children = null,
             .parent = parent,
             .event_handlers = undefined,
-            .wasm_this = undefined,
+            .wasm_concrete = undefined,
+            .wasm_dynamic = undefined,
         };
     }
 
@@ -143,7 +145,8 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_set_buffers", wasmSetBuffers);
         try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
         try Wasm.exposeFunction("simulo_add_object_child", wasmAddObjectChild);
-        try Wasm.exposeFunction("simulo_set_object_ptr", wasmSetObjectPtr);
+        try Wasm.exposeFunction("simulo_get_children", wasmGetChildren);
+        try Wasm.exposeFunction("simulo_set_object_ptrs", wasmSetObjectPtrs);
         try Wasm.exposeFunction("simulo_set_object_material", wasmSetObjectMaterial);
         try Wasm.exposeFunction("simulo_mark_transform_outdated", wasmMarkTransformOutdated);
         try Wasm.exposeFunction("simulo_remove_object_from_parent", wasmRemoveObjectFromParent);
@@ -491,7 +494,7 @@ pub const Runtime = struct {
 
     fn updateObject(self: *Runtime, id: usize, delta: f32) void {
         const obj = self.objects.get(id) orelse return;
-        _ = self.wasm.callFunction(obj.event_handlers.update, .{ obj.wasm_this, delta }) catch unreachable;
+        _ = self.wasm.callFunction(obj.event_handlers.update, .{ obj.wasm_concrete, delta }) catch unreachable;
 
         if (obj.children) |*children| {
             for (0..children.bucketCount()) |bucket| {
@@ -560,7 +563,7 @@ pub const Runtime = struct {
         for (0..self.outdated_object_transforms.bucketCount()) |bucket| {
             for (self.outdated_object_transforms.bucketItems(bucket)) |obj_id| {
                 const obj = self.objects.get(obj_id).?;
-                _ = self.wasm.callFunction(obj.event_handlers.recalculate_transform, .{obj.wasm_this}) catch unreachable;
+                _ = self.wasm.callFunction(obj.event_handlers.recalculate_transform, .{obj.wasm_concrete}) catch unreachable;
                 const col_array = self.wasm_transform_buffer.?;
                 const transform = Mat4.fromColumnMajorPtr(col_array);
                 self.renderer.setObjectTransform(obj.handle, transform);
@@ -573,7 +576,7 @@ pub const Runtime = struct {
         self.outdated_object_transforms.put(self.allocator, @intCast(id)) catch |err| util.crash.oom(err);
     }
 
-    fn wasmSetRoot(user_ptr: *anyopaque, id: u32, type_hash: u32, ptr: i32) void {
+    fn wasmSetRoot(user_ptr: *anyopaque, id: u32, type_hash: u32, concrete: i32, dynamic: i32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.objects.get(id) orelse {
             runtime.remote.log("tried to set root of non-existent object {d}", .{id});
@@ -585,7 +588,8 @@ pub const Runtime = struct {
             return;
         };
 
-        obj.wasm_this = ptr;
+        obj.wasm_concrete = concrete;
+        obj.wasm_dynamic = dynamic;
         runtime.root_object = id;
         std.debug.assert(runtime.isolated_objects.delete(@intCast(id)));
     }
@@ -613,7 +617,31 @@ pub const Runtime = struct {
         std.debug.assert(runtime.isolated_objects.delete(@intCast(child)));
     }
 
-    fn wasmSetObjectPtr(user_ptr: *anyopaque, id: u32, type_hash: u32, ptr: i32) void {
+    fn wasmGetChildren(user_ptr: *anyopaque, id: u32, out_children: [*]i32, count: u32) u32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.objects.get(id) orelse {
+            runtime.remote.log("tried to get children of non-existent object {d}", .{id});
+            return 0;
+        };
+
+        var i: usize = 0;
+        if (obj.children) |*children| {
+            outer: for (0..children.bucketCount()) |bucket| {
+                for (children.bucketItems(bucket)) |child_id| {
+                    if (i >= count) {
+                        break :outer;
+                    }
+
+                    out_children[i] = runtime.objects.get(child_id).?.wasm_dynamic;
+                    i += 1;
+                }
+            }
+        }
+
+        return @intCast(i);
+    }
+
+    fn wasmSetObjectPtrs(user_ptr: *anyopaque, id: u32, type_hash: u32, concrete: i32, dynamic: i32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.objects.get(id) orelse {
             runtime.remote.log("tried to set object ptr of non-existent object {d}", .{id});
@@ -626,7 +654,8 @@ pub const Runtime = struct {
         };
 
         obj.event_handlers = event_handlers;
-        obj.wasm_this = ptr;
+        obj.wasm_concrete = concrete;
+        obj.wasm_dynamic = dynamic;
     }
 
     pub fn createObject(self: *Runtime, material: Renderer.MaterialHandle) usize {
@@ -683,7 +712,7 @@ pub const Runtime = struct {
         }
 
         obj.deinit(self);
-        _ = self.wasm.callFunction(obj.event_handlers.drop, .{obj.wasm_this}) catch unreachable;
+        _ = self.wasm.callFunction(obj.event_handlers.drop, .{obj.wasm_dynamic}) catch unreachable;
     }
 
     fn wasmDropObject(user_ptr: *anyopaque, id: u32) void {
