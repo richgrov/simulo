@@ -64,67 +64,67 @@ public:
    }
 
    glm::vec2 left_eye() const {
-      return glm::vec2(data_[1], data_[2]);
-   }
-
-   glm::vec2 right_eye() const {
       return glm::vec2(data_[2], data_[3]);
    }
 
-   glm::vec2 left_ear() const {
-      return glm::vec2(data_[3], data_[4]);
-   }
-
-   glm::vec2 right_ear() const {
+   glm::vec2 right_eye() const {
       return glm::vec2(data_[4], data_[5]);
    }
 
-   glm::vec2 left_shoulder() const {
-      return glm::vec2(data_[5], data_[6]);
+   glm::vec2 left_ear() const {
+      return glm::vec2(data_[6], data_[7]);
    }
 
-   glm::vec2 right_shoulder() const {
-      return glm::vec2(data_[7], data_[8]);
-   }
-
-   glm::vec2 left_elbow() const {
+   glm::vec2 right_ear() const {
       return glm::vec2(data_[8], data_[9]);
    }
 
-   glm::vec2 right_elbow() const {
-      return glm::vec2(data_[9], data_[10]);
-   }
-
-   glm::vec2 left_wrist() const {
+   glm::vec2 left_shoulder() const {
       return glm::vec2(data_[10], data_[11]);
    }
 
-   glm::vec2 right_wrist() const {
-      return glm::vec2(data_[11], data_[12]);
-   }
-
-   glm::vec2 left_hip() const {
+   glm::vec2 right_shoulder() const {
       return glm::vec2(data_[12], data_[13]);
    }
 
-   glm::vec2 right_hip() const {
-      return glm::vec2(data_[13], data_[14]);
-   }
-
-   glm::vec2 left_knee() const {
+   glm::vec2 left_elbow() const {
       return glm::vec2(data_[14], data_[15]);
    }
 
-   glm::vec2 right_knee() const {
-      return glm::vec2(data_[15], data_[16]);
-   }
-
-   glm::vec2 left_ankle() const {
+   glm::vec2 right_elbow() const {
       return glm::vec2(data_[16], data_[17]);
    }
 
+   glm::vec2 left_wrist() const {
+      return glm::vec2(data_[18], data_[19]);
+   }
+
+   glm::vec2 right_wrist() const {
+      return glm::vec2(data_[20], data_[21]);
+   }
+
+   glm::vec2 left_hip() const {
+      return glm::vec2(data_[22], data_[23]);
+   }
+
+   glm::vec2 right_hip() const {
+      return glm::vec2(data_[24], data_[25]);
+   }
+
+   glm::vec2 left_knee() const {
+      return glm::vec2(data_[26], data_[27]);
+   }
+
+   glm::vec2 right_knee() const {
+      return glm::vec2(data_[28], data_[29]);
+   }
+
+   glm::vec2 left_ankle() const {
+      return glm::vec2(data_[30], data_[31]);
+   }
+
    glm::vec2 right_ankle() const {
-      return glm::vec2(data_[17], data_[18]);
+      return glm::vec2(data_[32], data_[33]);
    }
 
 private:
