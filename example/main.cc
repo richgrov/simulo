@@ -29,7 +29,6 @@ public:
 
    void on_pose(int id, std::optional<Pose> pose) {
       if (pose) {
-         //std::unique_ptr<Object> particle = std::make_unique<Particle>(pose->nose(), white_material_);
          add_child(std::make_unique<Particle>(pose->nose(), white_material_));
       }
    }

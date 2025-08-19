@@ -190,7 +190,7 @@ public:
 
    glm::vec2 position;
    float rotation;
-   glm::vec2 scale;
+   glm::vec2 scale{1.0f, 1.0f};
 
 private:
    friend void ::simulo__start();
