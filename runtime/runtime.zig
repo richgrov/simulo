@@ -264,26 +264,26 @@ pub const Runtime = struct {
             return error.WasmInitFailed;
         };
 
-        const init_func = self.wasm.getFunction("_start") orelse {
+        const init_func = self.wasm.getFunction("simulo__start") orelse {
             self.remote.log("program missing init function", .{});
             return error.MissingFunction;
         };
 
         self.wasm_funcs = .{
             .init = init_func,
-            .update = self.wasm.getFunction("__update") orelse {
+            .update = self.wasm.getFunction("simulo__update") orelse {
                 self.remote.log("program missing update function", .{});
                 return error.MissingFunction;
             },
-            .recalculate_transform = self.wasm.getFunction("__recalculate_transform") orelse {
+            .recalculate_transform = self.wasm.getFunction("simulo__recalculate_transform") orelse {
                 self.remote.log("program missing recalculate_transform function", .{});
                 return error.MissingFunction;
             },
-            .pose = self.wasm.getFunction("__pose") orelse {
+            .pose = self.wasm.getFunction("simulo__pose") orelse {
                 self.remote.log("program missing pose function", .{});
                 return error.MissingFunction;
             },
-            .drop = self.wasm.getFunction("__drop") orelse {
+            .drop = self.wasm.getFunction("simulo__drop") orelse {
                 self.remote.log("program missing drop function", .{});
                 return error.MissingFunction;
             },
