@@ -19,13 +19,13 @@ pub fn globalInit(allocator: std.mem.Allocator) !void {
     try std.fs.cwd().makePath(object_dir);
 }
 
-pub fn getFilePath(buf: []u8, name: []const u8) std.fmt.BufPrintError![]const u8 {
-    return std.fmt.bufPrint(buf, "{s}/{s}", .{ data_dir.?, name });
+pub fn getFilePath(buf: []u8, name: []const u8) std.fmt.BufPrintError![:0]const u8 {
+    return std.fmt.bufPrintZ(buf, "{s}/{s}", .{ data_dir.?, name });
 }
 
-pub fn getCachePath(buf: []u8, hash: *const [32]u8) std.fmt.BufPrintError![]const u8 {
+pub fn getCachePath(buf: []u8, hash: *const [32]u8) std.fmt.BufPrintError![:0]const u8 {
     const hash_hex = std.fmt.bytesToHex(hash, .lower);
-    return std.fmt.bufPrint(buf, "{s}/objects/{s}", .{ data_dir.?, hash_hex });
+    return std.fmt.bufPrintZ(buf, "{s}/objects/{s}", .{ data_dir.?, hash_hex });
 }
 
 pub fn readCachedFile(hash: *const [32]u8, allocator: std.mem.Allocator, max_size: usize) ![]const u8 {
