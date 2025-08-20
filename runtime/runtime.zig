@@ -6,7 +6,6 @@ const Mat4 = engine.math.Mat4;
 
 const util = @import("util");
 const reflect = util.reflect;
-const Slab = util.Slab;
 
 const fs_storage = @import("fs_storage.zig");
 
@@ -39,53 +38,6 @@ const Vertex = struct {
     tex_coord: @Vector(2, f32) align(8),
 };
 
-pub const GameObject = struct {
-    id: usize,
-    deleted: bool,
-
-    children: ?util.IntSet(usize, 64),
-    parent: ?usize,
-    wasm_this: i32,
-
-    pub fn init(parent: ?usize) GameObject {
-        return .{
-            .id = undefined,
-            .deleted = false,
-            .children = null,
-            .parent = parent,
-            .wasm_this = undefined,
-        };
-    }
-
-    pub fn addChild(self: *GameObject, runtime: *Runtime, child: usize) void {
-        if (self.children) |*children| {
-            children.put(runtime.allocator, child) catch |err| util.crash.oom(err);
-        } else {
-            var children = util.IntSet(usize, 64).init(runtime.allocator, 1) catch |err| util.crash.oom(err);
-            children.put(runtime.allocator, child) catch |err| util.crash.oom(err);
-            self.children = children;
-        }
-
-        const child_obj = runtime.objects.get(child) orelse {
-            runtime.remote.log("tried to add non-existent child {d} to object {d}", .{ child, self.id });
-            return;
-        };
-        child_obj.parent = self.id;
-    }
-
-    pub fn deinit(self: *GameObject, runtime: *Runtime) void {
-        if (self.deleted) {
-            return;
-        }
-
-        if (self.children) |*children| {
-            children.deinit(runtime.allocator);
-        }
-
-        self.deleted = true;
-    }
-};
-
 const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 0.0, 0.0 }, .tex_coord = .{ 0.0, 0.0 } },
     .{ .position = .{ 1.0, 0.0, 0.0 }, .tex_coord = .{ 1.0, 0.0 } },
@@ -113,9 +65,7 @@ pub const Runtime = struct {
     },
     wasm_pose_buffer: ?[*]f32,
     wasm_transform_buffer: ?[*]f32,
-    objects: Slab(GameObject),
-    isolated_objects: util.IntSet(usize, 16),
-    root_object: ?usize,
+    scene: engine.Scene,
     images: std.ArrayList(Renderer.ImageHandle),
     random: std.Random.Xoshiro256,
     outdated_object_transforms: util.IntSet(u32, 128),
@@ -180,13 +130,8 @@ pub const Runtime = struct {
         runtime.wasm_funcs = null;
         runtime.wasm_pose_buffer = null;
         runtime.wasm_transform_buffer = null;
-        runtime.objects = try Slab(GameObject).init(runtime.allocator, 64);
-        errdefer runtime.objects.deinit();
-
-        runtime.isolated_objects = try util.IntSet(usize, 16).init(runtime.allocator, 1);
-        errdefer runtime.isolated_objects.deinit(runtime.allocator);
-
-        runtime.root_object = null;
+        runtime.scene = try engine.Scene.init(runtime.allocator);
+        errdefer runtime.scene.deinit();
 
         runtime.images = try std.ArrayList(Renderer.ImageHandle).initCapacity(runtime.allocator, 4);
 
@@ -217,18 +162,8 @@ pub const Runtime = struct {
         self.eyeguard.deinit();
         self.images.deinit();
 
-        if (self.root_object) |id| {
-            self.deinitObject(id);
-        }
+        self.scene.deinit();
 
-        for (0..self.isolated_objects.bucketCount()) |bucket| {
-            for (self.isolated_objects.bucketItems(bucket)) |id| {
-                self.deinitObject(id);
-            }
-        }
-        self.isolated_objects.deinit(self.allocator);
-
-        self.objects.deinit();
         self.outdated_object_transforms.deinit(self.allocator);
         self.pose_detector.stop();
         self.renderer.deinit();
@@ -242,17 +177,8 @@ pub const Runtime = struct {
             self.remote.log("wasm deinit failed: {any}", .{err});
         };
 
-        if (self.root_object) |id| {
-            self.deinitObject(id);
-            self.root_object = null;
-        }
-
-        for (0..self.isolated_objects.bucketCount()) |bucket| {
-            for (self.isolated_objects.bucketItems(bucket)) |id| {
-                self.deinitObject(id);
-            }
-        }
-        self.isolated_objects.clear();
+        self.scene.deinit();
+        self.scene = try engine.Scene.init(self.allocator);
 
         // TODO: delete images
         self.images.clearRetainingCapacity();
@@ -322,23 +248,6 @@ pub const Runtime = struct {
         }
     }
 
-    fn deinitObject(self: *Runtime, id: usize) void {
-        const obj = self.objects.get(id).?;
-
-        if (obj.children) |*children| {
-            for (0..children.bucketCount()) |bucket| {
-                for (children.bucketItems(bucket)) |child_id| {
-                    self.deinitObject(child_id);
-                }
-            }
-        }
-
-        obj.deinit(self);
-        self.objects.delete(id) catch {
-            self.remote.log("tried to delete non-existent object {d}", .{id});
-        };
-    }
-
     fn tryRunLatestProgram(self: *Runtime) void {
         const program_info = fs_storage.loadLatestProgram() catch |err| {
             self.remote.log("failed to load latest program: {s}", .{@errorName(err)});
@@ -394,9 +303,15 @@ pub const Runtime = struct {
             try self.processPoseDetections();
 
             if (self.calibrated) {
-                const deltaf: f32 = @floatFromInt(delta);
-                if (self.root_object) |id| {
-                    self.updateObject(id, deltaf / 1000);
+                if (self.scene.root_object) |root_id| {
+                    const deltaf: f32 = @floatFromInt(delta);
+                    const Updater = struct {
+                        const Data = struct { runtime: *Runtime, delta: f32 };
+                        fn update(user_data: Data, _: u32, obj: *engine.Object) void {
+                            _ = user_data.runtime.wasm.callFunction(user_data.runtime.wasm_funcs.?.update, .{ obj.this, user_data.delta }) catch unreachable;
+                        }
+                    };
+                    self.scene.dfs(root_id, Updater.Data, .{ .runtime = self, .delta = deltaf / 1000 }, Updater.update) catch unreachable;
                 }
             }
 
@@ -461,19 +376,6 @@ pub const Runtime = struct {
         }
     }
 
-    fn updateObject(self: *Runtime, id: usize, delta: f32) void {
-        const obj = self.objects.get(id) orelse return;
-        _ = self.wasm.callFunction(self.wasm_funcs.?.update, .{ obj.wasm_this, delta }) catch unreachable;
-
-        if (obj.children) |*children| {
-            for (0..children.bucketCount()) |bucket| {
-                for (children.bucketItems(bucket)) |child_id| {
-                    self.updateObject(child_id, delta);
-                }
-            }
-        }
-    }
-
     fn processPoseDetections(self: *Runtime) !void {
         const width: f32 = @floatFromInt(self.last_window_width);
         const height: f32 = @floatFromInt(self.last_window_height);
@@ -531,8 +433,8 @@ pub const Runtime = struct {
     fn recalculateOutdatedTransforms(self: *Runtime) void {
         for (0..self.outdated_object_transforms.bucketCount()) |bucket| {
             for (self.outdated_object_transforms.bucketItems(bucket)) |obj_id| {
-                const obj = self.objects.get(obj_id).?;
-                _ = self.wasm.callFunction(self.wasm_funcs.?.recalculate_transform, .{obj.wasm_this}) catch unreachable;
+                const obj = self.scene.get(obj_id).?;
+                _ = self.wasm.callFunction(self.wasm_funcs.?.recalculate_transform, .{obj.this}) catch unreachable;
                 const col_array = self.wasm_transform_buffer.?;
                 const transform = Mat4.fromColumnMajorPtr(col_array);
                 // TODO: All objects (whether rendered or not) will have transforms
@@ -549,14 +451,19 @@ pub const Runtime = struct {
 
     fn wasmSetRoot(user_ptr: *anyopaque, id: u32, this: i32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
+        const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to set root of non-existent object {d}", .{id});
             return;
         };
 
-        obj.wasm_this = this;
-        runtime.root_object = id;
-        std.debug.assert(runtime.isolated_objects.delete(@intCast(id)));
+        obj.this = this;
+
+        runtime.scene.setRoot(id) catch |err| {
+            switch (err) {
+                error.RootAlreadySet => runtime.remote.log("tried to set root to object {d} when it's already set", .{id}),
+                error.ObjectAlreadyHasParent => runtime.remote.log("tried to set root of object {d} that already has a parent", .{id}),
+            }
+        };
     }
 
     fn wasmSetBuffers(user_ptr: *anyopaque, pose_buffer: [*]f32, transform_buffer: [*]f32) void {
@@ -567,24 +474,24 @@ pub const Runtime = struct {
 
     fn wasmCreateObject(user_ptr: *anyopaque) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj_id = runtime.createObject();
-        runtime.isolated_objects.put(runtime.allocator, obj_id) catch |err| util.crash.oom(err);
+        const obj_id = runtime.scene.createObject() catch |err| util.crash.oom(err);
         return @intCast(obj_id);
     }
 
     fn wasmAddObjectChild(user_ptr: *anyopaque, parent: u32, child: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const parent_obj = runtime.objects.get(parent) orelse {
-            runtime.remote.log("tried to add non-existent child {d} to object {d}", .{ child, parent });
-            return;
+        runtime.scene.addChild(parent, child) catch |err| {
+            switch (err) {
+                error.ObjectNotFound => runtime.remote.log("tried to add non-existent child {d} to object {d}", .{ child, parent }),
+                error.ObjectAlreadyHasParent => runtime.remote.log("tried to add child {d} to object {d} that already has a parent", .{ child, parent }),
+                error.OutOfMemory => util.crash.oom(error.OutOfMemory),
+            }
         };
-        parent_obj.addChild(runtime, child);
-        std.debug.assert(runtime.isolated_objects.delete(@intCast(child)));
     }
 
     fn wasmGetChildren(user_ptr: *anyopaque, id: u32, out_children: [*]i32, count: u32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
+        const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to get children of non-existent object {d}", .{id});
             return 0;
         };
@@ -597,7 +504,7 @@ pub const Runtime = struct {
                         break :outer;
                     }
 
-                    out_children[i] = runtime.objects.get(child_id).?.wasm_this;
+                    out_children[i] = runtime.scene.get(child_id).?.this;
                     i += 1;
                 }
             }
@@ -608,29 +515,12 @@ pub const Runtime = struct {
 
     fn wasmSetObjectPtrs(user_ptr: *anyopaque, id: u32, this: i32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
+        const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to set object ptr of non-existent object {d}", .{id});
             return;
         };
 
-        obj.wasm_this = this;
-    }
-
-    pub fn createObject(self: *Runtime) usize {
-        const obj = GameObject.init(null);
-        const object_id, const obj_ptr = self.objects.insert(obj) catch |err| util.crash.oom(err);
-        obj_ptr.*.id = object_id;
-        return object_id;
-    }
-
-    pub fn deleteObject(self: *Runtime, id: usize) void {
-        self.objects.delete(id) catch {
-            self.remote.log("tried to delete non-existent object {d}", .{id});
-            return;
-        };
-
-        _ = self.outdated_object_transforms.delete(@intCast(id));
-        _ = self.isolated_objects.delete(@intCast(id));
+        obj.this = this;
     }
 
     fn deleteMaterial(self: *Runtime, id: u32) void {
@@ -640,42 +530,39 @@ pub const Runtime = struct {
 
     fn wasmRemoveObjectFromParent(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
+        const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to remove non-existent object {d}", .{id});
             return;
         };
 
         if (obj.parent) |parent| {
-            const parent_obj = runtime.objects.get(parent) orelse {
+            const parent_obj = runtime.scene.get(parent) orelse {
                 runtime.remote.log("tried to delete from non-existent parent {d} of object {d}", .{ parent, obj.id });
                 return;
             };
-            std.debug.assert(parent_obj.children.?.delete(obj.id));
-            runtime.deleteChildren(id);
-        }
-    }
 
-    fn deleteChildren(self: *Runtime, id: usize) void {
-        const obj = self.objects.get(id) orelse {
-            self.remote.log("tried to delete children of non-existent object {d}", .{id});
-            return;
-        };
-
-        if (obj.children) |*children| {
-            for (0..children.bucketCount()) |bucket| {
-                for (children.bucketItems(bucket)) |child_id| {
-                    self.deleteChildren(child_id);
+            const Dropper = struct {
+                fn drop(runtime_: *Runtime, _: u32, delete_obj: *engine.Object) void {
+                    delete_obj.deinit(runtime_.scene.allocator);
+                    _ = runtime_.wasm.callFunction(runtime_.wasm_funcs.?.drop, .{delete_obj.this}) catch unreachable;
                 }
-            }
-        }
+            };
 
-        obj.deinit(self);
-        _ = self.wasm.callFunction(self.wasm_funcs.?.drop, .{obj.wasm_this}) catch unreachable;
+            runtime.scene.dfs(id, *Runtime, runtime, Dropper.drop) catch unreachable;
+            std.debug.assert(parent_obj.children.?.delete(obj.id));
+        }
     }
 
     fn wasmDropObject(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        runtime.deleteObject(id);
+        runtime.scene.delete(id) catch |err| {
+            switch (err) {
+                error.ObjectNotFound => runtime.remote.log("tried to delete non-existent object {d}", .{id}),
+                error.ObjectHasChildren => runtime.remote.log("tried to delete object {d} that has children", .{id}),
+            }
+        };
+
+        _ = runtime.outdated_object_transforms.delete(@intCast(id));
     }
 
     fn wasmDeleteMaterial(user_ptr: *anyopaque, id: u32) void {
