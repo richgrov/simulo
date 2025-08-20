@@ -17,7 +17,7 @@ __attribute__((__import_name__("simulo_set_root")))
 extern void simulo_set_root(uint32_t id, void *self);
 
 __attribute__((__import_name__("simulo_create_object")))
-extern uint32_t simulo_create_object(uint32_t material);
+extern uint32_t simulo_create_object();
 
 __attribute__((__import_name__("simulo_set_object_ptrs")))
 extern void simulo_set_object_ptrs(uint32_t id, void *self);
@@ -31,14 +31,23 @@ extern uint32_t simulo_get_children(uint32_t id, void *children, uint32_t count)
 __attribute__((__import_name__("simulo_mark_transform_outdated")))
 extern void simulo_mark_transform_outdated(uint32_t id);
 
-__attribute__((__import_name__("simulo_set_object_material")))
-extern void simulo_set_object_material(uint32_t id, uint32_t material);
-
 __attribute__((__import_name__("simulo_remove_object_from_parent")))
 extern void simulo_remove_object_from_parent(uint32_t id);
 
 __attribute__((__import_name__("simulo_drop_object")))
 extern void simulo_drop_object(uint32_t);
+
+__attribute__((__import_name__("simulo_create_rendered_object")))
+extern uint32_t simulo_create_rendered_object(uint32_t material);
+
+__attribute__((__import_name__("simulo_set_rendered_object_material")))
+extern void simulo_set_rendered_object_material(uint32_t id, uint32_t material);
+
+__attribute__((__import_name__("simulo_set_rendered_object_transform")))
+extern void simulo_set_rendered_object_transform(uint32_t id, const float *transform);
+
+__attribute__((__import_name__("simulo_drop_rendered_object")))
+extern void simulo_drop_rendered_object(uint32_t id);
 
 __attribute__((__import_name__("simulo_random")))
 extern float simulo_random(void);
@@ -148,6 +157,7 @@ private:
    Material() : simulo__id(0) {}
 
    friend class Object;
+   friend class RenderedObject;
    uint32_t simulo__id;
 };
 
@@ -157,7 +167,7 @@ extern "C" void simulo__start();
 
 class Object {
 public:
-   Object(const Material &material) : simulo__id(simulo_create_object(material.simulo__id)) {}
+   Object() : simulo__id(simulo_create_object()) {}
 
    Object(const Object &) = delete;
    Object &operator=(const Object &) = delete;
@@ -195,6 +205,26 @@ public:
 private:
    friend void ::simulo__start();
    uint32_t simulo__id;
+};
+
+class RenderedObject : public Object {
+public:
+   RenderedObject(const Material &material) : Object(), simulo__render_id(simulo_create_rendered_object(material.simulo__id)) {
+      transform_outdated();
+   }
+
+   virtual glm::mat4 recalculate_transform() override {
+      glm::mat4 transform = Object::recalculate_transform();
+      simulo_set_rendered_object_transform(simulo__render_id, glm::value_ptr(transform));
+      return transform;
+   }
+
+   virtual ~RenderedObject() {
+      simulo_drop_rendered_object(simulo__render_id);
+   }
+
+private:
+   uint32_t simulo__render_id;
 };
 
 glm::ivec2 window_size() {

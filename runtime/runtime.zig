@@ -41,17 +41,15 @@ const Vertex = struct {
 
 pub const GameObject = struct {
     id: usize,
-    handle: Renderer.ObjectHandle,
     deleted: bool,
 
     children: ?util.IntSet(usize, 64),
     parent: ?usize,
     wasm_this: i32,
 
-    pub fn init(runtime: *Runtime, material: Renderer.MaterialHandle, parent: ?usize) error{OutOfMemory}!GameObject {
+    pub fn init(parent: ?usize) GameObject {
         return .{
             .id = undefined,
-            .handle = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), material, 0),
             .deleted = false,
             .children = null,
             .parent = parent,
@@ -85,7 +83,6 @@ pub const GameObject = struct {
         }
 
         self.deleted = true;
-        runtime.renderer.deleteObject(self.handle);
     }
 };
 
@@ -135,17 +132,24 @@ pub const Runtime = struct {
         errdefer Wasm.globalDeinit();
         try Wasm.exposeFunction("simulo_set_root", wasmSetRoot);
         try Wasm.exposeFunction("simulo_set_buffers", wasmSetBuffers);
+
         try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
         try Wasm.exposeFunction("simulo_add_object_child", wasmAddObjectChild);
         try Wasm.exposeFunction("simulo_get_children", wasmGetChildren);
         try Wasm.exposeFunction("simulo_set_object_ptrs", wasmSetObjectPtrs);
-        try Wasm.exposeFunction("simulo_set_object_material", wasmSetObjectMaterial);
         try Wasm.exposeFunction("simulo_mark_transform_outdated", wasmMarkTransformOutdated);
         try Wasm.exposeFunction("simulo_remove_object_from_parent", wasmRemoveObjectFromParent);
         try Wasm.exposeFunction("simulo_drop_object", wasmDropObject);
+
+        try Wasm.exposeFunction("simulo_create_rendered_object", wasmCreateRenderedObject);
+        try Wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
+        try Wasm.exposeFunction("simulo_set_rendered_object_transform", wasmSetRenderedObjectTransform);
+        try Wasm.exposeFunction("simulo_drop_rendered_object", wasmDropRenderedObject);
+
         try Wasm.exposeFunction("simulo_random", wasmRandom);
         try Wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
         try Wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
+
         try Wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
         try Wasm.exposeFunction("simulo_delete_material", wasmDeleteMaterial);
     }
@@ -531,7 +535,9 @@ pub const Runtime = struct {
                 _ = self.wasm.callFunction(self.wasm_funcs.?.recalculate_transform, .{obj.wasm_this}) catch unreachable;
                 const col_array = self.wasm_transform_buffer.?;
                 const transform = Mat4.fromColumnMajorPtr(col_array);
-                self.renderer.setObjectTransform(obj.handle, transform);
+                // TODO: All objects (whether rendered or not) will have transforms
+                // For now, no-op
+                _ = transform;
             }
         }
         self.outdated_object_transforms.clear();
@@ -559,9 +565,9 @@ pub const Runtime = struct {
         runtime.wasm_transform_buffer = transform_buffer;
     }
 
-    fn wasmCreateObject(user_ptr: *anyopaque, material_id: u32) u32 {
+    fn wasmCreateObject(user_ptr: *anyopaque) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj_id = runtime.createObject(.{ .id = material_id });
+        const obj_id = runtime.createObject();
         runtime.isolated_objects.put(runtime.allocator, obj_id) catch |err| util.crash.oom(err);
         return @intCast(obj_id);
     }
@@ -610,8 +616,8 @@ pub const Runtime = struct {
         obj.wasm_this = this;
     }
 
-    pub fn createObject(self: *Runtime, material: Renderer.MaterialHandle) usize {
-        const obj = GameObject.init(self, material, null) catch |err| util.crash.oom(err);
+    pub fn createObject(self: *Runtime) usize {
+        const obj = GameObject.init(null);
         const object_id, const obj_ptr = self.objects.insert(obj) catch |err| util.crash.oom(err);
         obj_ptr.*.id = object_id;
         return object_id;
@@ -677,18 +683,30 @@ pub const Runtime = struct {
         runtime.deleteMaterial(id);
     }
 
-    fn wasmSetObjectMaterial(user_ptr: *anyopaque, id: u32, material_id: u32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj = runtime.objects.get(id) orelse {
-            runtime.remote.log("tried to set material of non-existent object {d}", .{id});
-            return;
-        };
-        runtime.renderer.setObjectMaterial(obj.handle, .{ .id = material_id }) catch |err| util.crash.oom(err);
-    }
-
     fn wasmMarkTransformOutdated(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         runtime.markOutdatedTransform(@intCast(id));
+    }
+
+    fn wasmCreateRenderedObject(user_ptr: *anyopaque, material_id: u32) u32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), .{ .id = material_id }, 0) catch |err| util.crash.oom(err);
+        return obj.id;
+    }
+
+    fn wasmSetRenderedObjectMaterial(user_ptr: *anyopaque, id: u32, material_id: u32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.renderer.setObjectMaterial(.{ .id = id }, .{ .id = material_id }) catch |err| util.crash.oom(err);
+    }
+
+    fn wasmSetRenderedObjectTransform(user_ptr: *anyopaque, id: u32, transform: [*]f32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.renderer.setObjectTransform(.{ .id = id }, Mat4.fromColumnMajorPtr(transform));
+    }
+
+    fn wasmDropRenderedObject(user_ptr: *anyopaque, id: u32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.renderer.deleteObject(.{ .id = id });
     }
 
     fn wasmRandom(user_ptr: *anyopaque) f32 {

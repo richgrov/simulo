@@ -1,8 +1,8 @@
 #include "simulo__pre.h"
 
-class Particle : public Object {
+class Particle : public RenderedObject {
 public:
-   Particle(glm::vec2 position, const Material &material) : Object(material) {
+   Particle(glm::vec2 position, const Material &material) : RenderedObject(material) {
       this->position = position;
       scale = glm::vec2(10.0f, 10.0f);
       transform_outdated();
@@ -20,7 +20,7 @@ public:
 
 class Game : public Object {
 public:
-   Game(const Material &material) : Object(material), white_material_(material) {}
+   Game(const Material &material) : white_material_(material) {}
 
    static std::unique_ptr<Game> create() {
       Material material(kSolidTexture, 1.0f, 1.0f, 1.0f);
