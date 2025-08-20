@@ -217,23 +217,27 @@ pub const Renderer = struct {
         for (&self.render_collections) |*collection| {
             const material_pass_id = collection.material_passes.get(@intCast(material.id)) orelse continue;
             const material_pass: *MaterialPass = self.material_passes.get(material_pass_id).?;
-            defer material_pass.deinit();
+            defer {
+                material_pass.deinit();
+                _ = collection.material_passes.remove(@intCast(material.id));
+            }
 
             var it = material_pass.mesh_passes.keyIterator();
             while (it.next()) |key| {
                 const mesh: *MeshPass = self.mesh_passes.get(key.*).?;
                 defer mesh.deinit(self.allocator);
-                for (mesh.objects.data) |id| {
-                    self.objects.delete(id) catch unreachable;
+                for (0..mesh.objects.bucketCount()) |bucket_index| {
+                    for (mesh.objects.bucketItems(bucket_index)) |id| {
+                        self.objects.delete(id) catch |err| {
+                            std.debug.print("{any}: Object ID does not exist {d}\n", .{ err, id });
+                            unreachable;
+                        };
+                    }
                 }
             }
 
             std.debug.assert(collection.material_passes.remove(@intCast(material.id)));
         }
-
-        const mat = self.materials.get(@intCast(material.id)).?;
-        ffi.delete_material(self.handle, mat);
-        self.materials.delete(@intCast(material.id)) catch unreachable;
     }
 
     pub fn createImage(self: *Renderer, image_data: []const u8, width: i32, height: i32) ImageHandle {
