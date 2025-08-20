@@ -85,6 +85,7 @@ pub const Runtime = struct {
 
         try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
         try Wasm.exposeFunction("simulo_add_object_child", wasmAddObjectChild);
+        try Wasm.exposeFunction("simulo_num_children", wasmNumChildren);
         try Wasm.exposeFunction("simulo_get_children", wasmGetChildren);
         try Wasm.exposeFunction("simulo_set_object_ptrs", wasmSetObjectPtrs);
         try Wasm.exposeFunction("simulo_mark_transform_outdated", wasmMarkTransformOutdated);
@@ -489,28 +490,36 @@ pub const Runtime = struct {
         };
     }
 
-    fn wasmGetChildren(user_ptr: *anyopaque, id: u32, out_children: [*]i32, count: u32) u32 {
+    fn wasmNumChildren(user_ptr: *anyopaque, id: u32) u32 {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const obj = runtime.scene.get(id) orelse {
+            runtime.remote.log("tried to get number of children of non-existent object {d}", .{id});
+            return 0;
+        };
+
+        if (obj.children) |*children| {
+            return @intCast(children.count());
+        }
+
+        return 0;
+    }
+
+    fn wasmGetChildren(user_ptr: *anyopaque, id: u32, out_children: [*]i32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to get children of non-existent object {d}", .{id});
-            return 0;
+            return;
         };
 
         var i: usize = 0;
         if (obj.children) |*children| {
-            outer: for (0..children.bucketCount()) |bucket| {
+            for (0..children.bucketCount()) |bucket| {
                 for (children.bucketItems(bucket)) |child_id| {
-                    if (i >= count) {
-                        break :outer;
-                    }
-
                     out_children[i] = runtime.scene.get(child_id).?.this;
                     i += 1;
                 }
             }
         }
-
-        return @intCast(i);
     }
 
     fn wasmSetObjectPtrs(user_ptr: *anyopaque, id: u32, this: i32) void {

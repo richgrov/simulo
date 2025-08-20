@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float2.hpp"
@@ -25,8 +26,11 @@ extern void simulo_set_object_ptrs(uint32_t id, void *self);
 __attribute__((__import_name__("simulo_add_object_child")))
 extern void simulo_add_object_child(uint32_t parent, uint32_t child);
 
+__attribute__((__import_name__("simulo_num_children")))
+extern uint32_t simulo_num_children(uint32_t id);
+
 __attribute__((__import_name__("simulo_get_children")))
-extern uint32_t simulo_get_children(uint32_t id, void *children, uint32_t count);
+extern void simulo_get_children(uint32_t id, void *children);
 
 __attribute__((__import_name__("simulo_mark_transform_outdated")))
 extern void simulo_mark_transform_outdated(uint32_t id);
@@ -154,8 +158,6 @@ public:
    Material(uint32_t image, float r, float g, float b) : simulo__id(simulo_create_material(image, r, g, b)) {}
 
 private:
-   Material() : simulo__id(0) {}
-
    friend class Object;
    friend class RenderedObject;
    uint32_t simulo__id;
@@ -192,6 +194,12 @@ public:
       int id = object->simulo__id;
       simulo_set_object_ptrs(id, object.release());
       simulo_add_object_child(simulo__id, id);
+   }
+
+   std::vector<Object *> children() const {
+      std::vector<Object *> children(simulo_num_children(simulo__id));
+      simulo_get_children(simulo__id, children.data());
+      return children;
    }
 
    void delete_from_parent() {

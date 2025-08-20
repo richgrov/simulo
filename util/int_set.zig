@@ -96,6 +96,14 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
             return true;
         }
 
+        pub fn count(self: *const Self) usize {
+            var c: usize = 0;
+            for (self.sizes) |size| {
+                c += size;
+            }
+            return c;
+        }
+
         pub fn bucketCount(self: *const Self) usize {
             return self.sizes.len;
         }
