@@ -219,7 +219,7 @@ pub const Renderer = struct {
             const material_pass: *MaterialPass = self.material_passes.get(material_pass_id).?;
             defer {
                 material_pass.deinit();
-                _ = collection.material_passes.remove(@intCast(material.id));
+                _ = collection.material_passes.remove(@intCast(material_pass_id));
             }
 
             var it = material_pass.mesh_passes.keyIterator();
