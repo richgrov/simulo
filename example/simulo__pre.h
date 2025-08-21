@@ -52,6 +52,9 @@ extern int32_t simulo_window_height(void);
 __attribute__((__import_name__("simulo_create_material")))
 extern uint32_t simulo_create_material(uint32_t image, float r, float g, float b);
 
+__attribute__((__import_name__("simulo_unref_material")))
+extern void simulo_unref_material(uint32_t mat_id);
+
 __attribute__((__import_name__("simulo_delete_material")))
 extern void simulo_delete_material(uint32_t id);
 
@@ -144,7 +147,6 @@ class Material {
 public:
    Material(uint32_t image, float r, float g, float b) : simulo__id(simulo_create_material(image, r, g, b)) {}
 
-   uint32_t object_count = 0;
 private:
    Material() : simulo__id(0) {}
 
@@ -158,9 +160,7 @@ extern "C" void simulo__start();
 
 class Object {
 public:
-   Object(Material &material) : simulo__id(simulo_create_object(material.simulo__id)), material(material) {
-      this->material.object_count++;
-   }
+   Object(const Material &material) : simulo__id(simulo_create_object(material.simulo__id)), material(material) {}
 
    Object(const Object &) = delete;
    Object &operator=(const Object &) = delete;
@@ -168,12 +168,8 @@ public:
    Object &operator=(Object &&) = delete;
 
    virtual ~Object() {
-      material.object_count--;
       simulo_drop_object(simulo__id);
-      
-      if (material.object_count <= 0) {
-         simulo_delete_material(material.simulo__id);
-      }
+      simulo_unref_material(material.simulo__id);
    }
 
    virtual void update(float delta) {}
@@ -193,7 +189,6 @@ public:
    }
 
    void delete_from_parent() {
-      // this->material.object_count--;
       simulo_remove_object_from_parent(simulo__id);
    }
 
@@ -204,7 +199,7 @@ public:
 private:
    friend void ::simulo__start();
    uint32_t simulo__id;
-   Material &material;
+   const Material &material;
 };
 
 glm::ivec2 window_size() {

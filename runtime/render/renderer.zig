@@ -38,12 +38,25 @@ const MeshPass = struct {
 
 const MaterialPass = struct {
     mesh_passes: std.AutoHashMap(u16, u16),
+    // object_count: u32 = 0,
 
     pub fn init(allocator: std.mem.Allocator) MaterialPass {
         return MaterialPass{
             .mesh_passes = std.AutoHashMap(u16, u16).init(allocator),
         };
     }
+
+    // pub fn addObjectCounter(self: *MaterialPass) void {
+    //     self.object_count += 1;
+    // }
+
+    // pub fn removeObjectCounter(self: *MaterialPass) void {
+    //     self.object_count -= 1;
+
+    //     if (self.object_count == 0) {
+
+    //     }
+    // }
 
     pub fn deinit(self: *MaterialPass) void {
         self.mesh_passes.deinit();
@@ -176,6 +189,7 @@ pub const Renderer = struct {
             .material = @intCast(material.id),
             .render_order = render_order,
         });
+        // material_pass.object_count += 1;
         try mesh_pass.objects.put(self.allocator, @intCast(obj_id));
         return ObjectHandle{ .id = @intCast(obj_id) };
     }
@@ -211,12 +225,13 @@ pub const Renderer = struct {
         const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
         std.debug.assert(mesh_pass.objects.delete(@intCast(object.id)));
         self.objects.delete(object.id) catch unreachable;
+        // material_pass.object_count -= 1;
     }
 
     pub fn deleteMaterial(self: *Renderer, material: MaterialHandle) void {
         for (&self.render_collections) |*collection| {
             const material_pass_id = collection.material_passes.get(@intCast(material.id)) orelse continue;
-            const material_pass: *MaterialPass = self.material_passes.get(material_pass_id).?;
+            const material_pass = self.material_passes.get(material_pass_id).?;
             defer {
                 material_pass.deinit();
                 _ = collection.material_passes.remove(@intCast(material_pass_id));
@@ -237,6 +252,27 @@ pub const Renderer = struct {
             }
 
             std.debug.assert(collection.material_passes.remove(@intCast(material.id)));
+            std.debug.print("deleted material\n", .{});
+        }
+    }
+
+    pub fn unrefMaterial(self: *Renderer, mat_id: u32) void {
+        outer: for (self.render_collections) |collection| {
+            const material_pass_id = collection.material_passes.get(@intCast(mat_id)) orelse continue;
+            const material_pass: *MaterialPass = self.material_passes.get(material_pass_id).?;
+
+            var it = material_pass.mesh_passes.keyIterator();
+            while (it.next()) |key| {
+                const mesh_pass_id = material_pass.mesh_passes.get(key.*).?;
+                const mesh_pass: *MeshPass = self.mesh_passes.get(mesh_pass_id).?;
+
+                if (mesh_pass.objects.bucketCount() > 0) {
+                    std.debug.print("not empty mesh pass {}\n", .{mesh_pass.objects.bucketCount()});
+                    continue :outer;
+                }
+            }
+
+            self.deleteMaterial(.{ .id = mat_id });
         }
     }
 

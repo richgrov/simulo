@@ -148,6 +148,7 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
         try Wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
         try Wasm.exposeFunction("simulo_delete_material", wasmDeleteMaterial);
+        try Wasm.exposeFunction("simulo_unref_material", wasmUnrefMaterial);
     }
 
     pub fn globalDeinit() void {
@@ -632,6 +633,10 @@ pub const Runtime = struct {
         self.renderer.deleteMaterial(material_handle);
     }
 
+    fn unrefMaterial(self: *Runtime, mat_id: u32) void {
+        self.renderer.unrefMaterial(mat_id);
+    }
+
     fn wasmRemoveObjectFromParent(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         const obj = runtime.objects.get(id) orelse {
@@ -675,6 +680,11 @@ pub const Runtime = struct {
     fn wasmDeleteMaterial(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
         runtime.deleteMaterial(id);
+    }
+
+    fn wasmUnrefMaterial(user_ptr: *anyopaque, mat_id: u32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.unrefMaterial(mat_id);
     }
 
     fn wasmSetObjectMaterial(user_ptr: *anyopaque, id: u32, material_id: u32) void {
