@@ -214,7 +214,7 @@ pub const Renderer = struct {
         std.debug.assert(mesh_pass.objects.delete(@intCast(object.id)));
         self.objects.delete(object.id) catch unreachable;
         material_pass.object_count -= 1;
-        self.unrefMaterial(material_pass_id);
+        self.unrefMaterial(obj.material);
     }
 
     pub fn deleteMaterial(self: *Renderer, material: MaterialHandle) void {
