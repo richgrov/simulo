@@ -61,7 +61,7 @@ tar -xzf onnxruntime.tgz -C extern/onnxruntime --strip-components=1
 
 - Build the project
 ```
-zig build install --search-prefix extern/onnxruntime
+sh extern/run.sh
 ```
 
 - Run the tests

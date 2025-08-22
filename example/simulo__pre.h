@@ -52,9 +52,6 @@ extern int32_t simulo_window_height(void);
 __attribute__((__import_name__("simulo_create_material")))
 extern uint32_t simulo_create_material(uint32_t image, float r, float g, float b);
 
-__attribute__((__import_name__("simulo_unref_material")))
-extern void simulo_unref_material(uint32_t mat_id);
-
 __attribute__((__import_name__("simulo_delete_material")))
 extern void simulo_delete_material(uint32_t id);
 
@@ -169,7 +166,6 @@ public:
 
    virtual ~Object() {
       simulo_drop_object(simulo__id);
-      simulo_unref_material(material.simulo__id);
    }
 
    virtual void update(float delta) {}
