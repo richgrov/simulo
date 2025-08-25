@@ -223,6 +223,10 @@ fn compile(cpu_instructions: *std.ArrayList(u32), wasm_instructions: []const des
         switch (instruction) {
             .Unreachable => {},
             .If => |instr| {
+                if (instr.block_type != 0x40) {
+                    return error.InvalidBlockType;
+                }
+
                 var true_asm = try std.ArrayList(u32).initCapacity(cpu_instructions.allocator, 16);
                 try compile(&true_asm, instr.when_true, stack_depth);
 
@@ -286,14 +290,14 @@ fn compile(cpu_instructions: *std.ArrayList(u32), wasm_instructions: []const des
             .I32DivS => {
                 try assembler.pop(Register.x2);
                 try assembler.pop(Register.x1);
-                try assembler.div_reg_to_reg(Register.x1, Register.x2, Register.x0);
+                try assembler.sdiv_reg_to_reg(Register.x1, Register.x2, Register.x0);
                 try assembler.push(Register.x0);
                 stack_depth -= 1;
             },
             .I32DivU => {
                 try assembler.pop(Register.x2);
                 try assembler.pop(Register.x1);
-                try assembler.div_reg_to_reg(Register.x1, Register.x2, Register.x0);
+                try assembler.udiv_reg_to_reg(Register.x1, Register.x2, Register.x0);
                 try assembler.push(Register.x0);
                 stack_depth -= 1;
             },
@@ -314,7 +318,10 @@ fn compile(cpu_instructions: *std.ArrayList(u32), wasm_instructions: []const des
                 }
                 try assembler.ret();
             },
-            else => return error.InvalidInstruction,
+            else => {
+                std.log.err("unhandled instruction: {any}", .{instruction});
+                return error.InvalidInstruction;
+            },
         }
     }
 }

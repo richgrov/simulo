@@ -79,6 +79,11 @@ pub const Instruction = union(enum) {
     F64Const: f64,
     I32Eq: void,
     I32Add: void,
+    I32Sub: void,
+    I32Mul: void,
+    I32DivS: void,
+    I32DivU: void,
+    I32And: void,
     Misc: struct { opcode: u8, bytes: []const u8 },
     Plain: u8,
 };
@@ -453,11 +458,7 @@ fn parseInstruction(opcode: u8, d: *Deserializer, allocator: std.mem.Allocator) 
         0x6c => instr = .{ .I32Mul = {} },
         0x6d => instr = .{ .I32DivS = {} },
         0x6e => instr = .{ .I32DivU = {} },
-        0x6f => instr = .{ .I32RemS = {} },
-        0x70 => instr = .{ .I32RemU = {} },
         0x71 => instr = .{ .I32And = {} },
-        0x72 => instr = .{ .I32Or = {} },
-        0x73 => instr = .{ .I32Xor = {} },
         0xfc, 0xfd => {
             const start = d.index;
             _ = try d.readVarUint32();
