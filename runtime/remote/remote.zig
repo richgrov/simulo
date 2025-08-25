@@ -190,6 +190,14 @@ pub const Remote = struct {
         const host = build_options.api_host;
 
         while (@atomicLoad(bool, &self.running, .monotonic)) {
+            defer if (self.websocket_cli) |*ws| {
+                ws.close(.{}) catch |err| {
+                    std.log.err("couldn't close websocket: {any}", .{err});
+                };
+                ws.deinit();
+                self.websocket_cli = null;
+            };
+
             @atomicStore(bool, &self.authenticated, false, .release);
 
             std.log.info("Attempting to connect to websocket on {s}", .{host});
