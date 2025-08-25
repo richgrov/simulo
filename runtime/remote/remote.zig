@@ -62,8 +62,6 @@ pub const Remote = struct {
 
         const key_pair = try std.crypto.sign.Ed25519.KeyPair.generateDeterministic(private_key.*);
 
-        std.log.info("Attemping to connect to websocket on {s}", .{build_options.api_host});
-
         return Remote{
             .allocator = allocator,
             .id = id,
@@ -95,14 +93,11 @@ pub const Remote = struct {
         if (self.websocket_cli) |*ws| {
             ws.deinit();
         }
-
-        std.log.info("Closed websocket {s}\n", .{build_options.api_host});
     }
 
     pub fn start(self: *Remote) !void {
         self.ws_write_thread = try std.Thread.spawn(.{}, Remote.writeLoop, .{self});
         self.ws_conn_thread = try std.Thread.spawn(.{}, Remote.connectionLoop, .{self});
-        std.log.info("Connected to websocket on {s}", .{build_options.api_host});
     }
 
     pub fn log(self: *Remote, comptime fmt: []const u8, args: anytype) void {
@@ -192,19 +187,26 @@ pub const Remote = struct {
     }
 
     fn connectionLoop(self: *Remote) void {
+        const host = build_options.api_host;
+
         while (@atomicLoad(bool, &self.running, .monotonic)) {
             @atomicStore(bool, &self.authenticated, false, .release);
 
+            std.log.info("Attempting to connect to websocket on {s}", .{host});
             self.tryConnect() catch |err| {
                 std.log.err("could not connect: {any}", .{err});
                 self.exponentialSleep();
                 continue;
             };
 
+            std.log.info("Connected to websocket on {s}", .{host});
+
             if (self.ws_read_thread) |thread| {
                 thread.join();
                 self.ws_read_thread = null;
             }
+
+            std.log.info("Closed websocket {s}", .{host});
         }
     }
 
