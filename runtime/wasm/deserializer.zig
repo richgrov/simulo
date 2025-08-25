@@ -449,6 +449,15 @@ fn parseInstruction(opcode: u8, d: *Deserializer, allocator: std.mem.Allocator) 
         },
         0x46 => instr = .{ .I32Eq = {} },
         0x6a => instr = .{ .I32Add = {} },
+        0x6b => instr = .{ .I32Sub = {} },
+        0x6c => instr = .{ .I32Mul = {} },
+        0x6d => instr = .{ .I32DivS = {} },
+        0x6e => instr = .{ .I32DivU = {} },
+        0x6f => instr = .{ .I32RemS = {} },
+        0x70 => instr = .{ .I32RemU = {} },
+        0x71 => instr = .{ .I32And = {} },
+        0x72 => instr = .{ .I32Or = {} },
+        0x73 => instr = .{ .I32Xor = {} },
         0xfc, 0xfd => {
             const start = d.index;
             _ = try d.readVarUint32();

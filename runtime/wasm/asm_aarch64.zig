@@ -112,6 +112,31 @@ const Assembler = struct {
         try self.memory.append(base | (@intFromEnum(src_a) << 16) | (@intFromEnum(src_b) << 5) | @intFromEnum(dst));
     }
 
+    pub fn sub_reg_to_reg(self: *Assembler, src_a: Register, src_b: Register, dst: Register) !void {
+        const base = 0b11101011000000000000000000000000;
+        try self.memory.append(base | (@intFromEnum(src_b) << 16) | (@intFromEnum(src_a) << 5) | @intFromEnum(dst));
+    }
+
+    pub fn mul_reg_to_reg(self: *Assembler, src_a: Register, src_b: Register, dst: Register) !void {
+        const base = 0b10011011000000000111110000000000;
+        try self.memory.append(base | (@intFromEnum(src_a) << 16) | (@intFromEnum(src_b) << 5) | @intFromEnum(dst));
+    }
+
+    pub fn sdiv_reg_to_reg(self: *Assembler, src_a: Register, src_b: Register, dst: Register) !void {
+        const base = 0b10011010110000000000110000000000;
+        try self.memory.append(base | (@intFromEnum(src_b) << 16) | (@intFromEnum(src_a) << 5) | @intFromEnum(dst));
+    }
+
+    pub fn udiv_reg_to_reg(self: *Assembler, src_a: Register, src_b: Register, dst: Register) !void {
+        const base = 0b10011010110000000000100000000000;
+        try self.memory.append(base | (@intFromEnum(src_b) << 16) | (@intFromEnum(src_a) << 5) | @intFromEnum(dst));
+    }
+
+    pub fn and_reg_to_reg(self: *Assembler, src_a: Register, src_b: Register, dst: Register) !void {
+        const base = 0b10001010000000000000000000000000;
+        try self.memory.append(base | (@intFromEnum(src_a) << 16) | (@intFromEnum(src_b) << 5) | @intFromEnum(dst));
+    }
+
     pub fn sub_imm32(self: *Assembler, src: Register, dest: Register, imm: u12) !void {
         const base = 0b01010001000000000000000000000000;
         try self.memory.append(base | (@as(u32, @intCast(imm)) << 10) | (@intFromEnum(src) << 5) | @intFromEnum(dest));
@@ -241,6 +266,41 @@ fn compile(cpu_instructions: *std.ArrayList(u32), wasm_instructions: []const des
                 try assembler.pop(Register.x2);
                 try assembler.pop(Register.x1);
                 try assembler.add_reg_to_reg(Register.x1, Register.x2, Register.x0);
+                try assembler.push(Register.x0);
+                stack_depth -= 1;
+            },
+            .I32Sub => {
+                try assembler.pop(Register.x2);
+                try assembler.pop(Register.x1);
+                try assembler.sub_reg_to_reg(Register.x1, Register.x2, Register.x0);
+                try assembler.push(Register.x0);
+                stack_depth -= 1;
+            },
+            .I32Mul => {
+                try assembler.pop(Register.x2);
+                try assembler.pop(Register.x1);
+                try assembler.mul_reg_to_reg(Register.x1, Register.x2, Register.x0);
+                try assembler.push(Register.x0);
+                stack_depth -= 1;
+            },
+            .I32DivS => {
+                try assembler.pop(Register.x2);
+                try assembler.pop(Register.x1);
+                try assembler.div_reg_to_reg(Register.x1, Register.x2, Register.x0);
+                try assembler.push(Register.x0);
+                stack_depth -= 1;
+            },
+            .I32DivU => {
+                try assembler.pop(Register.x2);
+                try assembler.pop(Register.x1);
+                try assembler.div_reg_to_reg(Register.x1, Register.x2, Register.x0);
+                try assembler.push(Register.x0);
+                stack_depth -= 1;
+            },
+            .I32And => {
+                try assembler.pop(Register.x2);
+                try assembler.pop(Register.x1);
+                try assembler.and_reg_to_reg(Register.x1, Register.x2, Register.x0);
                 try assembler.push(Register.x0);
                 stack_depth -= 1;
             },
