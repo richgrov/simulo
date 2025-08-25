@@ -475,8 +475,7 @@ pub const Runtime = struct {
 
     fn wasmCreateObject(user_ptr: *anyopaque) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const obj_id = runtime.scene.createObject() catch |err| util.crash.oom(err);
-        return @intCast(obj_id);
+        return runtime.scene.createObject() catch |err| util.crash.oom(err);
     }
 
     fn wasmAddObjectChild(user_ptr: *anyopaque, parent: u32, child: u32) void {
