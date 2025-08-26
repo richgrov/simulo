@@ -477,11 +477,9 @@ fn freeInstructions(allocator: std.mem.Allocator, slice: []Instruction) void {
         switch (inst) {
             .If => |if_instr| {
                 freeInstructions(allocator, if_instr.when_true);
-                allocator.free(if_instr.when_true);
 
                 if (if_instr.when_false) |false_instrs| {
                     freeInstructions(allocator, false_instrs);
-                    allocator.free(false_instrs);
                 }
             },
             .BrTable => |bt| allocator.free(bt.targets),
