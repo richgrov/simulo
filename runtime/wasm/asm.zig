@@ -4,12 +4,12 @@ const builtin = @import("builtin");
 const aarch64 = @import("asm_aarch64.zig");
 const Module = @import("deserializer.zig").Module;
 
-pub const CompileResult = switch (builtin.target.cpu.arch) {
-    .aarch64 => aarch64.CompileResult,
+pub const CompiledModule = switch (builtin.target.cpu.arch) {
+    .aarch64 => aarch64.CompiledModule,
     else => @compileError("unsupported architecture"),
 };
 
-pub fn writeAssembly(target: *anyopaque, module: *const Module, allocator: std.mem.Allocator) CompileResult {
+pub fn writeAssembly(target: []u8, module: *const Module, allocator: std.mem.Allocator) !CompiledModule {
     return switch (builtin.target.cpu.arch) {
         .aarch64 => aarch64.writeAssembly(target, module, allocator),
         else => @compileError("unsupported architecture"),
