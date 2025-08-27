@@ -160,8 +160,9 @@ pub const Wasm = struct {
             const compiled_module = try assembly.writeAssembly(buffer, &raw_module, allocator);
 
             allocation.finishAllocation(buffer, 4 * 1024);
-            const func = (try compiled_module.getFunction("compare_ten", fn (i32) callconv(.C) i32)).?;
-            std.debug.print("{}\n", .{func(2)});
+            const func = (try compiled_module.getFunction("math_operations", fn (i32, i32, i32, i32) callconv(.C) i32)).?;
+            std.debug.print("{}\n", .{func(2, 3, 5, 7)});
+            // 2+3+(5-7)+(2*3)+(0)+(0)+(5 & 7)
             std.process.exit(0);
 
             self.buffer = buffer;
