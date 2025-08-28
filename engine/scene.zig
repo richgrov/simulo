@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 const util = @import("util");
-const Slab = util.Slab;
+const CheckedSlab = util.CheckedSlab;
 
 pub const Object = struct {
     id: u32,
@@ -37,21 +37,16 @@ pub const Object = struct {
 
 pub const Scene = struct {
     allocator: std.mem.Allocator,
-    objects: Slab(Object),
-    isolated_objects: util.IntSet(u32, 16),
+    objects: CheckedSlab(Object),
     root_object: ?u32,
 
     pub fn init(allocator: std.mem.Allocator) error{OutOfMemory}!Scene {
-        var objects = try Slab(Object).init(allocator, 128);
+        var objects = try CheckedSlab(Object).init(allocator, 128);
         errdefer objects.deinit();
-
-        var isolated_objects = try util.IntSet(u32, 16).init(allocator, 1);
-        errdefer isolated_objects.deinit(allocator);
 
         return .{
             .allocator = allocator,
             .objects = objects,
-            .isolated_objects = isolated_objects,
             .root_object = null,
         };
     }
@@ -69,21 +64,19 @@ pub const Scene = struct {
             self.root_object = null;
         }
 
-        for (0..self.isolated_objects.bucketCount()) |bucket| {
-            for (self.isolated_objects.bucketItems(bucket)) |id| {
-                self.dfs(id, *Scene, self, Deleter.deinit) catch unreachable;
+        for (0..self.objects.num_cells()) |id| {
+            if (self.objects.get(id)) |obj| {
+                Deleter.deinit(self, @intCast(id), obj);
             }
         }
 
         self.objects.deinit();
-        self.isolated_objects.deinit(self.allocator);
     }
 
     pub fn createObject(self: *Scene) error{OutOfMemory}!u32 {
         const obj = Object.init();
         const object_id, const obj_ptr = try self.objects.insert(obj);
         obj_ptr.*.id = @intCast(object_id);
-        try self.isolated_objects.put(self.allocator, @intCast(object_id));
         return @intCast(object_id);
     }
 
@@ -106,17 +99,11 @@ pub const Scene = struct {
             try children.put(self.allocator, child);
             parent_obj.children = children;
         }
-
-        std.debug.assert(self.isolated_objects.delete(child));
     }
 
     pub fn setRoot(self: *Scene, id: u32) error{ RootAlreadySet, ObjectAlreadyHasParent }!void {
         if (self.root_object) |_| {
             return error.RootAlreadySet;
-        }
-
-        if (!self.isolated_objects.delete(id)) {
-            return error.ObjectAlreadyHasParent;
         }
 
         self.root_object = id;
@@ -135,7 +122,6 @@ pub const Scene = struct {
         }
 
         self.objects.delete(id) catch return error.ObjectNotFound;
-        _ = self.isolated_objects.delete(id);
     }
 
     pub fn dfs(

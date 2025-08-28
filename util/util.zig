@@ -5,7 +5,7 @@ pub const reflect = @import("reflect.zig");
 pub const vulkan = @import("platform.zig").vulkan;
 
 pub const Slab = @import("slab.zig").Slab;
-pub const FixedSlab = @import("fixed_slab.zig").FixedSlab;
+pub const CheckedSlab = @import("checked_slab.zig").CheckedSlab;
 pub const FixedArrayList = @import("fixed_arraylist.zig").FixedArrayList;
 pub const IntSet = @import("int_set.zig").IntSet;
 pub const SparseIntSet = @import("packed_set.zig").SparseIntSet;
@@ -29,7 +29,7 @@ test {
     comptime {
         _ = reflect;
         _ = Slab;
-        _ = FixedSlab;
+        _ = CheckedSlab;
         _ = FixedArrayList;
         _ = IntSet;
         _ = SparseIntSet;
