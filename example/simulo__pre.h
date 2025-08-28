@@ -165,7 +165,7 @@ private:
 
 static uint32_t kSolidTexture;
 
-extern "C" void simulo__start();
+extern "C" void simulo_main();
 
 class Object {
 public:
@@ -211,7 +211,7 @@ public:
    glm::vec2 scale{1.0f, 1.0f};
 
 private:
-   friend void ::simulo__start();
+   friend void ::simulo_main();
    uint32_t simulo__id;
 };
 

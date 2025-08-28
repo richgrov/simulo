@@ -195,7 +195,7 @@ pub const Runtime = struct {
             return error.WasmInitFailed;
         };
 
-        const init_func = self.wasm.getFunction("simulo__start") orelse {
+        const init_func = self.wasm.getFunction("simulo_main") orelse {
             self.remote.log("program missing init function", .{});
             return error.MissingFunction;
         };

@@ -5,7 +5,7 @@ static std::unique_ptr<Game> root_object;
 static float simulo__pose_data[17 * 2] = {0};
 static float simulo__transform_data[16] = {0};
 
-void simulo__start() {
+void simulo_main() {
    kSolidTexture = std::numeric_limits<uint32_t>::max();
    simulo_set_buffers(simulo__pose_data, simulo__transform_data);
 
