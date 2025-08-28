@@ -10,3 +10,9 @@ pub const Object = scene.Object;
 pub const Scene = scene.Scene;
 
 pub const profiler = @import("profiler.zig");
+
+test {
+    comptime {
+        _ = midi;
+    }
+}
