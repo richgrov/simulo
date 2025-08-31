@@ -23,7 +23,7 @@ public:
    Game(const Material &material) : white_material_(material) {}
 
    static std::unique_ptr<Game> create() {
-      Material material(kSolidTexture, 1.0f, 1.0f, 1.0f);
+      Material material(nullptr, 1.0f, 1.0f, 1.0f);
       return std::make_unique<Game>(material);
    }
 

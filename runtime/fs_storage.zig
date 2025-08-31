@@ -37,24 +37,34 @@ pub fn readCachedFile(hash: *const [32]u8, allocator: std.mem.Allocator, max_siz
     };
 }
 
-pub fn storeLatestProgram(program_hash: *const [32]u8, asset_hashes: []const [32]u8) !void {
+pub fn storeLatestProgram(program_hash: *const [32]u8, assets: []const ProgramAsset) !void {
     var latest_info_buf: [128]u8 = undefined;
     const latest_info_path = getFilePath(&latest_info_buf, "latest") catch unreachable;
     const latest_info = try std.fs.cwd().createFile(latest_info_path, .{});
     defer latest_info.close();
 
     const writer = latest_info.writer();
-    try writer.writeAll(&[_]u8{0}); // version
+    try writer.writeAll(&[_]u8{1}); // version
     try writer.writeAll(program_hash);
-    try writer.writeInt(u8, @intCast(asset_hashes.len), .big);
-    for (asset_hashes) |asset_hash| {
-        try writer.writeAll(&asset_hash);
+    try writer.writeInt(u8, @intCast(assets.len), .big);
+    for (assets) |asset| {
+        try writer.writeAll(&asset.hash);
+        const name = asset.name.?;
+        try writer.writeInt(u8, @intCast(name.len), .big);
+        try writer.writeAll(name.items());
     }
 }
 
+pub const max_asset_name_len = 64;
+
+pub const ProgramAsset = struct {
+    name: ?FixedArrayList(u8, max_asset_name_len),
+    hash: [32]u8,
+};
+
 pub const ProgramInfo = struct {
     program_hash: [32]u8,
-    asset_hashes: FixedArrayList([32]u8, 16),
+    assets: FixedArrayList(ProgramAsset, 16),
 };
 
 pub fn loadLatestProgram() !?ProgramInfo {
@@ -71,7 +81,7 @@ pub fn loadLatestProgram() !?ProgramInfo {
     const reader = latest_info.reader();
 
     const version = try reader.readInt(u8, .big);
-    if (version != 0) return error.InvalidVersion;
+    if (version > 1) return error.InvalidVersion;
 
     var program_hash: [32]u8 = undefined;
     try reader.readNoEof(&program_hash);
@@ -79,11 +89,25 @@ pub fn loadLatestProgram() !?ProgramInfo {
     const num_assets = try reader.readInt(u8, .big);
     if (num_assets > 16) return error.InvalidNumAssets;
 
-    var assets = FixedArrayList([32]u8, 16).init();
+    var assets = FixedArrayList(ProgramAsset, 16).init();
     for (0..num_assets) |_| {
         var hash: [32]u8 = undefined;
         try reader.readNoEof(&hash);
-        try assets.append(hash);
+
+        var maybe_name: ?FixedArrayList(u8, max_asset_name_len) = null;
+        if (version > 0) {
+            var name = FixedArrayList(u8, max_asset_name_len).init();
+            const asset_name_len = try reader.readInt(u8, .big);
+            if (asset_name_len > max_asset_name_len) return error.AssetNameTooLong;
+            name.len = asset_name_len;
+            try reader.readNoEof(name.items());
+            maybe_name = name;
+        }
+
+        try assets.append(.{
+            .name = maybe_name,
+            .hash = hash,
+        });
     }
 
     return ProgramInfo{

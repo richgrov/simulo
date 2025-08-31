@@ -9,6 +9,14 @@ pub fn FixedArrayList(comptime T: type, comptime capacity: u32) type {
             return .{};
         }
 
+        pub fn initFrom(from: []const T) !Self {
+            var self = Self.init();
+            if (from.len > capacity) return error.TooManyItems;
+            self.len = @intCast(from.len);
+            @memcpy(self.data[0..from.len], from);
+            return self;
+        }
+
         pub fn append(self: *Self, item: T) !void {
             if (self.len == capacity) return error.OutOfMemory;
             self.data[self.len] = item;

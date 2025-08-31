@@ -66,7 +66,7 @@ pub const Runtime = struct {
     wasm_pose_buffer: ?[*]f32,
     wasm_transform_buffer: ?[*]f32,
     scene: engine.Scene,
-    images: std.ArrayList(Renderer.ImageHandle),
+    assets: std.StringHashMap(?Renderer.ImageHandle),
     random: std.Random.Xoshiro256,
     outdated_object_transforms: util.IntSet(u32, 128),
     last_ping: i64,
@@ -134,14 +134,14 @@ pub const Runtime = struct {
         runtime.scene = try engine.Scene.init(runtime.allocator);
         errdefer runtime.scene.deinit();
 
-        runtime.images = try std.ArrayList(Renderer.ImageHandle).initCapacity(runtime.allocator, 4);
+        runtime.assets = std.StringHashMap(?Renderer.ImageHandle).init(runtime.allocator);
+        errdefer runtime.assets.deinit();
 
         runtime.outdated_object_transforms = try util.IntSet(u32, 128).init(runtime.allocator, 64);
         errdefer runtime.outdated_object_transforms.deinit(runtime.allocator);
 
         runtime.last_ping = std.time.milliTimestamp();
 
-        errdefer runtime.images.deinit();
         const now: u64 = @bitCast(std.time.microTimestamp());
         runtime.random = std.Random.Xoshiro256.init(now);
 
@@ -161,7 +161,12 @@ pub const Runtime = struct {
             self.remote.log("wasm deinit failed: {any}", .{err});
         };
         self.eyeguard.deinit();
-        self.images.deinit();
+
+        var assets_keys = self.assets.keyIterator();
+        while (assets_keys.next()) |key| {
+            self.allocator.free(key.*);
+        }
+        self.assets.deinit();
 
         self.scene.deinit();
 
@@ -173,7 +178,7 @@ pub const Runtime = struct {
         self.remote.deinit();
     }
 
-    fn runProgram(self: *Runtime, program_hash: *const [32]u8, asset_hashes: []const [32]u8) !void {
+    fn runProgram(self: *Runtime, program_hash: *const [32]u8, assets: []const fs_storage.ProgramAsset) !void {
         self.wasm.deinit() catch |err| {
             self.remote.log("wasm deinit failed: {any}", .{err});
         };
@@ -181,8 +186,12 @@ pub const Runtime = struct {
         self.scene.deinit();
         self.scene = try engine.Scene.init(self.allocator);
 
-        // TODO: delete images
-        self.images.clearRetainingCapacity();
+        var assets_keys = self.assets.iterator();
+        while (assets_keys.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+            // TODO: delete image if present
+        }
+        self.assets.clearRetainingCapacity();
 
         var local_path_buf: [1024]u8 = undefined;
         const local_path = build_options.wasm_path orelse (fs_storage.getCachePath(&local_path_buf, program_hash) catch unreachable);
@@ -222,9 +231,9 @@ pub const Runtime = struct {
         self.wasm_pose_buffer = null;
         self.wasm_transform_buffer = null;
 
-        for (asset_hashes) |asset_hash| {
+        for (assets) |*asset| {
             var image_path_buf: [1024]u8 = undefined;
-            const image_path = fs_storage.getCachePath(&image_path_buf, &asset_hash) catch unreachable;
+            const image_path = fs_storage.getCachePath(&image_path_buf, &asset.hash) catch unreachable;
             const image_data = std.fs.cwd().readFileAlloc(self.allocator, image_path, 10 * 1024 * 1024) catch |err| {
                 self.remote.log("failed to read asset file at {s}: {s}", .{ image_path, @errorName(err) });
                 return error.AssertReadFailed;
@@ -237,7 +246,9 @@ pub const Runtime = struct {
             };
 
             const image = self.renderer.createImage(image_info.data, image_info.width, image_info.height);
-            self.images.append(image) catch |err| util.crash.oom(err);
+
+            const name = self.allocator.dupe(u8, asset.name.?.items()) catch |err| util.crash.oom(err);
+            self.assets.put(name, image) catch |err| util.crash.oom(err);
         }
 
         if (self.calibrated) {
@@ -264,7 +275,7 @@ pub const Runtime = struct {
 
     pub fn run(self: *Runtime) !void {
         if (build_options.wasm_path) |_| {
-            self.runProgram(undefined, &[_][32]u8{}) catch unreachable;
+            self.runProgram(undefined, &[_]fs_storage.ProgramAsset{}) catch unreachable;
         } else {
             self.tryRunLatestProgram();
         }
@@ -349,27 +360,27 @@ pub const Runtime = struct {
                             should_run = false;
                         };
 
-                        for (download.assets) |asset| {
+                        for (download.files) |file| {
                             var dest_path_buf: [1024]u8 = undefined;
-                            const dest_path = fs_storage.getCachePath(&dest_path_buf, &asset.hash) catch unreachable;
+                            const dest_path = fs_storage.getCachePath(&dest_path_buf, &file.asset.hash) catch unreachable;
 
-                            self.remote.fetch(asset.url, &asset.hash, dest_path) catch |err| {
+                            self.remote.fetch(file.url, &file.asset.hash, dest_path) catch |err| {
                                 self.remote.log("asset download failed: {s}", .{@errorName(err)});
                                 should_run = false;
                             };
                         }
 
-                        var asset_hashes = util.FixedArrayList([32]u8, 64).init();
-                        for (download.assets) |asset| {
-                            try asset_hashes.append(asset.hash);
+                        var assets = util.FixedArrayList(fs_storage.ProgramAsset, 64).init();
+                        for (download.files) |file| {
+                            try assets.append(file.asset);
                         }
 
-                        fs_storage.storeLatestProgram(&download.program_hash, asset_hashes.items()) catch |err| {
+                        fs_storage.storeLatestProgram(&download.program_hash, assets.items()) catch |err| {
                             self.remote.log("failed to store latest info: {s}", .{@errorName(err)});
                         };
 
                         if (should_run) {
-                            try self.runProgram(&download.program_hash, asset_hashes.items());
+                            try self.runProgram(&download.program_hash, assets.items());
                         }
                     },
                 }
@@ -619,9 +630,18 @@ pub const Runtime = struct {
         return runtime.window.getHeight();
     }
 
-    fn wasmCreateMaterial(user_ptr: *anyopaque, image_id: u32, r: f32, g: f32, b: f32) u32 {
+    fn wasmCreateMaterial(user_ptr: *anyopaque, name: [*c]u8, r: f32, g: f32, b: f32) u32 {
         const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
-        const image = if (image_id == std.math.maxInt(u32)) runtime.white_pixel_texture else runtime.images.items[image_id];
+        const image = if (!runtime.wasm.isNullptr(name)) cond: {
+            const name_slice = std.mem.span(name);
+            if (runtime.assets.get(name_slice)) |image| {
+                break :cond image.?;
+            } else {
+                runtime.remote.log("tried to create material with non-texture asset {s}", .{name});
+                return 0;
+            }
+        } else runtime.white_pixel_texture;
+
         const material = runtime.renderer.createUiMaterial(image, r, g, b) catch |err| util.crash.oom(err);
         return material.id;
     }

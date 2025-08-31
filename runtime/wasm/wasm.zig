@@ -240,4 +240,8 @@ pub const Wasm = struct {
         }
         return wasm_args[0];
     }
+
+    pub fn isNullptr(self: *Wasm, ptr: *anyopaque) bool {
+        return wasm.wasm_runtime_addr_native_to_app(self.module_instance, ptr) == 0;
+    }
 };

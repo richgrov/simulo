@@ -62,8 +62,8 @@ extern int32_t simulo_window_width(void);
 __attribute__((__import_name__("simulo_window_height")))
 extern int32_t simulo_window_height(void);
 
-__attribute__((__import_name__("simulo_create_material")))
-extern uint32_t simulo_create_material(uint32_t image, float r, float g, float b);
+__attribute__((__import_name__("simulo_create_material"))) extern uint32_t
+simulo_create_material(const char *asset_name, float r, float g, float b);
 
 __attribute__((__import_name__("simulo_delete_material")))
 extern void simulo_delete_material(uint32_t id);
@@ -155,15 +155,14 @@ class Object;
 
 class Material {
 public:
-   Material(uint32_t image, float r, float g, float b) : simulo__id(simulo_create_material(image, r, g, b)) {}
+   Material(const char *asset_name, float r, float g, float b)
+       : simulo__id(simulo_create_material(asset_name, r, g, b)) {}
 
 private:
    friend class Object;
    friend class RenderedObject;
    uint32_t simulo__id;
 };
-
-static uint32_t kSolidTexture;
 
 extern "C" void simulo_main();
 

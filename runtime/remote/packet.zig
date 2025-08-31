@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const fs_storage = @import("../fs_storage.zig");
+
 const util = @import("util");
 
 const engine = @import("engine");
@@ -115,14 +117,14 @@ pub fn outboundProfile(profiler: []const u8, labels: profile.Labels, logs: []con
 
 pub const DownloadFile = struct {
     url: []u8,
-    hash: [32]u8,
+    asset: fs_storage.ProgramAsset,
 };
 
 pub const Packet = union(enum) {
     download: struct {
         program_url: []u8,
         program_hash: [32]u8,
-        assets: []const DownloadFile,
+        files: []const DownloadFile,
     },
 
     pub fn from(allocator: std.mem.Allocator, data: []u8) !Packet {
@@ -138,16 +140,21 @@ pub const Packet = union(enum) {
                     return error.InvalidNumFiles;
                 }
 
-                const assets = try allocator.alloc(DownloadFile, num_files);
-                for (assets) |*asset| {
-                    asset.url = try reader.readString(1024, allocator);
-                    try reader.readFull(&asset.hash);
+                const files = try allocator.alloc(DownloadFile, num_files);
+                for (files) |*file| {
+                    const name = try reader.readString(fs_storage.max_asset_name_len, allocator);
+                    defer allocator.free(name);
+                    file.asset.name = util.FixedArrayList(u8, fs_storage.max_asset_name_len).initFrom(name) catch unreachable;
+
+                    file.url = try reader.readString(1024, allocator);
+
+                    try reader.readFull(&file.asset.hash);
                 }
 
                 return Packet{ .download = .{
                     .program_url = program_url,
                     .program_hash = program_hash,
-                    .assets = assets,
+                    .files = files,
                 } };
             },
             else => return error.UnknownPacketId,
@@ -158,10 +165,10 @@ pub const Packet = union(enum) {
         switch (self.*) {
             .download => |download| {
                 allocator.free(download.program_url);
-                for (download.assets) |asset| {
-                    allocator.free(asset.url);
+                for (download.files) |file| {
+                    allocator.free(file.url);
                 }
-                allocator.free(download.assets);
+                allocator.free(download.files);
             },
         }
     }
