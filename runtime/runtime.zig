@@ -268,7 +268,7 @@ pub const Runtime = struct {
         };
 
         if (program_info) |info| {
-            self.runProgram(&info.program_hash, info.asset_hashes.items()) catch |err| {
+            self.runProgram(&info.program_hash, info.assets.items()) catch |err| {
                 self.remote.log("failed to run latest program: {s}", .{@errorName(err)});
             };
         }
