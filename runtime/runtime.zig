@@ -102,6 +102,7 @@ pub const Runtime = struct {
         try Wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
 
         try Wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
+        try Wasm.exposeFunction("simulo_update_material", wasmUpdateMaterial);
         try Wasm.exposeFunction("simulo_delete_material", wasmDeleteMaterial);
     }
 
@@ -644,6 +645,11 @@ pub const Runtime = struct {
 
         const material = runtime.renderer.createUiMaterial(image, r, g, b) catch |err| util.crash.oom(err);
         return material.id;
+    }
+
+    fn wasmUpdateMaterial(user_ptr: *anyopaque, id: u32, r: f32, g: f32, b: f32) void {
+        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        runtime.renderer.updateMaterial(.{ .id = id }, r, g, b);
     }
 };
 

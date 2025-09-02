@@ -75,6 +75,13 @@ Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g
    );
 }
 
+void update_material(Renderer *renderer, Material *material, float r, float g, float b) {
+      UiUniform data{
+         .color = Vec3{r, g, b}
+      };
+   std::memcpy([material->uniform_buffer contents], &data, sizeof(data));
+}
+
 Mesh create_mesh(
     Renderer *renderer, uint8_t *vertex_data, size_t vertex_data_size, IndexBufferType *index_data,
     size_t index_count

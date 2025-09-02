@@ -198,6 +198,11 @@ pub const Renderer = struct {
         try new_mesh_pass.objects.put(self.allocator, @intCast(object.id));
     }
 
+    pub fn updateMaterial(self: *Renderer, material: MaterialHandle, r: f32, g: f32, b: f32) void {
+        const mat = self.materials.get(material.id).?;
+        ffi.update_material(self.handle, mat, r, g, b);
+    }
+
     pub fn setObjectTransform(self: *Renderer, object: ObjectHandle, transform: Mat4) void {
         self.objects.get(object.id).?.transform = transform;
     }

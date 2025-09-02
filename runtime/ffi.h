@@ -148,14 +148,17 @@ bool find_chessboard(OpenCvMat *mat, int pattern_width, int pattern_height, FfiM
 
 Renderer *create_renderer(Gpu *gpu, const Window *window);
 void destroy_renderer(Renderer *renderer);
+
 Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b);
 uint32_t create_mesh_material(Renderer *renderer, float r, float g, float b);
+void update_material(Renderer *renderer, Material *material, float r, float g, float b);
+void delete_material(Renderer *renderer, Material *material);
+
 Mesh create_mesh(
     Renderer *renderer, uint8_t *vertex_data, size_t vertex_data_size, IndexBufferType *index_data,
     size_t index_count
 );
 void delete_mesh(Renderer *renderer, Mesh *mesh);
-void delete_material(Renderer *renderer, Material *material);
 uint32_t
 add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_t material_id);
 void delete_object(Renderer *renderer, uint32_t object_id);
