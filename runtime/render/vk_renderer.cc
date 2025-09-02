@@ -498,7 +498,7 @@ void set_pipeline(Renderer *renderer, uint32_t pipeline_id) {
 }
 
 void set_material(Renderer *renderer, Material *material) {
-   Renderer::MaterialPipeline last = renderer->last_bound_pipeline_;
+   Renderer::MaterialPipeline *last = renderer->last_bound_pipeline_;
    uint32_t offsets[] = {
        static_cast<uint32_t>(material->uniform_buffer_index * last->uniforms.element_size())
    };
