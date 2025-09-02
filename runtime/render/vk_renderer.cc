@@ -276,7 +276,7 @@ Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g
 }
 
 void update_material(Renderer *renderer, Material *material, float r, float g, float b) {
-   Renderer::MaterialPipeline &mat = renderer->pipelines_[material->uniform_buffer_index];
+   Renderer::MaterialPipeline &mat = renderer->pipelines_[renderer->pipeline_ids_.ui];
 
    UiUniform data{.color = Vec3{r, g, b}};
    mat.uniforms.upload_memory(&data, sizeof(data), material->uniform_buffer_index);
