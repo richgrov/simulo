@@ -100,7 +100,7 @@ pub fn loadLatestProgram() !?ProgramInfo {
             const asset_name_len = try reader.readInt(u8, .big);
             if (asset_name_len > max_asset_name_len) return error.AssetNameTooLong;
             name.len = asset_name_len;
-            try reader.readNoEof(name.items());
+            try reader.readNoEof(name.itemsMut());
             maybe_name = name;
         }
 
@@ -112,6 +112,6 @@ pub fn loadLatestProgram() !?ProgramInfo {
 
     return ProgramInfo{
         .program_hash = program_hash,
-        .asset_hashes = assets,
+        .assets = assets,
     };
 }
