@@ -285,6 +285,13 @@ pub const Remote = struct {
         @atomicStore(u64, &self.reconnect_delay_ms, MIN_RECONNECT_DELAY_MS, .seq_cst);
     }
 
+    pub fn serverPing(self: *Remote, data: []u8) !void {
+        // There is a bug in the websocket library that causes pings to corrupt the TLS connection,
+        // so responding to pings is turned off for now.
+        _ = self;
+        _ = data;
+    }
+
     pub fn serverClose(self: *Remote, data: []u8) !void {
         var ok = true;
         if (data.len >= 2) {
