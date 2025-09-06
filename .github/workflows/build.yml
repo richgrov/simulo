@@ -119,4 +119,4 @@ jobs:
       - name: Upload install artifact
         uses: actions/upload-artifact@v4
         with:
-          path: install
+          path: zig-out/bin
