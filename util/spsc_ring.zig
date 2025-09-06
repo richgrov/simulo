@@ -104,7 +104,7 @@ test "Sequential write-heavy" {
                     std.testing.expectEqual(i, @as(u32, out)) catch unreachable;
                     break;
                 }
-                std.time.sleep(std.time.ns_per_ms);
+                std.Thread.sleep(std.time.ns_per_ms);
             }
         }
     };
@@ -128,7 +128,7 @@ test "Sequential read-heavy" {
                     };
                     break;
                 }
-                std.time.sleep(std.time.ns_per_ms);
+                std.Thread.sleep(std.time.ns_per_ms);
             }
         }
 
