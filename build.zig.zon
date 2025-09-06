@@ -35,12 +35,7 @@
     // `zig build --fetch` can be used to fetch all dependencies of a package, recursively.
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
-    .dependencies = .{
-        .websocket = .{
-            .url = "git+https://github.com/karlseguin/websocket.zig/?ref=HEAD#5cfef4a734cee40c5386f87905ea483313efd4d2",
-            .hash = "websocket-0.1.0-ZPISdWFwAwDwbZ0Zy7S7QWICrgOsWFxHxDu1t4WesVVm",
-        },
-    },
+    .dependencies = .{},
     .paths = .{
         "build.zig",
         "build.zig.zon",

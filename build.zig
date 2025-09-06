@@ -9,16 +9,12 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const custom_api_host = b.option([]const u8, "api_host", "Override API host") orelse "api.simulo.tech";
-    const custom_api_port = b.option(u16, "api_port", "Override API port") orelse 443;
-    const api_tls = b.option(bool, "api_tls", "Use TLS for API connection") orelse true;
+    const custom_api_url = b.option([]const u8, "api_url", "Override API URL") orelse "https://api.simulo.tech";
     const wasm_path = b.option([]const u8, "wasm_path", "Override path to read WASM binary from");
     const new_wasm = b.option(bool, "new_wasm", "Use the experimental WASM JIT compiler") orelse false;
 
     const options = b.addOptions();
-    options.addOption([]const u8, "api_host", custom_api_host);
-    options.addOption(u16, "api_port", custom_api_port);
-    options.addOption(bool, "api_tls", api_tls);
+    options.addOption([]const u8, "api_url", custom_api_url);
     options.addOption(?[]const u8, "wasm_path", wasm_path);
     options.addOption(bool, "new_wasm", new_wasm);
 
@@ -90,16 +86,10 @@ pub fn build(b: *std.Build) !void {
     //    editor.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
     //}
 
-    const websocket = b.dependency("websocket", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
     const runtime = createRuntime(b, optimize, target);
     runtime.addOptions("build_options", options);
     runtime.addImport("engine", engine);
     runtime.addImport("util", util);
-    runtime.addImport("websocket", websocket.module("websocket"));
     runtime.addRPathSpecial("@executable_path/../Frameworks");
     const runtime_exe = try bundleExe(b, "runtime", runtime, target.result.os.tag, &[_][]const u8{
         "runtime/inference/rtmo-m.onnx",

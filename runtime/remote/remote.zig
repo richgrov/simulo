@@ -5,7 +5,6 @@ const engine = @import("engine");
 const profile = engine.profiler;
 
 const util = @import("util");
-const websocket = @import("websocket");
 
 const Spsc = util.Spsc;
 const download = @import("./download.zig");
@@ -15,40 +14,20 @@ const Packet = packet.Packet;
 const MIN_RECONNECT_DELAY_MS: u64 = 1000;
 const MAX_RECONNECT_DELAY_MS: u64 = 16000;
 
-const OutboundMessage = union(enum) {
-    log: Remote.LogEntry,
-    ping: void,
-    profile: struct {
-        name: []const u8,
-        labels: profile.Labels,
-        logs: []const profile.Logs,
-    },
-};
+fn apiHost() []const u8 {
+    const noHttps = std.mem.trimStart(u8, build_options.api_url, "https://");
+    return std.mem.trimStart(u8, noHttps, "http://");
+}
 
 pub const Remote = struct {
-    pub const LogEntry = struct {
-        buf: [512]u8,
-        used: usize,
-    };
-
     allocator: std.mem.Allocator,
     id: []const u8,
     secret_key: std.crypto.sign.Ed25519.KeyPair,
 
-    host: []const u8,
-    port: u16,
-    tls: bool,
-
-    websocket_cli: ?websocket.Client = null,
-    client_lock: std.Thread.RwLock.DefaultRwLock = .{},
-    ws_conn_thread: ?std.Thread = null,
-    ws_read_thread: ?std.Thread = null,
-    ws_write_thread: ?std.Thread = null,
-
+    read_thread: ?std.Thread = null,
+    sse_handler: SseHandler = undefined,
     running: bool = true,
-    authenticated: bool = false,
     reconnect_delay_ms: u64 = MIN_RECONNECT_DELAY_MS,
-    log_queue: Spsc(OutboundMessage, 256),
     inbound_queue: Spsc(Packet, 128),
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, private_key: *const [32]u8) !Remote {
@@ -66,11 +45,6 @@ pub const Remote = struct {
             .allocator = allocator,
             .id = id,
             .secret_key = key_pair,
-            .host = build_options.api_host,
-            .port = build_options.api_port,
-            .tls = build_options.api_tls,
-            .websocket_cli = null,
-            .log_queue = Spsc(OutboundMessage, 256).init(),
             .inbound_queue = Spsc(Packet, 128).init(),
         };
     }
@@ -78,177 +52,108 @@ pub const Remote = struct {
     pub fn deinit(self: *Remote) void {
         @atomicStore(bool, &self.running, false, .seq_cst);
 
-        if (self.websocket_cli) |*ws| {
-            ws.close(.{}) catch |err| {
-                std.log.err("cwebsocket close error: {any}", .{err});
-            };
-        }
-
-        if (self.ws_conn_thread) |thread| {
+        if (self.read_thread) |*thread| {
             thread.join();
-        }
-        if (self.ws_write_thread) |thread| {
-            thread.join();
-        }
-        if (self.websocket_cli) |*ws| {
-            ws.deinit();
         }
     }
 
     pub fn start(self: *Remote) !void {
-        self.ws_write_thread = try std.Thread.spawn(.{}, Remote.writeLoop, .{self});
-        self.ws_conn_thread = try std.Thread.spawn(.{}, Remote.connectionLoop, .{self});
+        self.read_thread = try std.Thread.spawn(.{}, Remote.readLoop, .{self});
     }
 
-    pub fn log(self: *Remote, comptime fmt: []const u8, args: anytype) void {
-        var log_entry = OutboundMessage{
-            .log = .{
-                .buf = undefined,
-                .used = undefined,
-            },
-        };
-
-        const msg = std.fmt.bufPrintZ(&log_entry.log.buf, fmt, args) catch |err| {
-            std.log.err("couldn't format log message: {any}", .{err});
-            return;
-        };
-        log_entry.log.used = msg.len;
-
-        std.log.info("{s}", .{msg});
-        self.log_queue.enqueue(log_entry) catch {
-            std.log.err("log queue is full for {s}", .{msg});
-        };
+    pub fn log(_: *Remote, comptime fmt: []const u8, args: anytype) void {
+        std.log.info(fmt, args);
     }
 
-    pub fn sendPing(self: *Remote) void {
-        const log_entry = OutboundMessage{
-            .ping = {},
-        };
-        self.log_queue.enqueue(log_entry) catch {
-            std.log.err("log queue is full for ping", .{});
-        };
-    }
+    pub fn sendPing(_: *Remote) void {}
+    pub fn sendProfile(_: *Remote, _: anytype, _: []const profile.Logs) void {}
 
-    pub fn sendProfile(self: *Remote, profiler: anytype, logs: []const profile.Logs) void {
-        const log_entry = OutboundMessage{
-            .profile = .{
-                .name = profiler.profilerName(),
-                .labels = profiler.labels(),
-                .logs = logs,
-            },
-        };
-
-        self.log_queue.enqueue(log_entry) catch {
-            std.log.err("log queue is full for profiler logs", .{});
-        };
-    }
-
-    fn writeLoop(self: *Remote) void {
+    fn readLoop(self: *Remote) void {
         while (@atomicLoad(bool, &self.running, .monotonic)) {
-            std.Thread.sleep(std.time.ns_per_ms * 100);
+            var payload_buf: [64]u8 = undefined;
+            const payload = std.fmt.bufPrint(&payload_buf, "{d}", .{std.time.milliTimestamp()}) catch unreachable;
 
-            if (!@atomicLoad(bool, &self.authenticated, .acquire)) {
-                continue;
-            }
-
-            self.client_lock.lockShared();
-            defer self.client_lock.unlockShared();
-            const ws = if (self.websocket_cli) |*cli| cli else continue;
-
-            while (self.log_queue.tryDequeue()) |log_entry| {
-                switch (log_entry) {
-                    .log => |entry| {
-                        var entry_mut = entry;
-                        const msg = entry_mut.buf[0..entry_mut.used];
-                        ws.writeText(msg) catch |err| {
-                            std.log.err("couldn't write log message '{s}': {any}", .{ msg, err });
-                        };
-                    },
-                    .ping => {
-                        ws.writePing(&[0]u8{}) catch |err| {
-                            std.log.err("couldn't write ping: {any}", .{err});
-                        };
-                    },
-                    .profile => |profile_result| {
-                        var pkt = packet.outboundProfile(profile_result.name, profile_result.labels, profile_result.logs) catch |err| {
-                            comptime if (@TypeOf(err) != error{PacketTooLong}) unreachable;
-                            std.log.err("profile packet was too long to serialize", .{});
-                            continue;
-                        };
-
-                        ws.writeBin(pkt.bytes()) catch |err| {
-                            std.log.err("couldn't write profile: {any}", .{err});
-                        };
-                    },
-                }
-            }
-        }
-        std.log.info("remote write loop has exited", .{});
-    }
-
-    fn connectionLoop(self: *Remote) void {
-        const host = build_options.api_host;
-
-        while (@atomicLoad(bool, &self.running, .monotonic)) {
-            defer if (self.websocket_cli) |*ws| {
-                ws.close(.{}) catch |err| {
-                    std.log.err("couldn't close websocket: {any}", .{err});
-                };
-                ws.deinit();
-                self.websocket_cli = null;
-            };
-
-            @atomicStore(bool, &self.authenticated, false, .release);
-
-            std.log.info("Attempting to connect to websocket on {s}", .{host});
-            self.tryConnect() catch |err| {
-                std.log.err("could not connect: {any}", .{err});
+            const signature = self.secret_key.sign(payload, null) catch |err| {
+                std.log.err("couldn't sign payload: {any}", .{err});
                 self.exponentialSleep();
                 continue;
             };
 
-            std.log.info("Connected to websocket on {s}", .{host});
+            const signature_bytes = std.fmt.bytesToHex(signature.toBytes(), .lower);
 
-            if (self.ws_read_thread) |thread| {
-                thread.join();
-                self.ws_read_thread = null;
+            var url_buf: [1024]u8 = undefined;
+            const url = std.fmt.bufPrint(
+                &url_buf,
+                build_options.api_url ++ "/machines/{s}/events/v1?timestamp={s}&signature={s}",
+                .{
+                    self.id,
+                    payload,
+                    signature_bytes,
+                },
+            ) catch unreachable;
+
+            std.log.info("Attempting cloud connection to {s}", .{url});
+            defer std.log.info("Closed cloud connection", .{});
+
+            var client = std.http.Client{ .allocator = self.allocator };
+            defer client.deinit();
+
+            var sse_buf: [1024 * 8]u8 = undefined;
+            self.sse_handler = SseHandler.init(self.allocator, &sse_buf, &Remote.onEvent);
+
+            const response = client.fetch(.{
+                .method = .GET,
+                .location = .{ .url = url },
+                .headers = .{ .host = .{ .override = comptime apiHost() } },
+                .response_writer = &self.sse_handler.interface,
+            }) catch |err| {
+                std.log.err("couldn't connect to cloud: {any}", .{err});
+                self.exponentialSleep();
+                continue;
+            };
+
+            if (response.status != .ok) {
+                std.log.err("couldn't connect to cloud: {s}: {s}", .{ @tagName(response.status), self.sse_handler.data.items });
+                self.exponentialSleep();
+                continue;
             }
 
-            std.log.info("Closed websocket {s}", .{host});
+            std.log.info("Connected to cloud", .{});
         }
     }
 
-    fn tryConnect(self: *Remote) !void {
-        var ws = try websocket.Client.init(self.allocator, .{
-            .host = self.host,
-            .port = self.port,
-            .tls = self.tls,
-        });
-        errdefer ws.deinit();
+    fn onEvent(handler: *SseHandler, data: []const u8) void {
+        if (std.mem.eql(u8, data, "keep-alive")) {
+            return;
+        }
 
-        try ws.handshake("/", .{
-            .timeout_ms = 5000,
-            .headers = "Host: " ++ build_options.api_host,
-        });
+        const prefix_len = ("data:").len;
+        if (data.len < prefix_len) {
+            std.log.err("event data too short: {s}", .{data});
+            return;
+        }
 
-        self.ws_read_thread = try ws.readLoopInNewThread(self);
+        const len = std.base64.standard.Decoder.calcSizeForSlice(data[prefix_len..]) catch |err| {
+            std.log.err("message's size couldn't be calculated: {s}: {s}", .{ @errorName(err), data });
+            return;
+        };
 
-        const signature = try self.secret_key.sign(self.id, null);
-        const signature_bytes = signature.toBytes();
+        var b64_buf: [1024 * 8]u8 = undefined;
+        std.base64.standard.Decoder.decode(&b64_buf, data[prefix_len..]) catch |err| {
+            std.log.err("undecodable event: {s}: {s}", .{ @errorName(err), data });
+            return;
+        };
 
-        // auth message:
-        // id_length: u8
-        // id: [id_length]u8
-        // signature: [signature_bytes.len]u8
-        var message: [1 + 64 + signature_bytes.len]u8 = undefined;
-        message[0] = @intCast(self.id.len);
-        @memcpy(message[1 .. 1 + self.id.len], self.id);
-        @memcpy(message[1 + self.id.len .. 1 + self.id.len + signature_bytes.len], &signature_bytes);
-        try ws.writeBin(message[0 .. 1 + self.id.len + signature_bytes.len]);
+        const self: *Remote = @fieldParentPtr("sse_handler", handler);
+        const pkt = packet.Packet.from(self.allocator, b64_buf[0..len]) catch |err| {
+            std.log.err("invalid event: {s}: {x}", .{ @errorName(err), b64_buf[0..len] });
+            return;
+        };
 
-        self.client_lock.lock();
-        defer self.client_lock.unlock();
-        self.websocket_cli = ws;
+        self.inbound_queue.enqueue(pkt) catch |err| {
+            std.log.err("inbound event queue is full: {s}: {x}", .{ @errorName(err), b64_buf[0..len] });
+            return;
+        };
     }
 
     fn exponentialSleep(self: *Remote) void {
@@ -256,65 +161,6 @@ pub const Remote = struct {
         const new_delay = @min(delay * 2, MAX_RECONNECT_DELAY_MS);
         @atomicStore(u64, &self.reconnect_delay_ms, new_delay, .seq_cst);
         std.Thread.sleep(std.time.ns_per_ms * delay);
-    }
-
-    pub fn serverMessage(self: *Remote, data: []u8, ty: websocket.MessageTextType) !void {
-        errdefer self.exponentialSleep();
-
-        if (ty != .binary) {
-            std.log.err("got invalid {any} message type", .{ty});
-            return error.MessageNotBinary;
-        }
-
-        if (data.len > 8 * 1024) {
-            std.log.err("message too large ({d})", .{data.len});
-            return error.MessageTooLarge;
-        }
-
-        const msg = Packet.from(self.allocator, data) catch |err| {
-            std.log.err("couldn't parse message: {any}", .{err});
-            return error.MessageParseError;
-        };
-
-        self.inbound_queue.enqueue(msg) catch |err| {
-            std.log.err("couldn't enqueue message: {any}", .{err});
-            return error.MessageEnqueueError;
-        };
-
-        @atomicStore(bool, &self.authenticated, true, .release);
-        @atomicStore(u64, &self.reconnect_delay_ms, MIN_RECONNECT_DELAY_MS, .seq_cst);
-    }
-
-    pub fn serverPing(self: *Remote, data: []u8) !void {
-        // There is a bug in the websocket library that causes pings to corrupt the TLS connection,
-        // so responding to pings is turned off for now.
-        _ = self;
-        _ = data;
-    }
-
-    pub fn serverClose(self: *Remote, data: []u8) !void {
-        var ok = true;
-        if (data.len >= 2) {
-            const codeCodeHi: u16 = @intCast(data[0]);
-            const codeCodeLo: u16 = @intCast(data[1]);
-            const closeCode = codeCodeHi << 8 | codeCodeLo;
-            const closeReason = data[2..];
-            std.debug.print("Websocket closed: {d}: {s}\n", .{ closeCode, closeReason });
-
-            if (closeCode != 1000 and closeCode != 1001) {
-                ok = false;
-            }
-        }
-
-        if (self.websocket_cli) |*ws| {
-            try ws.close(.{});
-            ws.deinit();
-            self.websocket_cli = null;
-        }
-
-        if (!ok) {
-            self.exponentialSleep();
-        }
     }
 
     pub fn nextMessage(self: *Remote) ?Packet {
@@ -350,5 +196,60 @@ pub const Remote = struct {
         try dest.seekTo(0);
         const length = try download.download(url, dest, self.allocator);
         try dest.setEndPos(length);
+    }
+};
+
+const SseHandler = struct {
+    interface: std.io.Writer,
+    allocator: std.mem.Allocator,
+    data: std.ArrayList(u8),
+    on_event: *const fn (handler: *SseHandler, data: []const u8) void,
+
+    pub fn init(allocator: std.mem.Allocator, buf: []u8, on_event: *const fn (handler: *SseHandler, data: []const u8) void) SseHandler {
+        return .{
+            .interface = .{
+                .vtable = &std.io.Writer.VTable{
+                    .drain = SseHandler.drain,
+                },
+                .buffer = &[_]u8{},
+            },
+            .allocator = allocator,
+            .data = std.ArrayList(u8).initBuffer(buf),
+            .on_event = on_event,
+        };
+    }
+
+    fn drain(writer: *std.io.Writer, data: []const []const u8, splat: usize) error{WriteFailed}!usize {
+        const self: *SseHandler = @fieldParentPtr("interface", writer);
+
+        var n: usize = 0;
+
+        for (data, 0..) |chunk, i| {
+            const repeat = if (i == data.len - 1) splat else 1;
+
+            n += chunk.len * repeat;
+            var previous: u8 = 0;
+            for (0..repeat) |_| {
+                for (chunk) |c| {
+                    if (c == '\n') {
+                        if (previous == '\n') {
+                            self.on_event(self, self.data.items);
+                            self.data.clearRetainingCapacity();
+                            previous = 0;
+                        } else {
+                            previous = c;
+                        }
+                        continue;
+                    } else if (previous == '\n') {
+                        self.data.appendBounded('\n') catch return error.WriteFailed;
+                    }
+
+                    previous = c;
+                    self.data.appendBounded(c) catch return error.WriteFailed;
+                }
+            }
+        }
+
+        return n;
     }
 };

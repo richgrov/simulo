@@ -8,10 +8,10 @@ const engine = @import("engine");
 const profile = engine.profiler;
 
 const Reader = struct {
-    data: []u8,
+    data: []const u8,
     read_index: usize,
 
-    pub fn init(data: []u8) Reader {
+    pub fn init(data: []const u8) Reader {
         return Reader{
             .data = data,
             .read_index = 0,
@@ -37,7 +37,7 @@ const Reader = struct {
         self.read_index += dest.len;
     }
 
-    pub fn readString(self: *Reader, comptime max_len: usize, allocator: std.mem.Allocator) ![]u8 {
+    pub fn readString(self: *Reader, comptime max_len: usize, allocator: std.mem.Allocator) ![]const u8 {
         const len: usize = @intCast(try self.readInt(u16));
         if (len > max_len) {
             return error.InvalidStringLength;
@@ -116,18 +116,18 @@ pub fn outboundProfile(profiler: []const u8, labels: profile.Labels, logs: []con
 }
 
 pub const DownloadFile = struct {
-    url: []u8,
+    url: []const u8,
     asset: fs_storage.ProgramAsset,
 };
 
 pub const Packet = union(enum) {
     download: struct {
-        program_url: []u8,
+        program_url: []const u8,
         program_hash: [32]u8,
         files: []const DownloadFile,
     },
 
-    pub fn from(allocator: std.mem.Allocator, data: []u8) !Packet {
+    pub fn from(allocator: std.mem.Allocator, data: []const u8) !Packet {
         var reader = Reader.init(data);
         switch (try reader.readInt(u8)) {
             0 => {
