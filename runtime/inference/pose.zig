@@ -129,7 +129,7 @@ pub const PoseDetector = struct {
             self.logEvent(.{ .profile = self.profiler.end() });
 
             if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
-                std.time.sleep(std.time.ns_per_s / 2);
+                std.Thread.sleep(std.time.ns_per_s / 2);
             }
 
             const frame_idx = camera.swapBuffers() catch |err| {

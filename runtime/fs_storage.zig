@@ -43,7 +43,8 @@ pub fn storeLatestProgram(program_hash: *const [32]u8, assets: []const ProgramAs
     const latest_info = try std.fs.cwd().createFile(latest_info_path, .{});
     defer latest_info.close();
 
-    const writer = latest_info.writer();
+    var writer_struct = latest_info.writer(&.{});
+    var writer = &writer_struct.interface;
     try writer.writeAll(&[_]u8{1}); // version
     try writer.writeAll(program_hash);
     try writer.writeInt(u8, @intCast(assets.len), .big);
@@ -78,29 +79,36 @@ pub fn loadLatestProgram() !?ProgramInfo {
     };
     defer latest_info.close();
 
-    const reader = latest_info.reader();
+    var buf: [32]u8 = undefined;
+    var reader_struct = latest_info.reader(&buf);
+    var reader = &reader_struct.interface;
 
-    const version = try reader.readInt(u8, .big);
-    if (version > 1) return error.InvalidVersion;
+    var version: [1]u8 = undefined;
+    try reader.readSliceEndian(u8, &version, .big);
+    if (version[0] > 1) return error.InvalidVersion;
 
     var program_hash: [32]u8 = undefined;
-    try reader.readNoEof(&program_hash);
+    try reader.readSliceAll(&program_hash);
 
-    const num_assets = try reader.readInt(u8, .big);
-    if (num_assets > 16) return error.InvalidNumAssets;
+    var num_assets: [1]u8 = undefined;
+    try reader.readSliceEndian(u8, &num_assets, .big);
+    if (num_assets[0] > 16) return error.InvalidNumAssets;
 
     var assets = FixedArrayList(ProgramAsset, 16).init();
-    for (0..num_assets) |_| {
+    for (0..num_assets[0]) |_| {
         var hash: [32]u8 = undefined;
-        try reader.readNoEof(&hash);
+        try reader.readSliceAll(&hash);
 
         var maybe_name: ?FixedArrayList(u8, max_asset_name_len) = null;
-        if (version > 0) {
+        if (version[0] > 0) {
             var name = FixedArrayList(u8, max_asset_name_len).init();
-            const asset_name_len = try reader.readInt(u8, .big);
-            if (asset_name_len > max_asset_name_len) return error.AssetNameTooLong;
-            name.len = asset_name_len;
-            try reader.readNoEof(name.itemsMut());
+
+            var asset_name_len: [1]u8 = undefined;
+            try reader.readSliceEndian(u8, &asset_name_len, .big);
+            if (asset_name_len[0] > max_asset_name_len) return error.AssetNameTooLong;
+
+            name.len = asset_name_len[0];
+            try reader.readSliceAll(name.itemsMut());
             maybe_name = name;
         }
 

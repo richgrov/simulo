@@ -7,10 +7,10 @@ const MAP_JIT = 0x800;
 const MAP_ANONYMOUS = 0x1000;
 const MAP_FAILED: *anyopaque = @ptrFromInt(0xFFFFFFFFFFFFFFFF);
 
-extern fn mmap(addr: ?*anyopaque, len: usize, prot: c_int, flags: c_int, fd: c_int, offset: usize) callconv(.C) *align(16) anyopaque;
-extern fn munmap(addr: *anyopaque, len: usize) callconv(.C) c_int;
-extern fn pthread_jit_write_protect_np(enable: c_int) callconv(.C) void;
-extern fn sys_icache_invalidate(addr: *anyopaque, len: usize) callconv(.C) void;
+extern fn mmap(addr: ?*anyopaque, len: usize, prot: c_int, flags: c_int, fd: c_int, offset: usize) callconv(.c) *align(16) anyopaque;
+extern fn munmap(addr: *anyopaque, len: usize) callconv(.c) c_int;
+extern fn pthread_jit_write_protect_np(enable: c_int) callconv(.c) void;
+extern fn sys_icache_invalidate(addr: *anyopaque, len: usize) callconv(.c) void;
 
 pub fn allocateExecutable(len: usize) !*anyopaque {
     const ptr = mmap(null, len, PROT.EXEC | PROT.WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);

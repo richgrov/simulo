@@ -232,7 +232,7 @@ pub const Inference = struct {
         return out_idx;
     }
 
-    fn get_tensor_shape(self: *Inference, tensor: *ort.OrtValue) !std.ArrayList(i64) {
+    fn get_tensor_shape(self: *Inference, tensor: *ort.OrtValue) !std.array_list.Managed(i64) {
         var type_shape_info: ?*ort.OrtTensorTypeAndShapeInfo = null;
         try errIfStatus(self.ort_api.GetTensorTypeAndShape.?(tensor, &type_shape_info), self.ort_api);
         defer self.ort_api.ReleaseTensorTypeAndShapeInfo.?(type_shape_info);
@@ -240,7 +240,7 @@ pub const Inference = struct {
         var n_dimensions: usize = 0;
         try errIfStatus(self.ort_api.GetDimensionsCount.?(type_shape_info, &n_dimensions), self.ort_api);
 
-        var dimensions = std.ArrayList(i64).init(std.heap.page_allocator);
+        var dimensions = std.array_list.Managed(i64).init(std.heap.page_allocator);
         try dimensions.resize(n_dimensions);
         try errIfStatus(self.ort_api.GetDimensions.?(type_shape_info, dimensions.items.ptr, n_dimensions), self.ort_api);
 

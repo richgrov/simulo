@@ -81,7 +81,7 @@ pub const Renderer = struct {
     pub const ImageHandle = struct { id: u32 };
 
     pub fn init(gpu: *const Gpu, window: *const Window, allocator: std.mem.Allocator) !Renderer {
-        const renderer = ffi.create_renderer(gpu.handle, window.handle).?;
+        const renderer = ffi.create_renderer(@ptrCast(gpu.handle), @ptrCast(window.handle)).?;
         errdefer ffi.destroy_renderer(renderer);
 
         var objects = try Slab(Object).init(allocator, 1024);
@@ -156,7 +156,7 @@ pub const Renderer = struct {
     //}
 
     pub fn createMesh(self: *Renderer, vertices: []const u8, indices: []const u16) error{OutOfMemory}!MeshHandle {
-        const mesh = ffi.create_mesh(self.handle, @constCast(@ptrCast(vertices.ptr)), vertices.len, @constCast(@ptrCast(indices.ptr)), indices.len);
+        const mesh = ffi.create_mesh(self.handle, @ptrCast(@constCast(vertices.ptr)), vertices.len, @ptrCast(@constCast(indices.ptr)), indices.len);
         const key, _ = try self.meshes.insert(mesh);
         return MeshHandle{ .id = @intCast(key) };
     }
@@ -242,7 +242,7 @@ pub const Renderer = struct {
     }
 
     pub fn createImage(self: *Renderer, image_data: []const u8, width: i32, height: i32) ImageHandle {
-        const id = ffi.create_image(self.handle, @constCast(@ptrCast(image_data.ptr)), width, height);
+        const id = ffi.create_image(self.handle, @ptrCast(@constCast(image_data.ptr)), width, height);
         return ImageHandle{ .id = id };
     }
 

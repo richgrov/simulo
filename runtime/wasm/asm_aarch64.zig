@@ -65,7 +65,7 @@ pub const CompiledModule = struct {
         };
 
         if (!info.calling_convention.eql(std.builtin.CallingConvention.c) and false) { // temporarily disabled due to bug in zig reflection
-            @compileError("getFunction: signature must be callconv(.C) but was " ++ @tagName(info.calling_convention));
+            @compileError("getFunction: signature must be callconv(.c) but was " ++ @tagName(info.calling_convention));
         }
 
         const function = self.functions.get(name) orelse return null;
@@ -88,7 +88,7 @@ pub const CompiledModule = struct {
         }
 
         const buffer: [*c]u8 = @ptrCast(self.instructions);
-        const func: *const signature = @alignCast(@ptrCast(&buffer[function.offset]));
+        const func: *const signature = @ptrCast(@alignCast(&buffer[function.offset]));
         return func;
     }
 };
@@ -212,7 +212,7 @@ const Assembler = struct {
 };
 
 pub fn writeAssembly(target: *anyopaque, module: *const Module, allocator: std.mem.Allocator) CompileResult {
-    const assembly: [*c]u32 = @alignCast(@ptrCast(target));
+    const assembly: [*c]u32 = @ptrCast(@alignCast(target));
     var assembler = Assembler.init(assembly);
     var exported_functions = std.StringHashMap(Function).init(allocator);
     errdefer exported_functions.deinit();

@@ -16,7 +16,7 @@ pub const MovementBehavior = extern struct {
     object: *GameObject,
     move: @Vector(3, f32) align(8), // TODO: probably causes performance issues, but PocketPy can't allocate align(16)
 
-    const handlers = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
+    const handlers = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.c) void{
         MovementBehavior.update_handler,
     };
 
@@ -37,7 +37,7 @@ pub const MovementBehavior = extern struct {
     }
 
     pub fn py__init__(user_data: *anyopaque, self_any: engine.Scripting.Any, object_any: engine.Scripting.Any, dx: f64, dy: f64) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_data));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_data));
         const self = runtime.scripting.getSelf(MovementBehavior, self_any) orelse return;
         const object = runtime.scripting.getSelf(GameObject, object_any) orelse return;
         runtime.scripting.keepMemberAlive(self_any, object_any, "object");
@@ -50,9 +50,9 @@ pub const MovementBehavior = extern struct {
         runtime.renderer.setObjectTransform(self.object.handle, self.object.calculateTransform());
     }
 
-    pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *const anyopaque) callconv(.C) void {
-        const self: *MovementBehavior = @alignCast(@ptrCast(self_any));
-        const event: *const events.UpdateEvent = @alignCast(@ptrCast(event_any));
+    pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *const anyopaque) callconv(.c) void {
+        const self: *MovementBehavior = @ptrCast(@alignCast(self_any));
+        const event: *const events.UpdateEvent = @ptrCast(@alignCast(event_any));
         MovementBehavior.update(runtime, self, event.delta);
     }
 };
@@ -60,7 +60,7 @@ pub const MovementBehavior = extern struct {
 pub const Behavior = extern struct {
     behavior_instance: *anyopaque,
     num_event_handlers: usize,
-    event_handlers: [*]const *const fn (runtime: *Runtime, self: *anyopaque, event: *const anyopaque) callconv(.C) void,
+    event_handlers: [*]const *const fn (runtime: *Runtime, self: *anyopaque, event: *const anyopaque) callconv(.c) void,
     event_handler_types: [*]const reflect.TypeId,
 };
 
@@ -70,7 +70,7 @@ pub const LifetimeBehavior = extern struct {
     lifetime: f32,
     timer: f32,
 
-    const handlers = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.C) void{
+    const handlers = [_]*const fn (runtime: *Runtime, self: *anyopaque, event: *anyopaque) callconv(.c) void{
         LifetimeBehavior.update_handler,
     };
 
@@ -92,7 +92,7 @@ pub const LifetimeBehavior = extern struct {
     }
 
     pub fn py__init__(user_data: *anyopaque, self_any: engine.Scripting.Any, object_any: engine.Scripting.Any, lifetime: f64) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_data));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_data));
         const self = runtime.scripting.getSelf(LifetimeBehavior, self_any) orelse return;
         const object = runtime.scripting.getSelf(GameObject, object_any) orelse return;
         runtime.scripting.keepMemberAlive(self_any, object_any, "object");
@@ -106,9 +106,9 @@ pub const LifetimeBehavior = extern struct {
         }
     }
 
-    pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *const anyopaque) callconv(.C) void {
-        const self: *LifetimeBehavior = @alignCast(@ptrCast(self_any));
-        const event: *const events.UpdateEvent = @alignCast(@ptrCast(event_any));
+    pub fn update_handler(runtime: *Runtime, self_any: *anyopaque, event_any: *const anyopaque) callconv(.c) void {
+        const self: *LifetimeBehavior = @ptrCast(@alignCast(self_any));
+        const event: *const events.UpdateEvent = @ptrCast(@alignCast(event_any));
         LifetimeBehavior.update(runtime, self, event.delta);
     }
 };

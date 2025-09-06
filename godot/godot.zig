@@ -141,14 +141,14 @@ pub fn registerClass(
     defer string_name_destructor.?(&parent_class_name);
 
     const Lifecycle = struct {
-        fn create(data: ?*anyopaque) callconv(.C) gd.GDExtensionObjectPtr {
+        fn create(data: ?*anyopaque) callconv(.c) gd.GDExtensionObjectPtr {
             _ = data;
 
             var parent_class = createStringName(parent);
             defer string_name_destructor.?(&parent_class);
             const object: gd.GDExtensionObjectPtr = classdb_construct_object2.?(&parent_class);
 
-            var self: *Class = @alignCast(@ptrCast(mem_alloc.?(@sizeOf(Class)).?));
+            var self: *Class = @ptrCast(@alignCast(mem_alloc.?(@sizeOf(Class)).?));
             self.object = object;
 
             var class = createStringName(struct_name);
@@ -159,14 +159,14 @@ pub fn registerClass(
             return object;
         }
 
-        fn free(data: ?*anyopaque, instance: gd.GDExtensionClassInstancePtr) callconv(.C) void {
+        fn free(data: ?*anyopaque, instance: gd.GDExtensionClassInstancePtr) callconv(.c) void {
             _ = data;
 
             if (instance == null) {
                 return;
             }
 
-            const gd_perception: *Class = @alignCast(@ptrCast(instance));
+            const gd_perception: *Class = @ptrCast(@alignCast(instance));
             mem_free.?(gd_perception);
         }
     };
@@ -228,9 +228,9 @@ pub fn registerClass(
                 instance: gd.GDExtensionClassInstancePtr,
                 args: [*c]const gd.GDExtensionConstTypePtr,
                 ret: gd.GDExtensionTypePtr,
-            ) callconv(.C) void {
+            ) callconv(.c) void {
                 _ = data;
-                const self: *Class = @alignCast(@ptrCast(instance));
+                const self: *Class = @ptrCast(@alignCast(instance));
 
                 var zig_args: ArgType = undefined;
                 zig_args[0] = self;
@@ -242,7 +242,7 @@ pub fn registerClass(
 
                 if (return_type) |_| {
                     const result = @call(.auto, func, zig_args);
-                    const ret_ptr: *return_ty = @alignCast(@ptrCast(ret));
+                    const ret_ptr: *return_ty = @ptrCast(@alignCast(ret));
                     ret_ptr.* = result;
                 } else {
                     @call(.auto, func, zig_args);
@@ -256,7 +256,7 @@ pub fn registerClass(
                 argc: gd.GDExtensionInt,
                 ret: gd.GDExtensionVariantPtr,
                 ret_error: [*c]gd.GDExtensionCallError,
-            ) callconv(.C) void {
+            ) callconv(.c) void {
                 _ = data;
 
                 if (argc < zig_param_count - 1) {
@@ -271,7 +271,7 @@ pub fn registerClass(
                     return;
                 }
 
-                const self: *Class = @alignCast(@ptrCast(instance));
+                const self: *Class = @ptrCast(@alignCast(instance));
 
                 var zig_args: ArgType = undefined;
                 zig_args[0] = self;
@@ -298,10 +298,10 @@ pub fn registerClass(
                 if (return_type) |ty| {
                     const result = @call(.auto, func, zig_args);
                     switch (ty) {
-                        gd.GDEXTENSION_VARIANT_TYPE_BOOL => bool_constructor.?(ret, @constCast(@ptrCast(&result))),
-                        gd.GDEXTENSION_VARIANT_TYPE_FLOAT => float_constructor.?(ret, @constCast(@ptrCast(&result))),
-                        gd.GDEXTENSION_VARIANT_TYPE_INT => int_constructor.?(ret, @constCast(@ptrCast(&result))),
-                        gd.GDEXTENSION_VARIANT_TYPE_VECTOR2 => vector2_constructor.?(ret, @constCast(@ptrCast(&result))),
+                        gd.GDEXTENSION_VARIANT_TYPE_BOOL => bool_constructor.?(ret, @ptrCast(@constCast(&result))),
+                        gd.GDEXTENSION_VARIANT_TYPE_FLOAT => float_constructor.?(ret, @ptrCast(@constCast(&result))),
+                        gd.GDEXTENSION_VARIANT_TYPE_INT => int_constructor.?(ret, @ptrCast(@constCast(&result))),
+                        gd.GDEXTENSION_VARIANT_TYPE_VECTOR2 => vector2_constructor.?(ret, @ptrCast(@constCast(&result))),
                         else => @panic("Unsupported return type in call()"),
                     }
                 } else {

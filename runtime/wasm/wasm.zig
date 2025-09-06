@@ -65,11 +65,11 @@ pub const Wasm = struct {
             var native_symbol: wasm.NativeSymbol = .{
                 .symbol = @ptrCast(name),
                 .func_ptr = switch (func_info.params.len - 1) {
-                    0 => @constCast(@ptrCast(&zero_args)),
-                    1 => @constCast(@ptrCast(&one_arg)),
-                    2 => @constCast(@ptrCast(&two_args)),
-                    3 => @constCast(@ptrCast(&three_args)),
-                    4 => @constCast(@ptrCast(&four_args)),
+                    0 => @ptrCast(@constCast(&zero_args)),
+                    1 => @ptrCast(@constCast(&one_arg)),
+                    2 => @ptrCast(@constCast(&two_args)),
+                    3 => @ptrCast(@constCast(&three_args)),
+                    4 => @ptrCast(@constCast(&four_args)),
                     else => @compileError("unsupported number of parameters"),
                 },
                 .signature = @ptrCast(createWasmSignature(func_info)),
@@ -77,14 +77,14 @@ pub const Wasm = struct {
 
             pub fn zero_args(
                 env: wasm.wasm_exec_env_t,
-            ) callconv(.C) func_info.return_type.? {
+            ) callconv(.c) func_info.return_type.? {
                 return func(wasm.wasm_runtime_get_user_data(env).?);
             }
 
             pub fn one_arg(
                 env: wasm.wasm_exec_env_t,
                 arg1: func_info.params[1].type.?,
-            ) callconv(.C) func_info.return_type.? {
+            ) callconv(.c) func_info.return_type.? {
                 return func(
                     wasm.wasm_runtime_get_user_data(env).?,
                     arg1,
@@ -95,7 +95,7 @@ pub const Wasm = struct {
                 env: wasm.wasm_exec_env_t,
                 arg1: func_info.params[1].type.?,
                 arg2: func_info.params[2].type.?,
-            ) callconv(.C) func_info.return_type.? {
+            ) callconv(.c) func_info.return_type.? {
                 return func(
                     wasm.wasm_runtime_get_user_data(env).?,
                     arg1,
@@ -108,7 +108,7 @@ pub const Wasm = struct {
                 arg1: func_info.params[1].type.?,
                 arg2: func_info.params[2].type.?,
                 arg3: func_info.params[3].type.?,
-            ) callconv(.C) func_info.return_type.? {
+            ) callconv(.c) func_info.return_type.? {
                 return func(
                     wasm.wasm_runtime_get_user_data(env).?,
                     arg1,
@@ -123,7 +123,7 @@ pub const Wasm = struct {
                 arg2: func_info.params[2].type.?,
                 arg3: func_info.params[3].type.?,
                 arg4: func_info.params[4].type.?,
-            ) callconv(.C) func_info.return_type.? {
+            ) callconv(.c) func_info.return_type.? {
                 return func(
                     wasm.wasm_runtime_get_user_data(env).?,
                     arg1,
@@ -167,7 +167,7 @@ pub const Wasm = struct {
             };
 
             allocation.finishAllocation(buffer, 4 * 1024);
-            const func = (try compiled_module.getFunction("add", fn (i32, i32) callconv(.C) i32)).?;
+            const func = (try compiled_module.getFunction("add", fn (i32, i32) callconv(.c) i32)).?;
             std.debug.print("{}\n", .{func(19, 2)});
             std.process.exit(0);
 

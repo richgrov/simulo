@@ -44,7 +44,7 @@ const Perception2D = struct {
     }
 };
 
-fn initModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callconv(.C) void {
+fn initModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callconv(.c) void {
     if (level != gd.GDEXTENSION_INITIALIZATION_SCENE) {
         return;
     }
@@ -53,7 +53,7 @@ fn initModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callc
     godot.registerClass(Perception2D, "Node2D");
 }
 
-fn deinitModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callconv(.C) void {
+fn deinitModule(data: ?*anyopaque, level: gd.GDExtensionInitializationLevel) callconv(.c) void {
     _ = data;
     _ = level;
 }
@@ -62,7 +62,7 @@ export fn perception_extension_init(
     get_proc_address: gd.GDExtensionInterfaceGetProcAddress,
     lib: gd.GDExtensionClassLibraryPtr,
     init: *gd.GDExtensionInitialization,
-) callconv(.C) void {
+) callconv(.c) void {
     godot.initFunctions(get_proc_address, lib);
 
     init.initialize = initModule;

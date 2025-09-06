@@ -145,7 +145,7 @@ pub const Remote = struct {
 
     fn writeLoop(self: *Remote) void {
         while (@atomicLoad(bool, &self.running, .monotonic)) {
-            std.time.sleep(std.time.ns_per_ms * 100);
+            std.Thread.sleep(std.time.ns_per_ms * 100);
 
             if (!@atomicLoad(bool, &self.authenticated, .acquire)) {
                 continue;
@@ -255,7 +255,7 @@ pub const Remote = struct {
         const delay = @atomicLoad(u64, &self.reconnect_delay_ms, .seq_cst);
         const new_delay = @min(delay * 2, MAX_RECONNECT_DELAY_MS);
         @atomicStore(u64, &self.reconnect_delay_ms, new_delay, .seq_cst);
-        std.time.sleep(std.time.ns_per_ms * delay);
+        std.Thread.sleep(std.time.ns_per_ms * delay);
     }
 
     pub fn serverMessage(self: *Remote, data: []u8, ty: websocket.MessageTextType) !void {

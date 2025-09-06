@@ -24,9 +24,11 @@ pub fn build(b: *std.Build) !void {
 
     const util = b.createModule(.{
         .root_source_file = b.path("util/util.zig"),
+        .target = target,
+        .optimize = optimize,
     });
 
-    const engine = createEngine(b, target);
+    const engine = createEngine(b, target, optimize);
     engine.addImport("util", util);
 
     const check_step = b.step("check", "Check step for ZLS");
@@ -94,33 +96,19 @@ pub fn build(b: *std.Build) !void {
     });
 
     const runtime = createRuntime(b, optimize, target);
-    runtime.root_module.addOptions("build_options", options);
-    runtime.root_module.addImport("engine", engine);
-    runtime.root_module.addImport("util", util);
-    runtime.root_module.addImport("websocket", websocket.module("websocket"));
-    runtime.root_module.addRPathSpecial("@executable_path/../Frameworks");
-    try bundleExe(b, runtime, target.result.os.tag, &[_][]const u8{
+    runtime.addOptions("build_options", options);
+    runtime.addImport("engine", engine);
+    runtime.addImport("util", util);
+    runtime.addImport("websocket", websocket.module("websocket"));
+    runtime.addRPathSpecial("@executable_path/../Frameworks");
+    const runtime_exe = try bundleExe(b, "runtime", runtime, target.result.os.tag, &[_][]const u8{
         "runtime/inference/rtmo-m.onnx",
     });
-    check_step.dependOn(&runtime.step);
+    check_step.dependOn(&runtime_exe.step);
 
-    const engine_tests = b.addRunArtifact(b.addTest(.{
-        .root_source_file = b.path("engine/midi.zig"),
-        .target = target,
-        .optimize = optimize,
-    }));
-
-    const runtime_tests = b.addRunArtifact(b.addTest(.{
-        .root_source_file = b.path("runtime/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    }));
-
-    const util_tests = b.addRunArtifact(b.addTest(.{
-        .root_source_file = b.path("util/util.zig"),
-        .target = target,
-        .optimize = optimize,
-    }));
+    const engine_tests = b.addRunArtifact(b.addTest(.{ .root_module = engine }));
+    const runtime_tests = b.addRunArtifact(b.addTest(.{ .root_module = runtime }));
+    const util_tests = b.addRunArtifact(b.addTest(.{ .root_module = util }));
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&runtime_tests.step);
@@ -134,7 +122,12 @@ fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     return &run.step;
 }
 
-fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Target.Os.Tag, resources: []const []const u8) !void {
+fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: std.Target.Os.Tag, resources: []const []const u8) !*std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = name,
+        .root_module = mod,
+    });
+
     const install_step = b.getInstallStep();
     if (target == .macos) {
         const install_exe = b.addInstallArtifact(exe, .{
@@ -178,6 +171,8 @@ fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Target.Os.
         const install_resource = b.addInstallFile(b.path(resource), destination);
         install_step.dependOn(&install_resource.step);
     }
+
+    return exe;
 }
 
 fn bundleFramework(b: *std.Build, lib: *std.Build.Step.Compile, comptime name: []const u8) void {
@@ -192,10 +187,11 @@ fn bundleFramework(b: *std.Build, lib: *std.Build.Step.Compile, comptime name: [
     b.getInstallStep().dependOn(&install_framework.step);
 }
 
-fn createEngine(b: *std.Build, target: std.Build.ResolvedTarget) *std.Build.Module {
-    const engine = b.addModule("engine", .{
+fn createEngine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
+    const engine = b.createModule(.{
         .root_source_file = b.path("engine/engine.zig"),
         .target = target,
+        .optimize = optimize,
     });
 
     engine.linkSystemLibrary("onnxruntime", .{});
@@ -204,21 +200,21 @@ fn createEngine(b: *std.Build, target: std.Build.ResolvedTarget) *std.Build.Modu
     return engine;
 }
 
-fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Step.Compile {
-    const runtime = b.addExecutable(.{
-        .name = "runtime",
+fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Module {
+    const runtime = b.createModule(.{
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("runtime/main.zig"),
     });
     runtime.addIncludePath(b.path("runtime"));
-    runtime.linkLibCpp();
-    runtime.linkSystemLibrary("onnxruntime");
-    runtime.linkSystemLibrary("iwasm");
+    runtime.link_libcpp = true;
+    runtime.linkSystemLibrary("onnxruntime", .{});
+    runtime.linkSystemLibrary("iwasm", .{});
 
-    var cpp_sources = ArrayList([]const u8).init(b.allocator);
-    defer cpp_sources.deinit();
-    cpp_sources.appendSlice(&[_][]const u8{
+    var cpp_sources = ArrayList([]const u8).initCapacity(b.allocator, 32) catch unreachable;
+    defer cpp_sources.deinit(b.allocator);
+
+    cpp_sources.appendSlice(b.allocator, &[_][]const u8{
         "runtime/app.cc",
         "runtime/inference/calibrate.cc",
         "runtime/image/stb_image.cc",
@@ -226,10 +222,10 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
 
     const os = target.result.os.tag;
     if (os == .windows) {
-        cpp_sources.append("src/window/win32/window.cc") catch unreachable;
-        runtime.linkSystemLibrary("vulkan-1");
+        cpp_sources.append(b.allocator, "src/window/win32/window.cc") catch unreachable;
+        runtime.linkSystemLibrary("vulkan-1", .{});
     } else if (os == .macos) {
-        cpp_sources.appendSlice(&[_][]const u8{
+        cpp_sources.appendSlice(b.allocator, &[_][]const u8{
             "runtime/gpu/metal/command_queue.mm",
             "runtime/gpu/metal/gpu.mm",
             "runtime/gpu/metal/image.mm",
@@ -239,16 +235,16 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
             "runtime/camera/macos_camera.mm",
         }) catch unreachable;
 
-        runtime.linkFramework("Foundation");
-        runtime.linkFramework("AppKit");
-        runtime.linkFramework("Metal");
-        runtime.linkFramework("QuartzCore");
-        runtime.linkFramework("AVFoundation");
-        runtime.linkFramework("CoreImage");
-        runtime.linkFramework("CoreMedia");
-        runtime.linkFramework("CoreVideo");
+        runtime.linkFramework("Foundation", .{});
+        runtime.linkFramework("AppKit", .{});
+        runtime.linkFramework("Metal", .{});
+        runtime.linkFramework("QuartzCore", .{});
+        runtime.linkFramework("AVFoundation", .{});
+        runtime.linkFramework("CoreImage", .{});
+        runtime.linkFramework("CoreMedia", .{});
+        runtime.linkFramework("CoreVideo", .{});
     } else if (os == .linux) {
-        cpp_sources.appendSlice(&[_][]const u8{
+        cpp_sources.appendSlice(b.allocator, &[_][]const u8{
             "runtime/camera/mjpg.cc",
             "runtime/window/linux/wl_deleter.cc",
             "runtime/window/linux/wl_window.cc",
@@ -265,16 +261,16 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
             },
         });
 
-        runtime.linkSystemLibrary("vulkan");
-        runtime.linkSystemLibrary("X11");
-        runtime.linkSystemLibrary("Xi");
-        runtime.linkSystemLibrary("wayland-client");
-        runtime.linkSystemLibrary("wayland-protocols");
-        runtime.linkSystemLibrary("xkbcommon");
+        runtime.linkSystemLibrary("vulkan", .{});
+        runtime.linkSystemLibrary("X11", .{});
+        runtime.linkSystemLibrary("Xi", .{});
+        runtime.linkSystemLibrary("wayland-client", .{});
+        runtime.linkSystemLibrary("wayland-protocols", .{});
+        runtime.linkSystemLibrary("xkbcommon", .{});
     }
 
     if (usesVulkan(os)) {
-        cpp_sources.appendSlice(&[_][]const u8{
+        cpp_sources.appendSlice(b.allocator, &[_][]const u8{
             "runtime/render/vk_renderer.cc",
             "runtime/gpu/vulkan/command_pool.cc",
             "runtime/gpu/vulkan/descriptor_pool.cc",
@@ -289,11 +285,11 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         }) catch unreachable;
 
         if (optimize == .Debug) {
-            runtime.root_module.addCMacro("VKAD_DEBUG", "true");
+            runtime.addCMacro("VKAD_DEBUG", "true");
         }
     }
 
-    runtime.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
+    runtime.linkSystemLibrary("opencv4", .{ .preferred_link_mode = .dynamic });
 
     runtime.addCSourceFiles(.{
         .files = cpp_sources.items,

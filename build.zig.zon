@@ -37,8 +37,8 @@
     // internet connectivity.
     .dependencies = .{
         .websocket = .{
-            .url = "git+https://github.com/karlseguin/websocket.zig#7240830dc8d1ab426d408cb76144794169943aa9",
-            .hash = "websocket-0.1.0-ZPISdRJ0AwBHOWGe9mnKAUU2hXEXhfdbsW3smK4zpY97",
+            .url = "git+https://github.com/karlseguin/websocket.zig/?ref=HEAD#5cfef4a734cee40c5386f87905ea483313efd4d2",
+            .hash = "websocket-0.1.0-ZPISdWFwAwDwbZ0Zy7S7QWICrgOsWFxHxDu1t4WesVVm",
         },
     },
     .paths = .{

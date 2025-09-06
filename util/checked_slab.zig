@@ -8,13 +8,13 @@ pub fn CheckedSlab(T: type) type {
     };
 
     return struct {
-        data: std.ArrayList(Cell),
+        data: std.array_list.Managed(Cell),
         next_free: usize,
 
         const Self = @This();
 
         pub fn init(allocator: std.mem.Allocator, capacity: usize) !Self {
-            var data = std.ArrayList(Cell).init(allocator);
+            var data = std.array_list.Managed(Cell).init(allocator);
             try data.resize(capacity);
             for (0..capacity) |i| {
                 if (i == capacity - 1) {
