@@ -463,7 +463,7 @@ pub const Runtime = struct {
     }
 
     fn wasmSetRoot(user_ptr: *anyopaque, id: u32, this: i32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to set root of non-existent object {d}", .{id});
             return;
@@ -480,18 +480,18 @@ pub const Runtime = struct {
     }
 
     fn wasmSetBuffers(user_ptr: *anyopaque, pose_buffer: [*]f32, transform_buffer: [*]f32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.wasm_pose_buffer = pose_buffer;
         runtime.wasm_transform_buffer = transform_buffer;
     }
 
     fn wasmCreateObject(user_ptr: *anyopaque) u32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         return runtime.scene.createObject() catch |err| util.crash.oom(err);
     }
 
     fn wasmAddObjectChild(user_ptr: *anyopaque, parent: u32, child: u32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.scene.addChild(parent, child) catch |err| {
             switch (err) {
                 error.ObjectNotFound => runtime.remote.log("tried to add non-existent child {d} to object {d}", .{ child, parent }),
@@ -502,7 +502,7 @@ pub const Runtime = struct {
     }
 
     fn wasmNumChildren(user_ptr: *anyopaque, id: u32) u32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to get number of children of non-existent object {d}", .{id});
             return 0;
@@ -516,7 +516,7 @@ pub const Runtime = struct {
     }
 
     fn wasmGetChildren(user_ptr: *anyopaque, id: u32, out_children: [*]i32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to get children of non-existent object {d}", .{id});
             return;
@@ -534,7 +534,7 @@ pub const Runtime = struct {
     }
 
     fn wasmSetObjectPtrs(user_ptr: *anyopaque, id: u32, this: i32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to set object ptr of non-existent object {d}", .{id});
             return;
@@ -549,7 +549,7 @@ pub const Runtime = struct {
     }
 
     fn wasmRemoveObjectFromParent(user_ptr: *anyopaque, id: u32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to remove non-existent object {d}", .{id});
             return;
@@ -574,7 +574,7 @@ pub const Runtime = struct {
     }
 
     fn wasmDropObject(user_ptr: *anyopaque, id: u32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.scene.delete(id) catch |err| {
             switch (err) {
                 error.ObjectNotFound => runtime.remote.log("tried to delete non-existent object {d}", .{id}),
@@ -586,53 +586,53 @@ pub const Runtime = struct {
     }
 
     fn wasmDeleteMaterial(user_ptr: *anyopaque, id: u32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.deleteMaterial(id);
     }
 
     fn wasmMarkTransformOutdated(user_ptr: *anyopaque, id: u32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.markOutdatedTransform(@intCast(id));
     }
 
     fn wasmCreateRenderedObject(user_ptr: *anyopaque, material_id: u32) u32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), .{ .id = material_id }, 0) catch |err| util.crash.oom(err);
         return obj.id;
     }
 
     fn wasmSetRenderedObjectMaterial(user_ptr: *anyopaque, id: u32, material_id: u32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.renderer.setObjectMaterial(.{ .id = id }, .{ .id = material_id }) catch |err| util.crash.oom(err);
     }
 
     fn wasmSetRenderedObjectTransform(user_ptr: *anyopaque, id: u32, transform: [*]f32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.renderer.setObjectTransform(.{ .id = id }, Mat4.fromColumnMajorPtr(transform));
     }
 
     fn wasmDropRenderedObject(user_ptr: *anyopaque, id: u32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.renderer.deleteObject(.{ .id = id });
     }
 
     fn wasmRandom(user_ptr: *anyopaque) f32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         return runtime.random.random().float(f32);
     }
 
     fn wasmWindowWidth(user_ptr: *anyopaque) i32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         return runtime.window.getWidth();
     }
 
     fn wasmWindowHeight(user_ptr: *anyopaque) i32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         return runtime.window.getHeight();
     }
 
     fn wasmCreateMaterial(user_ptr: *anyopaque, name: [*c]u8, r: f32, g: f32, b: f32) u32 {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const image = if (!runtime.wasm.isNullptr(name)) cond: {
             const name_slice = std.mem.span(name);
             if (runtime.assets.get(name_slice)) |image| {
@@ -648,7 +648,7 @@ pub const Runtime = struct {
     }
 
     fn wasmUpdateMaterial(user_ptr: *anyopaque, id: u32, r: f32, g: f32, b: f32) void {
-        const runtime: *Runtime = @alignCast(@ptrCast(user_ptr));
+        const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.renderer.updateMaterial(.{ .id = id }, r, g, b);
     }
 };
