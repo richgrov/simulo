@@ -244,10 +244,9 @@ pub const Renderer = struct {
             while (it.next()) |entry| {
                 const mesh_pass = self.mesh_passes.get(entry.value_ptr.*).?;
                 defer mesh_pass.deinit(self.allocator);
-                for (0..mesh_pass.objects.bucketCount()) |i| {
-                    for (mesh_pass.objects.bucketItems(i)) |id| {
-                        self.objects.delete(id) catch unreachable;
-                    }
+                const items = mesh_pass.objects.items(self.allocator) catch unreachable;
+                for (items) |id| {
+                    self.objects.delete(id) catch unreachable;
                 }
             }
 
