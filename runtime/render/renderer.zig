@@ -2,13 +2,13 @@ const std = @import("std");
 const builtin = @import("builtin");
 const util = @import("util");
 
-pub const PipelineID = u32;
-pub const MeshID = u32;
-pub const MaterialID = u32;
-pub const ObjectID = u32;
-pub const ImageID = u32;
-pub const MaterialPassID = u16;
-pub const MeshPassID = u16;
+pub const PipelineId = u32;
+pub const MeshId = u32;
+pub const MaterialId = u32;
+pub const ObjectId = u32;
+pub const ImageId = u32;
+pub const MaterialPassId = u16;
+pub const MeshPassId = u16;
 pub const RenderOrder = u8;
 
 const ffi = @cImport({
@@ -26,17 +26,17 @@ const MAX_OBJECT_PASSES = 1024;
 
 const Object = struct {
     transform: Mat4,
-    mesh: MeshID,
-    material: MaterialID,
+    mesh: MeshId,
+    material: MaterialId,
     render_order: RenderOrder,
 };
 
 const MeshPass = struct {
-    objects: IntSet(ObjectID, 256),
+    objects: IntSet(ObjectId, 256),
 
     pub fn init(allocator: std.mem.Allocator) error{OutOfMemory}!MeshPass {
         return MeshPass{
-            .objects = try IntSet(ObjectID, 256).init(allocator, 1),
+            .objects = try IntSet(ObjectId, 256).init(allocator, 1),
         };
     }
 
@@ -46,11 +46,11 @@ const MeshPass = struct {
 };
 
 const MaterialPass = struct {
-    mesh_passes: std.AutoHashMap(MeshID, MeshPassID),
+    mesh_passes: std.AutoHashMap(MeshId, MeshPassId),
 
     pub fn init(allocator: std.mem.Allocator) MaterialPass {
         return MaterialPass{
-            .mesh_passes = std.AutoHashMap(MeshID, MeshPassID).init(allocator),
+            .mesh_passes = std.AutoHashMap(MeshId, MeshPassId).init(allocator),
         };
     }
 
@@ -60,11 +60,11 @@ const MaterialPass = struct {
 };
 
 const RenderCollection = struct {
-    material_passes: std.AutoHashMap(MaterialID, MeshPassID),
+    material_passes: std.AutoHashMap(MaterialId, MeshPassId),
 
     pub fn init(allocator: std.mem.Allocator) RenderCollection {
         return RenderCollection{
-            .material_passes = std.AutoHashMap(MaterialID, MeshPassID).init(allocator),
+            .material_passes = std.AutoHashMap(MaterialId, MeshPassId).init(allocator),
         };
     }
 
@@ -83,11 +83,11 @@ pub const Renderer = struct {
     material_passes: Slab(MaterialPass),
     render_collections: [MAX_RENDER_LAYERS]RenderCollection = undefined,
 
-    pub const PipelineHandle = struct { id: PipelineID };
-    pub const MaterialHandle = struct { id: MaterialID };
-    pub const MeshHandle = struct { id: MeshID };
-    pub const ObjectHandle = struct { id: ObjectID };
-    pub const ImageHandle = struct { id: ImageID };
+    pub const PipelineHandle = struct { id: PipelineId };
+    pub const MaterialHandle = struct { id: MaterialId };
+    pub const MeshHandle = struct { id: MeshId };
+    pub const ObjectHandle = struct { id: ObjectId };
+    pub const ImageHandle = struct { id: ImageId };
 
     pub fn init(gpu: *const Gpu, window: *const Window, allocator: std.mem.Allocator) !Renderer {
         const renderer = ffi.create_renderer(@ptrCast(gpu.handle), @ptrCast(window.handle)).?;
@@ -305,7 +305,7 @@ pub const Renderer = struct {
         ffi.end_render(self.handle);
     }
 
-    fn getOrInsertMaterialPass(self: *Renderer, collection: *RenderCollection, material_id: MaterialID) error{OutOfMemory}!*MaterialPass {
+    fn getOrInsertMaterialPass(self: *Renderer, collection: *RenderCollection, material_id: MaterialId) error{OutOfMemory}!*MaterialPass {
         if (collection.material_passes.get(material_id)) |mat_pass_id| {
             return self.material_passes.get(mat_pass_id).?;
         } else {
@@ -320,7 +320,7 @@ pub const Renderer = struct {
         }
     }
 
-    fn getOrInsertMeshPass(self: *Renderer, pass: *MaterialPass, mesh_id: MeshID) error{OutOfMemory}!*MeshPass {
+    fn getOrInsertMeshPass(self: *Renderer, pass: *MaterialPass, mesh_id: MeshId) error{OutOfMemory}!*MeshPass {
         if (pass.mesh_passes.get(mesh_id)) |mesh_pass_id| {
             return self.mesh_passes.get(mesh_pass_id).?;
         } else {
