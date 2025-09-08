@@ -6,7 +6,6 @@ const Mat4 = engine.math.Mat4;
 
 const util = @import("util");
 const reflect = util.reflect;
-const id_defs = util.id_defs;
 
 const fs_storage = @import("fs_storage.zig");
 
@@ -486,12 +485,12 @@ pub const Runtime = struct {
         runtime.wasm_transform_buffer = transform_buffer;
     }
 
-    fn wasmCreateObject(user_ptr: *anyopaque) id_defs.obj_id {
+    fn wasmCreateObject(user_ptr: *anyopaque) u32 {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         return runtime.scene.createObject() catch |err| util.crash.oom(err);
     }
 
-    fn wasmAddObjectChild(user_ptr: *anyopaque, parent: id_defs.obj_id, child: id_defs.obj_id) void {
+    fn wasmAddObjectChild(user_ptr: *anyopaque, parent: u32, child: u32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.scene.addChild(parent, child) catch |err| {
             switch (err) {
@@ -502,7 +501,7 @@ pub const Runtime = struct {
         };
     }
 
-    fn wasmNumChildren(user_ptr: *anyopaque, id: id_defs.obj_id) u32 {
+    fn wasmNumChildren(user_ptr: *anyopaque, id: u32) u32 {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to get number of children of non-existent object {d}", .{id});
@@ -516,7 +515,7 @@ pub const Runtime = struct {
         return 0;
     }
 
-    fn wasmGetChildren(user_ptr: *anyopaque, id: id_defs.obj_id, out_children: [*]i32) void {
+    fn wasmGetChildren(user_ptr: *anyopaque, id: u32, out_children: [*]i32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to get children of non-existent object {d}", .{id});
@@ -534,7 +533,7 @@ pub const Runtime = struct {
         }
     }
 
-    fn wasmSetObjectPtrs(user_ptr: *anyopaque, id: id_defs.obj_id, this: i32) void {
+    fn wasmSetObjectPtrs(user_ptr: *anyopaque, id: u32, this: i32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to set object ptr of non-existent object {d}", .{id});
@@ -544,12 +543,12 @@ pub const Runtime = struct {
         obj.this = this;
     }
 
-    fn deleteMaterial(self: *Runtime, id: id_defs.material_id) void {
+    fn deleteMaterial(self: *Runtime, id: u32) void {
         const material_handle = Renderer.MaterialHandle{ .id = id };
         self.renderer.deleteMaterial(material_handle);
     }
 
-    fn wasmRemoveObjectFromParent(user_ptr: *anyopaque, id: id_defs.obj_id) void {
+    fn wasmRemoveObjectFromParent(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.scene.get(id) orelse {
             runtime.remote.log("tried to remove non-existent object {d}", .{id});
@@ -574,7 +573,7 @@ pub const Runtime = struct {
         }
     }
 
-    fn wasmDropObject(user_ptr: *anyopaque, id: id_defs.obj_id) void {
+    fn wasmDropObject(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.scene.delete(id) catch |err| {
             switch (err) {
@@ -586,33 +585,33 @@ pub const Runtime = struct {
         _ = runtime.outdated_object_transforms.delete(@intCast(id));
     }
 
-    fn wasmDeleteMaterial(user_ptr: *anyopaque, id: id_defs.material_id) void {
+    fn wasmDeleteMaterial(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.deleteMaterial(id);
     }
 
-    fn wasmMarkTransformOutdated(user_ptr: *anyopaque, id: id_defs.obj_id) void {
+    fn wasmMarkTransformOutdated(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.markOutdatedTransform(@intCast(id));
     }
 
-    fn wasmCreateRenderedObject(user_ptr: *anyopaque, material_id: id_defs.material_id) id_defs.obj_id {
+    fn wasmCreateRenderedObject(user_ptr: *anyopaque, material_id: u32) u32 {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const obj = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), .{ .id = material_id }, 0) catch |err| util.crash.oom(err);
         return obj.id;
     }
 
-    fn wasmSetRenderedObjectMaterial(user_ptr: *anyopaque, id: id_defs.obj_id, material_id: id_defs.material_id) void {
+    fn wasmSetRenderedObjectMaterial(user_ptr: *anyopaque, id: u32, material_id: u32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.renderer.setObjectMaterial(.{ .id = id }, .{ .id = material_id }) catch |err| util.crash.oom(err);
     }
 
-    fn wasmSetRenderedObjectTransform(user_ptr: *anyopaque, id: id_defs.obj_id, transform: [*]f32) void {
+    fn wasmSetRenderedObjectTransform(user_ptr: *anyopaque, id: u32, transform: [*]f32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.renderer.setObjectTransform(.{ .id = id }, Mat4.fromColumnMajorPtr(transform));
     }
 
-    fn wasmDropRenderedObject(user_ptr: *anyopaque, id: id_defs.obj_id) void {
+    fn wasmDropRenderedObject(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.renderer.deleteObject(.{ .id = id });
     }
@@ -632,7 +631,7 @@ pub const Runtime = struct {
         return runtime.window.getHeight();
     }
 
-    fn wasmCreateMaterial(user_ptr: *anyopaque, name: [*c]u8, r: f32, g: f32, b: f32) id_defs.material_id {
+    fn wasmCreateMaterial(user_ptr: *anyopaque, name: [*c]u8, r: f32, g: f32, b: f32) u32 {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         const image = if (!runtime.wasm.isNullptr(name)) cond: {
             const name_slice = std.mem.span(name);
@@ -648,7 +647,7 @@ pub const Runtime = struct {
         return material.id;
     }
 
-    fn wasmUpdateMaterial(user_ptr: *anyopaque, id: id_defs.material_id, r: f32, g: f32, b: f32) void {
+    fn wasmUpdateMaterial(user_ptr: *anyopaque, id: u32, r: f32, g: f32, b: f32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
         runtime.renderer.updateMaterial(.{ .id = id }, r, g, b);
     }

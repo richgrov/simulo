@@ -13,8 +13,6 @@ pub const Spsc = @import("spsc_ring.zig").Spsc;
 
 pub const crash = @import("crash.zig");
 
-pub const id_defs = @import("id_definitions.zig");
-
 pub fn getResourcePath(name: []const u8, buf: []u8) ![]const u8 {
     var path_buf: [128]u8 = undefined;
     const exe_dir = try std.fs.selfExeDirPath(&path_buf);
