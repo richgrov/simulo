@@ -47,6 +47,7 @@ const MeshPass = struct {
 
 const MaterialPass = struct {
     mesh_passes: std.AutoHashMap(MeshId, MeshPassId),
+    object_count: u32 = 0,
 
     pub fn init(allocator: std.mem.Allocator) MaterialPass {
         return MaterialPass{
@@ -185,6 +186,7 @@ pub const Renderer = struct {
             .material = material.id,
             .render_order = render_order,
         });
+        material_pass.object_count += 1;
         try mesh_pass.objects.put(self.allocator, @intCast(obj_id));
         return ObjectHandle{ .id = @intCast(obj_id) };
     }
@@ -223,6 +225,7 @@ pub const Renderer = struct {
         const material_pass = self.material_passes.get(material_pass_id).?;
         const mesh_pass_id = material_pass.mesh_passes.get(obj.mesh).?;
         const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
+        material_pass.object_count -= 1;
         std.debug.assert(mesh_pass.objects.delete(object.id));
         self.objects.delete(object.id) catch unreachable;
     }
@@ -248,6 +251,17 @@ pub const Renderer = struct {
         const mat = self.materials.get(material.id).?;
         ffi.delete_material(self.handle, mat);
         self.materials.delete(material.id) catch unreachable;
+    }
+
+    pub fn unrefMaterial(self: *Renderer, mat_id: u32) void {
+        for (self.render_collections) |collection| {
+            const material_pass_id = collection.material_passes.get(@intCast(mat_id)) orelse continue;
+            const material_pass = self.material_passes.get(material_pass_id).?;
+
+            if (material_pass.object_count == 0) {
+                self.deleteMaterial(.{ .id = mat_id });
+            }
+        }
     }
 
     pub fn createImage(self: *Renderer, image_data: []const u8, width: i32, height: i32) ImageHandle {
