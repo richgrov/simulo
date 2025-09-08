@@ -10,6 +10,7 @@ void simulo_main() {
 
    root_object = Game::create();
    simulo_set_root(root_object->simulo__id, root_object.get());
+   root_object->on_create();
 }
 
 void simulo__update(void* ptr, float delta) {

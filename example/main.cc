@@ -27,10 +27,21 @@ public:
       return std::make_unique<Game>(material);
    }
 
-   void on_pose(int id, std::optional<Pose> pose) {
-      if (pose) {
-         add_child(std::make_unique<Particle>(pose->nose(), white_material_));
+   void on_create() {
+      for (int i = -2; i <= 2; i++) {
+         float offset = i * 10.0f;
+         float scale_offset = i / 2.0f;
+         glm::vec2 position = glm::vec2(simulo_window_width() / 2 + offset, simulo_window_height() / 2 + offset);
+         auto particle = std::make_unique<Particle>(position, white_material_);
+         particle->scale += scale_offset;
+         add_child(std::unique_ptr<Particle>(std::move(particle)));
       }
+   }
+
+   void on_pose(int id, std::optional<Pose> pose) {
+      // if (pose) {
+      //    add_child(std::make_unique<Particle>(pose->nose(), white_material_));
+      // }
    }
 
 private:

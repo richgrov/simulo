@@ -225,23 +225,29 @@ pub const Renderer = struct {
         const material_pass = self.material_passes.get(material_pass_id).?;
         const mesh_pass_id = material_pass.mesh_passes.get(obj.mesh).?;
         const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
-        material_pass.object_count -= 1;
         std.debug.assert(mesh_pass.objects.delete(object.id));
         self.objects.delete(object.id) catch unreachable;
+        material_pass.object_count -= 1;
+        self.unrefMaterial(obj.material);
     }
 
     pub fn deleteMaterial(self: *Renderer, material: MaterialHandle) void {
         for (&self.render_collections) |*collection| {
             const material_pass_id = collection.material_passes.get(material.id) orelse continue;
             const material_pass = self.material_passes.get(material_pass_id).?;
-            defer material_pass.deinit();
+            defer {
+                material_pass.deinit();
+                _ = collection.material_passes.remove(material_pass_id);
+            }
 
-            var it = material_pass.mesh_passes.keyIterator();
-            while (it.next()) |key| {
-                const mesh = self.mesh_passes.get(key.*).?;
-                defer mesh.deinit(self.allocator);
-                for (mesh.objects.data) |id| {
-                    self.objects.delete(id) catch unreachable;
+            var it = material_pass.mesh_passes.iterator();
+            while (it.next()) |entry| {
+                const mesh_pass = self.mesh_passes.get(entry.value_ptr.*).?;
+                defer mesh_pass.deinit(self.allocator);
+                for (0..mesh_pass.objects.bucketCount()) |i| {
+                    for (mesh_pass.objects.bucketItems(i)) |id| {
+                        self.objects.delete(id) catch unreachable;
+                    }
                 }
             }
 
@@ -253,9 +259,9 @@ pub const Renderer = struct {
         self.materials.delete(material.id) catch unreachable;
     }
 
-    pub fn unrefMaterial(self: *Renderer, mat_id: u32) void {
+    pub fn unrefMaterial(self: *Renderer, mat_id: MaterialId) void {
         for (self.render_collections) |collection| {
-            const material_pass_id = collection.material_passes.get(@intCast(mat_id)) orelse continue;
+            const material_pass_id = collection.material_passes.get(mat_id) orelse continue;
             const material_pass = self.material_passes.get(material_pass_id).?;
 
             if (material_pass.object_count == 0) {
