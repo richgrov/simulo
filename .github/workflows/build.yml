@@ -69,6 +69,7 @@ jobs:
       - name: Upload install artifact
         uses: actions/upload-artifact@v4
         with:
+          name: simulo-runtime-macos-arm64
           path: zig-out
 
   Build-Linux:
@@ -123,4 +124,5 @@ jobs:
       - name: Upload install artifact
         uses: actions/upload-artifact@v4
         with:
+          name: simulo-runtime-linux-x64
           path: zig-out/bin
