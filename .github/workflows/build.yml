@@ -182,6 +182,7 @@ jobs:
           XVFB_PID=$!
           export DISPLAY=:99
           sleep 1
+          chmod +x artifact/runtime
           ./artifact/runtime &
           RUNTIME_PID=$!
           # Ensure runtime is still running after 10 seconds; fail otherwise
