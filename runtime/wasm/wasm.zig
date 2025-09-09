@@ -78,15 +78,17 @@ pub const Wasm = struct {
             pub fn zero_args(
                 env: wasm.wasm_exec_env_t,
             ) callconv(.c) func_info.return_type.? {
-                return func(wasm.wasm_runtime_get_user_data(env).?);
+                const wasm_instance: *Wasm = @ptrCast(@alignCast(wasm.wasm_runtime_get_user_data(env).?));
+                return func(wasm_instance);
             }
 
             pub fn one_arg(
                 env: wasm.wasm_exec_env_t,
                 arg1: func_info.params[1].type.?,
             ) callconv(.c) func_info.return_type.? {
+                const wasm_instance: *Wasm = @ptrCast(@alignCast(wasm.wasm_runtime_get_user_data(env).?));
                 return func(
-                    wasm.wasm_runtime_get_user_data(env).?,
+                    wasm_instance,
                     arg1,
                 );
             }
@@ -96,8 +98,9 @@ pub const Wasm = struct {
                 arg1: func_info.params[1].type.?,
                 arg2: func_info.params[2].type.?,
             ) callconv(.c) func_info.return_type.? {
+                const wasm_instance: *Wasm = @ptrCast(@alignCast(wasm.wasm_runtime_get_user_data(env).?));
                 return func(
-                    wasm.wasm_runtime_get_user_data(env).?,
+                    wasm_instance,
                     arg1,
                     arg2,
                 );
@@ -109,8 +112,9 @@ pub const Wasm = struct {
                 arg2: func_info.params[2].type.?,
                 arg3: func_info.params[3].type.?,
             ) callconv(.c) func_info.return_type.? {
+                const wasm_instance: *Wasm = @ptrCast(@alignCast(wasm.wasm_runtime_get_user_data(env).?));
                 return func(
-                    wasm.wasm_runtime_get_user_data(env).?,
+                    wasm_instance,
                     arg1,
                     arg2,
                     arg3,
@@ -124,8 +128,9 @@ pub const Wasm = struct {
                 arg3: func_info.params[3].type.?,
                 arg4: func_info.params[4].type.?,
             ) callconv(.c) func_info.return_type.? {
+                const wasm_instance: *Wasm = @ptrCast(@alignCast(wasm.wasm_runtime_get_user_data(env).?));
                 return func(
-                    wasm.wasm_runtime_get_user_data(env).?,
+                    wasm_instance,
                     arg1,
                     arg2,
                     arg3,
@@ -150,7 +155,7 @@ pub const Wasm = struct {
         self.buffer = null;
     }
 
-    pub fn init(self: *Wasm, allocator: std.mem.Allocator, user_data: *anyopaque, data: []const u8, err_out: *?Error) !void {
+    pub fn init(self: *Wasm, allocator: std.mem.Allocator, data: []const u8, err_out: *?Error) !void {
         if (comptime build_options.new_wasm) {
             var raw_module = try deserializer.parseModule(allocator, data);
             errdefer raw_module.deinit(allocator);
@@ -182,7 +187,7 @@ pub const Wasm = struct {
         errdefer wasm.wasm_runtime_deinstantiate(module_instance);
 
         const exec_env = wasm.wasm_runtime_create_exec_env(module_instance, 1024 * 8) orelse return error.WasmExecEnvCreateFailed;
-        wasm.wasm_runtime_set_user_data(exec_env, user_data);
+        wasm.wasm_runtime_set_user_data(exec_env, self);
         errdefer wasm.wasm_runtime_destroy_exec_env(exec_env);
 
         self.module = module;
