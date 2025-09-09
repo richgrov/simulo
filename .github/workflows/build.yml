@@ -98,7 +98,7 @@ jobs:
       - name: Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack-dev ccache
+          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack-dev ccache xvfb x11-apps imagemagick
           version: "1.0"
 
       - name: Download ONNX Runtime
@@ -132,6 +132,39 @@ jobs:
 
       - name: Build cloud
         run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+
+      - name: Run runtime headless and capture screenshot
+        env:
+          DISPLAY: :99
+          SIMULO_MACHINE_ID: 0
+        run: |
+          Xvfb :99 -screen 0 1280x720x24 &
+          export DISPLAY=:99
+          sleep 2
+          # Start the app in background to allow window to appear
+          ./zig-out/bin/runtime &
+          RUNTIME_PID=$!
+          # Wait a bit for the window/rendering to initialize
+          sleep 5
+          # Try to capture a screenshot using xwd -> convert (ImageMagick)
+          if command -v xwd >/dev/null 2>&1; then
+            xwd -root -silent | convert xwd:- screenshot.png || true
+          else
+            # Fallback to import (ImageMagick) if available
+            if command -v import >/dev/null 2>&1; then
+              import -window root screenshot.png || true
+            fi
+          fi
+          # Terminate the app
+          kill $RUNTIME_PID || true
+          wait $RUNTIME_PID || true
+
+      - name: Upload screenshot artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-screenshot-linux
+          path: screenshot.png
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
