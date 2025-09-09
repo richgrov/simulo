@@ -172,10 +172,16 @@ jobs:
           name: simulo-runtime-local-linux-x64
           path: artifact
 
+      - name: Download ONNX Runtime
+        run: |
+          mkdir -p extern/onnxruntime
+          curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
+          tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/extern/onnxruntime/lib
+
       - name: Run runtime headless and capture screenshot
         env:
           DISPLAY: :99
-          SIMULO_MACHINE_ID: 0
         run: |
           set -euo pipefail
           Xvfb :99 -screen 0 1280x720x24 &
