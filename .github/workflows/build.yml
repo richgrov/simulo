@@ -182,17 +182,7 @@ jobs:
           XVFB_PID=$!
           export DISPLAY=:99
           sleep 1
-          ls
-          cd artifact
-          ls
-          RUNTIME_PATH=$(find . -maxdepth 3 -type f -name runtime -executable | head -n1 || true)
-          if [ -z "$RUNTIME_PATH" ]; then
-            echo "could not locate runtime binary in downloaded artifact" >&2
-            kill "$XVFB_PID" || true
-            wait "$XVFB_PID" || true
-            exit 1
-          fi
-          "$RUNTIME_PATH" &
+          ./artifact/runtime &
           RUNTIME_PID=$!
           # Ensure runtime is still running after 10 seconds; fail otherwise
           for i in $(seq 1 10); do
