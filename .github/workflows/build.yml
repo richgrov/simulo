@@ -98,7 +98,7 @@ jobs:
       - name: Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack-dev ccache
+          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack3 liblapack-dev ccache
           version: "1.0"
 
       - name: Download ONNX Runtime
@@ -144,6 +144,9 @@ jobs:
         with:
           name: simulo-runtime-cloud-linux-x64
           path: zig-out-cloud/bin
+
+      - name: Run tests
+        run: zig build test --search-prefix extern/onnxruntime
 
   Headless-Run-Linux:
     runs-on: ubuntu-latest
