@@ -98,8 +98,16 @@ jobs:
       - name: Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack3 liblapack-dev ccache
+          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack3 ccache
           version: "1.0"
+
+      # Since upgrading to Zig 0.15.1, an error around liblapack.so.3 is thrown. It's unknown why,
+      # but cache-apt-packages doesn't properly install it. This is a mechanism to ensure it's
+      # configured correctly each time.
+      - name: Reconfigure LAPACK
+        run: |
+          sudo dpkg --configure -a
+          sudo apt-get install --reinstall -y liblapack3
 
       - name: Download ONNX Runtime
         run: |
