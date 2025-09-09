@@ -38,7 +38,7 @@ fn readPrivateKey() ![32]u8 {
 
 pub const Remote = struct {
     allocator: std.mem.Allocator,
-    id: []u8,
+    id: []const u8,
     secret_key: std.crypto.sign.Ed25519.KeyPair,
 
     read_thread: ?std.Thread = null,
@@ -68,8 +68,6 @@ pub const Remote = struct {
 
     pub fn deinit(self: *Remote) void {
         @atomicStore(bool, &self.running, false, .seq_cst);
-
-        self.allocator.free(self.id);
 
         if (self.read_thread) |*thread| {
             thread.join();
