@@ -48,6 +48,7 @@ const MeshPass = struct {
 const MaterialPass = struct {
     mesh_passes: std.AutoHashMap(MeshId, MeshPassId),
     object_count: u32 = 0,
+    material_dropped: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) MaterialPass {
         return MaterialPass{
@@ -240,14 +241,11 @@ pub const Renderer = struct {
                 _ = collection.material_passes.remove(material_pass_id);
             }
 
-            var it = material_pass.mesh_passes.iterator();
-            while (it.next()) |entry| {
+            var mesh_it = material_pass.mesh_passes.iterator();
+            while (mesh_it.next()) |entry| {
                 const mesh_pass = self.mesh_passes.get(entry.value_ptr.*).?;
-                defer mesh_pass.deinit(self.allocator);
-                const items = mesh_pass.objects.items(self.allocator) catch unreachable;
-                for (items) |id| {
-                    self.objects.delete(id) catch unreachable;
-                }
+                std.debug.assert(mesh_pass.objects.count == 0);
+                mesh_pass.deinit(self.allocator);
             }
 
             std.debug.assert(collection.material_passes.remove(material.id));
@@ -256,6 +254,7 @@ pub const Renderer = struct {
         const mat = self.materials.get(material.id).?;
         ffi.delete_material(self.handle, mat);
         self.materials.delete(material.id) catch unreachable;
+        std.debug.print("Deleted material {}\n", .{material.id});
     }
 
     pub fn unrefMaterial(self: *Renderer, mat_id: MaterialId) void {
@@ -263,9 +262,18 @@ pub const Renderer = struct {
             const material_pass_id = collection.material_passes.get(mat_id) orelse continue;
             const material_pass = self.material_passes.get(material_pass_id).?;
 
-            if (material_pass.object_count == 0) {
+            if (material_pass.object_count == 0 and material_pass.material_dropped) {
+                std.debug.print("Deleting material {}\n", .{mat_id});
                 self.deleteMaterial(.{ .id = mat_id });
             }
+        }
+    }
+
+    pub fn dropMaterial(self: *Renderer, mat_id: MaterialId) void {
+        for (self.render_collections) |collection| {
+            const material_pass_id = collection.material_passes.get(mat_id) orelse continue;
+            const material_pass = self.material_passes.get(material_pass_id).?;
+            material_pass.material_dropped = true;
         }
     }
 
@@ -310,12 +318,11 @@ pub const Renderer = struct {
                     ffi.set_mesh(self.handle, mesh);
 
                     const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
-                    for (0..mesh_pass.objects.bucketCount()) |i| {
-                        for (mesh_pass.objects.bucketItems(i)) |instance| {
-                            const object = self.objects.get(instance).?;
-                            const transform = ui_view_projection.matmul(&object.transform);
-                            ffi.render_object(self.handle, transform.ptr());
-                        }
+                    var it = mesh_pass.objects.iterator();
+                    while (it.next()) |instance| {
+                        const object = self.objects.get(instance).?;
+                        const transform = ui_view_projection.matmul(&object.transform);
+                        ffi.render_object(self.handle, transform.ptr());
                     }
                 }
             }

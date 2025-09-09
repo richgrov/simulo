@@ -4,8 +4,8 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
     return struct {
         data: []T,
         sizes: []usize,
-        iterator: ?[]T,
-        iter_size: usize,
+        count: usize,
+        fingerprint: usize,
 
         const Self = @This();
 
@@ -19,17 +19,14 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
             return Self{
                 .data = data,
                 .sizes = sizes,
-                .iterator = null,
-                .iter_size = 0,
+                .count = 0,
+                .fingerprint = 0,
             };
         }
 
         pub fn deinit(self: *const Self, allocator: std.mem.Allocator) void {
             allocator.free(self.data);
             allocator.free(self.sizes);
-            if (self.iterator) |it| {
-                allocator.free(it);
-            }
         }
 
         pub fn put(self: *Self, allocator: std.mem.Allocator, value: T) error{OutOfMemory}!void {
@@ -43,15 +40,12 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
                     }
                 }
 
+                self.count += 1;
+                self.fingerprint += 1;
+
                 if (index < max_bucket_capacity) {
                     self.data[bucket * max_bucket_capacity + index] = value;
                     self.sizes[bucket] += 1;
-
-                    if (self.iterator) |it| {
-                        it[self.iter_size] = value;
-                        self.iter_size += 1;
-                    }
-
                     break;
                 }
 
@@ -60,12 +54,6 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
                 const new_sizes = try allocator.alloc(usize, self.sizes.len * 2);
                 errdefer allocator.free(new_sizes);
                 @memset(new_sizes, 0);
-                var new_iterator: ?[]T = null;
-                if (self.iterator != null) {
-                    new_iterator = try allocator.alloc(T, self.data.len * 2);
-                    errdefer allocator.free(new_iterator);
-                    self.iter_size = 0;
-                }
 
                 for (self.sizes, 0..) |size, old_bucket| {
                     for (0..size) |i| {
@@ -74,22 +62,13 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
                         const bucket_index = new_sizes[new_bucket];
                         new_data[new_bucket * max_bucket_capacity + bucket_index] = item;
                         new_sizes[new_bucket] += 1;
-
-                        if (new_iterator) |new_it| {
-                            new_it[self.iter_size] = item;
-                            self.iter_size += 1;
-                        }
                     }
                 }
 
                 allocator.free(self.data);
                 allocator.free(self.sizes);
-                if (self.iterator) |it| {
-                    allocator.free(it);
-                }
                 self.data = new_data;
                 self.sizes = new_sizes;
-                self.iterator = new_iterator;
             }
         }
 
@@ -104,9 +83,8 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
 
                 self.data[start + i] = self.data[start + bucket_size - 1];
                 self.sizes[bucket] -= 1;
-                if (self.iterator) |_| {
-                    self.iter_size -= 1;
-                }
+                self.count -= 1;
+                self.fingerprint += 1;
                 return true;
             }
 
@@ -115,24 +93,11 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
 
         pub fn clear(self: *Self) void {
             @memset(self.sizes, 0);
+            self.count = 0;
         }
 
         pub fn empty(self: *const Self) bool {
-            for (self.sizes) |size| {
-                if (size > 0) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        pub fn count(self: *const Self) usize {
-            var c: usize = 0;
-            for (self.sizes) |size| {
-                c += size;
-            }
-            return c;
+            return self.count == 0;
         }
 
         pub fn bucketCount(self: *const Self) usize {
@@ -145,24 +110,38 @@ pub fn IntSet(comptime T: type, comptime max_bucket_capacity: usize) type {
             return self.data[bucket_start .. bucket_start + bucket_size];
         }
 
-        pub fn items(self: *Self, allocator: std.mem.Allocator) ![]T {
-            if (self.iterator == null) {
-                self.iterator = try allocator.alloc(T, self.data.len);
-                errdefer {
-                    self.allocator.free(self.iterator);
-                    self.iter_size = 0;
+        pub fn iterator(self: *const Self) Iterator {
+            return .{
+                .set = self,
+                .fingerprint = self.fingerprint,
+            };
+        }
+
+        pub const Iterator = struct {
+            set: *const Self,
+            fingerprint: usize,
+            bucket: usize = 0,
+            index: usize = 0,
+
+            pub fn next(it: *Iterator) ?T {
+                if (it.fingerprint != it.set.fingerprint) {
+                    return null;
                 }
 
-                for (0..self.bucketCount()) |i| {
-                    for (self.bucketItems(i)) |item| {
-                        self.iterator.?[self.iter_size] = item;
-                        self.iter_size += 1;
+                while (it.index >= it.set.sizes[it.bucket]) {
+                    it.index = 0;
+                    it.bucket += 1;
+
+                    if (it.bucket >= it.set.bucketCount()) {
+                        return null;
                     }
                 }
-            }
 
-            return self.iterator.?[0..self.iter_size];
-        }
+                const value = it.set.bucketItems(it.bucket)[it.index];
+                it.index += 1;
+                return value;
+            }
+        };
     };
 }
 
@@ -177,26 +156,25 @@ test "IntSet put, iter, delete" {
     try set.put(allocator, 10);
     try set.put(allocator, 15);
     try set.put(allocator, 20);
+    try std.testing.expectEqual(4, set.count);
 
     var found = [4]usize{ 0, 0, 0, 0 };
     var count: usize = 0;
-    for (0..set.bucketCount()) |bucket_index| {
-        const items = set.bucketItems(bucket_index);
-        for (items) |item| {
-            if (count == 4) {
-                @panic(std.fmt.allocPrint(allocator, "extra item {d}", .{item}) catch unreachable);
-            }
-
-            switch (item) {
-                5 => found[0] += 1,
-                10 => found[1] += 1,
-                15 => found[2] += 1,
-                20 => found[3] += 1,
-                else => @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable),
-            }
-
-            count += 1;
+    var it = set.iterator();
+    while (it.next()) |item| {
+        if (count == 4) {
+            @panic(std.fmt.allocPrint(allocator, "extra item {d}", .{item}) catch unreachable);
         }
+
+        switch (item) {
+            5 => found[0] += 1,
+            10 => found[1] += 1,
+            15 => found[2] += 1,
+            20 => found[3] += 1,
+            else => @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable),
+        }
+
+        count += 1;
     }
 
     for (found) |f| {
@@ -207,6 +185,7 @@ test "IntSet put, iter, delete" {
     try std.testing.expect(set.delete(10));
     try std.testing.expect(set.delete(15));
     try std.testing.expect(set.delete(20));
+    try std.testing.expectEqual(0, set.count);
 }
 
 test "IntSet delete non-existent" {
@@ -224,16 +203,14 @@ test "IntSet delete non-existent" {
     try std.testing.expect(set.delete(5));
 
     var ok = false;
-    for (0..set.bucketCount()) |bucket_index| {
-        const items = set.bucketItems(bucket_index);
-        for (items) |item| {
-            if (ok) {
-                @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable);
-            }
+    var it = set.iterator();
+    while (it.next()) |item| {
+        if (ok) {
+            @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable);
+        }
 
-            if (item == 15) {
-                ok = true;
-            }
+        if (item == 15) {
+            ok = true;
         }
     }
 }
@@ -250,23 +227,21 @@ test "IntSet extreme resizing" {
 
     var found = [4]usize{ 0, 0, 0, 0 };
     var count: usize = 0;
-    for (0..set.bucketCount()) |bucket_index| {
-        const items = set.bucketItems(bucket_index);
-        for (items) |item| {
-            if (count == 4) {
-                @panic(std.fmt.allocPrint(allocator, "extra item {d}", .{item}) catch unreachable);
-            }
-
-            switch (item) {
-                1 => found[0] += 1,
-                100 => found[1] += 1,
-                50 => found[2] += 1,
-                64 => found[3] += 1,
-                else => @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable),
-            }
-
-            count += 1;
+    var it = set.iterator();
+    while (it.next()) |item| {
+        if (count == 4) {
+            @panic(std.fmt.allocPrint(allocator, "extra item {d}", .{item}) catch unreachable);
         }
+
+        switch (item) {
+            1 => found[0] += 1,
+            100 => found[1] += 1,
+            50 => found[2] += 1,
+            64 => found[3] += 1,
+            else => @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable),
+        }
+
+        count += 1;
     }
 
     for (found) |f| {
@@ -279,10 +254,9 @@ test "IntSet empty buckets" {
     var set = try IntSet(u32, 16).init(allocator, 16);
     defer set.deinit(allocator);
 
-    for (0..set.bucketCount()) |bucket_index| {
-        for (set.bucketItems(bucket_index)) |item| {
-            @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable);
-        }
+    var it = set.iterator();
+    while (it.next()) |item| {
+        @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable);
     }
 }
 
@@ -303,107 +277,23 @@ test "IntSet put, delete, put" {
 
     var found = [3]usize{ 0, 0, 0 };
     var count: usize = 0;
-    for (0..set.bucketCount()) |bucket_index| {
-        const items = set.bucketItems(bucket_index);
-        for (items) |item| {
-            if (count == 3) {
-                @panic(std.fmt.allocPrint(allocator, "extra item {d}", .{item}) catch unreachable);
-            }
-
-            switch (item) {
-                5 => found[0] += 1,
-                10 => found[1] += 1,
-                15 => found[2] += 1,
-                else => @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable),
-            }
-
-            count += 1;
+    var it = set.iterator();
+    while (it.next()) |item| {
+        if (count == 3) {
+            @panic(std.fmt.allocPrint(allocator, "extra item {d}", .{item}) catch unreachable);
         }
+
+        switch (item) {
+            5 => found[0] += 1,
+            10 => found[1] += 1,
+            15 => found[2] += 1,
+            else => @panic(std.fmt.allocPrint(allocator, "unexpected item {d}", .{item}) catch unreachable),
+        }
+
+        count += 1;
     }
 
     for (found) |f| {
         try std.testing.expectEqual(1, f);
     }
-}
-
-test "Iterate over items" {
-    const allocator = std.testing.allocator;
-    var set = try IntSet(u32, 16).init(allocator, 4);
-    defer set.deinit(allocator);
-
-    try set.put(allocator, 1);
-    try set.put(allocator, 2);
-    try set.put(allocator, 3);
-    try set.put(allocator, 4);
-    try set.put(allocator, 5);
-    try set.put(allocator, 6);
-    const items = try set.items(allocator);
-
-    // They are sorted based on buckets
-    try std.testing.expectEqual(6, items.len);
-    try std.testing.expectEqual(4, items[0]);
-    try std.testing.expectEqual(1, items[1]);
-    try std.testing.expectEqual(5, items[2]);
-    try std.testing.expectEqual(2, items[3]);
-    try std.testing.expectEqual(6, items[4]);
-    try std.testing.expectEqual(3, items[5]);
-}
-
-test "Iterate items after insertion" {
-    const allocator = std.testing.allocator;
-    var set = try IntSet(u32, 16).init(allocator, 4);
-    defer set.deinit(allocator);
-
-    try set.put(allocator, 1);
-    try set.put(allocator, 2);
-    try set.put(allocator, 3);
-    try set.put(allocator, 4);
-    var items = try set.items(allocator);
-
-    try std.testing.expectEqual(4, items.len);
-    try std.testing.expectEqual(4, items[0]);
-    try std.testing.expectEqual(1, items[1]);
-    try std.testing.expectEqual(2, items[2]);
-    try std.testing.expectEqual(3, items[3]);
-
-    try set.put(allocator, 5);
-    try set.put(allocator, 6);
-    items = try set.items(allocator);
-    // Insertion after first call inserts in bucket order to the end of the existing array
-    try std.testing.expectEqual(6, items.len);
-    try std.testing.expectEqual(4, items[0]);
-    try std.testing.expectEqual(1, items[1]);
-    try std.testing.expectEqual(2, items[2]);
-    try std.testing.expectEqual(3, items[3]);
-    try std.testing.expectEqual(5, items[4]);
-    try std.testing.expectEqual(6, items[5]);
-}
-
-test "Iterate items after resize" {
-    const allocator = std.testing.allocator;
-    var set = try IntSet(u32, 1).init(allocator, 4);
-    defer set.deinit(allocator);
-
-    try set.put(allocator, 1);
-    try set.put(allocator, 2);
-    try set.put(allocator, 3);
-    try set.put(allocator, 4);
-    var items = try set.items(allocator);
-
-    try std.testing.expectEqual(4, items.len);
-    try std.testing.expectEqual(4, items[0]);
-    try std.testing.expectEqual(1, items[1]);
-    try std.testing.expectEqual(2, items[2]);
-    try std.testing.expectEqual(3, items[3]);
-
-    try set.put(allocator, 5);
-    try set.put(allocator, 6);
-    items = try set.items(allocator);
-    try std.testing.expectEqual(6, items.len);
-    try std.testing.expectEqual(4, items[0]);
-    try std.testing.expectEqual(1, items[1]);
-    try std.testing.expectEqual(2, items[2]);
-    try std.testing.expectEqual(3, items[3]);
-    try std.testing.expectEqual(5, items[4]);
-    try std.testing.expectEqual(6, items[5]);
 }

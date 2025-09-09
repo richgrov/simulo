@@ -28,11 +28,12 @@ public:
    }
 
    void on_create() {
+      Material particle_material(nullptr, 0.0f, 1.0f, 1.0f);
       for (int i = -2; i <= 2; i++) {
          float offset = i * 10.0f;
          float scale_offset = i / 2.0f;
          glm::vec2 position = glm::vec2(simulo_window_width() / 2 + offset, simulo_window_height() / 2 + offset);
-         auto particle = std::make_unique<Particle>(position, white_material_);
+         auto particle = std::make_unique<Particle>(position, particle_material);
          particle->scale += scale_offset;
          add_child(std::unique_ptr<Particle>(std::move(particle)));
       }

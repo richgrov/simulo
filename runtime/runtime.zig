@@ -103,7 +103,7 @@ pub const Runtime = struct {
 
         try Wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
         try Wasm.exposeFunction("simulo_update_material", wasmUpdateMaterial);
-        try Wasm.exposeFunction("simulo_delete_material", wasmDeleteMaterial);
+        try Wasm.exposeFunction("simulo_drop_material", wasmDropMaterial);
     }
 
     pub fn globalDeinit() void {
@@ -509,7 +509,7 @@ pub const Runtime = struct {
         };
 
         if (obj.children) |*children| {
-            return @intCast(children.count());
+            return @intCast(children.count);
         }
 
         return 0;
@@ -543,9 +543,9 @@ pub const Runtime = struct {
         obj.this = this;
     }
 
-    fn deleteMaterial(self: *Runtime, id: u32) void {
+    fn deleteMaterial(runtime: *Runtime, id: u32) void {
         const material_handle = Renderer.MaterialHandle{ .id = id };
-        self.renderer.deleteMaterial(material_handle);
+        runtime.renderer.deleteMaterial(material_handle);
     }
 
     fn wasmRemoveObjectFromParent(user_ptr: *anyopaque, id: u32) void {
@@ -585,9 +585,9 @@ pub const Runtime = struct {
         _ = runtime.outdated_object_transforms.delete(@intCast(id));
     }
 
-    fn wasmDeleteMaterial(user_ptr: *anyopaque, id: u32) void {
+    fn wasmDropMaterial(user_ptr: *anyopaque, id: u32) void {
         const runtime: *Runtime = @ptrCast(@alignCast(user_ptr));
-        runtime.deleteMaterial(id);
+        runtime.renderer.dropMaterial(id);
     }
 
     fn wasmMarkTransformOutdated(user_ptr: *anyopaque, id: u32) void {

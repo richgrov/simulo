@@ -65,8 +65,8 @@ extern int32_t simulo_window_height(void);
 __attribute__((__import_name__("simulo_create_material"))) extern uint32_t
 simulo_create_material(const char *asset_name, float r, float g, float b);
 
-__attribute__((__import_name__("simulo_delete_material")))
-extern void simulo_delete_material(uint32_t id);
+__attribute__((__import_name__("simulo_drop_material")))
+extern void simulo_drop_material(uint32_t id);
 
 extern "C" void simulo__pose(int id, bool alive);
 
@@ -157,6 +157,10 @@ class Material {
 public:
    Material(const char *asset_name, float r, float g, float b)
        : simulo__id(simulo_create_material(asset_name, r, g, b)) {}
+
+   ~Material() {
+      simulo_drop_material(simulo__id);
+   }
 
 private:
    friend class Object;
