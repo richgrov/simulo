@@ -98,7 +98,7 @@ jobs:
       - name: Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack-dev ccache xvfb x11-apps imagemagick
+          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack-dev ccache
           version: "1.0"
 
       - name: Download ONNX Runtime
@@ -133,39 +133,6 @@ jobs:
       - name: Build cloud
         run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
 
-      - name: Run runtime headless and capture screenshot
-        env:
-          DISPLAY: :99
-          SIMULO_MACHINE_ID: 0
-        run: |
-          Xvfb :99 -screen 0 1280x720x24 &
-          export DISPLAY=:99
-          sleep 2
-          # Start the app in background to allow window to appear
-          ./zig-out/bin/runtime &
-          RUNTIME_PID=$!
-          # Wait a bit for the window/rendering to initialize
-          sleep 5
-          # Try to capture a screenshot using xwd -> convert (ImageMagick)
-          if command -v xwd >/dev/null 2>&1; then
-            xwd -root -silent | convert xwd:- screenshot.png || true
-          else
-            # Fallback to import (ImageMagick) if available
-            if command -v import >/dev/null 2>&1; then
-              import -window root screenshot.png || true
-            fi
-          fi
-          # Terminate the app
-          kill $RUNTIME_PID || true
-          wait $RUNTIME_PID || true
-
-      - name: Upload screenshot artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: runtime-screenshot-linux
-          path: screenshot.png
-
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
         with:
@@ -177,3 +144,56 @@ jobs:
         with:
           name: simulo-runtime-cloud-linux-x64
           path: zig-out-cloud/bin
+
+  Headless-Run-Linux:
+    runs-on: ubuntu-latest
+    needs: Build-Linux
+    steps:
+      - name: Install headless display tools
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: xvfb imagemagick
+          version: "1.0"
+
+      - name: Download built runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: simulo-runtime-local-linux-x64
+          path: .
+
+      - name: Run runtime headless and capture screenshot
+        env:
+          DISPLAY: :99
+          SIMULO_MACHINE_ID: 0
+        run: |
+          set -euo pipefail
+          Xvfb :99 -screen 0 1280x720x24 &
+          XVFB_PID=$!
+          export DISPLAY=:99
+          sleep 1
+          ./zig-out/bin/runtime &
+          RUNTIME_PID=$!
+          # Ensure runtime is still running after 10 seconds; fail otherwise
+          for i in $(seq 1 10); do
+            if kill -0 "$RUNTIME_PID" 2>/dev/null; then
+              sleep 1
+            else
+              echo "runtime exited prematurely" >&2
+              kill "$XVFB_PID" || true
+              wait "$XVFB_PID" || true
+              exit 1
+            fi
+          done
+          # Capture screenshot with a single tool (ImageMagick import)
+          import -window root screenshot.png
+          # Cleanup
+          kill "$RUNTIME_PID" || true
+          wait "$RUNTIME_PID" || true
+          kill "$XVFB_PID" || true
+          wait "$XVFB_PID" || true
+
+      - name: Upload screenshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-screenshot-linux
+          path: screenshot.png
