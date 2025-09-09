@@ -162,7 +162,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: simulo-runtime-local-linux-x64
-          path: .
+          path: artifact
 
       - name: Run runtime headless and capture screenshot
         env:
@@ -174,7 +174,15 @@ jobs:
           XVFB_PID=$!
           export DISPLAY=:99
           sleep 1
-          ./zig-out/bin/runtime &
+          cd artifact
+          RUNTIME_PATH=$(find . -maxdepth 3 -type f -name runtime -executable | head -n1 || true)
+          if [ -z "$RUNTIME_PATH" ]; then
+            echo "could not locate runtime binary in downloaded artifact" >&2
+            kill "$XVFB_PID" || true
+            wait "$XVFB_PID" || true
+            exit 1
+          fi
+          "$RUNTIME_PATH" &
           RUNTIME_PID=$!
           # Ensure runtime is still running after 10 seconds; fail otherwise
           for i in $(seq 1 10); do
@@ -199,4 +207,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: runtime-screenshot-linux
-          path: screenshot.png
+          path: artifact/screenshot.png
