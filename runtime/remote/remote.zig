@@ -19,6 +19,23 @@ fn apiHost() []const u8 {
     return std.mem.trimStart(u8, noHttps, "http://");
 }
 
+const fs_storage = @import("../fs_storage.zig");
+
+fn readPrivateKey() ![32]u8 {
+    var private_key_path_buf: [512]u8 = undefined;
+    const private_key_path = fs_storage.getFilePath(&private_key_path_buf, "private.der") catch unreachable;
+
+    var private_key_buf: [68]u8 = undefined;
+    const private_key_der = try std.fs.cwd().readFile(private_key_path, &private_key_buf);
+    if (private_key_der.len < 48) {
+        return error.PrivateKeyTooShort;
+    }
+
+    var private_key: [32]u8 = undefined;
+    @memcpy(&private_key, private_key_der[private_key_der.len - 32 ..]);
+    return private_key;
+}
+
 pub const Remote = struct {
     allocator: std.mem.Allocator,
     id: []const u8,
@@ -30,20 +47,20 @@ pub const Remote = struct {
     reconnect_delay_ms: u64 = MIN_RECONNECT_DELAY_MS,
     inbound_queue: Spsc(Packet, 128),
 
-    pub fn init(allocator: std.mem.Allocator, id: []const u8, private_key: *const [32]u8) !Remote {
-        if (id.len > 64) {
+    pub fn init(allocator: std.mem.Allocator) !Remote {
+        const machine_id = try std.process.getEnvVarOwned(allocator, "SIMULO_MACHINE_ID");
+        errdefer allocator.free(machine_id);
+        if (machine_id.len > 64) {
+            allocator.free(machine_id);
             return error.InvalidId;
         }
 
-        if (private_key.len != 32) {
-            return error.InvalidPrivateKey;
-        }
-
-        const key_pair = try std.crypto.sign.Ed25519.KeyPair.generateDeterministic(private_key.*);
+        const private_key = try readPrivateKey();
+        const key_pair = try std.crypto.sign.Ed25519.KeyPair.generateDeterministic(private_key);
 
         return Remote{
             .allocator = allocator,
-            .id = id,
+            .id = machine_id,
             .secret_key = key_pair,
             .inbound_queue = Spsc(Packet, 128).init(),
         };
@@ -55,6 +72,7 @@ pub const Remote = struct {
         if (self.read_thread) |*thread| {
             thread.join();
         }
+        self.allocator.free(self.id);
     }
 
     pub fn start(self: *Remote) !void {

@@ -7,22 +7,6 @@ const Runtime = @import("runtime.zig").Runtime;
 
 const fs_storage = @import("fs_storage.zig");
 
-fn readPrivateKey() ![32]u8 {
-    // From the macOS and Linux user name length limit, 512 bytes should be enough
-    var private_key_path_buf: [512]u8 = undefined;
-    const private_key_path = fs_storage.getFilePath(&private_key_path_buf, "private.der") catch unreachable;
-
-    var private_key_buf: [68]u8 = undefined;
-    const private_key_der = try std.fs.cwd().readFile(private_key_path, &private_key_buf);
-    if (private_key_der.len < 48) {
-        return error.PrivateKeyTooShort;
-    }
-
-    var private_key: [32]u8 = undefined;
-    @memcpy(&private_key, private_key_der[private_key_der.len - 32 ..]);
-    return private_key;
-}
-
 pub fn main() !void {
     var dba = std.heap.DebugAllocator(.{}).init;
     defer {
@@ -37,34 +21,11 @@ pub fn main() !void {
         return;
     };
 
-    const private_key = readPrivateKey() catch |err| {
-        if (err == error.OutOfMemory) {
-            util.crash.oom(error.OutOfMemory);
-        }
-        std.log.err("error: failed to read private key: {s}", .{@errorName(err)});
-        return;
-    };
-
-    const machine_id = std.process.getEnvVarOwned(allocator, "SIMULO_MACHINE_ID") catch |err| {
-        switch (err) {
-            error.EnvironmentVariableNotFound => {
-                std.log.err("error: SIMULO_MACHINE_ID is not set", .{});
-                return;
-            },
-            error.OutOfMemory => util.crash.oom(error.OutOfMemory),
-            else => {
-                std.log.err("error: failed to get SIMULO_MACHINE_ID: {any}", .{err});
-                return;
-            },
-        }
-    };
-    defer allocator.free(machine_id);
-
     try Runtime.globalInit();
     defer Runtime.globalDeinit();
 
     var runtime: Runtime = undefined;
-    try Runtime.init(&runtime, machine_id, &private_key, allocator);
+    try Runtime.init(&runtime, allocator);
     defer runtime.deinit();
 
     try runtime.run();

@@ -5,7 +5,7 @@ const Packet = packet.Packet;
 pub const NoOpRemote = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator, _: []const u8, _: *const [32]u8) !NoOpRemote {
+    pub fn init(allocator: std.mem.Allocator) !NoOpRemote {
         return NoOpRemote{
             .allocator = allocator,
         };
