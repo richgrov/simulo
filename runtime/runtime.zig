@@ -159,7 +159,7 @@ pub const Runtime = struct {
 
     pub fn deinit(self: *Runtime) void {
         self.wasm.deinit() catch |err| {
-            self.remote.log("wasm deinit failed: {any}", .{err});
+            std.log.err("wasm deinit failed: {any}", .{err});
         };
         self.eyeguard.deinit();
 
@@ -181,7 +181,7 @@ pub const Runtime = struct {
 
     fn runProgram(self: *Runtime, program_hash: *const [32]u8, assets: []const fs_storage.ProgramAsset) !void {
         self.wasm.deinit() catch |err| {
-            self.remote.log("wasm deinit failed: {any}", .{err});
+            std.log.err("wasm deinit failed: {any}", .{err});
         };
 
         self.scene.deinit();
@@ -201,31 +201,31 @@ pub const Runtime = struct {
 
         var wasm_err: ?WasmError = null;
         self.wasm.init(self.allocator, data, &wasm_err) catch |err_code| {
-            self.remote.log("wasm initialization failed: {s}: {any}", .{ @errorName(err_code), wasm_err });
+            std.log.err("wasm initialization failed: {s}: {any}", .{ @errorName(err_code), wasm_err });
             return error.WasmInitFailed;
         };
 
         const init_func = self.wasm.getFunction("simulo_main") orelse {
-            self.remote.log("program missing init function", .{});
+            std.log.err("program missing init function", .{});
             return error.MissingFunction;
         };
 
         self.wasm_funcs = .{
             .init = init_func,
             .update = self.wasm.getFunction("simulo__update") orelse {
-                self.remote.log("program missing update function", .{});
+                std.log.err("program missing update function", .{});
                 return error.MissingFunction;
             },
             .recalculate_transform = self.wasm.getFunction("simulo__recalculate_transform") orelse {
-                self.remote.log("program missing recalculate_transform function", .{});
+                std.log.err("program missing recalculate_transform function", .{});
                 return error.MissingFunction;
             },
             .pose = self.wasm.getFunction("simulo__pose") orelse {
-                self.remote.log("program missing pose function", .{});
+                std.log.err("program missing pose function", .{});
                 return error.MissingFunction;
             },
             .drop = self.wasm.getFunction("simulo__drop") orelse {
-                self.remote.log("program missing drop function", .{});
+                std.log.err("program missing drop function", .{});
                 return error.MissingFunction;
             },
         };
@@ -236,13 +236,13 @@ pub const Runtime = struct {
             var image_path_buf: [1024]u8 = undefined;
             const image_path = fs_storage.getCachePath(&image_path_buf, &asset.hash) catch unreachable;
             const image_data = std.fs.cwd().readFileAlloc(self.allocator, image_path, 10 * 1024 * 1024) catch |err| {
-                self.remote.log("failed to read asset file at {s}: {s}", .{ image_path, @errorName(err) });
+                std.log.err("failed to read asset file at {s}: {s}", .{ image_path, @errorName(err) });
                 return error.AssertReadFailed;
             };
             defer self.allocator.free(image_data);
 
             const image_info = loadImage(image_data) catch |err| {
-                self.remote.log("failed to load data from {s}: {s}", .{ image_path, @errorName(err) });
+                std.log.err("failed to load data from {s}: {s}", .{ image_path, @errorName(err) });
                 return error.AssertLoadFailed;
             };
 
@@ -263,13 +263,13 @@ pub const Runtime = struct {
 
     fn tryRunLatestProgram(self: *Runtime) void {
         const program_info = fs_storage.loadLatestProgram() catch |err| {
-            self.remote.log("failed to load latest program: {s}", .{@errorName(err)});
+            std.log.err("failed to load latest program: {s}", .{@errorName(err)});
             return;
         };
 
         if (program_info) |info| {
             self.runProgram(&info.program_hash, info.assets.items()) catch |err| {
-                self.remote.log("failed to run latest program: {s}", .{@errorName(err)});
+                std.log.err("failed to run latest program: {s}", .{@errorName(err)});
             };
         }
     }
@@ -337,7 +337,7 @@ pub const Runtime = struct {
                 1.0,
             );
             self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
-                self.remote.log("render failed: {any}", .{err});
+                std.log.err("render failed: {any}", .{err});
             };
 
             if (now - self.last_ping >= 1000 * 30) {
@@ -357,7 +357,7 @@ pub const Runtime = struct {
                         const program_path = fs_storage.getCachePath(&program_path_buf, &download.program_hash) catch unreachable;
 
                         self.remote.fetch(download.program_url, &download.program_hash, program_path) catch |err| {
-                            self.remote.log("program download failed: {s}", .{@errorName(err)});
+                            std.log.err("program download failed: {s}", .{@errorName(err)});
                             should_run = false;
                         };
 
@@ -366,7 +366,7 @@ pub const Runtime = struct {
                             const dest_path = fs_storage.getCachePath(&dest_path_buf, &file.asset.hash) catch unreachable;
 
                             self.remote.fetch(file.url, &file.asset.hash, dest_path) catch |err| {
-                                self.remote.log("asset download failed: {s}", .{@errorName(err)});
+                                std.log.err("asset download failed: {s}", .{@errorName(err)});
                                 should_run = false;
                             };
                         }
@@ -377,7 +377,7 @@ pub const Runtime = struct {
                         }
 
                         fs_storage.storeLatestProgram(&download.program_hash, assets.items()) catch |err| {
-                            self.remote.log("failed to store latest info: {s}", .{@errorName(err)});
+                            std.log.err("failed to store latest info: {s}", .{@errorName(err)});
                         };
 
                         if (should_run) {
@@ -437,7 +437,7 @@ pub const Runtime = struct {
                     _ = profile_logs;
                 },
                 .fault => |fault| {
-                    self.remote.log("pose detector fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
+                    std.log.err("pose detector fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
                 },
             }
         }
@@ -465,7 +465,7 @@ pub const Runtime = struct {
     fn wasmSetRoot(env: *Wasm, id: u32, this: i32) void {
         const runtime: *Runtime = @fieldParentPtr("wasm", env);
         const obj = runtime.scene.get(id) orelse {
-            runtime.remote.log("tried to set root of non-existent object {d}", .{id});
+            std.log.err("tried to set root of non-existent object {d}", .{id});
             return;
         };
 
@@ -473,8 +473,8 @@ pub const Runtime = struct {
 
         runtime.scene.setRoot(id) catch |err| {
             switch (err) {
-                error.RootAlreadySet => runtime.remote.log("tried to set root to object {d} when it's already set", .{id}),
-                error.ObjectAlreadyHasParent => runtime.remote.log("tried to set root of object {d} that already has a parent", .{id}),
+                error.RootAlreadySet => std.log.err("tried to set root to object {d} when it's already set", .{id}),
+                error.ObjectAlreadyHasParent => std.log.err("tried to set root of object {d} that already has a parent", .{id}),
             }
         };
     }
@@ -494,8 +494,8 @@ pub const Runtime = struct {
         const runtime: *Runtime = @fieldParentPtr("wasm", env);
         runtime.scene.addChild(parent, child) catch |err| {
             switch (err) {
-                error.ObjectNotFound => runtime.remote.log("tried to add non-existent child {d} to object {d}", .{ child, parent }),
-                error.ObjectAlreadyHasParent => runtime.remote.log("tried to add child {d} to object {d} that already has a parent", .{ child, parent }),
+                error.ObjectNotFound => std.log.err("tried to add non-existent child {d} to object {d}", .{ child, parent }),
+                error.ObjectAlreadyHasParent => std.log.err("tried to add child {d} to object {d} that already has a parent", .{ child, parent }),
                 error.OutOfMemory => util.crash.oom(error.OutOfMemory),
             }
         };
@@ -504,7 +504,7 @@ pub const Runtime = struct {
     fn wasmNumChildren(env: *Wasm, id: u32) u32 {
         const runtime: *Runtime = @fieldParentPtr("wasm", env);
         const obj = runtime.scene.get(id) orelse {
-            runtime.remote.log("tried to get number of children of non-existent object {d}", .{id});
+            std.log.err("tried to get number of children of non-existent object {d}", .{id});
             return 0;
         };
 
@@ -518,7 +518,7 @@ pub const Runtime = struct {
     fn wasmGetChildren(env: *Wasm, id: u32, out_children: [*]i32) void {
         const runtime: *Runtime = @fieldParentPtr("wasm", env);
         const obj = runtime.scene.get(id) orelse {
-            runtime.remote.log("tried to get children of non-existent object {d}", .{id});
+            std.log.err("tried to get children of non-existent object {d}", .{id});
             return;
         };
 
@@ -536,7 +536,7 @@ pub const Runtime = struct {
     fn wasmSetObjectPtrs(env: *Wasm, id: u32, this: i32) void {
         const runtime: *Runtime = @fieldParentPtr("wasm", env);
         const obj = runtime.scene.get(id) orelse {
-            runtime.remote.log("tried to set object ptr of non-existent object {d}", .{id});
+            std.log.err("tried to set object ptr of non-existent object {d}", .{id});
             return;
         };
 
@@ -551,13 +551,13 @@ pub const Runtime = struct {
     fn wasmRemoveObjectFromParent(env: *Wasm, id: u32) void {
         const runtime: *Runtime = @fieldParentPtr("wasm", env);
         const obj = runtime.scene.get(id) orelse {
-            runtime.remote.log("tried to remove non-existent object {d}", .{id});
+            std.log.err("tried to remove non-existent object {d}", .{id});
             return;
         };
 
         if (obj.parent) |parent| {
             const parent_obj = runtime.scene.get(parent) orelse {
-                runtime.remote.log("tried to delete from non-existent parent {d} of object {d}", .{ parent, obj.id });
+                std.log.err("tried to delete from non-existent parent {d} of object {d}", .{ parent, obj.id });
                 return;
             };
 
@@ -577,8 +577,8 @@ pub const Runtime = struct {
         const runtime: *Runtime = @fieldParentPtr("wasm", env);
         runtime.scene.delete(id) catch |err| {
             switch (err) {
-                error.ObjectNotFound => runtime.remote.log("tried to delete non-existent object {d}", .{id}),
-                error.ObjectHasChildren => runtime.remote.log("tried to delete object {d} that has children", .{id}),
+                error.ObjectNotFound => std.log.err("tried to delete non-existent object {d}", .{id}),
+                error.ObjectHasChildren => std.log.err("tried to delete object {d} that has children", .{id}),
             }
         };
 
@@ -638,7 +638,7 @@ pub const Runtime = struct {
             if (runtime.assets.get(name_slice)) |image| {
                 break :cond image.?;
             } else {
-                runtime.remote.log("tried to create material with non-texture asset {s}", .{name});
+                std.log.err("tried to create material with non-texture asset {s}", .{name});
                 return 0;
             }
         } else runtime.white_pixel_texture;

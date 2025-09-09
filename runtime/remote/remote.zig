@@ -61,10 +61,6 @@ pub const Remote = struct {
         self.read_thread = try std.Thread.spawn(.{}, Remote.readLoop, .{self});
     }
 
-    pub fn log(_: *Remote, comptime fmt: []const u8, args: anytype) void {
-        std.log.info(fmt, args);
-    }
-
     pub fn sendPing(_: *Remote) void {}
     pub fn sendProfile(_: *Remote, _: anytype, _: []const profile.Logs) void {}
 
@@ -168,7 +164,7 @@ pub const Remote = struct {
     }
 
     pub fn fetch(self: *Remote, url: []const u8, hash: *const [32]u8, dest_path: []const u8) !void {
-        self.log("Downloading {s} to {s}", .{ url, dest_path });
+        std.log.info("Downloading {s} to {s}", .{ url, dest_path });
 
         var check_hash = true;
         const dest = std.fs.cwd().openFile(dest_path, .{ .mode = .read_write }) catch |err| file: {
@@ -188,7 +184,7 @@ pub const Remote = struct {
             var hash_bytes: [32]u8 = undefined;
             std.crypto.hash.sha2.Sha256.hash(content, &hash_bytes, .{});
             if (std.mem.eql(u8, &hash_bytes, hash)) {
-                self.log("Hash matches, skipping download to {s}", .{dest_path});
+                std.log.info("Hash matches, skipping download to {s}", .{dest_path});
                 return;
             }
         }
