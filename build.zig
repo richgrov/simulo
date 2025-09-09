@@ -12,11 +12,13 @@ pub fn build(b: *std.Build) !void {
     const custom_api_url = b.option([]const u8, "api_url", "Override API URL") orelse "https://api.simulo.tech";
     const wasm_path = b.option([]const u8, "wasm_path", "Override path to read WASM binary from");
     const new_wasm = b.option(bool, "new_wasm", "Use the experimental WASM JIT compiler") orelse false;
+    const local_dev = b.option(bool, "local_dev", "Compile for local development mode") orelse false;
 
     const options = b.addOptions();
     options.addOption([]const u8, "api_url", custom_api_url);
     options.addOption(?[]const u8, "wasm_path", wasm_path);
     options.addOption(bool, "new_wasm", new_wasm);
+    options.addOption(bool, "local_dev", local_dev);
 
     const util = b.createModule(.{
         .root_source_file = b.path("util/util.zig"),
