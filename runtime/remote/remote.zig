@@ -48,7 +48,8 @@ pub const Remote = struct {
     inbound_queue: Spsc(Packet, 128),
 
     pub fn init(allocator: std.mem.Allocator) !Remote {
-        var machine_id = try std.process.getEnvVarOwned(allocator, "SIMULO_MACHINE_ID");
+        const machine_id = try std.process.getEnvVarOwned(allocator, "SIMULO_MACHINE_ID");
+        errdefer allocator.free(machine_id);
         if (machine_id.len > 64) {
             allocator.free(machine_id);
             return error.InvalidId;
@@ -67,6 +68,8 @@ pub const Remote = struct {
 
     pub fn deinit(self: *Remote) void {
         @atomicStore(bool, &self.running, false, .seq_cst);
+
+        self.allocator.free(self.id);
 
         if (self.read_thread) |*thread| {
             thread.join();
