@@ -21,26 +21,11 @@ pub fn main() !void {
         return;
     };
 
-    const machine_id = std.process.getEnvVarOwned(allocator, "SIMULO_MACHINE_ID") catch |err| {
-        switch (err) {
-            error.EnvironmentVariableNotFound => {
-                std.log.err("error: SIMULO_MACHINE_ID is not set", .{});
-                return;
-            },
-            error.OutOfMemory => util.crash.oom(error.OutOfMemory),
-            else => {
-                std.log.err("error: failed to get SIMULO_MACHINE_ID: {any}", .{err});
-                return;
-            },
-        }
-    };
-    defer allocator.free(machine_id);
-
     try Runtime.globalInit();
     defer Runtime.globalDeinit();
 
     var runtime: Runtime = undefined;
-    try Runtime.init(&runtime, machine_id, allocator);
+    try Runtime.init(&runtime, allocator);
     defer runtime.deinit();
 
     try runtime.run();

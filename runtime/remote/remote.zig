@@ -38,7 +38,7 @@ fn readPrivateKey() ![32]u8 {
 
 pub const Remote = struct {
     allocator: std.mem.Allocator,
-    id: []const u8,
+    id: []u8,
     secret_key: std.crypto.sign.Ed25519.KeyPair,
 
     read_thread: ?std.Thread = null,
@@ -47,8 +47,10 @@ pub const Remote = struct {
     reconnect_delay_ms: u64 = MIN_RECONNECT_DELAY_MS,
     inbound_queue: Spsc(Packet, 128),
 
-    pub fn init(allocator: std.mem.Allocator, id: []const u8) !Remote {
-        if (id.len > 64) {
+    pub fn init(allocator: std.mem.Allocator) !Remote {
+        var machine_id = try std.process.getEnvVarOwned(allocator, "SIMULO_MACHINE_ID");
+        if (machine_id.len > 64) {
+            allocator.free(machine_id);
             return error.InvalidId;
         }
 
@@ -57,7 +59,7 @@ pub const Remote = struct {
 
         return Remote{
             .allocator = allocator,
-            .id = id,
+            .id = machine_id,
             .secret_key = key_pair,
             .inbound_queue = Spsc(Packet, 128).init(),
         };
@@ -69,6 +71,7 @@ pub const Remote = struct {
         if (self.read_thread) |*thread| {
             thread.join();
         }
+        self.allocator.free(self.id);
     }
 
     pub fn start(self: *Remote) !void {
