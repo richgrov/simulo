@@ -466,7 +466,7 @@ pub const Runtime = struct {
     }
 
     fn wasmSetRoot(env: *Wasm, id: u32, this: i32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const obj = runtime.scene.get(id) orelse {
             std.log.err("tried to set root of non-existent object {d}", .{id});
             return;
@@ -483,18 +483,18 @@ pub const Runtime = struct {
     }
 
     fn wasmSetBuffers(env: *Wasm, pose_buffer: [*]f32, transform_buffer: [*]f32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.wasm_pose_buffer = pose_buffer;
         runtime.wasm_transform_buffer = transform_buffer;
     }
 
     fn wasmCreateObject(env: *Wasm) u32 {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         return runtime.scene.createObject() catch |err| util.crash.oom(err);
     }
 
     fn wasmAddObjectChild(env: *Wasm, parent: u32, child: u32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.scene.addChild(parent, child) catch |err| {
             switch (err) {
                 error.ObjectNotFound => std.log.err("tried to add non-existent child {d} to object {d}", .{ child, parent }),
@@ -505,7 +505,7 @@ pub const Runtime = struct {
     }
 
     fn wasmNumChildren(env: *Wasm, id: u32) u32 {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const obj = runtime.scene.get(id) orelse {
             std.log.err("tried to get number of children of non-existent object {d}", .{id});
             return 0;
@@ -519,7 +519,7 @@ pub const Runtime = struct {
     }
 
     fn wasmGetChildren(env: *Wasm, id: u32, out_children: [*]i32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const obj = runtime.scene.get(id) orelse {
             std.log.err("tried to get children of non-existent object {d}", .{id});
             return;
@@ -537,7 +537,7 @@ pub const Runtime = struct {
     }
 
     fn wasmSetObjectPtrs(env: *Wasm, id: u32, this: i32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const obj = runtime.scene.get(id) orelse {
             std.log.err("tried to set object ptr of non-existent object {d}", .{id});
             return;
@@ -552,7 +552,7 @@ pub const Runtime = struct {
     }
 
     fn wasmRemoveObjectFromParent(env: *Wasm, id: u32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const obj = runtime.scene.get(id) orelse {
             std.log.err("tried to remove non-existent object {d}", .{id});
             return;
@@ -577,7 +577,7 @@ pub const Runtime = struct {
     }
 
     fn wasmDropObject(env: *Wasm, id: u32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.scene.delete(id) catch |err| {
             switch (err) {
                 error.ObjectNotFound => std.log.err("tried to delete non-existent object {d}", .{id}),
@@ -589,53 +589,53 @@ pub const Runtime = struct {
     }
 
     fn wasmDropMaterial(env: *Wasm, id: u32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.renderer.dropMaterial(id);
     }
 
     fn wasmMarkTransformOutdated(env: *Wasm, id: u32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.markOutdatedTransform(@intCast(id));
     }
 
     fn wasmCreateRenderedObject(env: *Wasm, material_id: u32) u32 {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const obj = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), .{ .id = material_id }, 0) catch |err| util.crash.oom(err);
         return obj.id;
     }
 
     fn wasmSetRenderedObjectMaterial(env: *Wasm, id: u32, material_id: u32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.renderer.setObjectMaterial(.{ .id = id }, .{ .id = material_id }) catch |err| util.crash.oom(err);
     }
 
     fn wasmSetRenderedObjectTransform(env: *Wasm, id: u32, transform: [*]f32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.renderer.setObjectTransform(.{ .id = id }, Mat4.fromColumnMajorPtr(transform));
     }
 
     fn wasmDropRenderedObject(env: *Wasm, id: u32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.renderer.deleteObject(.{ .id = id });
     }
 
     fn wasmRandom(env: *Wasm) f32 {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         return runtime.random.random().float(f32);
     }
 
     fn wasmWindowWidth(env: *Wasm) i32 {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         return runtime.window.getWidth();
     }
 
     fn wasmWindowHeight(env: *Wasm) i32 {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         return runtime.window.getHeight();
     }
 
     fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, r: f32, g: f32, b: f32) u32 {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const image = if (!runtime.wasm.isNullptr(name)) cond: {
             const name_slice = std.mem.span(name);
             if (runtime.assets.get(name_slice)) |image| {
@@ -651,7 +651,7 @@ pub const Runtime = struct {
     }
 
     fn wasmUpdateMaterial(env: *Wasm, id: u32, r: f32, g: f32, b: f32) void {
-        const runtime: *Runtime = @fieldParentPtr("wasm", env);
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.renderer.updateMaterial(.{ .id = id }, r, g, b);
     }
 };
