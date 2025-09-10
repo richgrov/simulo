@@ -42,7 +42,7 @@ __attribute__((__import_name__("simulo_drop_object")))
 extern void simulo_drop_object(uint32_t);
 
 __attribute__((__import_name__("simulo_create_rendered_object")))
-extern uint32_t simulo_create_rendered_object(uint32_t material);
+extern uint32_t simulo_create_rendered_object(uint32_t material, uint32_t layer);
 
 __attribute__((__import_name__("simulo_set_rendered_object_material")))
 extern void simulo_set_rendered_object_material(uint32_t id, uint32_t material);
@@ -220,7 +220,7 @@ private:
 
 class RenderedObject : public Object {
 public:
-   RenderedObject(const Material &material) : Object(), simulo__render_id(simulo_create_rendered_object(material.simulo__id)) {
+   RenderedObject(const Material &material, uint32_t layer = 0) : Object(), simulo__render_id(simulo_create_rendered_object(material.simulo__id, layer)) {
       transform_outdated();
    }
 
