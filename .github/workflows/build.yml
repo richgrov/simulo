@@ -61,13 +61,13 @@ jobs:
           version: 0.15.1
 
       - name: Run tests
-        run: zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
+        run: zig build test --search-prefix extern/onnxruntime
 
       - name: Build local
-        run: zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
+        run: zig build install --search-prefix extern/onnxruntime -p zig-out-local
 
       - name: Build cloud
-        run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
@@ -133,13 +133,13 @@ jobs:
           version: 0.15.1
 
       - name: Run tests
-        run: zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
+        run: zig build test --search-prefix extern/onnxruntime
 
       - name: Build local
-        run: zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
+        run: zig build install --search-prefix extern/onnxruntime -p zig-out-local -Dcpu=baseline
 
       - name: Build cloud
-        run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud -Dcpu=baseline
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
@@ -197,10 +197,13 @@ jobs:
         run: |
           set -euo pipefail
           export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-          Xvfb :99 -screen 0 1280x720x24 &
+          # Set CPU compatibility flags for CI environment
+          export GOTOPTIMIZATION=0
+          export OPENBLAS_CORETYPE=PRESCOTT
+          Xvfb :99 -screen 0 1280x720x24 -ac &
           XVFB_PID=$!
           export DISPLAY=:99
-          sleep 1
+          sleep 2
           chmod +x ./runtime
           ./runtime &
           RUNTIME_PID=$!
