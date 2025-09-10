@@ -93,10 +93,11 @@ pub fn build(b: *std.Build) !void {
     runtime.addImport("engine", engine);
     runtime.addImport("util", util);
     runtime.addRPathSpecial("@executable_path/../Frameworks");
-    const runtime_exe = try bundleExe(b, "runtime", runtime, target.result.os.tag, &[_][]const u8{
+    const bundle_step = try bundleExe(b, "runtime", runtime, target.result.os.tag, &[_][]const u8{
         "runtime/inference/rtmo-m.onnx",
     });
-    check_step.dependOn(&runtime_exe.step);
+    check_step.dependOn(&bundle_step.step);
+    b.getInstallStep().dependOn(&bundle_step.step);
 
     const engine_tests = b.addRunArtifact(b.addTest(.{ .root_module = engine }));
     const runtime_tests = b.addRunArtifact(b.addTest(.{ .root_module = runtime }));
@@ -106,7 +107,7 @@ pub fn build(b: *std.Build) !void {
     test_step.dependOn(&runtime_tests.step);
     test_step.dependOn(&util_tests.step);
     test_step.dependOn(&engine_tests.step);
-    test_step.dependOn(&runtime_exe.step);
+    test_step.dependOn(&bundle_step.step);
 }
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
