@@ -61,13 +61,13 @@ jobs:
           version: 0.15.1
 
       - name: Run tests
-        run: zig build test -Drelease-safe --search-prefix extern/onnxruntime
+        run: zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
 
       - name: Build local
-        run: zig build install -Drelease-safe --search-prefix extern/onnxruntime -p zig-out-local
+        run: zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
 
       - name: Build cloud
-        run: zig build install -Drelease-safe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+        run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
@@ -125,13 +125,13 @@ jobs:
           version: 0.15.1
 
       - name: Run tests
-        run: zig build test -Drelease-safe --search-prefix extern/onnxruntime
+        run: zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
 
       - name: Build local
-        run: zig build install -Drelease-safe --search-prefix extern/onnxruntime -p zig-out-local
+        run: zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
 
       - name: Build cloud
-        run: zig build install -Drelease-safe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+        run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
