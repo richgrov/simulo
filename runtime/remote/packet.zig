@@ -122,6 +122,8 @@ pub const DownloadFile = struct {
 
 pub const Packet = union(enum) {
     download: struct {
+        arena: *std.heap.ArenaAllocator,
+        base_allocator: std.mem.Allocator,
         program_url: []const u8,
         program_hash: [32]u8,
         files: []const DownloadFile,
@@ -131,7 +133,16 @@ pub const Packet = union(enum) {
         var reader = Reader.init(data);
         switch (try reader.readInt(u8)) {
             0 => {
-                const program_url = try reader.readString(1024, allocator);
+                var arena_ptr = try allocator.create(std.heap.ArenaAllocator);
+                arena_ptr.* = std.heap.ArenaAllocator.init(allocator);
+                errdefer {
+                    arena_ptr.deinit();
+                    allocator.destroy(arena_ptr);
+                }
+
+                const a = arena_ptr.allocator();
+
+                const program_url = try reader.readString(1024, a);
                 var program_hash: [32]u8 = undefined;
                 try reader.readFull(&program_hash);
 
@@ -140,18 +151,19 @@ pub const Packet = union(enum) {
                     return error.InvalidNumFiles;
                 }
 
-                const files = try allocator.alloc(DownloadFile, num_files);
+                const files = try a.alloc(DownloadFile, num_files);
                 for (files) |*file| {
-                    const name = try reader.readString(fs_storage.max_asset_name_len, allocator);
-                    defer allocator.free(name);
+                    const name = try reader.readString(fs_storage.max_asset_name_len, a);
                     file.asset.name = util.FixedArrayList(u8, fs_storage.max_asset_name_len).initFrom(name) catch unreachable;
 
-                    file.url = try reader.readString(1024, allocator);
+                    file.url = try reader.readString(1024, a);
 
                     try reader.readFull(&file.asset.hash);
                 }
 
                 return Packet{ .download = .{
+                    .arena = arena_ptr,
+                    .base_allocator = allocator,
                     .program_url = program_url,
                     .program_hash = program_hash,
                     .files = files,
@@ -161,14 +173,11 @@ pub const Packet = union(enum) {
         }
     }
 
-    pub fn deinit(self: *Packet, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Packet) void {
         switch (self.*) {
             .download => |download| {
-                allocator.free(download.program_url);
-                for (download.files) |file| {
-                    allocator.free(file.url);
-                }
-                allocator.free(download.files);
+                download.arena.deinit();
+                download.base_allocator.destroy(download.arena);
             },
         }
     }

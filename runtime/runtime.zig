@@ -350,7 +350,7 @@ pub const Runtime = struct {
 
             while (self.remote.nextMessage()) |msg| {
                 var message = msg;
-                defer message.deinit(self.allocator);
+                defer message.deinit();
 
                 switch (message) {
                     .download => |download| {
