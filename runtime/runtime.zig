@@ -598,9 +598,10 @@ pub const Runtime = struct {
         runtime.markOutdatedTransform(@intCast(id));
     }
 
-    fn wasmCreateRenderedObject(env: *Wasm, material_id: u32) u32 {
+    fn wasmCreateRenderedObject(env: *Wasm, material_id: u32, layer: u32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        const obj = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), .{ .id = material_id }, 0) catch |err| util.crash.oom(err);
+        const clamped_layer: u8 = @intCast(@min(layer, 15));
+        const obj = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), .{ .id = material_id }, clamped_layer) catch |err| util.crash.oom(err);
         return obj.id;
     }
 
