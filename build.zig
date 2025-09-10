@@ -101,13 +101,13 @@ pub fn build(b: *std.Build) !void {
 
     const engine_tests = b.addRunArtifact(b.addTest(.{ .root_module = engine }));
     const runtime_tests = b.addRunArtifact(b.addTest(.{ .root_module = runtime }));
+    runtime_tests.step.dependOn(&bundle_step.step);
     const util_tests = b.addRunArtifact(b.addTest(.{ .root_module = util }));
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&runtime_tests.step);
     test_step.dependOn(&util_tests.step);
     test_step.dependOn(&engine_tests.step);
-    test_step.dependOn(&bundle_step.step);
 }
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
