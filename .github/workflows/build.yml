@@ -175,8 +175,14 @@ jobs:
       - name: Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: libopencv-dev
+          packages: libopencv-dev liblapack3
           version: "1.0"
+
+      # Included for same reason as in Build-Linux
+      - name: Reconfigure LAPACK
+        run: |
+          sudo dpkg --configure -a
+          sudo apt-get install --reinstall -y liblapack3
 
       - name: Download ONNX Runtime
         run: |
