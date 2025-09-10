@@ -96,12 +96,12 @@ pub fn build(b: *std.Build) !void {
     const bundle_step = try bundleExe(b, "runtime", runtime, target.result.os.tag, &[_][]const u8{
         "runtime/inference/rtmo-m.onnx",
     });
-    check_step.dependOn(&bundle_step.step);
-    b.getInstallStep().dependOn(&bundle_step.step);
+    check_step.dependOn(bundle_step);
+    b.getInstallStep().dependOn(bundle_step);
 
     const engine_tests = b.addRunArtifact(b.addTest(.{ .root_module = engine }));
     const runtime_tests = b.addRunArtifact(b.addTest(.{ .root_module = runtime }));
-    runtime_tests.step.dependOn(&bundle_step.step);
+    runtime_tests.step.dependOn(bundle_step);
     const util_tests = b.addRunArtifact(b.addTest(.{ .root_module = util }));
 
     const test_step = b.step("test", "Run unit tests");
@@ -116,7 +116,7 @@ fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     return &run.step;
 }
 
-fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: std.Target.Os.Tag, resources: []const []const u8) !*std.Build.Step.Compile {
+fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: std.Target.Os.Tag, resources: []const []const u8) !*std.Build.Step {
     const exe = b.addExecutable(.{
         .name = name,
         .root_module = mod,
@@ -166,7 +166,7 @@ fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: st
         install_step.dependOn(&install_resource.step);
     }
 
-    return exe;
+    return install_step;
 }
 
 fn bundleFramework(b: *std.Build, lib: *std.Build.Step.Compile, comptime name: []const u8) void {
