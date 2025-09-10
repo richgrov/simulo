@@ -170,7 +170,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: simulo-runtime-local-linux-x64
-          path: artifact
+          path: .
 
       - name: Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
@@ -194,8 +194,8 @@ jobs:
           XVFB_PID=$!
           export DISPLAY=:99
           sleep 1
-          chmod +x artifact/runtime
-          ./artifact/runtime &
+          chmod +x ./runtime
+          ./runtime &
           RUNTIME_PID=$!
           # Ensure runtime is still running after 10 seconds; fail otherwise
           for i in $(seq 1 10); do
@@ -220,4 +220,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: runtime-screenshot-linux
-          path: artifact/screenshot.png
+          path: screenshot.png
