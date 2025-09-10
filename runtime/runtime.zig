@@ -12,10 +12,10 @@ const fs_storage = @import("fs_storage.zig");
 const pose = @import("inference/pose.zig");
 pub const PoseDetector = pose.PoseDetector;
 
-pub const Remote = if (build_options.local_dev)
-    @import("remote/noop_remote.zig").NoOpRemote
+pub const Remote = if (build_options.cloud)
+    @import("remote/remote.zig").Remote
 else
-    @import("remote/remote.zig").Remote;
+    @import("remote/noop_remote.zig").NoOpRemote;
 
 pub const Renderer = @import("render/renderer.zig").Renderer;
 pub const Window = @import("window/window.zig").Window;
