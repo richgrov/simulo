@@ -71,6 +71,7 @@ const DetectionSpsc = Spsc(PoseEvent, DETECTION_CAPACITY * 8);
 pub const PoseDetector = struct {
     output: DetectionSpsc,
     running: bool,
+    paused: bool,
     last_tracked_boxes: FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2),
     next_tracked_box_id: u64 = 0,
     thread: std.Thread,
@@ -80,6 +81,7 @@ pub const PoseDetector = struct {
         return PoseDetector{
             .output = DetectionSpsc.init(),
             .running = false,
+            .paused = false,
             .last_tracked_boxes = FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2).init(),
             .thread = undefined,
             .profiler = Profiler.init(),
@@ -88,6 +90,7 @@ pub const PoseDetector = struct {
 
     pub fn start(self: *PoseDetector) !void {
         @atomicStore(bool, &self.running, true, .seq_cst);
+        @atomicStore(bool, &self.paused, false, .seq_cst);
         self.thread = try std.Thread.spawn(.{}, PoseDetector.run, .{self});
         last_detection_time = std.time.milliTimestamp();
     }
@@ -97,6 +100,18 @@ pub const PoseDetector = struct {
         if (stopped) {
             self.thread.join();
         }
+    }
+
+    pub fn pause(self: *PoseDetector) void {
+        @atomicStore(bool, &self.paused, true, .seq_cst);
+    }
+
+    pub fn resume(self: *PoseDetector) void {
+        @atomicStore(bool, &self.paused, false, .seq_cst);
+    }
+
+    pub fn isPaused(self: *PoseDetector) bool {
+        return @atomicLoad(bool, &self.paused, .monotonic);
     }
 
     pub fn nextEvent(self: *PoseDetector) ?PoseEvent {
@@ -127,6 +142,11 @@ pub const PoseDetector = struct {
             // preventing the profiler from being reset (filling the log buffer). So do it here to
             // ensure it's always reset.
             self.logEvent(.{ .profile = self.profiler.end() });
+
+            if (@atomicLoad(bool, &self.paused, .monotonic)) {
+                std.Thread.sleep(std.time.ns_per_ms * 10);
+                continue;
+            }
 
             if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
                 std.Thread.sleep(std.time.ns_per_s / 2);
