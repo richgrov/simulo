@@ -121,8 +121,7 @@ fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: st
         .root_module = mod,
     });
 
-    const install_step = b.getInstallStep();
-    if (target == .macos) {
+    const install_step = if (target == .macos) cond: {
         const install_exe = b.addInstallArtifact(exe, .{
             .dest_dir = .{
                 .override = .{
@@ -142,16 +141,17 @@ fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: st
         const install_metallib = b.addInstallFile(b.path("default.metallib"), try std.fmt.allocPrint(b.allocator, "{s}.app/Contents/Resources/default.metallib", .{exe.name}));
         install_metallib.step.dependOn(&gen_metallib.step);
 
-        install_step.dependOn(&install_exe.step);
-        install_step.dependOn(&install_plist.step);
-        install_step.dependOn(&install_metallib.step);
-    } else {
-        install_step.dependOn(&b.addInstallArtifact(exe, .{}).step);
-        install_step.dependOn(embedVkShader(b, "runtime/shader/text.vert"));
-        install_step.dependOn(embedVkShader(b, "runtime/shader/text.frag"));
-        install_step.dependOn(embedVkShader(b, "runtime/shader/model.vert"));
-        install_step.dependOn(embedVkShader(b, "runtime/shader/model.frag"));
-    }
+        install_exe.step.dependOn(&install_plist.step);
+        install_exe.step.dependOn(&install_metallib.step);
+        break :cond &install_exe.step;
+    } else cond: {
+        const install_exe = b.addInstallArtifact(exe, .{});
+        install_exe.step.dependOn(embedVkShader(b, "runtime/shader/text.vert"));
+        install_exe.step.dependOn(embedVkShader(b, "runtime/shader/text.frag"));
+        install_exe.step.dependOn(embedVkShader(b, "runtime/shader/model.vert"));
+        install_exe.step.dependOn(embedVkShader(b, "runtime/shader/model.frag"));
+        break :cond &install_exe.step;
+    };
 
     for (resources) |resource| {
         const file_name = resource[std.mem.lastIndexOf(u8, resource, "/").? + 1 ..];
