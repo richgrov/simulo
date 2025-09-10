@@ -60,10 +60,6 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Set arch label
-        id: set-arch
-        run: echo "arch_label=$(uname -m | sed -e 's/x86_64/x64/' -e 's/aarch64/arm64/' -e 's/arm64/arm64/')" >> "$GITHUB_OUTPUT"
-
       - name: Run tests (release-safe)
         run: zig build test -Drelease-safe --search-prefix extern/onnxruntime
 
@@ -76,13 +72,13 @@ jobs:
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simulo-runtime-local-macos-${{ steps.set-arch.outputs.arch_label }}
+          name: simulo-runtime-local-macos-arm64
           path: zig-out-local
 
       - name: Upload cloud artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simulo-runtime-cloud-macos-${{ steps.set-arch.outputs.arch_label }}
+          name: simulo-runtime-cloud-macos-arm64
           path: zig-out-cloud
 
   Build-Linux:
@@ -128,10 +124,6 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Set arch label
-        id: set-arch
-        run: echo "arch_label=$(uname -m | sed -e 's/x86_64/x64/' -e 's/aarch64/arm64/' -e 's/arm64/arm64/')" >> "$GITHUB_OUTPUT"
-
       - name: Run tests (release-safe)
         run: zig build test -Drelease-safe --search-prefix extern/onnxruntime
 
@@ -144,11 +136,11 @@ jobs:
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simulo-runtime-local-linux-${{ steps.set-arch.outputs.arch_label }}
+          name: simulo-runtime-local-linux-x64
           path: zig-out-local/bin
 
       - name: Upload cloud artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simulo-runtime-cloud-linux-${{ steps.set-arch.outputs.arch_label }}
+          name: simulo-runtime-cloud-linux-x64
           path: zig-out-cloud/bin
