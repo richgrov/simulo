@@ -163,7 +163,7 @@ jobs:
       - name: Install headless display tools
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: xvfb imagemagick
+          packages: xvfb imagemagick vulkan-tools mesa-vulkan-drivers
           version: "1.0"
 
       - name: Download built runtime artifact
@@ -196,6 +196,7 @@ jobs:
           DISPLAY: :99
         run: |
           set -euo pipefail
+          export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
           Xvfb :99 -screen 0 1280x720x24 &
           XVFB_PID=$!
           export DISPLAY=:99
