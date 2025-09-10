@@ -60,17 +60,26 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Build project
-        run: zig build install --search-prefix extern/onnxruntime
-
       - name: Run tests
-        run: zig build test --search-prefix extern/onnxruntime
+        run: zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
 
-      - name: Upload install artifact
+      - name: Build local
+        run: zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
+
+      - name: Build cloud
+        run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+
+      - name: Upload local artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simulo-runtime-macos-arm64
-          path: zig-out
+          name: simulo-runtime-local-macos-arm64
+          path: zig-out-local
+
+      - name: Upload cloud artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulo-runtime-cloud-macos-arm64
+          path: zig-out-cloud
 
   Build-Linux:
     runs-on: ubuntu-latest
@@ -115,14 +124,23 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Build project
-        run: zig build --search-prefix extern/onnxruntime
-
       - name: Run tests
-        run: zig build test --search-prefix extern/onnxruntime
+        run: zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
 
-      - name: Upload install artifact
+      - name: Build local
+        run: zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
+
+      - name: Build cloud
+        run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+
+      - name: Upload local artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simulo-runtime-linux-x64
-          path: zig-out/bin
+          name: simulo-runtime-local-linux-x64
+          path: zig-out-local/bin
+
+      - name: Upload cloud artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulo-runtime-cloud-linux-x64
+          path: zig-out-cloud/bin

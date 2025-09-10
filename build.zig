@@ -93,13 +93,15 @@ pub fn build(b: *std.Build) !void {
     runtime.addImport("engine", engine);
     runtime.addImport("util", util);
     runtime.addRPathSpecial("@executable_path/../Frameworks");
-    const runtime_exe = try bundleExe(b, "runtime", runtime, target.result.os.tag, &[_][]const u8{
+    const bundle_step = try bundleExe(b, "runtime", runtime, target.result.os.tag, &[_][]const u8{
         "runtime/inference/rtmo-m.onnx",
     });
-    check_step.dependOn(&runtime_exe.step);
+    check_step.dependOn(bundle_step);
+    b.getInstallStep().dependOn(bundle_step);
 
     const engine_tests = b.addRunArtifact(b.addTest(.{ .root_module = engine }));
     const runtime_tests = b.addRunArtifact(b.addTest(.{ .root_module = runtime }));
+    runtime_tests.step.dependOn(bundle_step);
     const util_tests = b.addRunArtifact(b.addTest(.{ .root_module = util }));
 
     const test_step = b.step("test", "Run unit tests");
@@ -114,14 +116,13 @@ fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     return &run.step;
 }
 
-fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: std.Target.Os.Tag, resources: []const []const u8) !*std.Build.Step.Compile {
+fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: std.Target.Os.Tag, resources: []const []const u8) !*std.Build.Step {
     const exe = b.addExecutable(.{
         .name = name,
         .root_module = mod,
     });
 
-    const install_step = b.getInstallStep();
-    if (target == .macos) {
+    const install_step = if (target == .macos) cond: {
         const install_exe = b.addInstallArtifact(exe, .{
             .dest_dir = .{
                 .override = .{
@@ -141,16 +142,17 @@ fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: st
         const install_metallib = b.addInstallFile(b.path("default.metallib"), try std.fmt.allocPrint(b.allocator, "{s}.app/Contents/Resources/default.metallib", .{exe.name}));
         install_metallib.step.dependOn(&gen_metallib.step);
 
-        install_step.dependOn(&install_exe.step);
-        install_step.dependOn(&install_plist.step);
-        install_step.dependOn(&install_metallib.step);
-    } else {
-        install_step.dependOn(&b.addInstallArtifact(exe, .{}).step);
-        install_step.dependOn(embedVkShader(b, "runtime/shader/text.vert"));
-        install_step.dependOn(embedVkShader(b, "runtime/shader/text.frag"));
-        install_step.dependOn(embedVkShader(b, "runtime/shader/model.vert"));
-        install_step.dependOn(embedVkShader(b, "runtime/shader/model.frag"));
-    }
+        install_exe.step.dependOn(&install_plist.step);
+        install_exe.step.dependOn(&install_metallib.step);
+        break :cond &install_exe.step;
+    } else cond: {
+        const install_exe = b.addInstallArtifact(exe, .{});
+        install_exe.step.dependOn(embedVkShader(b, "runtime/shader/text.vert"));
+        install_exe.step.dependOn(embedVkShader(b, "runtime/shader/text.frag"));
+        install_exe.step.dependOn(embedVkShader(b, "runtime/shader/model.vert"));
+        install_exe.step.dependOn(embedVkShader(b, "runtime/shader/model.frag"));
+        break :cond &install_exe.step;
+    };
 
     for (resources) |resource| {
         const file_name = resource[std.mem.lastIndexOf(u8, resource, "/").? + 1 ..];
@@ -164,7 +166,7 @@ fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: st
         install_step.dependOn(&install_resource.step);
     }
 
-    return exe;
+    return install_step;
 }
 
 fn bundleFramework(b: *std.Build, lib: *std.Build.Step.Compile, comptime name: []const u8) void {
