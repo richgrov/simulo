@@ -106,6 +106,7 @@ pub fn build(b: *std.Build) !void {
     test_step.dependOn(&runtime_tests.step);
     test_step.dependOn(&util_tests.step);
     test_step.dependOn(&engine_tests.step);
+    test_step.dependOn(&runtime_exe.step);
 }
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
