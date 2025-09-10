@@ -60,17 +60,30 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Build project
-        run: zig build install --search-prefix extern/onnxruntime
+      - name: Set arch label
+        id: set-arch
+        run: echo "arch_label=$(uname -m | sed -e 's/x86_64/x64/' -e 's/aarch64/arm64/' -e 's/arm64/arm64/')" >> "$GITHUB_OUTPUT"
 
-      - name: Run tests
-        run: zig build test --search-prefix extern/onnxruntime
+      - name: Run tests (release-safe)
+        run: zig build test -Drelease-safe --search-prefix extern/onnxruntime
 
-      - name: Upload install artifact
+      - name: Build local (release-safe)
+        run: zig build install -Drelease-safe --search-prefix extern/onnxruntime -p zig-out-local
+
+      - name: Build cloud (release-safe)
+        run: zig build install -Drelease-safe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+
+      - name: Upload local artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simulo-runtime-macos-arm64
-          path: zig-out
+          name: simulo-runtime-local-macos-${{ steps.set-arch.outputs.arch_label }}
+          path: zig-out-local
+
+      - name: Upload cloud artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulo-runtime-cloud-macos-${{ steps.set-arch.outputs.arch_label }}
+          path: zig-out-cloud
 
   Build-Linux:
     runs-on: ubuntu-latest
@@ -115,14 +128,27 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Build project
-        run: zig build --search-prefix extern/onnxruntime
+      - name: Set arch label
+        id: set-arch
+        run: echo "arch_label=$(uname -m | sed -e 's/x86_64/x64/' -e 's/aarch64/arm64/' -e 's/arm64/arm64/')" >> "$GITHUB_OUTPUT"
 
-      - name: Run tests
-        run: zig build test --search-prefix extern/onnxruntime
+      - name: Run tests (release-safe)
+        run: zig build test -Drelease-safe --search-prefix extern/onnxruntime
 
-      - name: Upload install artifact
+      - name: Build local (release-safe)
+        run: zig build install -Drelease-safe --search-prefix extern/onnxruntime -p zig-out-local
+
+      - name: Build cloud (release-safe)
+        run: zig build install -Drelease-safe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+
+      - name: Upload local artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simulo-runtime-linux-x64
-          path: zig-out/bin
+          name: simulo-runtime-local-linux-${{ steps.set-arch.outputs.arch_label }}
+          path: zig-out-local/bin
+
+      - name: Upload cloud artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulo-runtime-cloud-linux-${{ steps.set-arch.outputs.arch_label }}
+          path: zig-out-cloud/bin
