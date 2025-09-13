@@ -141,6 +141,7 @@ pub const Remote = struct {
 
     fn onEvent(handler: *SseHandler, data: []const u8) void {
         const self: *Remote = @fieldParentPtr("sse_handler", handler);
+        @atomicStore(u64, &self.reconnect_delay_ms, MIN_RECONNECT_DELAY_MS, .seq_cst);
         if (std.mem.eql(u8, data, "keep-alive")) {
             return;
         }
