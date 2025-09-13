@@ -126,6 +126,10 @@ pub const Packet = union(enum) {
         program_hash: [32]u8,
         files: []const DownloadFile,
     },
+    schedule: ?struct {
+        start_ms: u64,
+        stop_ms: u64,
+    },
 
     pub fn from(allocator: std.mem.Allocator, data: []const u8) !Packet {
         var reader = Reader.init(data);
@@ -157,6 +161,20 @@ pub const Packet = union(enum) {
                     .files = files,
                 } };
             },
+            1 => {
+                const has_schedule = try reader.readInt(u8);
+                if (has_schedule == 0) {
+                    return Packet{ .schedule = null };
+                }
+
+                const start_ms = try reader.readInt(u64);
+                const stop_ms = try reader.readInt(u64);
+
+                return Packet{ .schedule = .{
+                    .start_ms = start_ms,
+                    .stop_ms = stop_ms,
+                } };
+            },
             else => return error.UnknownPacketId,
         }
     }
@@ -170,6 +188,7 @@ pub const Packet = union(enum) {
                 }
                 allocator.free(download.files);
             },
+            .schedule => {},
         }
     }
 };

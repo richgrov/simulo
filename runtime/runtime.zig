@@ -81,6 +81,10 @@ pub const Runtime = struct {
     mesh: Renderer.MeshHandle,
     calibrated: bool,
     eyeguard: EyeGuard,
+    schedule: ?struct {
+        start_ms: u64,
+        stop_ms: u64,
+    },
 
     pub fn globalInit() !void {
         try Wasm.globalInit();
@@ -388,6 +392,16 @@ pub const Runtime = struct {
 
                         if (should_run) {
                             try self.runProgram(&download.program_hash, assets.items());
+                        }
+                    },
+                    .schedule => |maybe_schedule| {
+                        if (maybe_schedule) |sched| {
+                            self.schedule = .{
+                                .start_ms = sched.start_ms,
+                                .stop_ms = sched.stop_ms,
+                            };
+                        } else {
+                            self.schedule = null;
                         }
                     },
                 }
