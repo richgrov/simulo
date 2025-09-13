@@ -4,20 +4,23 @@ pub fn download(url: []const u8, dest: std.fs.File, allocator: std.mem.Allocator
     var client = std.http.Client{ .allocator = allocator };
     defer client.deinit();
 
-    var body: [1024]u8 = undefined;
-    var body_writer = std.io.Writer.fixed(&body);
+    var request = try client.request(.GET, try std.Uri.parse(url), .{});
+    defer request.deinit();
 
-    const response = try client.fetch(.{
-        .method = .GET,
-        .location = .{ .url = url },
-        .response_writer = &body_writer,
-    });
+    try request.sendBodiless();
+    var response = try request.receiveHead(&.{});
 
-    if (response.status != .ok) {
-        std.debug.print("{any}: {s}\n", .{ response.status, body[0..body_writer.end] });
+    if (response.head.status != .ok) {
+        const body = response.reader(&.{});
+        var msg_buf: [512]u8 = undefined;
+        const msg_len = try body.readSliceShort(&msg_buf);
+
+        std.debug.print("{any}: {s}\n", .{ response.head.status, msg_buf[0..msg_len] });
         return error.DownloadFailed;
     }
 
-    try dest.writeAll(body[0..body_writer.end]);
-    return body_writer.end;
+    var buf: [1024 * 4]u8 = undefined;
+    const body = response.reader(&buf);
+    var writer = dest.writer(&.{});
+    return try body.streamRemaining(&writer.interface);
 }
