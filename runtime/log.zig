@@ -1,5 +1,15 @@
 const std = @import("std");
 
+pub const LogLevel = enum {
+    trace,
+    debug,
+    info,
+    warn,
+    err,
+};
+
+pub var global_log_level: LogLevel = .trace;
+
 pub fn Logger(comptime name: []const u8, fmt_buf_size: usize) type {
     return struct {
         write_buf: [fmt_buf_size]u8 = undefined,
@@ -10,11 +20,25 @@ pub fn Logger(comptime name: []const u8, fmt_buf_size: usize) type {
             return .{};
         }
 
-        fn log(self: *Self, comptime fmt: []const u8, args: anytype) void {
+        fn shouldLog(level: LogLevel) bool {
+            return @intFromEnum(level) >= @intFromEnum(global_log_level);
+        }
+
+        fn log(self: *Self, comptime level: LogLevel, comptime fmt: []const u8, args: anytype) void {
+            if (!shouldLog(level)) return;
+
+            const level_str = switch (level) {
+                .trace => "TRC",
+                .debug => "DBG",
+                .info => "INF",
+                .warn => "WRN",
+                .err => "ERR",
+            };
+
             const writer = std.debug.lockStderrWriter(&.{});
             defer std.debug.unlockStdErr();
 
-            const msg = std.fmt.bufPrint(&self.write_buf, "{d} " ++ name ++ " " ++ fmt ++ "\n", .{std.time.milliTimestamp()} ++ args) catch {
+            const msg = std.fmt.bufPrint(&self.write_buf, "{d} " ++ level_str ++ " [" ++ name ++ "] " ++ fmt ++ "\n", .{std.time.milliTimestamp()} ++ args) catch {
                 writer.writeAll("<log message too long>\n") catch {};
                 return;
             };
@@ -22,23 +46,23 @@ pub fn Logger(comptime name: []const u8, fmt_buf_size: usize) type {
         }
 
         pub fn trace(self: *Self, comptime fmt: []const u8, args: anytype) void {
-            self.log("TRC " ++ fmt, args);
+            self.log(.trace, fmt, args);
         }
 
         pub fn debug(self: *Self, comptime fmt: []const u8, args: anytype) void {
-            self.log("DBG " ++ fmt, args);
+            self.log(.debug, fmt, args);
         }
 
         pub fn info(self: *Self, comptime fmt: []const u8, args: anytype) void {
-            self.log("INF " ++ fmt, args);
+            self.log(.info, fmt, args);
         }
 
         pub fn warn(self: *Self, comptime fmt: []const u8, args: anytype) void {
-            self.log("WRN " ++ fmt, args);
+            self.log(.warn, fmt, args);
         }
 
         pub fn err(self: *Self, comptime fmt: []const u8, args: anytype) void {
-            self.log("ERR " ++ fmt, args);
+            self.log(.err, fmt, args);
         }
     };
 }
