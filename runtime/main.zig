@@ -1,13 +1,22 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const build_options = @import("build_options");
 
 const engine = @import("engine");
 const util = @import("util");
 const Runtime = @import("runtime.zig").Runtime;
+const Logger = @import("log.zig").Logger;
 
 const fs_storage = @import("fs_storage.zig");
 
 pub fn main() !void {
+    var logger = Logger("init", 1024).init();
+    logger.info("simulo runtime (git: {s}, cloud: {}, api: {s})", .{
+        build_options.git_hash,
+        build_options.cloud,
+        build_options.api_url,
+    });
+
     var dba = std.heap.DebugAllocator(.{}).init;
     defer {
         if (dba.deinit() == .leak) {
