@@ -1,5 +1,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
+const Logger = @import("../log.zig").Logger;
 
 const engine = @import("engine");
 const profile = engine.profiler;
@@ -75,6 +76,7 @@ pub const PoseDetector = struct {
     next_tracked_box_id: u64 = 0,
     thread: std.Thread,
     profiler: Profiler,
+    logger: Logger("pose", 2048),
 
     pub fn init() PoseDetector {
         return PoseDetector{
@@ -83,6 +85,7 @@ pub const PoseDetector = struct {
             .last_tracked_boxes = FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2).init(),
             .thread = undefined,
             .profiler = Profiler.init(),
+            .logger = Logger("pose", 2048).init(),
         };
     }
 
@@ -228,7 +231,7 @@ pub const PoseDetector = struct {
 
     fn logEvent(self: *PoseDetector, event: PoseEvent) void {
         self.output.enqueue(event) catch {
-            std.log.warn("detection output message queue full", .{});
+            self.logger.warn("detection output message queue full", .{});
         };
     }
 };

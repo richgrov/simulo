@@ -1,5 +1,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
+const Logger = @import("../log.zig").Logger;
 
 const allocation = @import("allocate.zig");
 const assembly = @import("asm.zig");
@@ -30,6 +31,10 @@ fn typeToSignature(T: type) []const u8 {
     };
 }
 
+fn errorSlice(buf: []const u8) []const u8 {
+    return buf[0..@min(buf.len, std.mem.indexOfScalar(u8, buf, 0) orelse buf.len)];
+}
+
 fn createWasmSignature(func_info: std.builtin.Type.Fn) []const u8 {
     const fmt = "(" ++ "{s}" ** (func_info.params.len - 1) ++ "){s}";
     const Params = std.meta.Tuple(&[_]type{[]const u8} ** func_info.params.len);
@@ -46,6 +51,7 @@ pub const Wasm = struct {
     module_instance: wasm.wasm_module_inst_t = null,
     exec_env: wasm.wasm_exec_env_t = null,
     buffer: ?*anyopaque = null,
+    logger: Logger("wasm", 2048),
 
     pub const Function = *wasm.WASMFunctionInstanceCommon;
 
@@ -155,7 +161,8 @@ pub const Wasm = struct {
         self.buffer = null;
     }
 
-    pub fn init(self: *Wasm, allocator: std.mem.Allocator, data: []const u8, err_out: *?Error) !void {
+    pub fn init(self: *Wasm, allocator: std.mem.Allocator, data: []const u8) !void {
+        self.logger = Logger("wasm", 2048).init();
         if (comptime build_options.new_wasm) {
             var raw_module = try deserializer.parseModule(allocator, data);
             errdefer raw_module.deinit(allocator);
@@ -165,10 +172,7 @@ pub const Wasm = struct {
 
             const compiled_module = switch (assembly.writeAssembly(buffer, &raw_module, allocator)) {
                 .ok => |mod| mod,
-                .err => |err| {
-                    err_out.* = err;
-                    return error.WasmCompileFailed;
-                },
+                .err => return error.WasmCompileFailed,
             };
 
             allocation.finishAllocation(buffer, 4 * 1024);
@@ -180,10 +184,16 @@ pub const Wasm = struct {
         }
 
         var error_buf: [1024 * 10]u8 = undefined;
-        const module = wasm.wasm_runtime_load(@constCast(data.ptr), @intCast(data.len), @ptrCast(&error_buf), error_buf.len) orelse return error.WasmLoadFailed;
+        const module = wasm.wasm_runtime_load(@constCast(data.ptr), @intCast(data.len), @ptrCast(&error_buf), error_buf.len) orelse {
+            self.logger.err("failed to load wasm module: {s}", .{errorSlice(&error_buf)});
+            return error.WasmLoadFailed;
+        };
         errdefer wasm.wasm_runtime_unload(module);
 
-        const module_instance = wasm.wasm_runtime_instantiate(module, 1024 * 8, 1024 * 64, @ptrCast(&error_buf), @intCast(error_buf.len)) orelse return error.WasmInstantiateFailed;
+        const module_instance = wasm.wasm_runtime_instantiate(module, 1024 * 8, 1024 * 64, @ptrCast(&error_buf), @intCast(error_buf.len)) orelse {
+            self.logger.err("failed to instantiate wasm module: {s}", .{errorSlice(&error_buf)});
+            return error.WasmInstantiateFailed;
+        };
         errdefer wasm.wasm_runtime_deinstantiate(module_instance);
 
         const exec_env = wasm.wasm_runtime_create_exec_env(module_instance, 1024 * 8) orelse return error.WasmExecEnvCreateFailed;

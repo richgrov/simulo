@@ -20,13 +20,13 @@ pub fn main() !void {
     var dba = std.heap.DebugAllocator(.{}).init;
     defer {
         if (dba.deinit() == .leak) {
-            std.log.err("memory leak detected", .{});
+            logger.err("memory leak detected", .{});
         }
     }
     const allocator = dba.allocator();
 
     fs_storage.globalInit(allocator) catch |err| {
-        std.log.err("error: failed to initialize fs storage: {s}", .{@errorName(err)});
+        logger.err("error: failed to initialize fs storage: {s}", .{@errorName(err)});
         return;
     };
 

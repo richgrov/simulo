@@ -1,6 +1,7 @@
 const builtin = @import("builtin");
 const std = @import("std");
 const util = @import("util");
+const Logger = @import("../log.zig").Logger;
 
 const ort = @import("onnxruntime.zig");
 const ffi = @cImport({
@@ -11,27 +12,18 @@ const fs_storage = @import("../fs_storage.zig");
 
 const detection_threshold = 0.5;
 
-fn errIfStatus(status: ort.OrtStatusPtr, ort_api: [*c]const ort.OrtApi) !void {
-    if (status) |s| {
-        const message = ort_api.*.GetErrorMessage.?(s);
-        std.log.err("Onnx error: {s}", .{message});
-        ort_api.*.ReleaseStatus.?(s);
+fn createTensor(ort_api: [*c]const ort.OrtApi, ort_allocator: *ort.OrtAllocator, comptime shape: []const i64, logger: anytype) !*ort.OrtValue {
+    var tensor: ?*ort.OrtValue = null;
+    if (ort_api.*.CreateTensorAsOrtValue.?(
+        ort_allocator,
+        &shape[0],
+        shape.len,
+        ort.ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT,
+        &tensor,
+    )) |status| {
+        logOnnxError(status, ort_api, logger);
         return error.OnnxError;
     }
-}
-
-fn createTensor(ort_api: [*c]const ort.OrtApi, ort_allocator: *ort.OrtAllocator, comptime shape: []const i64) !*ort.OrtValue {
-    var tensor: ?*ort.OrtValue = null;
-    try errIfStatus(
-        ort_api.*.CreateTensorAsOrtValue.?(
-            ort_allocator,
-            &shape[0],
-            shape.len,
-            ort.ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT,
-            &tensor,
-        ),
-        ort_api,
-    );
     return tensor.?;
 }
 
@@ -51,6 +43,12 @@ pub const Detection = struct {
     keypoints: [17]Keypoint,
 };
 
+fn logOnnxError(status: ort.OrtStatusPtr, ort_api: [*c]const ort.OrtApi, logger: anytype) void {
+    const message = ort_api.*.GetErrorMessage.?(status);
+    logger.err("Onnx error: {s}", .{message});
+    ort_api.*.ReleaseStatus.?(status);
+}
+
 pub const Inference = struct {
     ort_api: *const ort.OrtApi,
     ort_env: *ort.OrtEnv,
@@ -60,28 +58,39 @@ pub const Inference = struct {
     ort_allocator: *ort.OrtAllocator,
     input_tensors: [2]*ort.OrtValue,
     input_buffers: [2][*]f32,
+    logger: Logger("inference", 2048),
 
     pub fn init() !Inference {
         const ort_api: *const ort.OrtApi = ort.OrtGetApiBase().*.GetApi.?(ort.ORT_API_VERSION);
+        var logger = Logger("inference", 2048).init();
 
         var ort_env: ?*ort.OrtEnv = null;
-        try errIfStatus(ort_api.CreateEnv.?(ort.ORT_LOGGING_LEVEL_WARNING, "ONNX", &ort_env), ort_api);
+        if (ort_api.CreateEnv.?(ort.ORT_LOGGING_LEVEL_WARNING, "ONNX", &ort_env)) |status| {
+            logOnnxError(status, ort_api, &logger);
+            return error.OnnxError;
+        }
         errdefer ort_api.ReleaseEnv.?(ort_env);
 
         var ort_options: ?*ort.OrtSessionOptions = null;
-        try errIfStatus(ort_api.CreateSessionOptions.?(&ort_options), ort_api);
+        if (ort_api.CreateSessionOptions.?(&ort_options)) |status| {
+            logOnnxError(status, ort_api, &logger);
+            return error.OnnxError;
+        }
         errdefer ort_api.ReleaseSessionOptions.?(ort_options);
 
         var ort_rt_options: ?*ort.OrtTensorRTProviderOptionsV2 = null;
         switch (comptime builtin.os.tag) {
             .macos => {
-                try errIfStatus(
-                    ort_api.*.SessionOptionsAppendExecutionProvider.?(ort_options, "CoreML", null, null, 0),
-                    ort_api,
-                );
+                if (ort_api.*.SessionOptionsAppendExecutionProvider.?(ort_options, "CoreML", null, null, 0)) |status| {
+                    logOnnxError(status, ort_api, &logger);
+                    return error.OnnxError;
+                }
             },
             .linux => {
-                try errIfStatus(ort_api.CreateTensorRTProviderOptions.?(&ort_rt_options), ort_api);
+                if (ort_api.CreateTensorRTProviderOptions.?(&ort_rt_options)) |status| {
+                    logOnnxError(status, ort_api, &logger);
+                    return error.OnnxError;
+                }
                 errdefer ort_api.ReleaseTensorRTProviderOptions.?(ort_rt_options);
 
                 const option_keys = [_][*:0]const u8{
@@ -101,13 +110,19 @@ pub const Inference = struct {
                     @ptrCast(cache_dir),
                 };
 
-                try errIfStatus(ort_api.UpdateTensorRTProviderOptions.?(
+                if (ort_api.UpdateTensorRTProviderOptions.?(
                     ort_rt_options,
                     @ptrCast(&option_keys),
                     @ptrCast(&option_values),
                     option_keys.len,
-                ), ort_api);
-                try errIfStatus(ort_api.SessionOptionsAppendExecutionProvider_TensorRT_V2.?(ort_options, ort_rt_options), ort_api);
+                )) |status| {
+                    logOnnxError(status, ort_api, &logger);
+                    return error.OnnxError;
+                }
+                if (ort_api.SessionOptionsAppendExecutionProvider_TensorRT_V2.?(ort_options, ort_rt_options)) |status| {
+                    logOnnxError(status, ort_api, &logger);
+                    return error.OnnxError;
+                }
             },
             else => {},
         }
@@ -115,32 +130,38 @@ pub const Inference = struct {
         var model_path_buf: [512]u8 = undefined;
         const model_path = try util.getResourcePath("rtmo-m.onnx", &model_path_buf);
         var ort_session: ?*ort.OrtSession = null;
-        try errIfStatus(
-            ort_api.CreateSession.?(ort_env, @ptrCast(model_path), ort_options, &ort_session),
-            ort_api,
-        );
+        if (ort_api.CreateSession.?(ort_env, @ptrCast(model_path), ort_options, &ort_session)) |status| {
+            logOnnxError(status, ort_api, &logger);
+            return error.OnnxError;
+        }
         errdefer ort_api.ReleaseSession.?(ort_session);
 
         var ort_memory_info: ?*ort.OrtMemoryInfo = null;
-        try errIfStatus(
-            ort_api.CreateCpuMemoryInfo.?(ort.OrtDeviceAllocator, ort.OrtMemTypeCPU, &ort_memory_info),
-            ort_api,
-        );
+        if (ort_api.CreateCpuMemoryInfo.?(ort.OrtDeviceAllocator, ort.OrtMemTypeCPU, &ort_memory_info)) |status| {
+            logOnnxError(status, ort_api, &logger);
+            return error.OnnxError;
+        }
         defer ort_api.ReleaseMemoryInfo.?(ort_memory_info);
 
         var ort_allocator: ?*ort.OrtAllocator = null;
-        try errIfStatus(ort_api.CreateAllocator.?(ort_session, ort_memory_info.?, &ort_allocator), ort_api);
+        if (ort_api.CreateAllocator.?(ort_session, ort_memory_info.?, &ort_allocator)) |status| {
+            logOnnxError(status, ort_api, &logger);
+            return error.OnnxError;
+        }
         errdefer ort_api.ReleaseAllocator.?(ort_allocator);
 
         var input_tensors: [2]*ort.OrtValue = undefined;
         var input_buffers: [2][*]f32 = undefined;
         for (0..2) |i| {
-            const input_tensor = try createTensor(ort_api, ort_allocator.?, &[_]i64{ 1, 3, 640, 640 });
+            const input_tensor = try createTensor(ort_api, ort_allocator.?, &[_]i64{ 1, 3, 640, 640 }, &logger);
             errdefer ort_api.ReleaseValue.?(input_tensor);
             input_tensors[i] = input_tensor;
 
             var input_data: ?[*]f32 = null;
-            try errIfStatus(ort_api.GetTensorMutableData.?(input_tensor, @ptrCast(&input_data)), ort_api);
+            if (ort_api.GetTensorMutableData.?(input_tensor, @ptrCast(&input_data))) |status| {
+                logOnnxError(status, ort_api, &logger);
+                return error.OnnxError;
+            }
             input_buffers[i] = input_data.?;
             for (0..640 * 640 * 3) |j| {
                 input_data.?[j] = 114;
@@ -156,6 +177,7 @@ pub const Inference = struct {
             .ort_allocator = ort_allocator.?,
             .input_tensors = input_tensors,
             .input_buffers = input_buffers,
+            .logger = logger,
         };
     }
 
@@ -174,7 +196,7 @@ pub const Inference = struct {
 
     pub fn run(self: *Inference, input_idx: usize, outDets: []Detection) !usize {
         var output_slice = [_]?*ort.OrtValue{ null, null };
-        try errIfStatus(self.ort_api.Run.?(
+        if (self.ort_api.Run.?(
             self.ort_session,
             null,
             &[_][*:0]const u8{"input"},
@@ -183,7 +205,10 @@ pub const Inference = struct {
             &[_][*:0]const u8{ "dets", "keypoints" },
             2,
             &output_slice,
-        ), self.ort_api);
+        )) |status| {
+            logOnnxError(status, self.ort_api, &self.logger);
+            return error.OnnxError;
+        }
 
         const detections = output_slice[0].?;
         const keypoints = output_slice[1].?;
@@ -195,10 +220,16 @@ pub const Inference = struct {
 
         const n_detections = detect_dim.items[1];
         var detections_data: [*]f32 = undefined;
-        try errIfStatus(self.ort_api.GetTensorMutableData.?(detections, @ptrCast(&detections_data)), self.ort_api);
+        if (self.ort_api.GetTensorMutableData.?(detections, @ptrCast(&detections_data))) |status| {
+            logOnnxError(status, self.ort_api, &self.logger);
+            return error.OnnxError;
+        }
 
         var keypoints_data: [*]f32 = undefined;
-        try errIfStatus(self.ort_api.GetTensorMutableData.?(keypoints, @ptrCast(&keypoints_data)), self.ort_api);
+        if (self.ort_api.GetTensorMutableData.?(keypoints, @ptrCast(&keypoints_data))) |status| {
+            logOnnxError(status, self.ort_api, &self.logger);
+            return error.OnnxError;
+        }
 
         const n_detections_usize: usize = @intCast(n_detections);
         var out_idx: usize = 0;
@@ -234,15 +265,24 @@ pub const Inference = struct {
 
     fn get_tensor_shape(self: *Inference, tensor: *ort.OrtValue) !std.array_list.Managed(i64) {
         var type_shape_info: ?*ort.OrtTensorTypeAndShapeInfo = null;
-        try errIfStatus(self.ort_api.GetTensorTypeAndShape.?(tensor, &type_shape_info), self.ort_api);
+        if (self.ort_api.GetTensorTypeAndShape.?(tensor, &type_shape_info)) |status| {
+            logOnnxError(status, self.ort_api, &self.logger);
+            return error.OnnxError;
+        }
         defer self.ort_api.ReleaseTensorTypeAndShapeInfo.?(type_shape_info);
 
         var n_dimensions: usize = 0;
-        try errIfStatus(self.ort_api.GetDimensionsCount.?(type_shape_info, &n_dimensions), self.ort_api);
+        if (self.ort_api.GetDimensionsCount.?(type_shape_info, &n_dimensions)) |status| {
+            logOnnxError(status, self.ort_api, &self.logger);
+            return error.OnnxError;
+        }
 
         var dimensions = std.array_list.Managed(i64).init(std.heap.page_allocator);
         try dimensions.resize(n_dimensions);
-        try errIfStatus(self.ort_api.GetDimensions.?(type_shape_info, dimensions.items.ptr, n_dimensions), self.ort_api);
+        if (self.ort_api.GetDimensions.?(type_shape_info, dimensions.items.ptr, n_dimensions)) |status| {
+            logOnnxError(status, self.ort_api, &self.logger);
+            return error.OnnxError;
+        }
 
         return dimensions;
     }

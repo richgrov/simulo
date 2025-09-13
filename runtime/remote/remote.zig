@@ -1,5 +1,6 @@
 const std = @import("std");
 const build_options = @import("build_options");
+const Logger = @import("../log.zig").Logger;
 
 const engine = @import("engine");
 const profile = engine.profiler;
@@ -46,6 +47,7 @@ pub const Remote = struct {
     running: bool = true,
     reconnect_delay_ms: u64 = MIN_RECONNECT_DELAY_MS,
     inbound_queue: Spsc(Packet, 128),
+    logger: Logger("remote", 2048),
 
     pub fn init(allocator: std.mem.Allocator) !Remote {
         const machine_id = try std.process.getEnvVarOwned(allocator, "SIMULO_MACHINE_ID");
@@ -63,6 +65,7 @@ pub const Remote = struct {
             .id = machine_id,
             .secret_key = key_pair,
             .inbound_queue = Spsc(Packet, 128).init(),
+            .logger = Logger("remote", 2048).init(),
         };
     }
 
@@ -88,7 +91,7 @@ pub const Remote = struct {
             const payload = std.fmt.bufPrint(&payload_buf, "{d}", .{std.time.milliTimestamp()}) catch unreachable;
 
             const signature = self.secret_key.sign(payload, null) catch |err| {
-                std.log.err("couldn't sign payload: {any}", .{err});
+                self.logger.err("couldn't sign payload: {any}", .{err});
                 self.exponentialSleep();
                 continue;
             };
@@ -106,8 +109,8 @@ pub const Remote = struct {
                 },
             ) catch unreachable;
 
-            std.log.info("Attempting cloud connection to {s}", .{url});
-            defer std.log.info("Closed cloud connection", .{});
+            self.logger.info("Attempting cloud connection to {s}", .{url});
+            defer self.logger.info("Closed cloud connection", .{});
 
             var client = std.http.Client{ .allocator = self.allocator };
             defer client.deinit();
@@ -121,51 +124,51 @@ pub const Remote = struct {
                 .headers = .{ .host = .{ .override = comptime apiHost() } },
                 .response_writer = &self.sse_handler.interface,
             }) catch |err| {
-                std.log.err("couldn't connect to cloud: {any}", .{err});
+                self.logger.err("couldn't connect to cloud: {any}", .{err});
                 self.exponentialSleep();
                 continue;
             };
 
             if (response.status != .ok) {
-                std.log.err("couldn't connect to cloud: {s}: {s}", .{ @tagName(response.status), self.sse_handler.data.items });
+                self.logger.err("couldn't connect to cloud: {s}: {s}", .{ @tagName(response.status), self.sse_handler.data.items });
                 self.exponentialSleep();
                 continue;
             }
 
-            std.log.info("Connected to cloud", .{});
+            self.logger.info("Connected to cloud", .{});
         }
     }
 
     fn onEvent(handler: *SseHandler, data: []const u8) void {
+        const self: *Remote = @fieldParentPtr("sse_handler", handler);
         if (std.mem.eql(u8, data, "keep-alive")) {
             return;
         }
 
         const prefix_len = ("data:").len;
         if (data.len < prefix_len) {
-            std.log.err("event data too short: {s}", .{data});
+            self.logger.err("event data too short: {s}", .{data});
             return;
         }
 
         const len = std.base64.standard.Decoder.calcSizeForSlice(data[prefix_len..]) catch |err| {
-            std.log.err("message's size couldn't be calculated: {s}: {s}", .{ @errorName(err), data });
+            self.logger.err("message's size couldn't be calculated: {s}: {s}", .{ @errorName(err), data });
             return;
         };
 
         var b64_buf: [1024 * 8]u8 = undefined;
         std.base64.standard.Decoder.decode(&b64_buf, data[prefix_len..]) catch |err| {
-            std.log.err("undecodable event: {s}: {s}", .{ @errorName(err), data });
+            self.logger.err("undecodable event: {s}: {s}", .{ @errorName(err), data });
             return;
         };
 
-        const self: *Remote = @fieldParentPtr("sse_handler", handler);
         const pkt = packet.Packet.from(self.allocator, b64_buf[0..len]) catch |err| {
-            std.log.err("invalid event: {s}: {x}", .{ @errorName(err), b64_buf[0..len] });
+            self.logger.err("invalid event: {s}: {x}", .{ @errorName(err), b64_buf[0..len] });
             return;
         };
 
         self.inbound_queue.enqueue(pkt) catch |err| {
-            std.log.err("inbound event queue is full: {s}: {x}", .{ @errorName(err), b64_buf[0..len] });
+            self.logger.err("inbound event queue is full: {s}: {x}", .{ @errorName(err), b64_buf[0..len] });
             return;
         };
     }
@@ -182,7 +185,7 @@ pub const Remote = struct {
     }
 
     pub fn fetch(self: *Remote, url: []const u8, hash: *const [32]u8, dest_path: []const u8) !void {
-        std.log.info("Downloading {s} to {s}", .{ url, dest_path });
+        self.logger.info("Downloading {s} to {s}", .{ url, dest_path });
 
         var check_hash = true;
         const dest = std.fs.cwd().openFile(dest_path, .{ .mode = .read_write }) catch |err| file: {
@@ -202,13 +205,14 @@ pub const Remote = struct {
             var hash_bytes: [32]u8 = undefined;
             std.crypto.hash.sha2.Sha256.hash(content, &hash_bytes, .{});
             if (std.mem.eql(u8, &hash_bytes, hash)) {
-                std.log.info("Hash matches, skipping download to {s}", .{dest_path});
+                self.logger.info("Hash matches, skipping download to {s}", .{dest_path});
                 return;
             }
         }
 
         try dest.seekTo(0);
         const length = try download.download(url, dest, self.allocator);
+        self.logger.debug("Downloaded {d} bytes", .{length});
         try dest.setEndPos(length);
     }
 };
