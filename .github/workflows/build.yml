@@ -161,7 +161,7 @@ jobs:
       - name: Install headless display tools
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: xvfb imagemagick vulkan-validationlayers-dev mesa-vulkan-drivers
+          packages: xvfb imagemagick vulkan-validationlayers vulkan-validationlayers-dev mesa-vulkan-drivers
           version: "1.0"
 
       - name: Download built runtime artifact
