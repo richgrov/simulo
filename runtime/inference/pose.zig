@@ -21,6 +21,7 @@ const DMat3 = @import("engine").math.DMat3;
 
 const time_until_low_power = @as(i64, 10000);
 var last_detection_time = @as(i64, 0);
+var is_in_low_power = false;
 
 const ffi = @cImport({
     @cInclude("ffi.h");
@@ -132,7 +133,14 @@ pub const PoseDetector = struct {
             defer self.profiler.reset();
 
             if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
+                if (!is_in_low_power) {
+                    self.logger.debug("pose detector entering low power mode due to inactivity", .{});
+                    is_in_low_power = true;
+                }
                 std.Thread.sleep(std.time.ns_per_s / 2);
+            } else if (is_in_low_power) {
+                self.logger.debug("pose detector resuming normal operation after inactivity", .{});
+                is_in_low_power = false;
             }
 
             const frame_idx = camera.swapBuffers() catch |err| {
