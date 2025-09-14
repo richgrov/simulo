@@ -134,7 +134,7 @@ jobs:
           use-cache: false
 
       - name: Run tests
-        run: zig build test --search-prefix extern/onnxruntime
+        run: zig build test --search-prefix extern/onnxruntime --verbose
 
       - name: Build local
         run: zig build install --search-prefix extern/onnxruntime -p zig-out-local -Dcpu=baseline
