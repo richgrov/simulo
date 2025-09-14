@@ -137,10 +137,10 @@ jobs:
         run: zig build test --search-prefix extern/onnxruntime --verbose
 
       - name: Build local
-        run: zig build install --search-prefix extern/onnxruntime -p zig-out-local -Dcpu=baseline
+        run: zig build install --search-prefix extern/onnxruntime -p zig-out-local -Dcpu=baseline -Drelease-safe
 
       - name: Build cloud
-        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud -Dcpu=baseline
+        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud -Dcpu=baseline -Drelease-safe
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
@@ -161,7 +161,7 @@ jobs:
       - name: Install headless display tools
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: xvfb imagemagick vulkan-validationlayers vulkan-validationlayers-dev mesa-vulkan-drivers
+          packages: xvfb imagemagick mesa-vulkan-drivers
           version: "1.0"
 
       - name: Download built runtime artifact
