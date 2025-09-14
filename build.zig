@@ -118,12 +118,8 @@ fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     const out_file = file ++ ".spv";
     const run = b.addSystemCommand(&.{"glslc"});
     run.addFileArg(b.path(file));
-    run.addArg("-o");
-    const result = run.addOutputFileArg(out_file);
-
-    const copy_file = b.addInstallFile(result, out_file);
-    copy_file.step.dependOn(&run.step);
-    return &copy_file.step;
+    run.addArgs(&.{ "-o", out_file });
+    return &run.step;
 }
 
 fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: std.Target.Os.Tag, resources: []const []const u8) !*std.Build.Step {
