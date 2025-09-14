@@ -116,7 +116,9 @@ pub fn build(b: *std.Build) !void {
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     const out_file = file ++ ".spv";
-    const run = b.addSystemCommand(&[_][]const u8{ "glslc", file, "-o", out_file });
+    const run = b.addSystemCommand(&.{"glslc"});
+    run.addFileArg(b.path(file));
+    run.addArgs(&.{ "-o", out_file });
     return &run.step;
 }
 

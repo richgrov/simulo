@@ -84,6 +84,7 @@ Cursor create_invisible_cursor(Display *display, ::Window window) {
 
 simulo::X11Window::X11Window(const Gpu &vk_instance, const char *title)
     : vk_instance_(vk_instance),
+      mouse_captured_(false),
       width_(1280),
       height_(720),
       delta_mouse_x_(0),

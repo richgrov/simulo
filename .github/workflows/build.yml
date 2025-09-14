@@ -98,8 +98,16 @@ jobs:
       - name: Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack-dev ccache
+          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack3 ccache
           version: "1.0"
+
+      # Since upgrading to Zig 0.15.1, an error around liblapack.so.3 is thrown. It's unknown why,
+      # but cache-apt-packages doesn't properly install it. This is a mechanism to ensure it's
+      # configured correctly each time.
+      - name: Reconfigure LAPACK
+        run: |
+          sudo dpkg --configure -a
+          sudo apt-get install --reinstall -y liblapack3
 
       - name: Download ONNX Runtime
         run: |
@@ -123,15 +131,16 @@ jobs:
         uses: mlugg/setup-zig@v2
         with:
           version: 0.15.1
+          use-cache: false
 
       - name: Run tests
-        run: zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
+        run: zig build test --search-prefix extern/onnxruntime --verbose
 
       - name: Build local
-        run: zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
+        run: zig build install --search-prefix extern/onnxruntime -p zig-out-local -Doptimize=ReleaseSafe
 
       - name: Build cloud
-        run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud -Doptimize=ReleaseSafe
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
@@ -144,3 +153,76 @@ jobs:
         with:
           name: simulo-runtime-cloud-linux-x64
           path: zig-out-cloud/bin
+
+  Headless-Run-Linux:
+    runs-on: ubuntu-latest
+    needs: Build-Linux
+    steps:
+      - name: Install headless display tools
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: xvfb imagemagick mesa-vulkan-drivers
+          version: "1.0"
+
+      - name: Download built runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: simulo-runtime-local-linux-x64
+          path: .
+
+      - name: Install dependencies
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libopencv-dev liblapack3
+          version: "1.0"
+
+      # Included for same reason as in Build-Linux
+      - name: Reconfigure LAPACK
+        run: |
+          sudo dpkg --configure -a
+          sudo apt-get install --reinstall -y liblapack3
+
+      - name: Download ONNX Runtime
+        run: |
+          mkdir -p extern/onnxruntime
+          curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
+          tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/extern/onnxruntime/lib
+
+      - name: Run runtime headless and capture screenshot
+        env:
+          DISPLAY: :99
+        run: |
+          #set -euo pipefail
+          export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          Xvfb :99 -screen 0 1280x720x24 &
+          XVFB_PID=$!
+          export DISPLAY=:99
+          sleep 1
+          chmod +x ./runtime
+          ./runtime &
+          RUNTIME_PID=$!
+          # Ensure runtime is still running after 10 seconds; fail otherwise
+          #for i in $(seq 1 10); do
+          #  if kill -0 "$RUNTIME_PID" 2>/dev/null; then
+          #    sleep 1
+          #  else
+          #    echo "runtime exited prematurely" >&2
+          #    kill "$XVFB_PID" || true
+          #    wait "$XVFB_PID" || true
+          #    exit 1
+          #  fi
+          #done
+          # Capture screenshot with a single tool (ImageMagick import)
+          #import -window root screenshot.png
+          # Cleanup
+          #kill "$RUNTIME_PID" || true
+          #wait "$RUNTIME_PID" || true
+          #kill "$XVFB_PID" || true
+          #wait "$XVFB_PID" || true
+
+#      - name: Upload screenshot artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: runtime-screenshot-linux
+#          path: screenshot.png
