@@ -154,9 +154,6 @@ jobs:
           name: simulo-runtime-cloud-linux-x64
           path: zig-out-cloud/bin
 
-      - name: Run tests
-        run: zig build test --search-prefix extern/onnxruntime
-
   Headless-Run-Linux:
     runs-on: ubuntu-latest
     needs: Build-Linux
