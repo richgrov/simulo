@@ -137,10 +137,10 @@ jobs:
         run: zig build test --search-prefix extern/onnxruntime --verbose
 
       - name: Build local
-        run: zig build install --search-prefix extern/onnxruntime -p zig-out-local -Dcpu=baseline -Drelease-safe
+        run: zig build install --search-prefix extern/onnxruntime -p zig-out-local -Dcpu=baseline -Doptimize=release-safe
 
       - name: Build cloud
-        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud -Dcpu=baseline -Drelease-safe
+        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud -Dcpu=baseline -Doptimize=release-safe
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
