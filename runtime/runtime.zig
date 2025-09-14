@@ -3,6 +3,7 @@ const build_options = @import("build_options");
 const Logger = @import("log.zig").Logger;
 
 const engine = @import("engine");
+const Profiler = engine.profiler.Profiler;
 const Mat4 = engine.math.Mat4;
 
 const util = @import("util");
@@ -294,20 +295,27 @@ pub const Runtime = struct {
         var frame_count: usize = 0;
         var second_timer: i64 = std.time.milliTimestamp();
 
+        const RuntimeProiler = Profiler("runtime", enum {
+            setup_frame,
+            resize,
+            process_pose,
+            update,
+            recalculate_transforms,
+            render,
+            process_events,
+        });
+        var profiler = RuntimeProiler.init();
+
         while (self.window.poll()) {
+            profiler.reset();
+
             const now = std.time.milliTimestamp();
             const delta = now - last_time;
             last_time = now;
 
-            frame_count += 1;
-            if (now - second_timer >= 1000) {
-                std.debug.print("fps: {d}\n", .{frame_count});
-                frame_count = 0;
-                second_timer = now;
-            }
-
             const width = self.window.getWidth();
             const height = self.window.getHeight();
+            profiler.log(.setup_frame);
 
             if (width != self.last_window_width or height != self.last_window_height) {
                 self.last_window_width = width;
@@ -318,9 +326,12 @@ pub const Runtime = struct {
                 }
 
                 self.renderer.setObjectTransform(self.chessboard, if (self.calibrated) Mat4.zero() else Mat4.scale(.{ @floatFromInt(width), @floatFromInt(height), 1 }));
+
+                profiler.log(.resize);
             }
 
             try self.processPoseDetections();
+            profiler.log(.process_pose);
 
             if (self.calibrated) {
                 if (self.scene.root_object) |root_id| {
@@ -332,10 +343,12 @@ pub const Runtime = struct {
                         }
                     };
                     self.scene.dfs(root_id, Updater.Data, .{ .runtime = self, .delta = deltaf / 1000 }, Updater.update) catch unreachable;
+                    profiler.log(.update);
                 }
             }
 
             self.recalculateOutdatedTransforms();
+            profiler.log(.recalculate_transforms);
 
             const ui_projection = Mat4.ortho(
                 @floatFromInt(self.last_window_width),
@@ -346,6 +359,7 @@ pub const Runtime = struct {
             self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
                 self.logger.err("render failed: {any}", .{err});
             };
+            profiler.log(.render);
 
             while (self.remote.nextMessage()) |msg| {
                 var message = msg;
@@ -398,6 +412,17 @@ pub const Runtime = struct {
                     },
                 }
             }
+
+            profiler.log(.process_events);
+
+            frame_count += 1;
+            if (now - second_timer >= 1000) {
+                if (frame_count < 59) {
+                    std.debug.print("Low FPS ({d}), {f}\n", .{ frame_count, &profiler });
+                }
+                frame_count = 0;
+                second_timer = now;
+            }
         }
     }
 
@@ -444,9 +469,6 @@ pub const Runtime = struct {
 
                     const id_u32: u32 = @intCast(id);
                     _ = self.wasm.callFunction(funcs.pose, .{ id_u32, false }) catch unreachable;
-                },
-                .profile => |profile_logs| {
-                    _ = profile_logs;
                 },
                 .fault => |fault| {
                     self.logger.err("pose detector fault: {s}: {any}", .{ @tagName(fault.category), fault.err });

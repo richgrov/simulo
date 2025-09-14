@@ -3,62 +3,39 @@ const std = @import("std");
 const util = @import("util");
 const FixedArrayList = util.FixedArrayList;
 
-pub const Log = struct {
-    label: u32,
-    us: u32,
-};
-
-pub const Logs = FixedArrayList(Log, 32);
-pub const Labels = FixedArrayList([]const u8, 32);
-
 pub fn Profiler(comptime name: []const u8, comptime Enum: type) type {
     return struct {
         timer: std.time.Timer,
-        logs: Logs,
+        durations: [@typeInfo(Enum).@"enum".fields.len]u64,
 
         const Self = @This();
 
         pub fn init() Self {
             return .{
                 .timer = std.time.Timer.start() catch unreachable,
-                .logs = Logs.init(),
+                .durations = [_]u64{0} ** @typeInfo(Enum).@"enum".fields.len,
             };
+        }
+
+        pub fn log(self: *Self, comptime label: Enum) void {
+            const enum_index = @intFromEnum(label);
+            if (enum_index < self.durations.len) {
+                self.durations[enum_index] = @min(self.durations[enum_index] + self.timer.lap(), std.math.maxInt(u64));
+            } else {
+                std.debug.print("unable to log " ++ @tagName(label) ++ " for profiler " ++ name ++ "\n", .{});
+            }
+        }
+
+        pub fn format(self: *Self, writer: anytype) !void {
+            try writer.print("Profiler " ++ name, .{});
+            const fields = @typeInfo(Enum).@"enum".fields;
+            inline for (fields, 0..) |field, i| {
+                try writer.print("\n  " ++ field.name ++ ": {D}", .{self.durations[i]});
+            }
         }
 
         pub fn reset(self: *Self) void {
-            self.timer.reset();
-        }
-
-        pub fn log(self: *Self, label: Enum) void {
-            self.logs.append(.{
-                .label = @intCast(@intFromEnum(label)),
-                .us = @intCast(@min(self.timer.lap() / 1000, std.math.maxInt(u32))),
-            }) catch {
-                std.debug.print("unable to log {s} for profiler {s}\n", .{ @tagName(label), name });
-            };
-        }
-
-        pub fn profilerName() []const u8 {
-            return name;
-        }
-
-        pub fn labels() Labels {
-            const info = switch (@typeInfo(Enum)) {
-                .@"enum" => |e| e,
-                else => @compileError("profiler labels must be an enum"),
-            };
-
-            var names = Labels.init();
-            inline for (0..info.fields.len) |i| {
-                names.append(info.fields[i].name) catch unreachable;
-            }
-            return names;
-        }
-
-        pub fn end(self: *Self) Logs {
-            const result = self.logs;
-            self.logs = Logs.init();
-            return result;
+            @memset(&self.durations, 0);
         }
     };
 }

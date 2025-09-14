@@ -50,7 +50,6 @@ pub const PoseEvent = union(enum) {
         detection: Detection,
     },
     lost: u64,
-    profile: profile.Logs,
     fault: struct {
         category: enum {
             camera_init,
@@ -128,10 +127,7 @@ pub const PoseDetector = struct {
         defer inference.deinit();
 
         while (@atomicLoad(bool, &self.running, .monotonic)) {
-            // Having this line at the end of the loop could result in errors continuing early and
-            // preventing the profiler from being reset (filling the log buffer). So do it here to
-            // ensure it's always reset.
-            self.logEvent(.{ .profile = self.profiler.end() });
+            defer self.profiler.reset();
 
             if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
                 std.Thread.sleep(std.time.ns_per_s / 2);
