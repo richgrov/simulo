@@ -90,9 +90,11 @@ pub const PoseDetector = struct {
     }
 
     pub fn start(self: *PoseDetector) !void {
-        @atomicStore(bool, &self.running, true, .seq_cst);
-        self.thread = try std.Thread.spawn(.{}, PoseDetector.run, .{self});
-        last_detection_time = std.time.milliTimestamp();
+        const started = @cmpxchgStrong(bool, &self.running, false, true, .seq_cst, .seq_cst) == null;
+        if (started) {
+            self.thread = try std.Thread.spawn(.{}, PoseDetector.run, .{self});
+            last_detection_time = std.time.milliTimestamp();
+        }
     }
 
     pub fn stop(self: *PoseDetector) void {
