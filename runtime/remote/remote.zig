@@ -82,7 +82,6 @@ pub const Remote = struct {
         self.read_thread = try std.Thread.spawn(.{}, Remote.readLoop, .{self});
     }
 
-    pub fn sendPing(_: *Remote) void {}
     pub fn sendProfile(_: *Remote, _: anytype, _: []const profile.Logs) void {}
 
     fn readLoop(self: *Remote) void {
