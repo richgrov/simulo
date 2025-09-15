@@ -28,6 +28,49 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          submodules: recursive
+
+      - name: Add LunarG Repository
+        run: |
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
+          sudo apt update
+
+      - name: Install dependencies
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl libopencv-dev libx11-dev libxkbcommon-dev libxi-dev libwayland-dev wayland-protocols vulkan-sdk build-essential cmake g++-multilib libgcc-11-dev lib32gcc-11-dev liblapack3 ccache
+          version: "1.0"
+
+      - name: Reconfigure LAPACK
+        run: |
+          sudo dpkg --configure -a
+          sudo apt-get install --reinstall -y liblapack3
+
+      - name: Cache dependencies
+        id: cache-dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            extern/onnxruntime
+            extern/wasmtime
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/build.yml') }}
+
+      - name: Download dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p extern/onnxruntime extern/wasmtime
+          curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
+          tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
+          curl -L https://github.com/bytecodealliance/wasmtime/releases/download/v36.0.2/wasmtime-v36.0.2-x86_64-linux-c-api.tar.xz -o wasmtime.tar.xz
+          tar -xf wasmtime.tar.xz -C extern/wasmtime --strip-components=1
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/extern/onnxruntime/lib:$GITHUB_WORKSPACE/extern/wasmtime/lib
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+          use-cache: false
 
       - name: Run Claude PR Action
         uses: anthropics/claude-code-action@beta
