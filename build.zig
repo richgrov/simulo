@@ -209,7 +209,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
     runtime.addIncludePath(b.path("runtime"));
     runtime.link_libcpp = true;
     runtime.linkSystemLibrary("onnxruntime", .{});
-    runtime.linkSystemLibrary("wasmtime", .{ .preferred_link_mode = .static });
+    runtime.linkSystemLibrary("wasmtime", .{});
 
     var cpp_sources = ArrayList([]const u8).initCapacity(b.allocator, 32) catch unreachable;
     defer cpp_sources.deinit(b.allocator);
