@@ -11,11 +11,14 @@ const fs_storage = @import("fs_storage.zig");
 
 pub fn main() !void {
     var logger = Logger("init", 1024).init();
-    logger.info("simulo runtime (git: {s}, cloud: {}, api: {s})", .{
-        build_options.git_hash,
-        build_options.cloud,
-        build_options.api_url,
-    });
+    if (build_options.cloud) {
+        logger.info("simulo runtime (git: {s}, api: {s})", .{
+            build_options.git_hash,
+            build_options.api_url,
+        });
+    } else {
+        logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
+    }
 
     var dba = std.heap.DebugAllocator(.{}).init;
     defer {
