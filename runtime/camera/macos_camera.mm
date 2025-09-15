@@ -118,9 +118,9 @@ bool ensure_permission() {
    return authStatus == AVAuthorizationStatusAuthorized;
 }
 
-AVCaptureDevice *find_camera() {
+AVCaptureDevice *find_best_camera() {
    AVCaptureDeviceDiscoverySession *discoverySession = [AVCaptureDeviceDiscoverySession
-       discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera ]
+       discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera, AVCaptureDeviceTypeExternalUnknown ]
                              mediaType:AVMediaTypeVideo
                               position:AVCaptureDevicePositionUnspecified];
    NSArray *devices = [discoverySession devices];
@@ -129,7 +129,23 @@ AVCaptureDevice *find_camera() {
       return nil;
    }
 
-   return [devices objectAtIndex:0];
+   AVCaptureDevice *bestDevice = nil;
+   int maxFrameRate = 0;
+
+   for (AVCaptureDevice *device in devices) {
+      // Get supported formats for this device
+      for (AVCaptureDeviceFormat *format in [device formats]) {
+         for (AVFrameRateRange *frameRateRange in format.videoSupportedFrameRateRanges) {
+            if (frameRateRange.maxFrameRate > maxFrameRate) {
+               maxFrameRate = (int)frameRateRange.maxFrameRate;
+               bestDevice = device;
+            }
+         }
+      }
+   }
+
+   // Fallback to first device if frame rate detection fails
+   return bestDevice ? bestDevice : [devices objectAtIndex:0];
 }
 
 extern "C" {
@@ -145,7 +161,7 @@ bool init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf_b) {
       captureSession = [[AVCaptureSession alloc] init];
       [captureSession setSessionPreset:AVCaptureSessionPreset640x480];
 
-      AVCaptureDevice *device = find_camera();
+      AVCaptureDevice *device = find_best_camera();
       if (!device) {
          return false;
       }
