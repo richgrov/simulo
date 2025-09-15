@@ -47,7 +47,7 @@ jobs:
 
       - uses: tecolicom/actions-use-homebrew-tools@v1
         with:
-          tools: opencv wasm-micro-runtime
+          tools: opencv wasmtime
 
       - name: Download ONNX Runtime
         run: |
@@ -109,23 +109,23 @@ jobs:
           sudo dpkg --configure -a
           sudo apt-get install --reinstall -y liblapack3
 
-      - name: Download ONNX Runtime
+      - name: Cache dependencies
+        id: cache-dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            extern/onnxruntime
+            extern/wasmtime
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/build.yml') }}
+
+      - name: Download dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
         run: |
-          mkdir -p extern/onnxruntime
+          mkdir -p extern/onnxruntime extern/wasmtime
           curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
           tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
-
-      - name: Build WAMR
-        run: |
-          cd ..
-          git clone https://github.com/bytecodealliance/wasm-micro-runtime.git
-          cd wasm-micro-runtime/product-mini/platforms/linux
-          mkdir build
-          cd build
-          cmake ..
-          make
-          sudo make install
-          cd $GITHUB_WORKSPACE
+          curl -L https://github.com/bytecodealliance/wasmtime/releases/download/v36.0.2/wasmtime-v36.0.2-x86_64-linux-c-api.tar.xz -o wasmtime.tar.xz
+          tar -xf wasmtime.tar.xz -C extern/wasmtime --strip-components=1
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
@@ -134,13 +134,13 @@ jobs:
           use-cache: false
 
       - name: Run tests
-        run: zig build test --search-prefix extern/onnxruntime --verbose
+        run: zig build test --search-prefix extern/onnxruntime --search-prefix extern/wasmtime --verbose
 
       - name: Build local
-        run: zig build install --search-prefix extern/onnxruntime -p zig-out-local -Doptimize=ReleaseSafe
+        run: zig build install --search-prefix extern/onnxruntime --search-prefix extern/wasmtime -p zig-out-local -Doptimize=ReleaseSafe
 
       - name: Build cloud
-        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud -Doptimize=ReleaseSafe
+        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime --search-prefix extern/wasmtime -p zig-out-cloud -Doptimize=ReleaseSafe
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
@@ -182,12 +182,24 @@ jobs:
           sudo dpkg --configure -a
           sudo apt-get install --reinstall -y liblapack3
 
-      - name: Download ONNX Runtime
+      - name: Cache dependencies
+        id: cache-dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            extern/onnxruntime
+            extern/wasmtime
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('**/build.yml') }}
+
+      - name: Download dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
         run: |
-          mkdir -p extern/onnxruntime
+          mkdir -p extern/onnxruntime extern/wasmtime
           curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
           tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
-          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/extern/onnxruntime/lib
+          curl -L https://github.com/bytecodealliance/wasmtime/releases/download/v36.0.2/wasmtime-v36.0.2-x86_64-linux-c-api.tar.xz -o wasmtime.tar.xz
+          tar -xf wasmtime.tar.xz -C extern/wasmtime --strip-components=1
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/extern/onnxruntime/lib:$GITHUB_WORKSPACE/extern/wasmtime/lib
 
       - name: Run runtime headless and capture screenshot
         env:

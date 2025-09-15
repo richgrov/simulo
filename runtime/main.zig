@@ -30,9 +30,6 @@ pub fn main() !void {
         return;
     };
 
-    try Runtime.globalInit();
-    defer Runtime.globalDeinit();
-
     var runtime: Runtime = undefined;
     try Runtime.init(&runtime, allocator);
     defer runtime.deinit();

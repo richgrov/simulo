@@ -42,17 +42,19 @@ openssl pkey -in ~/.simulo/private.der -inform DER -pubout -outform PEM -out ~/.
 
 - OpenCV
 - ONNXRuntime
-- WebAssembly Micro Runtime
+- wasmtime
 
 MacOS:
 
 - Install the dependencies using homebrew
+
 ```
 brew install zig
-brew install opencv wasm-micro-runtime
+brew install opencv wasmtime
 ```
 
 - Locally install the ONNXRuntime by running these commands
+
 ```
 mkdir -p extern/onnxruntime
 curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-osx-arm64-1.22.0.tgz -o onnxruntime.tgz
@@ -60,11 +62,13 @@ tar -xzf onnxruntime.tgz -C extern/onnxruntime --strip-components=1
 ```
 
 - Build the project
+
 ```
 zig build install --search-prefix extern/onnxruntime
 ```
 
 - Run the tests
+
 ```
 zig build test
 ```
@@ -76,7 +80,3 @@ Linux:
 - `libxkbcommon`
 - Wayland protocols
 - TensorRT
-
-**Build**
-
-1. [Build WAMR](https://github.com/bytecodealliance/wasm-micro-runtime/blob/main/product-mini/README.md)
