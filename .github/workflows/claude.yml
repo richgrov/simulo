@@ -35,3 +35,4 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           timeout_minutes: "60"
           mode: tag
+          claude_args: --dangerously-skip-permissions
