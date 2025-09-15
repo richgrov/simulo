@@ -25,9 +25,9 @@ fn errFmt(err: *wasm.wasmtime_error_t) WasmErrorFormatter {
 
 pub const Wasm = struct {
     engine: *wasm.wasm_engine_t,
-    store: *wasm.wasmtime_store_t,
-    context: ?*wasm.wasmtime_context_t,
     linker: *wasm.wasmtime_linker_t,
+    store: ?*wasm.wasmtime_store_t = null,
+    context: ?*wasm.wasmtime_context_t = null,
     module: ?*wasm.wasmtime_module_t = null,
     module_instance: wasm.wasmtime_instance_t = undefined,
     memory: []u8 = undefined,
@@ -168,13 +168,8 @@ pub const Wasm = struct {
             return error.WasmDefineWasiFailed;
         }
 
-        const store = wasm.wasmtime_store_new(engine, null, null).?;
-        errdefer wasm.wasmtime_store_delete(store);
-
         return .{
             .engine = engine,
-            .store = store,
-            .context = wasm.wasmtime_store_context(store),
             .linker = linker,
             .logger = logger,
         };
@@ -191,9 +186,13 @@ pub const Wasm = struct {
         }
         errdefer wasm.wasmtime_module_delete(module);
 
+        const store = wasm.wasmtime_store_new(self.engine, null, null).?;
+        errdefer wasm.wasmtime_store_delete(store);
+        const context = wasm.wasmtime_store_context(store);
+
         var module_instance: wasm.wasmtime_instance_t = undefined;
         var trap: ?*wasm.wasm_trap_t = null;
-        if (wasm.wasmtime_linker_instantiate(self.linker, self.context, module, &module_instance, &trap)) |err| {
+        if (wasm.wasmtime_linker_instantiate(self.linker, context, module, &module_instance, &trap)) |err| {
             defer wasm.wasmtime_error_delete(err);
             self.logger.err("failed to create wasm instance: {f}", .{errFmt(err)});
             return error.CreateWasmInstanceFailed;
@@ -205,7 +204,7 @@ pub const Wasm = struct {
 
         var extern_memory: wasm.wasmtime_extern_t = undefined;
         const memory_name = "memory";
-        if (!wasm.wasmtime_instance_export_get(self.context, &module_instance, memory_name.ptr, memory_name.len, &extern_memory)) {
+        if (!wasm.wasmtime_instance_export_get(context, &module_instance, memory_name.ptr, memory_name.len, &extern_memory)) {
             return error.WasmModuleHasNoMemory;
         }
 
@@ -213,15 +212,21 @@ pub const Wasm = struct {
             return error.WasmModuleMemoryWrongType;
         }
 
-        const mem_ptr = wasm.wasmtime_memory_data(self.context, &extern_memory.of.memory);
-        const mem_size = wasm.wasmtime_memory_data_size(self.context, &extern_memory.of.memory);
+        const mem_ptr = wasm.wasmtime_memory_data(context, &extern_memory.of.memory);
+        const mem_size = wasm.wasmtime_memory_data_size(context, &extern_memory.of.memory);
 
+        self.store = store;
+        self.context = context;
         self.module = module;
         self.module_instance = module_instance;
         self.memory = mem_ptr[0..mem_size];
     }
 
     fn unload(self: *Wasm) void {
+        if (self.store != null) {
+            wasm.wasmtime_store_delete(self.store);
+        }
+
         if (self.module != null) {
             wasm.wasmtime_module_delete(self.module);
             self.module = null;
@@ -232,7 +237,6 @@ pub const Wasm = struct {
         self.unload();
 
         wasm.wasmtime_linker_delete(self.linker);
-        wasm.wasmtime_store_delete(self.store);
         wasm.wasm_engine_delete(self.engine);
     }
 
