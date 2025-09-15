@@ -191,10 +191,7 @@ pub const Runtime = struct {
         const data = try std.fs.cwd().readFileAlloc(self.allocator, local_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
-        self.wasm.load(data) catch |err_code| {
-            self.logger.err("wasm initialization failed: {s}", .{@errorName(err_code)});
-            return error.WasmInitFailed;
-        };
+        try self.wasm.load(data);
 
         const init_func = self.wasm.getFunction("simulo_main") orelse {
             self.logger.err("program missing init function", .{});
