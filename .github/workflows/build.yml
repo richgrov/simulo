@@ -47,7 +47,7 @@ jobs:
 
       - uses: tecolicom/actions-use-homebrew-tools@v1
         with:
-          tools: opencv wasm-micro-runtime
+          tools: opencv wasmtime
 
       - name: Download ONNX Runtime
         run: |
@@ -115,17 +115,9 @@ jobs:
           curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz -o onnxruntime-linux-x64-1.22.0.tgz
           tar -xzf onnxruntime-linux-x64-1.22.0.tgz -C extern/onnxruntime --strip-components=1
 
-      - name: Build WAMR
+      - name: Download wasmtime
         run: |
-          cd ..
-          git clone https://github.com/bytecodealliance/wasm-micro-runtime.git
-          cd wasm-micro-runtime/product-mini/platforms/linux
-          mkdir build
-          cd build
-          cmake ..
-          make
-          sudo make install
-          cd $GITHUB_WORKSPACE
+          curl https://wasmtime.dev/install.sh -sSf | bash
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2

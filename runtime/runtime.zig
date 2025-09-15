@@ -22,9 +22,9 @@ else
 pub const Renderer = @import("render/renderer.zig").Renderer;
 pub const Window = @import("window/window.zig").Window;
 
-const wasm = @import("wasm/wasm.zig");
-pub const Wasm = wasm.Wasm;
-pub const WasmError = wasm.Error;
+const wasm_mod = @import("wasm/wasm.zig");
+pub const Wasm = wasm_mod.Wasm;
+pub const WasmError = wasm_mod.Error;
 
 const inference = @import("inference/inference.zig");
 pub const Inference = inference.Inference;
@@ -65,7 +65,6 @@ pub const Runtime = struct {
     wasm_funcs: ?struct {
         init: Wasm.Function,
         update: Wasm.Function,
-        recalculate_transform: Wasm.Function,
         pose: Wasm.Function,
         drop: Wasm.Function,
     },
@@ -74,7 +73,6 @@ pub const Runtime = struct {
     scene: engine.Scene,
     assets: std.StringHashMap(?Renderer.ImageHandle),
     random: std.Random.Xoshiro256,
-    outdated_object_transforms: util.IntSet(u32, 128),
 
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: Renderer.ObjectHandle,
@@ -85,39 +83,6 @@ pub const Runtime = struct {
         start_ms: u64,
         stop_ms: u64,
     },
-
-    pub fn globalInit() !void {
-        try Wasm.globalInit();
-        errdefer Wasm.globalDeinit();
-        try Wasm.exposeFunction("simulo_set_root", wasmSetRoot);
-        try Wasm.exposeFunction("simulo_set_buffers", wasmSetBuffers);
-
-        try Wasm.exposeFunction("simulo_create_object", wasmCreateObject);
-        try Wasm.exposeFunction("simulo_add_object_child", wasmAddObjectChild);
-        try Wasm.exposeFunction("simulo_num_children", wasmNumChildren);
-        try Wasm.exposeFunction("simulo_get_children", wasmGetChildren);
-        try Wasm.exposeFunction("simulo_set_object_ptrs", wasmSetObjectPtrs);
-        try Wasm.exposeFunction("simulo_mark_transform_outdated", wasmMarkTransformOutdated);
-        try Wasm.exposeFunction("simulo_remove_object_from_parent", wasmRemoveObjectFromParent);
-        try Wasm.exposeFunction("simulo_drop_object", wasmDropObject);
-
-        try Wasm.exposeFunction("simulo_create_rendered_object", wasmCreateRenderedObject);
-        try Wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
-        try Wasm.exposeFunction("simulo_set_rendered_object_transform", wasmSetRenderedObjectTransform);
-        try Wasm.exposeFunction("simulo_drop_rendered_object", wasmDropRenderedObject);
-
-        try Wasm.exposeFunction("simulo_random", wasmRandom);
-        try Wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
-        try Wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
-
-        try Wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
-        try Wasm.exposeFunction("simulo_update_material", wasmUpdateMaterial);
-        try Wasm.exposeFunction("simulo_drop_material", wasmDropMaterial);
-    }
-
-    pub fn globalDeinit() void {
-        Wasm.globalDeinit();
-    }
 
     pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
@@ -138,7 +103,9 @@ pub const Runtime = struct {
         errdefer runtime.pose_detector.stop();
         runtime.calibrated = false;
 
-        runtime.wasm.zeroInit();
+        runtime.wasm = try Wasm.init();
+        errdefer runtime.wasm.deinit();
+        try registerWasmFuncs(&runtime.wasm);
         runtime.wasm_funcs = null;
         runtime.wasm_pose_buffer = null;
         runtime.wasm_transform_buffer = null;
@@ -147,9 +114,6 @@ pub const Runtime = struct {
 
         runtime.assets = std.StringHashMap(?Renderer.ImageHandle).init(runtime.allocator);
         errdefer runtime.assets.deinit();
-
-        runtime.outdated_object_transforms = try util.IntSet(u32, 128).init(runtime.allocator, 64);
-        errdefer runtime.outdated_object_transforms.deinit(runtime.allocator);
 
         const now: u64 = @bitCast(std.time.microTimestamp());
         runtime.random = std.Random.Xoshiro256.init(now);
@@ -166,9 +130,7 @@ pub const Runtime = struct {
     }
 
     pub fn deinit(self: *Runtime) void {
-        self.wasm.deinit() catch |err| {
-            self.logger.err("wasm deinit failed: {any}", .{err});
-        };
+        self.wasm.deinit();
         self.eyeguard.deinit();
 
         var assets_keys = self.assets.keyIterator();
@@ -179,7 +141,6 @@ pub const Runtime = struct {
 
         self.scene.deinit();
 
-        self.outdated_object_transforms.deinit(self.allocator);
         self.pose_detector.stop();
         self.renderer.deinit();
         self.window.deinit();
@@ -187,11 +148,33 @@ pub const Runtime = struct {
         self.remote.deinit();
     }
 
-    fn runProgram(self: *Runtime, program_hash: *const [32]u8, assets: []const fs_storage.ProgramAsset) !void {
-        self.wasm.deinit() catch |err| {
-            self.logger.err("wasm deinit failed: {any}", .{err});
-        };
+    fn registerWasmFuncs(wasm: *Wasm) !void {
+        try wasm.exposeFunction("simulo_set_root", wasmSetRoot);
+        try wasm.exposeFunction("simulo_set_buffers", wasmSetBuffers);
 
+        try wasm.exposeFunction("simulo_create_object", wasmCreateObject);
+        try wasm.exposeFunction("simulo_add_object_child", wasmAddObjectChild);
+        try wasm.exposeFunction("simulo_num_children", wasmNumChildren);
+        try wasm.exposeFunction("simulo_get_children", wasmGetChildren);
+        try wasm.exposeFunction("simulo_set_object_ptrs", wasmSetObjectPtrs);
+        try wasm.exposeFunction("simulo_remove_object_from_parent", wasmRemoveObjectFromParent);
+        try wasm.exposeFunction("simulo_drop_object", wasmDropObject);
+
+        try wasm.exposeFunction("simulo_create_rendered_object", wasmCreateRenderedObject);
+        try wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
+        try wasm.exposeFunction("simulo_set_rendered_object_transform", wasmSetRenderedObjectTransform);
+        try wasm.exposeFunction("simulo_drop_rendered_object", wasmDropRenderedObject);
+
+        try wasm.exposeFunction("simulo_random", wasmRandom);
+        try wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
+        try wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
+
+        try wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
+        try wasm.exposeFunction("simulo_update_material", wasmUpdateMaterial);
+        try wasm.exposeFunction("simulo_drop_material", wasmDropMaterial);
+    }
+
+    fn runProgram(self: *Runtime, program_hash: *const [32]u8, assets: []const fs_storage.ProgramAsset) !void {
         self.scene.deinit();
         self.scene = try engine.Scene.init(self.allocator);
 
@@ -208,7 +191,7 @@ pub const Runtime = struct {
         const data = try std.fs.cwd().readFileAlloc(self.allocator, local_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
-        self.wasm.init(self.allocator, data) catch |err_code| {
+        self.wasm.load(data) catch |err_code| {
             self.logger.err("wasm initialization failed: {s}", .{@errorName(err_code)});
             return error.WasmInitFailed;
         };
@@ -222,10 +205,6 @@ pub const Runtime = struct {
             .init = init_func,
             .update = self.wasm.getFunction("simulo__update") orelse {
                 self.logger.err("program missing update function", .{});
-                return error.MissingFunction;
-            },
-            .recalculate_transform = self.wasm.getFunction("simulo__recalculate_transform") orelse {
-                self.logger.err("program missing recalculate_transform function", .{});
                 return error.MissingFunction;
             },
             .pose = self.wasm.getFunction("simulo__pose") orelse {
@@ -300,7 +279,6 @@ pub const Runtime = struct {
             resize,
             process_pose,
             update,
-            recalculate_transforms,
             render,
             process_events,
         });
@@ -346,9 +324,6 @@ pub const Runtime = struct {
                     profiler.log(.update);
                 }
             }
-
-            self.recalculateOutdatedTransforms();
-            profiler.log(.recalculate_transforms);
 
             const ui_projection = Mat4.ortho(
                 @floatFromInt(self.last_window_width),
@@ -418,7 +393,9 @@ pub const Runtime = struct {
             frame_count += 1;
             if (now - second_timer >= 1000) {
                 if (frame_count < 59) {
-                    std.debug.print("Low FPS ({d}), {f}\n", .{ frame_count, &profiler });
+                    self.logger.warn("Low FPS ({d}), {f}", .{ frame_count, &profiler });
+                } else {
+                    self.logger.debug("FPS: {d}", .{frame_count});
                 }
                 frame_count = 0;
                 second_timer = now;
@@ -437,7 +414,7 @@ pub const Runtime = struct {
 
                     if (self.wasm_pose_buffer == null) {
                         if (self.wasm_funcs) |funcs| {
-                            _ = self.wasm.callFunction(funcs.init, .{@as(u32, 0)}) catch unreachable;
+                            _ = self.wasm.callFunction(funcs.init, .{}) catch unreachable;
 
                             if (self.wasm_pose_buffer == null or self.wasm_transform_buffer == null) {
                                 return error.BuffersNotInitialized;
@@ -475,25 +452,6 @@ pub const Runtime = struct {
                 },
             }
         }
-    }
-
-    fn recalculateOutdatedTransforms(self: *Runtime) void {
-        for (0..self.outdated_object_transforms.bucketCount()) |bucket| {
-            for (self.outdated_object_transforms.bucketItems(bucket)) |obj_id| {
-                const obj = self.scene.get(obj_id).?;
-                _ = self.wasm.callFunction(self.wasm_funcs.?.recalculate_transform, .{obj.this}) catch unreachable;
-                const col_array = self.wasm_transform_buffer.?;
-                const transform = Mat4.fromColumnMajorPtr(col_array);
-                // TODO: All objects (whether rendered or not) will have transforms
-                // For now, no-op
-                _ = transform;
-            }
-        }
-        self.outdated_object_transforms.clear();
-    }
-
-    pub fn markOutdatedTransform(self: *Runtime, id: usize) void {
-        self.outdated_object_transforms.put(self.allocator, @intCast(id)) catch |err| util.crash.oom(err);
     }
 
     fn wasmSetRoot(env: *Wasm, id: u32, this: i32) void {
@@ -615,8 +573,6 @@ pub const Runtime = struct {
                 error.ObjectHasChildren => runtime.logger.err("tried to delete object {d} that has children", .{id}),
             }
         };
-
-        _ = runtime.outdated_object_transforms.delete(@intCast(id));
     }
 
     fn wasmDropMaterial(env: *Wasm, id: u32) void {
