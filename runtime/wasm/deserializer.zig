@@ -207,7 +207,7 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
     const version = try d.readSlice(4);
     if (!std.mem.eql(u8, version, "\x01\x00\x00\x00")) return error.UnsupportedVersion;
 
-    var types = std.ArrayList(FunctionType).init(allocator);
+    var types = std.ArrayList(FunctionType).initCapacity(allocator, 0) catch return error.OutOfMemory;
     errdefer {
         for (types.items) |ty| {
             allocator.free(ty.params);
@@ -215,9 +215,9 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
         }
         types.deinit();
     }
-    var functions = std.ArrayList(u32).init(allocator);
+    var functions = std.ArrayList(u32).initCapacity(allocator, 0) catch return error.OutOfMemory;
     errdefer functions.deinit();
-    var codes = std.ArrayList(Code).init(allocator);
+    var codes = std.ArrayList(Code).initCapacity(allocator, 0) catch return error.OutOfMemory;
     errdefer {
         for (codes.items) |code| {
             allocator.free(code.locals);
@@ -225,7 +225,7 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
         }
         codes.deinit();
     }
-    var exports = std.ArrayList(Export).init(allocator);
+    var exports = std.ArrayList(Export).initCapacity(allocator, 0) catch return error.OutOfMemory;
     errdefer {
         for (exports.items) |exp| {
             allocator.free(exp.name);
@@ -289,7 +289,7 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
                     const body_size = try d.readVarUint32();
                     const start = d.index;
                     const local_count = try d.readVarUint32();
-                    var locals_list = std.ArrayList(Local).init(allocator);
+                    var locals_list = std.ArrayList(Local).initCapacity(allocator, 0) catch return error.OutOfMemory;
                     errdefer locals_list.deinit();
                     for (0..local_count) |_| {
                         const num = try d.readVarUint32();
@@ -325,7 +325,7 @@ pub fn parseModule(allocator: std.mem.Allocator, data: []const u8) !Module {
 
 fn parseInstructions(allocator: std.mem.Allocator, data: []const u8) ![]Instruction {
     var d = Deserializer{ .data = data, .allocator = allocator };
-    var list = std.ArrayList(Instruction).init(allocator);
+    var list = std.ArrayList(Instruction).initCapacity(allocator, 0) catch return error.OutOfMemory;
     errdefer {
         freeInstructions(allocator, list.items);
         list.deinit();

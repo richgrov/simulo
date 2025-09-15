@@ -18,7 +18,7 @@ const CameraInfo = struct {
 };
 
 fn enumerateCameras(allocator: std.mem.Allocator) ![]CameraInfo {
-    var cameras = std.ArrayList(CameraInfo).init(allocator);
+    var cameras = std.ArrayList(CameraInfo).initCapacity(allocator, 0) catch return error.OutOfMemory;
     defer cameras.deinit();
 
     // Check up to 16 video devices
