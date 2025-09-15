@@ -84,13 +84,13 @@ fn getMaxFrameRate(fd: i32) !u32 {
             defer frmival.index += 1;
 
             if (frmival.type == v42l.V4L2_FRMIVAL_TYPE_DISCRETE) {
-                const fps = frmival.un.discrete.denominator / frmival.un.discrete.numerator;
+                const fps = frmival.discrete.denominator / frmival.discrete.numerator;
                 if (fps > max_fps) {
                     max_fps = fps;
                 }
             } else if (frmival.type == v42l.V4L2_FRMIVAL_TYPE_STEPWISE) {
                 // Use minimum interval (maximum fps)
-                const fps = frmival.un.stepwise.min.denominator / frmival.un.stepwise.min.numerator;
+                const fps = frmival.stepwise.min.denominator / frmival.stepwise.min.numerator;
                 if (fps > max_fps) {
                     max_fps = fps;
                 }
