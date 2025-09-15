@@ -215,7 +215,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
     cpp_sources.appendSlice(b.allocator, &[_][]const u8{
         "runtime/app.cc",
         "runtime/inference/calibrate.cc",
-        "runtime/image/stb_image.cc",
+        "runtime/image/opencv_image.cc",
     }) catch unreachable;
 
     const os = target.result.os.tag;
