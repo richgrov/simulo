@@ -508,6 +508,7 @@ pub const Runtime = struct {
 
     fn wasmCreateRenderedObject(env: *Wasm, material_id: u32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.logger.trace("simulo_create_rendered_object({d})", .{material_id});
         const obj = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), .{ .id = material_id }, 0) catch |err| util.crash.oom(err);
         return obj.id;
     }
@@ -524,6 +525,7 @@ pub const Runtime = struct {
 
     fn wasmDropRenderedObject(env: *Wasm, id: u32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.logger.trace("simulo_drop_rendered_object({d})", .{id});
         runtime.renderer.deleteObject(.{ .id = id });
     }
 
@@ -546,13 +548,17 @@ pub const Runtime = struct {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const image = if (!runtime.wasm.isNullptr(name)) cond: {
             const name_slice = name[0..name_len];
+            runtime.logger.trace("simulo_create_material(\"{s}\", {d}, {d}, {d})", .{ name_slice, r, g, b });
             if (runtime.assets.get(name_slice)) |image| {
                 break :cond image.?;
             } else {
-                runtime.logger.err("tried to create material with non-texture asset {s}", .{name});
+                runtime.logger.err("tried to create material with non-existent asset {s}", .{name});
                 return 0;
             }
-        } else runtime.white_pixel_texture;
+        } else cond: {
+            runtime.logger.trace("simulo_create_material(null, {d}, {d}, {d})", .{ r, g, b });
+            break :cond runtime.white_pixel_texture;
+        };
 
         const material = runtime.renderer.createUiMaterial(image, r, g, b) catch |err| util.crash.oom(err);
         return material.id;
