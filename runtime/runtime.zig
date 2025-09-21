@@ -66,11 +66,8 @@ pub const Runtime = struct {
         init: Wasm.Function,
         update: Wasm.Function,
         pose: Wasm.Function,
-        drop: Wasm.Function,
     },
     wasm_pose_buffer: ?[*]f32,
-    wasm_transform_buffer: ?[*]f32,
-    scene: engine.Scene,
     assets: std.StringHashMap(?Renderer.ImageHandle),
     random: std.Random.Xoshiro256,
 
@@ -108,9 +105,6 @@ pub const Runtime = struct {
         try registerWasmFuncs(&runtime.wasm);
         runtime.wasm_funcs = null;
         runtime.wasm_pose_buffer = null;
-        runtime.wasm_transform_buffer = null;
-        runtime.scene = try engine.Scene.init(runtime.allocator);
-        errdefer runtime.scene.deinit();
 
         runtime.assets = std.StringHashMap(?Renderer.ImageHandle).init(runtime.allocator);
         errdefer runtime.assets.deinit();
@@ -139,8 +133,6 @@ pub const Runtime = struct {
         }
         self.assets.deinit();
 
-        self.scene.deinit();
-
         self.pose_detector.stop();
         self.renderer.deinit();
         self.window.deinit();
@@ -149,16 +141,7 @@ pub const Runtime = struct {
     }
 
     fn registerWasmFuncs(wasm: *Wasm) !void {
-        try wasm.exposeFunction("simulo_set_root", wasmSetRoot);
         try wasm.exposeFunction("simulo_set_buffers", wasmSetBuffers);
-
-        try wasm.exposeFunction("simulo_create_object", wasmCreateObject);
-        try wasm.exposeFunction("simulo_add_object_child", wasmAddObjectChild);
-        try wasm.exposeFunction("simulo_num_children", wasmNumChildren);
-        try wasm.exposeFunction("simulo_get_children", wasmGetChildren);
-        try wasm.exposeFunction("simulo_set_object_ptrs", wasmSetObjectPtrs);
-        try wasm.exposeFunction("simulo_remove_object_from_parent", wasmRemoveObjectFromParent);
-        try wasm.exposeFunction("simulo_drop_object", wasmDropObject);
 
         try wasm.exposeFunction("simulo_create_rendered_object", wasmCreateRenderedObject);
         try wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
@@ -175,9 +158,6 @@ pub const Runtime = struct {
     }
 
     fn runProgram(self: *Runtime, program_hash: *const [32]u8, assets: []const fs_storage.ProgramAsset) !void {
-        self.scene.deinit();
-        self.scene = try engine.Scene.init(self.allocator);
-
         var assets_keys = self.assets.iterator();
         while (assets_keys.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
@@ -208,13 +188,8 @@ pub const Runtime = struct {
                 self.logger.err("program missing pose function", .{});
                 return error.MissingFunction;
             },
-            .drop = self.wasm.getFunction("simulo__drop") orelse {
-                self.logger.err("program missing drop function", .{});
-                return error.MissingFunction;
-            },
         };
         self.wasm_pose_buffer = null;
-        self.wasm_transform_buffer = null;
 
         for (assets) |*asset| {
             var image_path_buf: [1024]u8 = undefined;
@@ -239,7 +214,7 @@ pub const Runtime = struct {
         if (self.calibrated) {
             _ = self.wasm.callFunction(init_func, .{}) catch unreachable;
 
-            if (self.wasm_pose_buffer == null or self.wasm_transform_buffer == null) {
+            if (self.wasm_pose_buffer == null) {
                 return error.BuffersNotInitialized;
             }
         }
@@ -309,17 +284,9 @@ pub const Runtime = struct {
             profiler.log(.process_pose);
 
             if (self.calibrated) {
-                if (self.scene.root_object) |root_id| {
-                    const deltaf: f32 = @floatFromInt(delta);
-                    const Updater = struct {
-                        const Data = struct { runtime: *Runtime, delta: f32 };
-                        fn update(user_data: Data, _: u32, obj: *engine.Object) void {
-                            _ = user_data.runtime.wasm.callFunction(user_data.runtime.wasm_funcs.?.update, .{ obj.this, user_data.delta }) catch unreachable;
-                        }
-                    };
-                    self.scene.dfs(root_id, Updater.Data, .{ .runtime = self, .delta = deltaf / 1000 }, Updater.update) catch unreachable;
-                    profiler.log(.update);
-                }
+                const deltaf: f32 = @floatFromInt(delta);
+                _ = self.wasm.callFunction(self.wasm_funcs.?.update, .{deltaf / 1000.0}) catch unreachable;
+                profiler.log(.update);
             }
 
             const ui_projection = Mat4.ortho(
@@ -413,7 +380,7 @@ pub const Runtime = struct {
                         if (self.wasm_funcs) |funcs| {
                             _ = self.wasm.callFunction(funcs.init, .{}) catch unreachable;
 
-                            if (self.wasm_pose_buffer == null or self.wasm_transform_buffer == null) {
+                            if (self.wasm_pose_buffer == null) {
                                 return error.BuffersNotInitialized;
                             }
                         }
@@ -451,85 +418,9 @@ pub const Runtime = struct {
         }
     }
 
-    fn wasmSetRoot(env: *Wasm, id: u32, this: i32) void {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        const obj = runtime.scene.get(id) orelse {
-            runtime.logger.err("tried to set root of non-existent object {d}", .{id});
-            return;
-        };
-
-        obj.this = this;
-
-        runtime.scene.setRoot(id) catch |err| {
-            switch (err) {
-                error.RootAlreadySet => runtime.logger.err("tried to set root to object {d} when it's already set", .{id}),
-                error.ObjectAlreadyHasParent => runtime.logger.err("tried to set root of object {d} that already has a parent", .{id}),
-            }
-        };
-    }
-
-    fn wasmSetBuffers(env: *Wasm, pose_buffer: [*]f32, transform_buffer: [*]f32) void {
+    fn wasmSetBuffers(env: *Wasm, pose_buffer: [*]f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.wasm_pose_buffer = pose_buffer;
-        runtime.wasm_transform_buffer = transform_buffer;
-    }
-
-    fn wasmCreateObject(env: *Wasm) u32 {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        return runtime.scene.createObject() catch |err| util.crash.oom(err);
-    }
-
-    fn wasmAddObjectChild(env: *Wasm, parent: u32, child: u32) void {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.scene.addChild(parent, child) catch |err| {
-            switch (err) {
-                error.ObjectNotFound => runtime.logger.err("tried to add non-existent child {d} to object {d}", .{ child, parent }),
-                error.ObjectAlreadyHasParent => runtime.logger.err("tried to add child {d} to object {d} that already has a parent", .{ child, parent }),
-                error.OutOfMemory => util.crash.oom(error.OutOfMemory),
-            }
-        };
-    }
-
-    fn wasmNumChildren(env: *Wasm, id: u32) u32 {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        const obj = runtime.scene.get(id) orelse {
-            runtime.logger.err("tried to get number of children of non-existent object {d}", .{id});
-            return 0;
-        };
-
-        if (obj.children) |*children| {
-            return @intCast(children.count);
-        }
-
-        return 0;
-    }
-
-    fn wasmGetChildren(env: *Wasm, id: u32, out_children: [*]i32) void {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        const obj = runtime.scene.get(id) orelse {
-            runtime.logger.err("tried to get children of non-existent object {d}", .{id});
-            return;
-        };
-
-        var i: usize = 0;
-        if (obj.children) |*children| {
-            for (0..children.bucketCount()) |bucket| {
-                for (children.bucketItems(bucket)) |child_id| {
-                    out_children[i] = runtime.scene.get(child_id).?.this;
-                    i += 1;
-                }
-            }
-        }
-    }
-
-    fn wasmSetObjectPtrs(env: *Wasm, id: u32, this: i32) void {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        const obj = runtime.scene.get(id) orelse {
-            runtime.logger.err("tried to set object ptr of non-existent object {d}", .{id});
-            return;
-        };
-
-        obj.this = this;
     }
 
     fn deleteMaterial(runtime: *Runtime, id: u32) void {
@@ -537,49 +428,9 @@ pub const Runtime = struct {
         runtime.renderer.deleteMaterial(material_handle);
     }
 
-    fn wasmRemoveObjectFromParent(env: *Wasm, id: u32) void {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        const obj = runtime.scene.get(id) orelse {
-            runtime.logger.err("tried to remove non-existent object {d}", .{id});
-            return;
-        };
-
-        if (obj.parent) |parent| {
-            const parent_obj = runtime.scene.get(parent) orelse {
-                runtime.logger.err("tried to delete from non-existent parent {d} of object {d}", .{ parent, obj.id });
-                return;
-            };
-
-            const Dropper = struct {
-                fn drop(runtime_: *Runtime, _: u32, delete_obj: *engine.Object) void {
-                    delete_obj.deinit(runtime_.scene.allocator);
-                    _ = runtime_.wasm.callFunction(runtime_.wasm_funcs.?.drop, .{delete_obj.this}) catch unreachable;
-                }
-            };
-
-            runtime.scene.dfs(id, *Runtime, runtime, Dropper.drop) catch unreachable;
-            std.debug.assert(parent_obj.children.?.delete(obj.id));
-        }
-    }
-
-    fn wasmDropObject(env: *Wasm, id: u32) void {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.scene.delete(id) catch |err| {
-            switch (err) {
-                error.ObjectNotFound => runtime.logger.err("tried to delete non-existent object {d}", .{id}),
-                error.ObjectHasChildren => runtime.logger.err("tried to delete object {d} that has children", .{id}),
-            }
-        };
-    }
-
     fn wasmDropMaterial(env: *Wasm, id: u32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.renderer.dropMaterial(id);
-    }
-
-    fn wasmMarkTransformOutdated(env: *Wasm, id: u32) void {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.markOutdatedTransform(@intCast(id));
     }
 
     fn wasmCreateRenderedObject(env: *Wasm, material_id: u32) u32 {
