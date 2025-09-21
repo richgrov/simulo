@@ -10,7 +10,6 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const custom_api_url = b.option([]const u8, "api_url", "Override API URL") orelse "https://api.simulo.tech";
-    const wasm_path = b.option([]const u8, "wasm_path", "Override path to read WASM binary from");
     const new_wasm = b.option(bool, "new_wasm", "Use the experimental WASM JIT compiler") orelse false;
     const cloud = b.option(bool, "cloud", "Enable cloud connectivity") orelse false;
 
@@ -19,7 +18,6 @@ pub fn build(b: *std.Build) !void {
 
     const options = b.addOptions();
     options.addOption([]const u8, "api_url", custom_api_url);
-    options.addOption(?[]const u8, "wasm_path", wasm_path);
     options.addOption(bool, "new_wasm", new_wasm);
     options.addOption(bool, "cloud", cloud);
     options.addOption([]const u8, "git_hash", git_hash[0 .. git_hash.len - 1]); // trim newline

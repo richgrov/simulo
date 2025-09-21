@@ -50,6 +50,11 @@ const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 1.0, 0.0 }, .tex_coord = .{ 0.0, 1.0 } },
 };
 
+const Asset = struct {
+    name: []const u8,
+    real_path: []const u8,
+};
+
 pub const Runtime = struct {
     gpu: Gpu,
     window: Window,
@@ -157,7 +162,7 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_drop_material", wasmDropMaterial);
     }
 
-    fn runProgram(self: *Runtime, program_hash: *const [32]u8, assets: []const fs_storage.ProgramAsset) !void {
+    fn runProgram(self: *Runtime, program_path: []const u8, assets: []const Asset) !void {
         var assets_keys = self.assets.iterator();
         while (assets_keys.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
@@ -165,10 +170,8 @@ pub const Runtime = struct {
         }
         self.assets.clearRetainingCapacity();
 
-        var local_path_buf: [1024]u8 = undefined;
-        const local_path = build_options.wasm_path orelse (fs_storage.getCachePath(&local_path_buf, program_hash) catch unreachable);
-        self.logger.info("Reading program from {s}", .{local_path});
-        const data = try std.fs.cwd().readFileAlloc(self.allocator, local_path, std.math.maxInt(usize));
+        self.logger.info("Reading program from {s}", .{program_path});
+        const data = try std.fs.cwd().readFileAlloc(self.allocator, program_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
         try self.wasm.load(data);
@@ -192,22 +195,20 @@ pub const Runtime = struct {
         self.wasm_pose_buffer = null;
 
         for (assets) |*asset| {
-            var image_path_buf: [1024]u8 = undefined;
-            const image_path = fs_storage.getCachePath(&image_path_buf, &asset.hash) catch unreachable;
-            const image_data = std.fs.cwd().readFileAlloc(self.allocator, image_path, 10 * 1024 * 1024) catch |err| {
-                self.logger.err("failed to read asset file at {s}: {s}", .{ image_path, @errorName(err) });
+            const image_data = std.fs.cwd().readFileAlloc(self.allocator, asset.real_path, 10 * 1024 * 1024) catch |err| {
+                self.logger.err("failed to read asset file at {s}: {s}", .{ asset.real_path, @errorName(err) });
                 return error.AssertReadFailed;
             };
             defer self.allocator.free(image_data);
 
             const image_info = loadImage(image_data) catch |err| {
-                self.logger.err("failed to load data from {s}: {s}", .{ image_path, @errorName(err) });
+                self.logger.err("failed to load data from {s}: {s}", .{ asset.real_path, @errorName(err) });
                 return error.AssertLoadFailed;
             };
 
             const image = self.renderer.createImage(image_info.data, image_info.width, image_info.height);
 
-            const name = self.allocator.dupe(u8, asset.name.?.items()) catch |err| util.crash.oom(err);
+            const name = self.allocator.dupe(u8, asset.name) catch |err| util.crash.oom(err);
             self.assets.put(name, image) catch |err| util.crash.oom(err);
         }
 
@@ -220,6 +221,46 @@ pub const Runtime = struct {
         }
     }
 
+    fn runLocalProgram(self: *Runtime, path: []const u8) !void {
+        var asset_dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| {
+            self.logger.err("failed to access directory {s}: {s}", .{ path, @errorName(err) });
+            return err;
+        };
+        defer asset_dir.close();
+
+        var path_buf: [4 * 1024]u8 = undefined;
+        var path_allocator = std.heap.FixedBufferAllocator.init(&path_buf);
+        var assets = std.ArrayList(Asset).initCapacity(path_allocator.allocator(), 8) catch unreachable;
+        defer assets.deinit(path_allocator.allocator());
+
+        var program_path: ?[]const u8 = null;
+
+        var files = asset_dir.iterate();
+        while (true) {
+            const file = files.next() catch |err| {
+                self.logger.err("failed to access file in directory {s}: {s}", .{ path, @errorName(err) });
+                return err;
+            } orelse break;
+
+            const name = try path_allocator.allocator().dupe(u8, file.name);
+            if (std.mem.eql(u8, name, "main.wasm")) {
+                program_path = try std.fs.path.join(path_allocator.allocator(), &.{ path, name });
+            } else if (std.mem.endsWith(u8, name, ".png")) {
+                const real_path = try std.fs.path.join(path_allocator.allocator(), &.{ path, name });
+                try assets.append(path_allocator.allocator(), .{
+                    .name = name,
+                    .real_path = real_path,
+                });
+            }
+        }
+
+        if (program_path) |prog| {
+            try self.runProgram(prog, assets.items);
+        } else {
+            self.logger.err("the path {s} doesn't contain a main.wasm file", .{path});
+        }
+    }
+
     fn tryRunLatestProgram(self: *Runtime) void {
         const program_info = fs_storage.loadLatestProgram() catch |err| {
             self.logger.err("failed to load latest program: {s}", .{@errorName(err)});
@@ -227,15 +268,38 @@ pub const Runtime = struct {
         };
 
         if (program_info) |info| {
-            self.runProgram(&info.program_hash, info.assets.items()) catch |err| {
+            var program_path_buf: [1024]u8 = undefined;
+            const program_path = fs_storage.getCachePath(&program_path_buf, &info.program_hash) catch unreachable;
+
+            var path_buf: [4 * 1024]u8 = undefined;
+            var path_allocator = std.heap.FixedBufferAllocator.init(&path_buf);
+            var assets = std.ArrayList(Asset).initCapacity(path_allocator.allocator(), info.assets.len) catch {
+                self.logger.err("latest program had too many assets", .{});
+                return;
+            };
+            defer assets.deinit(path_allocator.allocator());
+
+            for (info.assets.items()) |*asset| {
+                const real_path = fs_storage.getCachePathAlloc(path_allocator.allocator(), &asset.hash) catch unreachable;
+
+                assets.appendAssumeCapacity(.{
+                    .name = asset.name.?.items(),
+                    .real_path = real_path,
+                });
+            }
+
+            self.runProgram(program_path, assets.items) catch |err| {
                 self.logger.err("failed to run latest program: {s}", .{@errorName(err)});
             };
         }
     }
 
-    pub fn run(self: *Runtime) !void {
-        if (build_options.wasm_path) |_| {
-            self.runProgram(undefined, &[_]fs_storage.ProgramAsset{}) catch unreachable;
+    pub fn run(self: *Runtime, local_asset_path: ?[]const u8) !void {
+        if (local_asset_path) |path| {
+            self.runLocalProgram(path) catch |err| {
+                self.logger.err("error running local program: {s}", .{@errorName(err)});
+                return;
+            };
         } else {
             self.tryRunLatestProgram();
         }
@@ -316,27 +380,36 @@ pub const Runtime = struct {
                             should_run = false;
                         };
 
+                        var path_buf: [4 * 1024]u8 = undefined;
+                        var path_allocator = std.heap.FixedBufferAllocator.init(&path_buf);
+                        var assets = try std.ArrayList(Asset).initCapacity(path_allocator.allocator(), download.files.len);
+                        defer assets.deinit(path_allocator.allocator());
+
+                        var program_assets = try std.ArrayList(fs_storage.ProgramAsset).initCapacity(path_allocator.allocator(), download.files.len);
+                        defer program_assets.deinit(path_allocator.allocator());
+
                         for (download.files) |file| {
-                            var dest_path_buf: [1024]u8 = undefined;
-                            const dest_path = fs_storage.getCachePath(&dest_path_buf, &file.asset.hash) catch unreachable;
+                            const dest_path = fs_storage.getCachePathAlloc(path_allocator.allocator(), &file.asset.hash) catch unreachable;
 
                             self.remote.fetch(file.url, &file.asset.hash, dest_path) catch |err| {
                                 self.logger.err("asset download failed: {s}", .{@errorName(err)});
                                 should_run = false;
                             };
+
+                            assets.appendAssumeCapacity(.{
+                                .name = file.asset.name.?.items(),
+                                .real_path = dest_path,
+                            });
+
+                            program_assets.appendAssumeCapacity(file.asset);
                         }
 
-                        var assets = util.FixedArrayList(fs_storage.ProgramAsset, 64).init();
-                        for (download.files) |file| {
-                            try assets.append(file.asset);
-                        }
-
-                        fs_storage.storeLatestProgram(&download.program_hash, assets.items()) catch |err| {
+                        fs_storage.storeLatestProgram(&download.program_hash, program_assets.items) catch |err| {
                             self.logger.err("failed to store latest info: {s}", .{@errorName(err)});
                         };
 
                         if (should_run) {
-                            try self.runProgram(&download.program_hash, assets.items());
+                            try self.runProgram(program_path, assets.items);
                         }
                     },
                     .schedule => |maybe_schedule| {

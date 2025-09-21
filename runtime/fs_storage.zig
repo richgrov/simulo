@@ -28,6 +28,11 @@ pub fn getCachePath(buf: []u8, hash: *const [32]u8) std.fmt.BufPrintError![:0]co
     return std.fmt.bufPrintZ(buf, "{s}/objects/{s}", .{ data_dir.?, hash_hex });
 }
 
+pub fn getCachePathAlloc(allocator: std.mem.Allocator, hash: *const [32]u8) std.mem.Allocator.Error![:0]const u8 {
+    const hash_hex = std.fmt.bytesToHex(hash, .lower);
+    return std.fmt.allocPrintSentinel(allocator, "{s}/objects/{s}", .{ data_dir.?, hash_hex }, 0);
+}
+
 pub fn readCachedFile(hash: *const [32]u8, allocator: std.mem.Allocator, max_size: usize) ![]const u8 {
     const hash_hex = std.fmt.bytesToHex(hash, .lower);
     var path_buf: [1024]u8 = undefined;
