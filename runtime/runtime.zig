@@ -469,10 +469,10 @@ pub const Runtime = struct {
         return runtime.window.getHeight();
     }
 
-    fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, r: f32, g: f32, b: f32) u32 {
+    fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, name_len: u32, r: f32, g: f32, b: f32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const image = if (!runtime.wasm.isNullptr(name)) cond: {
-            const name_slice = std.mem.span(name);
+            const name_slice = name[0..name_len];
             if (runtime.assets.get(name_slice)) |image| {
                 break :cond image.?;
             } else {
