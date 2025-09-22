@@ -154,7 +154,7 @@ CameraError init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf
 
       AVCaptureDevice *device = find_device(device_id, device_id_len);
       if (device == nil) {
-         return ErrorNoCameras;
+         return ErrorNoCamera;
       }
 
       NSError *error = nil;

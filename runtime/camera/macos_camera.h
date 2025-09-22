@@ -28,7 +28,7 @@ typedef struct {
 
 typedef enum {
    ErrorNone,
-   ErrorNoCameras,
+   ErrorNoCamera,
    ErrorNoPermission,
    ErrorCannotCapture,
    ErrorCannotCreateCapture,

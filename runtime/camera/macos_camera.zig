@@ -18,7 +18,7 @@ pub const MacOsCamera = struct {
         const err = ffi.init_camera(&camera, out[0], out[1], device_id.ptr, device_id.len);
         switch (err) {
             ffi.ErrorNone => {},
-            ffi.ErrorNoCameras => return error.NoCameras,
+            ffi.ErrorNoCamera => return error.NoCamera,
             ffi.ErrorNoPermission => return error.NoPermission,
             ffi.ErrorCannotCapture => return error.CannotCapture,
             ffi.ErrorCannotCreateCapture => return error.CannotCreateCapture,
