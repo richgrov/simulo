@@ -201,12 +201,17 @@ jobs:
           tar -xf wasmtime.tar.xz -C extern/wasmtime --strip-components=1
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/extern/onnxruntime/lib:$GITHUB_WORKSPACE/extern/wasmtime/lib
 
+      - name: Clone library
+        uses: actions/checkout@v4
+        with:
+          repository: richgrov/simulo-rs
+          path: simulo-rs
+
       - name: Clone game
         uses: actions/checkout@v4
         with:
           repository: richgrov/simulo-experiences
           path: simulo-experiences
-          ref: main
           token: ${{ secrets.PAT }}
 
       - name: Build game
