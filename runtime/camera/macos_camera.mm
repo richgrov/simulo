@@ -120,6 +120,24 @@ bool ensure_permission() {
    return authStatus == AVAuthorizationStatusAuthorized;
 }
 
+AVCaptureDevice *find_device(const char *device_id, size_t device_id_len) {
+   NSString *device_id_ns = [[NSString alloc] initWithBytes:device_id length:device_id_len encoding:NSUTF8StringEncoding];
+   
+   AVCaptureDeviceDiscoverySession *discoverySession = [AVCaptureDeviceDiscoverySession
+          discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera, AVCaptureDeviceTypeExternalUnknown ]
+                                mediaType:AVMediaTypeVideo
+                                 position:AVCaptureDevicePositionUnspecified];
+
+   NSArray *devices = [discoverySession devices];
+   for (AVCaptureDevice *candidate in devices) {
+      if ([candidate.localizedName isEqualToString:device_id_ns] || [candidate.uniqueID isEqualToString:device_id_ns]) {
+         [candidate retain];
+         return candidate;
+      }
+   }
+
+   return nil;
+}
 
 extern "C" {
 
@@ -134,27 +152,7 @@ CameraError init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf
       captureSession = [[AVCaptureSession alloc] init];
       [captureSession setSessionPreset:AVCaptureSessionPreset640x480];
 
-      AVCaptureDevice *device;
-      
-      // Convert device_id to NSString for comparison
-      NSString *device_id_ns = [[NSString alloc] initWithBytes:device_id length:device_id_len encoding:NSUTF8StringEncoding];
-      
-      // Find the camera device with matching ID
-      AVCaptureDeviceDiscoverySession *discoverySession = [AVCaptureDeviceDiscoverySession
-          discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera, AVCaptureDeviceTypeExternalUnknown ]
-                                mediaType:AVMediaTypeVideo
-                                 position:AVCaptureDevicePositionUnspecified];
-      NSArray *devices = [discoverySession devices];
-      
-      device = nil;
-      for (AVCaptureDevice *candidate in devices) {
-         if ([candidate.localizedName isEqualToString:device_id_ns] || 
-             [candidate.uniqueID isEqualToString:device_id_ns]) {
-            device = candidate;
-            break;
-         }
-      }
-      
+      AVCaptureDevice *device = find_device(device_id, device_id_len);
       if (device == nil) {
          return ErrorNoCameras;
       }
@@ -163,6 +161,7 @@ CameraError init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf
       AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:device
                                                                           error:&error];
 
+      [device release];
 
       if (!input) {
          std::cerr << "error: " << error.localizedDescription.UTF8String << std::endl;

@@ -22,21 +22,12 @@ pub const LinuxCamera = struct {
     buffer: [*]u8,
     buffer_len: usize,
     out_format: OutFormat,
-    device_path: []u8,
 
     out: OutMode,
     out_idx: usize,
 
     pub fn init(out_bufs: [2][*]u8, device_id: []const u8) !LinuxCamera {
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        defer _ = gpa.deinit();
-        const allocator = gpa.allocator();
-
-        return initWithDevice(out_bufs, device_id, allocator);
-    }
-
-    fn initWithDevice(out_bufs: [2][*]u8, device_path: []const u8, allocator: std.mem.Allocator) !LinuxCamera {
-        const fd = try std.posix.open(device_path, .{ .ACCMODE = .RDWR, .NONBLOCK = true }, 0);
+        const fd = try std.posix.open(device_id, .{ .ACCMODE = .RDWR, .NONBLOCK = true }, 0);
 
         var caps = v42l.v4l2_capability{};
         if (linux.ioctl(fd, v42l.VIDIOC_QUERYCAP, @intFromPtr(&caps)) < 0) {
@@ -100,7 +91,6 @@ pub const LinuxCamera = struct {
             .buffer = @ptrFromInt(mmap_ptr),
             .buffer_len = buf.length,
             .out_format = .mjpg,
-            .device_path = try allocator.dupe(u8, device_path),
 
             .out = .{ .bytes = out_bufs },
             .out_idx = 0,
@@ -111,12 +101,6 @@ pub const LinuxCamera = struct {
         var ty = v42l.V4L2_BUF_TYPE_VIDEO_CAPTURE;
         _ = linux.ioctl(self.fd, v42l.VIDIOC_STREAMOFF, @intFromPtr(&ty));
         _ = linux.close(self.fd);
-
-        // Free the allocated device path
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        defer _ = gpa.deinit();
-        const allocator = gpa.allocator();
-        allocator.free(self.device_path);
     }
 
     pub fn setFloatMode(self: *LinuxCamera, out: [2][*]f32) void {
