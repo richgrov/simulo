@@ -173,7 +173,7 @@ jobs:
       - name: Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: libopencv-dev liblapack3
+          packages: libopencv-dev liblapack3 v4l2loopback-dkms v4l2loopback-utils
           version: "1.0"
 
       # Included for same reason as in Build-Linux
@@ -201,40 +201,63 @@ jobs:
           tar -xf wasmtime.tar.xz -C extern/wasmtime --strip-components=1
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/extern/onnxruntime/lib:$GITHUB_WORKSPACE/extern/wasmtime/lib
 
+      - name: Clone game
+        uses: actions/checkout@v4
+        with:
+          repository: richgrov/simulo-experiences
+          path: simulo-experiences
+          ref: main
+          token: ${{ secrets.PAT }}
+
+      - name: Build game
+        run: |
+          cd simulo-experiences
+          cargo build --target wasm32-wasip1
+
+      - name: Get test video
+        run: |
+          curl -L https://raw.githubusercontent.com/richgrov/simulo/refs/heads/main/.github/calibrate.mp4 -o calibrate.mp4
+
+      - name: Create camera
+        run: |
+          sudo modprobe v4l2loopback devices=1 video_nr=10 card_label="TestCam"
+
       - name: Run runtime headless and capture screenshot
         env:
           DISPLAY: :99
         run: |
-          #set -euo pipefail
+          set -euo pipefail
           export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
           Xvfb :99 -screen 0 1280x720x24 &
           XVFB_PID=$!
           export DISPLAY=:99
+          ffmpeg -re -stream_loop -1 -i calibrate.mp4 -f v4l2 /dev/video10 &
           sleep 1
           chmod +x ./runtime
-          ./runtime &
+          ./runtime /dev/video10 ~/simulo-experiences/skeleton/dist/ &
           RUNTIME_PID=$!
           # Ensure runtime is still running after 10 seconds; fail otherwise
-          #for i in $(seq 1 10); do
-          #  if kill -0 "$RUNTIME_PID" 2>/dev/null; then
-          #    sleep 1
-          #  else
-          #    echo "runtime exited prematurely" >&2
-          #    kill "$XVFB_PID" || true
-          #    wait "$XVFB_PID" || true
-          #    exit 1
-          #  fi
-          #done
+          for i in $(seq 1 5); do
+            if kill -0 "$RUNTIME_PID" 2>/dev/null; then
+              echo "runtime is still running"
+              sleep 1
+            else
+              echo "runtime exited prematurely" >&2
+              kill "$XVFB_PID" || true
+              wait "$XVFB_PID" || true
+              exit 1
+            fi
+          done
           # Capture screenshot with a single tool (ImageMagick import)
-          #import -window root screenshot.png
+          import -window root screenshot.png
           # Cleanup
-          #kill "$RUNTIME_PID" || true
-          #wait "$RUNTIME_PID" || true
-          #kill "$XVFB_PID" || true
-          #wait "$XVFB_PID" || true
+          kill "$RUNTIME_PID" || true
+          wait "$RUNTIME_PID" || true
+          kill "$XVFB_PID" || true
+          wait "$XVFB_PID" || true
 
-#      - name: Upload screenshot artifact
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: runtime-screenshot-linux
-#          path: screenshot.png
+      - name: Upload screenshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-screenshot-linux
+          path: screenshot.png
