@@ -76,8 +76,9 @@ pub const PoseDetector = struct {
     thread: std.Thread,
     profiler: Profiler,
     logger: Logger("pose", 2048),
+    camera_id: []const u8,
 
-    pub fn init() PoseDetector {
+    pub fn init(camera_id: []const u8) PoseDetector {
         return PoseDetector{
             .output = DetectionSpsc.init(),
             .running = false,
@@ -85,6 +86,7 @@ pub const PoseDetector = struct {
             .thread = undefined,
             .profiler = Profiler.init(),
             .logger = Logger("pose", 2048).init(),
+            .camera_id = camera_id,
         };
     }
 
@@ -114,7 +116,7 @@ pub const PoseDetector = struct {
         var calibrator = Calibrator.init();
         defer calibrator.deinit();
 
-        var camera = Camera.init(calibrator.buffers()) catch |err| {
+        var camera = Camera.init(calibrator.buffers(), self.camera_id) catch |err| {
             self.logEvent(.{ .fault = .{ .category = .camera_init, .err = err } });
             return;
         };

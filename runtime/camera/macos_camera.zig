@@ -1,22 +1,38 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+const Logger = @import("../log.zig").Logger;
+
 const ffi = @cImport({
-    @cInclude("ffi.h");
+    @cInclude("camera/macos_camera.h");
 });
 
 pub const MacOsCamera = struct {
     camera: ffi.Camera,
+    logger: Logger("macos_camera", 2048),
 
-    pub fn init(out: [2][*]u8) !MacOsCamera {
+    pub fn init(out: [2][*]u8, device_id: []const u8) !MacOsCamera {
+        var logger = Logger("macos_camera", 2048).init();
+
         var camera = ffi.Camera{};
-        const success = ffi.init_camera(&camera, out[0], out[1]);
-        if (!success) {
-            return error.CameraInitFailed;
+        const err = ffi.init_camera(&camera, out[0], out[1], device_id.ptr, device_id.len);
+        switch (err) {
+            ffi.ErrorNone => {},
+            ffi.ErrorNoCameras => return error.NoCameras,
+            ffi.ErrorNoPermission => return error.NoPermission,
+            ffi.ErrorCannotCapture => return error.CannotCapture,
+            ffi.ErrorCannotCreateCapture => return error.CannotCreateCapture,
+            ffi.ErrorCannotAddInput => return error.CannotAddInput,
+            ffi.ErrorCannotAddOutput => return error.CannotAddOutput,
+            else => {
+                logger.err("unknown camera init code: {d}", .{err});
+                return error.CameraUnknownError;
+            },
         }
 
         return MacOsCamera{
             .camera = camera,
+            .logger = logger,
         };
     }
 

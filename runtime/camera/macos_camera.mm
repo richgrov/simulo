@@ -1,6 +1,8 @@
 #include <array>
 #include <atomic>
+#include <iostream>
 #include <cstring>
+#include <cstdlib>
 #include <mutex>
 #include <vector>
 
@@ -14,7 +16,7 @@
 #import <CoreVideo/CoreVideo.h>
 #import <Foundation/Foundation.h>
 
-#include "../ffi.h"
+#include "macos_camera.h"
 
 @interface SimuloCameraDelegate : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate>
 - (instancetype)init:(std::array<void *, 2>)buffers_;
@@ -118,63 +120,57 @@ bool ensure_permission() {
    return authStatus == AVAuthorizationStatusAuthorized;
 }
 
-AVCaptureDevice *find_best_camera() {
-   AVCaptureDeviceDiscoverySession *discoverySession = [AVCaptureDeviceDiscoverySession
-       discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera, AVCaptureDeviceTypeExternalUnknown ]
-                             mediaType:AVMediaTypeVideo
-                              position:AVCaptureDevicePositionUnspecified];
-   NSArray *devices = [discoverySession devices];
-
-   if ([devices count] == 0) {
-      return nil;
-   }
-
-   AVCaptureDevice *bestDevice = nil;
-   int maxFrameRate = 0;
-
-   for (AVCaptureDevice *device in devices) {
-      // Get supported formats for this device
-      for (AVCaptureDeviceFormat *format in [device formats]) {
-         for (AVFrameRateRange *frameRateRange in format.videoSupportedFrameRateRanges) {
-            if (frameRateRange.maxFrameRate > maxFrameRate) {
-               maxFrameRate = (int)frameRateRange.maxFrameRate;
-               bestDevice = device;
-            }
-         }
-      }
-   }
-
-   // Fallback to first device if frame rate detection fails
-   return bestDevice ? bestDevice : [devices objectAtIndex:0];
-}
 
 extern "C" {
 
-bool init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf_b) {
+CameraError init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf_b, const char *device_id, size_t device_id_len) {
    AVCaptureSession *captureSession;
 
    @autoreleasepool {
       if (!ensure_permission()) {
-         return false;
+         return ErrorNoPermission;
       }
 
       captureSession = [[AVCaptureSession alloc] init];
       [captureSession setSessionPreset:AVCaptureSessionPreset640x480];
 
-      AVCaptureDevice *device = find_best_camera();
-      if (!device) {
-         return false;
+      AVCaptureDevice *device;
+      
+      // Convert device_id to NSString for comparison
+      NSString *device_id_ns = [[NSString alloc] initWithBytes:device_id length:device_id_len encoding:NSUTF8StringEncoding];
+      
+      // Find the camera device with matching ID
+      AVCaptureDeviceDiscoverySession *discoverySession = [AVCaptureDeviceDiscoverySession
+          discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera, AVCaptureDeviceTypeExternalUnknown ]
+                                mediaType:AVMediaTypeVideo
+                                 position:AVCaptureDevicePositionUnspecified];
+      NSArray *devices = [discoverySession devices];
+      
+      device = nil;
+      for (AVCaptureDevice *candidate in devices) {
+         if ([candidate.localizedName isEqualToString:device_id_ns] || 
+             [candidate.uniqueID isEqualToString:device_id_ns]) {
+            device = candidate;
+            break;
+         }
+      }
+      
+      if (device == nil) {
+         return ErrorNoCameras;
       }
 
       NSError *error = nil;
       AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:device
                                                                           error:&error];
+
+
       if (!input) {
-         return false;
+         std::cerr << "error: " << error.localizedDescription.UTF8String << std::endl;
+         return ErrorCannotCreateCapture;
       }
 
       if (![captureSession canAddInput:input]) {
-         return false;
+         return ErrorCannotAddInput;
       }
       [captureSession addInput:input];
 
@@ -193,13 +189,13 @@ bool init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf_b) {
       if ([captureSession canAddOutput:output]) {
          [captureSession addOutput:output];
       } else {
-         return false;
+         return ErrorCannotAddOutput;
       }
 
       [captureSession startRunning];
 
       camera->session = captureSession;
-      return true;
+      return ErrorNone;
    }
 }
 

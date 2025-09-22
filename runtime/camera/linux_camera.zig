@@ -12,123 +12,6 @@ const OutMode = union(enum) {
     floats: [2][*]f32,
 };
 
-const CameraInfo = struct {
-    device_path: []const u8,
-    max_fps: u32,
-};
-
-fn enumerateCameras(allocator: std.mem.Allocator) ![]CameraInfo {
-    var cameras = std.ArrayList(CameraInfo).initCapacity(allocator, 0) catch return error.OutOfMemory;
-    defer cameras.deinit();
-
-    // Check up to 16 video devices
-    for (0..16) |i| {
-        var device_path_buf: [32]u8 = undefined;
-        const device_path = std.fmt.bufPrint(&device_path_buf, "/dev/video{}", .{i}) catch continue;
-
-        const fd = std.posix.open(device_path, .{ .ACCMODE = .RDWR, .NONBLOCK = true }, 0) catch continue;
-        defer std.posix.close(fd);
-
-        var caps = std.mem.zeroes(v42l.v4l2_capability);
-        if (linux.ioctl(fd, v42l.VIDIOC_QUERYCAP, @intFromPtr(&caps)) < 0) {
-            continue;
-        }
-
-        // Only consider devices that support video capture
-        if ((caps.capabilities & v42l.V4L2_CAP_VIDEO_CAPTURE) == 0) {
-            continue;
-        }
-
-        // Get maximum frame rate for this device
-        const max_fps = getMaxFrameRate(fd) catch 30; // Default to 30fps if detection fails
-
-        const device_path_owned = try allocator.dupe(u8, device_path);
-        try cameras.append(.{
-            .device_path = device_path_owned,
-            .max_fps = max_fps,
-        });
-    }
-
-    return try cameras.toOwnedSlice();
-}
-
-fn getMaxFrameRate(fd: i32) !u32 {
-    // Try common formats to find the highest supported frame rate
-    const formats = [_]u32{ v42l.V4L2_PIX_FMT_MJPEG, v42l.V4L2_PIX_FMT_YUYV };
-    var max_fps: u32 = 0;
-
-    for (formats) |format| {
-        var fmt = v42l.v4l2_format{
-            .type = v42l.V4L2_BUF_TYPE_VIDEO_CAPTURE,
-            .fmt = .{ .pix = .{
-                .width = 640,
-                .height = 480,
-                .pixelformat = format,
-                .field = v42l.V4L2_FIELD_ANY,
-            } },
-        };
-
-        if (linux.ioctl(fd, v42l.VIDIOC_S_FMT, @intFromPtr(&fmt)) < 0) {
-            continue;
-        }
-
-        // Enumerate frame intervals for this format
-        var frmival = v42l.v4l2_frmivalenum{
-            .index = 0,
-            .pixel_format = format,
-            .width = 640,
-            .height = 480,
-        };
-
-        while (linux.ioctl(fd, v42l.VIDIOC_ENUM_FRAMEINTERVALS, @intFromPtr(&frmival)) == 0) {
-            defer frmival.index += 1;
-
-            if (frmival.type == v42l.V4L2_FRMIVAL_TYPE_DISCRETE) {
-                const fps = frmival.discrete.denominator / frmival.discrete.numerator;
-                if (fps > max_fps) {
-                    max_fps = fps;
-                }
-            } else if (frmival.type == v42l.V4L2_FRMIVAL_TYPE_STEPWISE) {
-                // Use minimum interval (maximum fps)
-                const fps = frmival.stepwise.min.denominator / frmival.stepwise.min.numerator;
-                if (fps > max_fps) {
-                    max_fps = fps;
-                }
-            }
-        }
-    }
-
-    if (max_fps == 0) {
-        return error.NoFrameRateFound;
-    }
-
-    return max_fps;
-}
-
-fn findBestCamera(allocator: std.mem.Allocator) ![]const u8 {
-    const cameras = try enumerateCameras(allocator);
-    defer {
-        for (cameras) |camera| {
-            allocator.free(camera.device_path);
-        }
-        allocator.free(cameras);
-    }
-
-    if (cameras.len == 0) {
-        return error.NoCamerasFound;
-    }
-
-    // Find camera with highest frame rate
-    var best_camera = cameras[0];
-    for (cameras[1..]) |camera| {
-        if (camera.max_fps > best_camera.max_fps) {
-            best_camera = camera;
-        }
-    }
-
-    return try allocator.dupe(u8, best_camera.device_path);
-}
-
 const OutFormat = enum {
     yuyv,
     mjpg,
@@ -144,22 +27,12 @@ pub const LinuxCamera = struct {
     out: OutMode,
     out_idx: usize,
 
-    pub fn init(out_bufs: [2][*]u8) !LinuxCamera {
+    pub fn init(out_bufs: [2][*]u8, device_id: []const u8) !LinuxCamera {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
         defer _ = gpa.deinit();
         const allocator = gpa.allocator();
 
-        // Find the best camera device
-        const device_path = findBestCamera(allocator) catch |err| switch (err) {
-            error.NoCamerasFound => {
-                // Fallback to /dev/video0 for compatibility
-                return initWithDevice(out_bufs, "/dev/video0", allocator);
-            },
-            else => return err,
-        };
-        defer allocator.free(device_path);
-
-        return initWithDevice(out_bufs, device_path, allocator);
+        return initWithDevice(out_bufs, device_id, allocator);
     }
 
     fn initWithDevice(out_bufs: [2][*]u8, device_path: []const u8, allocator: std.mem.Allocator) !LinuxCamera {
@@ -238,7 +111,7 @@ pub const LinuxCamera = struct {
         var ty = v42l.V4L2_BUF_TYPE_VIDEO_CAPTURE;
         _ = linux.ioctl(self.fd, v42l.VIDIOC_STREAMOFF, @intFromPtr(&ty));
         _ = linux.close(self.fd);
-        
+
         // Free the allocated device path
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
         defer _ = gpa.deinit();
