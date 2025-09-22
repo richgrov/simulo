@@ -7,7 +7,6 @@
 #include "util/os_detect.h"
 
 #if defined(VKAD_APPLE) && defined(__OBJC__)
-#include <AVFoundation/AVFoundation.h>
 #import <Metal/Metal.h>
 #endif
 
@@ -30,29 +29,6 @@ const unsigned char *model_vertex_bytes(void);
 size_t model_vertex_len(void);
 const unsigned char *model_fragment_bytes(void);
 size_t model_fragment_len(void);
-#endif
-
-#ifdef VKAD_APPLE
-
-#ifdef __OBJC__
-@class SimuloCameraDelegate;
-#endif
-
-typedef struct {
-#ifdef __OBJC__
-   AVCaptureSession *session;
-   SimuloCameraDelegate *delegate;
-#else
-   void *session;
-   void *delegate;
-#endif
-} Camera;
-
-bool init_camera(Camera *camera, unsigned char *buf_a, unsigned char *buf_b);
-void destroy_camera(Camera *camera);
-void set_camera_float_mode(Camera *camera, float *buf_a, float *buf_b);
-int swap_camera_buffers(Camera *camera);
-
 #endif
 
 #ifdef __cplusplus

@@ -109,7 +109,7 @@ const MTrk = struct {
     events: []Event,
 
     fn parse(reader: *Reader, allocator: std.mem.Allocator) !MTrk {
-        var events = std.ArrayList(Event).init(allocator);
+        var events = std.ArrayList(Event).initCapacity(allocator, 0) catch return error.OutOfMemory;
         errdefer events.deinit();
 
         var at_start = true;
@@ -212,7 +212,7 @@ pub fn parseMidi(data: []const u8, allocator: std.mem.Allocator) !Midi {
     _ = mthd;
     reader.read_index += mthd_len;
 
-    var tracks = std.ArrayList(MTrk).init(allocator);
+    var tracks = std.ArrayList(MTrk).initCapacity(allocator, 0) catch return error.OutOfMemory;
     errdefer tracks.deinit();
 
     while (!reader.isEof()) {

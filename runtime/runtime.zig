@@ -86,7 +86,7 @@ pub const Runtime = struct {
         stop_ms: u64,
     },
 
-    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
+    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator, camera_id: []const u8) !void {
         runtime.allocator = allocator;
         runtime.logger = Logger("runtime", 2048).init();
         runtime.remote = try Remote.init(allocator);
@@ -101,7 +101,7 @@ pub const Runtime = struct {
         runtime.last_window_height = 0;
         runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
         errdefer runtime.renderer.deinit();
-        runtime.pose_detector = PoseDetector.init();
+        runtime.pose_detector = PoseDetector.init(camera_id);
         errdefer runtime.pose_detector.stop();
         runtime.calibrated = false;
 

@@ -80,3 +80,25 @@ Linux:
 - `libxkbcommon`
 - Wayland protocols
 - TensorRT
+
+## Running
+
+**MacOS:**
+
+Identify the name of the camera you'd like to use:
+
+`ffmpeg -hide_banner -list_devices true -f avfoundation -i dummy`
+
+Run the program:
+
+`./zig-out/runtime.app/Contents/MacOS/runtime "MacBook Pro Camera" path/to/game`
+
+**Linux:**
+
+Identify the file of the camera you'd like to use:
+
+`v4l2-ctl --list-devices`
+
+Run the program:
+
+`./zig-out/runtime.app/Contents/MacOS/runtime /dev/video0 path/to/game`

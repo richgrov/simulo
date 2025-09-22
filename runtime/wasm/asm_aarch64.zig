@@ -217,7 +217,7 @@ pub fn writeAssembly(target: *anyopaque, module: *const Module, allocator: std.m
     var exported_functions = std.StringHashMap(Function).init(allocator);
     errdefer exported_functions.deinit();
 
-    var functions = std.ArrayList(Function).init(allocator);
+    var functions = std.ArrayList(Function).initCapacity(allocator, 0) catch return error.OutOfMemory;
     defer functions.deinit();
     functions.resize(module.functions.len) catch |err| util.crash.oom(err);
 

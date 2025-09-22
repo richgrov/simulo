@@ -9,16 +9,26 @@ const Logger = @import("log.zig").Logger;
 
 const fs_storage = @import("fs_storage.zig");
 
+const usage = if (build_options.cloud) "usage: runtime <camera_id>" else "usage: runtime <camera_id> <asset_path>";
+
 pub fn main() !void {
     var arg_buf: [128]u8 = undefined;
     var arg_allocator = std.heap.FixedBufferAllocator.init(&arg_buf);
     var args = std.process.argsWithAllocator(arg_allocator.allocator()) catch |err| {
-        std.debug.print("failed to read program args", .{@errorName(err)});
+        std.debug.print("failed to read program args: {s}\n", .{@errorName(err)});
         return;
     };
     defer args.deinit();
 
     var logger = Logger("init", 1024).init();
+
+    std.debug.assert(args.skip());
+
+    const camera_id = args.next() orelse {
+        std.debug.print(usage ++ "\n", .{});
+        return;
+    };
+
     const local_asset_path = if (build_options.cloud) blk: {
         logger.info("simulo runtime (git: {s}, api: {s})", .{
             build_options.git_hash,
@@ -28,9 +38,8 @@ pub fn main() !void {
     } else blk: {
         logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
 
-        std.debug.assert(args.skip());
         break :blk args.next() orelse {
-            logger.err("provide a path to a directory containing main.wasm and assets", .{});
+            std.debug.print(usage ++ "\n", .{});
             return;
         };
     };
@@ -49,7 +58,7 @@ pub fn main() !void {
     };
 
     var runtime: Runtime = undefined;
-    try Runtime.init(&runtime, allocator);
+    try Runtime.init(&runtime, allocator, camera_id);
     defer runtime.deinit();
 
     try runtime.run(local_asset_path);
