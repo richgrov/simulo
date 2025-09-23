@@ -134,12 +134,12 @@ pub const PoseDetector = struct {
 
             if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
                 if (!is_in_low_power) {
-                    self.logger.debug("pose detector entering low power mode due to inactivity", .{});
+                    self.logger.debug("entering low power mode", .{});
                     is_in_low_power = true;
                 }
                 std.Thread.sleep(std.time.ns_per_s / 2);
             } else if (is_in_low_power) {
-                self.logger.debug("pose detector resuming normal operation after inactivity", .{});
+                self.logger.debug("exiting low power mode", .{});
                 is_in_low_power = false;
             }
 
