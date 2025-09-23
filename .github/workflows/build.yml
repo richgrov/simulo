@@ -155,7 +155,7 @@ jobs:
           path: zig-out-cloud/bin
 
   Headless-Run-Linux:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: Build-Linux
     steps:
       - name: Install headless display tools
