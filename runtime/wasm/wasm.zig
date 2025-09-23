@@ -190,6 +190,16 @@ pub const Wasm = struct {
         errdefer wasm.wasmtime_store_delete(store);
         const context = wasm.wasmtime_store_context(store);
 
+        const config = wasm.wasi_config_new();
+        wasm.wasi_config_inherit_stdout(config);
+        wasm.wasi_config_inherit_stderr(config);
+
+        if (wasm.wasmtime_context_set_wasi(context, config)) |err| {
+            defer wasm.wasmtime_error_delete(err);
+            self.logger.err("failed to set wasi: {f}", .{errFmt(err)});
+            return error.SetWasiFailed;
+        }
+
         var module_instance: wasm.wasmtime_instance_t = undefined;
         var trap: ?*wasm.wasm_trap_t = null;
         if (wasm.wasmtime_linker_instantiate(self.linker, context, module, &module_instance, &trap)) |err| {
