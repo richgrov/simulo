@@ -36,6 +36,7 @@ bool Swapchain::is_supported_on(VkPhysicalDevice device, VkSurfaceKHR surface) {
 }
 
 VkSurfaceFormatKHR best_surface_format(const std::vector<VkSurfaceFormatKHR> &formats) {
+   // First preference: R8G8B8A8_SRGB with SRGB color space
    for (const auto fmt : formats) {
       if (fmt.format == VK_FORMAT_R8G8B8A8_SRGB &&
           fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -43,6 +44,22 @@ VkSurfaceFormatKHR best_surface_format(const std::vector<VkSurfaceFormatKHR> &fo
       }
    }
 
+   // Second preference: B8G8R8A8_SRGB with SRGB color space
+   for (const auto fmt : formats) {
+      if (fmt.format == VK_FORMAT_B8G8R8A8_SRGB &&
+          fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+         return fmt;
+      }
+   }
+
+   // Third preference: Any SRGB format
+   for (const auto fmt : formats) {
+      if (fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+         return fmt;
+      }
+   }
+
+   // Fallback to first available format
    return formats.at(0);
 }
 
