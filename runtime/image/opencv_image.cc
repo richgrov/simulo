@@ -1,15 +1,14 @@
+#include "opencv_image.h"
+
 #include <opencv2/opencv.hpp>
+
+#include <cstring>
 #include <vector>
 
 extern "C" {
 
-struct ImageData {
-   int width;
-   int height;
-   std::vector<unsigned char> data;
-};
-
-ImageData *load_image_from_memory(const unsigned char *data, int data_len) {
+unsigned char *
+load_image_from_memory(const unsigned char *data, int data_len, int *out_width, int *out_height) {
    std::vector<unsigned char> buffer(data, data + data_len);
    cv::Mat image = cv::imdecode(buffer, cv::IMREAD_UNCHANGED);
 
@@ -31,28 +30,19 @@ ImageData *load_image_from_memory(const unsigned char *data, int data_len) {
    cv::Mat flipped;
    cv::flip(rgba_image, flipped, 0);
 
-   auto *result = new ImageData();
-   result->width = flipped.cols;
-   result->height = flipped.rows;
-   result->data.resize(flipped.total() * flipped.channels());
-   std::memcpy(result->data.data(), flipped.data, result->data.size());
+   *out_width = flipped.cols;
+   *out_height = flipped.rows;
+   size_t bytes = flipped.total() * flipped.channels();
+   unsigned char *result = new unsigned char[bytes];
+   if (!result) {
+      return nullptr;
+   }
+   std::memcpy(result, flipped.data, bytes);
 
    return result;
 }
 
-int get_image_width(ImageData *img) {
-   return img ? img->width : 0;
-}
-
-int get_image_height(ImageData *img) {
-   return img ? img->height : 0;
-}
-
-const unsigned char *get_image_data(ImageData *img) {
-   return img ? img->data.data() : nullptr;
-}
-
-void free_image_data(ImageData *img) {
-   delete img;
+void free_image_data(const unsigned char *bytes) {
+   delete[] bytes;
 }
 }
