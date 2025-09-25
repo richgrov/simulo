@@ -49,9 +49,6 @@ using Window = simulo::Window;
 
 #else
 
-struct CvMat;
-typedef struct CvMat OpenCvMat;
-
 struct SimuloRenderer;
 typedef struct SimuloRenderer Renderer;
 
@@ -112,11 +109,6 @@ typedef struct {
 
 #endif
 } Mesh;
-
-OpenCvMat *create_opencv_mat(int rows, int cols);
-void destroy_opencv_mat(OpenCvMat *mat);
-unsigned char *get_opencv_mat_data(OpenCvMat *mat);
-bool find_chessboard(OpenCvMat *mat, int pattern_width, int pattern_height, FfiMat3 *out_transform);
 
 Renderer *create_renderer(Gpu *gpu, const Window *window);
 void destroy_renderer(Renderer *renderer);
