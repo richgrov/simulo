@@ -485,7 +485,15 @@ pub const Runtime = struct {
                     _ = self.wasm.callFunction(funcs.pose, .{ id_u32, false }) catch unreachable;
                 },
                 .fault => |fault| {
-                    self.logger.err("pose detector fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
+                    switch (fault.category) {
+                        .camera_init, .inference_init, .calibrate_init => {
+                            self.logger.err("pose detector fatal fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
+                            return fault.err;
+                        },
+                        .inference_run, .camera_swap, .calibrate => {
+                            self.logger.err("pose detector fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
+                        },
+                    }
                 },
             }
         }

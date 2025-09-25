@@ -53,10 +53,12 @@ pub const PoseEvent = union(enum) {
     lost: u64,
     fault: struct {
         category: enum {
+            calibrate_init,
             camera_init,
             inference_init,
             inference_run,
             camera_swap,
+            calibrate,
         },
         err: anyerror,
     },
@@ -114,7 +116,10 @@ pub const PoseDetector = struct {
         var transform: DMat3 = undefined;
 
         var calibrated = false;
-        var calibrator = Calibrator.init();
+        var calibrator = Calibrator.init() catch |err| {
+            self.logEvent(.{ .fault = .{ .category = .calibrate_init, .err = err } });
+            return;
+        };
         defer calibrator.deinit();
 
         var camera = Camera.init(calibrator.buffers(), self.camera_id) catch |err| {
@@ -151,7 +156,13 @@ pub const PoseDetector = struct {
             self.profiler.log(.camera_swap);
 
             if (!calibrated) {
-                if (calibrator.calibrate(frame_idx, CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT, &transform)) {
+                const maybe_transform = calibrator.calibrate(frame_idx, CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT) catch |err| {
+                    self.logEvent(.{ .fault = .{ .category = .calibrate, .err = err } });
+                    continue;
+                };
+
+                if (maybe_transform) |out_transform| {
+                    transform = out_transform;
                     camera.setFloatMode([2][*]f32{
                         inference.input_buffers[0],
                         inference.input_buffers[1],

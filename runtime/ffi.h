@@ -63,10 +63,6 @@ typedef struct SimuloWindow Window;
 
 #endif
 
-typedef struct {
-   double data[9];
-} FfiMat3;
-
 typedef uint16_t IndexBufferType;
 
 typedef struct {
