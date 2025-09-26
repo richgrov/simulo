@@ -74,7 +74,6 @@ pub const Runtime = struct {
     },
     wasm_pose_buffer: ?[*]f32,
     assets: std.StringHashMap(?Renderer.ImageHandle),
-    random: std.Random.Xoshiro256,
 
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: Renderer.ObjectHandle,
@@ -114,9 +113,6 @@ pub const Runtime = struct {
         runtime.assets = std.StringHashMap(?Renderer.ImageHandle).init(runtime.allocator);
         errdefer runtime.assets.deinit();
 
-        const now: u64 = @bitCast(std.time.microTimestamp());
-        runtime.random = std.Random.Xoshiro256.init(now);
-
         const image = createChessboard(&runtime.renderer);
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
         const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
@@ -153,7 +149,6 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_set_rendered_object_transform", wasmSetRenderedObjectTransform);
         try wasm.exposeFunction("simulo_drop_rendered_object", wasmDropRenderedObject);
 
-        try wasm.exposeFunction("simulo_random", wasmRandom);
         try wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
         try wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
 
@@ -537,11 +532,6 @@ pub const Runtime = struct {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.logger.trace("simulo_drop_rendered_object({d})", .{id});
         runtime.renderer.deleteObject(.{ .id = id });
-    }
-
-    fn wasmRandom(env: *Wasm) f32 {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        return runtime.random.random().float(f32);
     }
 
     fn wasmWindowWidth(env: *Wasm) i32 {
