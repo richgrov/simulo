@@ -209,6 +209,10 @@ pub const Wasm = struct {
         }
 
         if (trap != null) {
+            var message: wasm.wasm_byte_vec_t = undefined;
+            wasm.wasm_trap_message(trap, &message);
+            self.logger.err("Trap on creating wasm instance: {s}", .{message.data[0..message.size]});
+            wasm.wasm_byte_vec_delete(&message);
             return error.CreateWasmInstanceTrap;
         }
 
@@ -300,6 +304,10 @@ pub const Wasm = struct {
         }
 
         if (trap != null) {
+            var message: wasm.wasm_byte_vec_t = undefined;
+            wasm.wasm_trap_message(trap, &message);
+            self.logger.err("Wasm function call trap: {s}", .{message.data[0..message.size]});
+            wasm.wasm_byte_vec_delete(&message);
             return error.WasmFunctionCallTrap;
         }
     }
