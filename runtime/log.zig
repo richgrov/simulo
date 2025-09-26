@@ -8,7 +8,7 @@ pub const LogLevel = enum {
     err,
 };
 
-pub var global_log_level: LogLevel = .trace;
+pub var global_log_level: LogLevel = .debug;
 
 pub fn Logger(comptime name: []const u8, fmt_buf_size: usize) type {
     return struct {

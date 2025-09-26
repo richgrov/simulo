@@ -528,7 +528,9 @@ pub const Runtime = struct {
 
     fn wasmSetRenderedObjectTransform(env: *Wasm, id: u32, transform: [*]f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.renderer.setObjectTransform(.{ .id = id }, Mat4.fromColumnMajorPtr(transform));
+        const mat = Mat4.fromColumnMajorPtr(transform);
+        runtime.logger.trace("simulo_set_rendered_object_transform({d}, {f})", .{ id, mat });
+        runtime.renderer.setObjectTransform(.{ .id = id }, mat);
     }
 
     fn wasmDropRenderedObject(env: *Wasm, id: u32) void {

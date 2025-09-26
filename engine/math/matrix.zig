@@ -139,6 +139,10 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
         pub fn ptr(self: *const Self) [*]const T {
             return @ptrCast(&self.data[0][0]);
         }
+
+        pub fn format(self: *const Self, writer: anytype) !void {
+            try writer.print("Matrix({any})", .{self.data});
+        }
     };
 }
 

@@ -87,7 +87,9 @@ pub const Remote = struct {
     fn readLoop(self: *Remote) void {
         while (@atomicLoad(bool, &self.running, .monotonic)) {
             var payload_buf: [64]u8 = undefined;
-            const payload = std.fmt.bufPrint(&payload_buf, "{d}", .{std.time.milliTimestamp()}) catch unreachable;
+            const time = std.time.milliTimestamp();
+            self.logger.debug("Time to be signed is {d}", .{time});
+            const payload = std.fmt.bufPrint(&payload_buf, "{d}", .{time}) catch unreachable;
 
             const signature = self.secret_key.sign(payload, null) catch |err| {
                 self.logger.err("couldn't sign payload: {any}", .{err});
