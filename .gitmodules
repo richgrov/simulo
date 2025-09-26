@@ -4,6 +4,3 @@
 [submodule "src/vendor/MigroGD"]
 	path = src/vendor/MigroGD
 	url = https://github.com/richgrov/MicroGD.git
-[submodule "example/glm"]
-	path = example/glm
-	url = https://github.com/g-truc/glm.git
