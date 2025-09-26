@@ -21,7 +21,7 @@ robotics, and computer vision. Entertainment is at the core of what motivates yo
 great things, and there's no reason critical thinking, socialization, and physical activity can't
 come with it.
 
-# Prerequisites
+## Building
 
 **simulo is only supported on the following platforms:**
 
@@ -40,11 +40,7 @@ openssl pkey -in ~/.simulo/private.der -inform DER -pubout -outform PEM -out ~/.
 
 **Dependencies:**
 
-- OpenCV
-- ONNXRuntime
-- wasmtime
-
-MacOS:
+**MacOS:**
 
 - Install the dependencies using homebrew
 
@@ -53,7 +49,7 @@ brew install zig
 brew install opencv wasmtime
 ```
 
-- Locally install the ONNXRuntime by running these commands
+Locally install the ONNXRuntime by running these commands
 
 ```
 mkdir -p extern/onnxruntime
@@ -73,13 +69,30 @@ zig build install --search-prefix extern/onnxruntime
 zig build test
 ```
 
-Linux:
+**Linux:**
+
+Install the following dependencies:
 
 - [Vulkan SDK](https://vulkan.lunarg.com/)
 - `libx11`
 - `libxkbcommon`
+- OpenCV
+- ONNXRuntime
+- wasmtime
 - Wayland protocols
 - TensorRT
+
+- Build the project
+
+```
+zig build install --search-prefix path/to/onnxruntime --search-prefix path/to/wasmtime
+```
+
+- Run the tests
+
+```
+zig build test --search-prefix path/to/onnxruntime --search-prefix path/to/wasmtime
+```
 
 ## Running
 
@@ -101,4 +114,4 @@ Identify the file of the camera you'd like to use:
 
 Run the program:
 
-`./zig-out/runtime.app/Contents/MacOS/runtime /dev/video0 path/to/game`
+`./zig-out/bin/runtime /dev/video0 path/to/game`
