@@ -89,3 +89,11 @@ uint32_t PhysicalDevice::find_memory_type_index(
        "no suitable memory type for bits {} and extra flags {}", supported_bits, (int)extra
    ));
 }
+
+bool PhysicalDevice::supports_srgb_texture_format(VkFormat format) const {
+   VkFormatProperties properties;
+   vkGetPhysicalDeviceFormatProperties(physical_device_, format, &properties);
+   
+   // Check if the format supports being used as a sampled image (texture)
+   return (properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
+}

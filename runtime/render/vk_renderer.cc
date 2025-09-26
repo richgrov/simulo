@@ -210,9 +210,15 @@ void delete_material(Renderer *renderer, Material *material) {
 }
 
 RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int height) {
+   // Try to use SRGB format for better color representation
+   VkFormat texture_format = VK_FORMAT_R8G8B8A8_UNORM; // Default fallback
+   if (physical_device_.supports_srgb_texture_format(VK_FORMAT_R8G8B8A8_SRGB)) {
+      texture_format = VK_FORMAT_R8G8B8A8_SRGB;
+   }
+   
    int image_id = images_.emplace(
        physical_device_, device_.handle(),
-       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8G8B8A8_UNORM,
+       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, texture_format,
        width, height
    );
    Image &image = images_.get(image_id);

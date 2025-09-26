@@ -30,6 +30,8 @@ public:
 
    uint32_t find_memory_type_index(uint32_t supported_bits, VkMemoryPropertyFlagBits extra) const;
 
+   bool supports_srgb_texture_format(VkFormat format) const;
+
 private:
    bool find_queue_families(VkPhysicalDevice candidate_device, VkSurfaceKHR surface);
 
