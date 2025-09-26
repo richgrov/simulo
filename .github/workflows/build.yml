@@ -222,7 +222,7 @@ jobs:
 
       - name: Get test video
         run: |
-          curl -L https://raw.githubusercontent.com/richgrov/simulo/refs/heads/main/.github/calibrate.mp4 -o calibrate.mp4
+          curl -L https://github.com/richgrov/simulo/raw/refs/heads/camera-integration-test/.github/calibrate.mp4 -o calibrate.mp4
 
       - name: Create camera
         run: |
