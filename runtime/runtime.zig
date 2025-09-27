@@ -383,7 +383,7 @@ pub const Runtime = struct {
                         var program_assets = try std.ArrayList(fs_storage.ProgramAsset).initCapacity(path_allocator.allocator(), download.files.len);
                         defer program_assets.deinit(path_allocator.allocator());
 
-                        for (download.files) |file| {
+                        for (download.files) |*file| {
                             const dest_path = fs_storage.getCachePathAlloc(path_allocator.allocator(), &file.asset.hash) catch unreachable;
 
                             self.remote.fetch(file.url, &file.asset.hash, dest_path) catch |err| {
@@ -552,7 +552,7 @@ pub const Runtime = struct {
             if (runtime.assets.get(name_slice)) |image| {
                 break :cond image.?;
             } else {
-                runtime.logger.err("tried to create material with non-existent asset {s}", .{name});
+                runtime.logger.err("tried to create material with non-existent asset {s}", .{name_slice});
                 return 0;
             }
         } else cond: {
