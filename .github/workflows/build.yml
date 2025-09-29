@@ -164,6 +164,10 @@ jobs:
           name: simulo-runtime-local-linux-x64
           path: .
 
+      # Testing Please Remove
+      - name: List simulo runtime binary
+        run: ls -l
+
       - name: Create Debian files
         run: |
           mkdir -p simulo-runtime/DEBIAN
