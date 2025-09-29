@@ -166,18 +166,32 @@ jobs:
 
       - name: Create Debian files
         run: |
-          mkdir -p runtime/DEBIAN
-          mkdir -p runtime/bin
+          mkdir -p simulo-runtime/DEBIAN
+          mkdir -p simulo-runtime/bin
+
+          echo "Package: simulo-runtime" > simulo-runtime/DEBIAN/control
+          echo "Version: 1.0.0" >> simulo-runtime/DEBIAN/control
+          echo "Section: utils" >> simulo-runtime/DEBIAN/control
+          echo "Priority: optional" >> simulo-runtime/DEBIAN/control
+          echo "Architecture: amd64" >> simulo-runtime/DEBIAN/control
+          echo "Maintainer: Richard Grover <38992201+richgrov@users.noreply.github.com>" >> simulo-runtime/DEBIAN/control
+          echo "Description: Simulo runtime" >> simulo-runtime/DEBIAN/control
 
       - name: Move runtime binary
-        run: mv simulo-runtime-local-linux-x64 runtime/bin
+        run: mv simulo-runtime-local-linux-x64 simulo-runtime/bin
 
       - name: Build .deb package
-        run: dpkg-deb --build --root-owner-group runtime
+        run: dpkg-deb --build --root-owner-group simulo-runtime
+
+      - name: Upload .deb Package
+        uses: actions/upload-artifact@v2
+        with:
+          name: simulo-runtime
+          path: simulo-runtime.deb
 
       # Testing Please Remove
-      - name: Build .deb package
-        run: ls runtime
+      - name: List .deb package
+        run: ls simulo-runtime
 
   Headless-Run-Linux:
     runs-on: self-hosted
