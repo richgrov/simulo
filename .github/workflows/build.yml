@@ -183,11 +183,11 @@ jobs:
       - name: Build .deb package
         run: dpkg-deb --build --root-owner-group simulo-runtime
 
-      - name: Upload .deb Package
-        uses: actions/upload-artifact@v2
+      - name: Upload screenshot artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: simulo-runtime
-          path: simulo-runtime.deb
+          name: runtime-simulo
+          path: runtime-simulo/runtime-simulo.deb
 
       # Testing Please Remove
       - name: List .deb package
