@@ -185,7 +185,7 @@ jobs:
           echo "Description: Simulo runtime" >> simulo-runtime/DEBIAN/control
 
       - name: Move runtime binary
-        run: mv runtime/* runtime/bin/
+        run: mv runtime simulo-runtime/bin/
 
       - name: Build .deb package
         run: dpkg-deb --build --root-owner-group simulo-runtime
