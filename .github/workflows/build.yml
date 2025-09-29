@@ -169,7 +169,7 @@ jobs:
         run: |
           pwd
           ls -l
-          ls runtime
+          ls runtime/runtime
 
       - name: Create Debian files
         run: |
@@ -185,7 +185,7 @@ jobs:
           echo "Description: Simulo runtime" >> simulo-runtime/DEBIAN/control
 
       - name: Move runtime binary
-        run: mv runtime/simulo-runtime-local-linux-x64 simulo-runtime/bin
+        run: mv runtime/runtime/simulo-runtime-local-linux-x64 simulo-runtime/bin
 
       - name: Build .deb package
         run: dpkg-deb --build --root-owner-group simulo-runtime
