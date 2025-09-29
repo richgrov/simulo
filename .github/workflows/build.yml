@@ -166,7 +166,10 @@ jobs:
 
       # Testing Please Remove
       - name: List simulo runtime binary
-        run: ls -l
+        run: |
+          pwd
+          ls -l
+          ls /home/runner/work/simulo/simulo
 
       - name: Create Debian files
         run: |
@@ -182,7 +185,7 @@ jobs:
           echo "Description: Simulo runtime" >> simulo-runtime/DEBIAN/control
 
       - name: Move runtime binary
-        run: mv simulo-runtime-local-linux-x64 simulo-runtime/bin
+        run: mv /home/runner/work/simulo/simulo/simulo-runtime-local-linux-x64 simulo-runtime/bin
 
       - name: Build .deb package
         run: dpkg-deb --build --root-owner-group simulo-runtime
