@@ -198,7 +198,9 @@ jobs:
 
       # Testing Please Remove
       - name: List .deb package
-        run: ls simulo-runtime
+        run: |
+          ls simulo-runtime
+          ls .
 
   Headless-Run-Linux:
     runs-on: self-hosted
