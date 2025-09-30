@@ -164,13 +164,6 @@ jobs:
           name: simulo-runtime-local-linux-x64
           path: .
 
-      # Testing Please Remove
-      - name: List simulo runtime binary
-        run: |
-          pwd
-          ls -l
-          ls runtime
-
       - name: Create Debian files
         run: |
           mkdir -p simulo-runtime/DEBIAN
@@ -194,13 +187,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: runtime-simulo
-          path: runtime-simulo/runtime-simulo.deb
-
-      # Testing Please Remove
-      - name: List .deb package
-        run: |
-          ls simulo-runtime
-          ls .
+          path: runtime-simulo.deb
 
   Headless-Run-Linux:
     runs-on: self-hosted
