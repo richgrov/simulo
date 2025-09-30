@@ -16,6 +16,10 @@ const Box = inf.Box;
 
 const Calibrator = @import("calibrate.zig").Calibrator;
 
+const tracking = @import("tracking.zig");
+const BoxTracker = tracking.BoxTracker;
+const TrackingEvent = tracking.TrackingEvent;
+
 const Camera = @import("../camera/camera.zig").Camera;
 const DMat3 = @import("engine").math.DMat3;
 
@@ -64,18 +68,11 @@ pub const PoseEvent = union(enum) {
     },
 };
 
-const TrackedBox = struct {
-    box: Box,
-    id: u64,
-};
-
 const DetectionSpsc = Spsc(PoseEvent, DETECTION_CAPACITY * 8);
 
 pub const PoseDetector = struct {
     output: DetectionSpsc,
     running: bool,
-    last_tracked_boxes: FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2),
-    next_tracked_box_id: u64 = 0,
     thread: std.Thread,
     profiler: Profiler,
     logger: Logger("pose", 2048),
@@ -85,7 +82,6 @@ pub const PoseDetector = struct {
         return PoseDetector{
             .output = DetectionSpsc.init(),
             .running = false,
-            .last_tracked_boxes = FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2).init(),
             .thread = undefined,
             .profiler = Profiler.init(),
             .logger = Logger("pose", 2048).init(),
@@ -133,6 +129,8 @@ pub const PoseDetector = struct {
             return;
         };
         defer inference.deinit();
+
+        var tracker = BoxTracker.init();
 
         while (@atomicLoad(bool, &self.running, .monotonic)) {
             defer self.profiler.reset();
@@ -183,69 +181,37 @@ pub const PoseDetector = struct {
 
             self.profiler.log(.inference);
 
-            var next_tracked_boxes = FixedArrayList(TrackedBox, DETECTION_CAPACITY * 2).init();
+            const tracking_events = tracker.update(local_detections[0..n_dets]);
+            const now = std.time.milliTimestamp();
+            for (tracking_events) |event| {
+                switch (event) {
+                    .moved => |moved| {
+                        last_detection_time = now;
 
-            for (0..n_dets) |i| {
-                var det = local_detections[i];
-                const tracking_id = self.nearestPreviousDetection(&det.box) orelse self.nextDetectionId();
-                next_tracked_boxes.append(.{ .id = tracking_id, .box = det.box }) catch unreachable;
+                        var det = local_detections[moved.new_box];
 
-                const transformed_pos = perspective_transform(det.box.pos[0], det.box.pos[1], &transform);
-                det.box.pos = .{ transformed_pos[0], 1 - transformed_pos[1] };
-                det.box.size = perspective_transform(det.box.size[0], det.box.size[1], &transform);
+                        const transformed_pos = perspective_transform(det.box.pos[0], det.box.pos[1], &transform);
+                        det.box.pos = .{ transformed_pos[0], 1 - transformed_pos[1] };
+                        det.box.size = perspective_transform(det.box.size[0], det.box.size[1], &transform);
 
-                for (0..det.keypoints.len) |k| {
-                    const kp = det.keypoints[k];
-                    const transformed_kp_pos = perspective_transform(kp.pos[0], kp.pos[1], &transform);
-                    const kp_pos = .{ transformed_kp_pos[0], 1 - transformed_kp_pos[1] };
-                    det.keypoints[k].pos = kp_pos;
-                    det.keypoints[k].score = @floatCast(kp.score);
-                }
+                        for (0..det.keypoints.len) |k| {
+                            const kp = det.keypoints[k];
+                            const transformed_kp_pos = perspective_transform(kp.pos[0], kp.pos[1], &transform);
+                            const kp_pos = .{ transformed_kp_pos[0], 1 - transformed_kp_pos[1] };
+                            det.keypoints[k].pos = kp_pos;
+                            det.keypoints[k].score = @floatCast(kp.score);
+                        }
 
-                self.logEvent(.{ .move = .{ .id = tracking_id, .detection = det } });
-            }
-
-            for (0..self.last_tracked_boxes.len) |i| {
-                const id = self.last_tracked_boxes.data[i].id;
-                var survived = false;
-                for (0..next_tracked_boxes.len) |j| {
-                    if (next_tracked_boxes.data[j].id == id) {
-                        survived = true;
-                        break;
-                    }
-                }
-                if (!survived) {
-                    self.logEvent(.{ .lost = id });
+                        self.logEvent(.{ .move = .{ .id = moved.id, .detection = det } });
+                    },
+                    .lost => |id| {
+                        self.logEvent(.{ .lost = id });
+                    },
                 }
             }
 
-            self.last_tracked_boxes = next_tracked_boxes;
             self.profiler.log(.tracking);
         }
-    }
-
-    fn nearestPreviousDetection(self: *PoseDetector, box: *const Box) ?u64 {
-        var closest_distance: f32 = std.math.floatMax(f32);
-        var closest_id: ?u64 = null;
-
-        last_detection_time = std.time.milliTimestamp();
-
-        for (self.last_tracked_boxes.items()) |other| {
-            const diff = box.pos - other.box.pos;
-            const distance = diff[0] * diff[0] + diff[1] * diff[1];
-            if (distance < closest_distance) {
-                closest_distance = distance;
-                closest_id = other.id;
-            }
-        }
-
-        return closest_id;
-    }
-
-    fn nextDetectionId(self: *PoseDetector) u64 {
-        const id = self.next_tracked_box_id;
-        self.next_tracked_box_id += 1;
-        return id;
     }
 
     fn logEvent(self: *PoseDetector, event: PoseEvent) void {
