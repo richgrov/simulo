@@ -208,6 +208,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
     runtime.link_libcpp = true;
     runtime.linkSystemLibrary("onnxruntime", .{});
     runtime.linkSystemLibrary("wasmtime", .{});
+    //runtime.linkSystemLibrary("Eigen3", .{});
 
     var cpp_sources = ArrayList([]const u8).initCapacity(b.allocator, 32) catch unreachable;
     defer cpp_sources.deinit(b.allocator);
@@ -216,6 +217,11 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         "runtime/app.cc",
         "runtime/opencv/opencv.cc",
         "runtime/image/opencv_image.cc",
+        //"runtime/tracking/BYTETracker.cpp",
+        //"runtime/tracking/kalmanFilter.cpp",
+        //"runtime/tracking/lapjv.cpp",
+        //"runtime/tracking/STrack.cpp",
+        //"runtime/tracking/utils.cpp",
     }) catch unreachable;
 
     const os = target.result.os.tag;
