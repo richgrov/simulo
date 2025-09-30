@@ -183,11 +183,11 @@ jobs:
       - name: Build .deb package
         run: dpkg-deb --build --root-owner-group simulo-runtime
 
-      - name: Upload screenshot artifact
+      - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
-          name: runtime-simulo
-          path: runtime-simulo.deb
+          name: simulo-runtime
+          path: simulo-runtime.deb
 
   Headless-Run-Linux:
     runs-on: self-hosted
