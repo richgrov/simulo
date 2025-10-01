@@ -160,6 +160,10 @@ pub const Renderer = struct {
         return .{ .id = @intCast(key) };
     }
 
+    pub fn clearUiMaterial(self: *Renderer) void {
+        ffi.clear_ui_materials(self.handle);
+    }
+
     //pub fn createMeshMaterial(self: *Renderer, r: f32, g: f32, b: f32) !MaterialHandle {
     //    const id = ffi.create_mesh_material(self.handle, r, g, b);
     //    const key, _ = try self.materials.append(id);

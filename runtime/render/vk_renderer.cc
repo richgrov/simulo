@@ -265,6 +265,11 @@ Material create_material(Renderer *renderer, int32_t pipeline_id, const Material
    return mat;
 }
 
+void clear_ui_materials(Renderer *renderer) {
+   Renderer::MaterialPipeline &pipe = renderer->pipelines_[renderer->pipeline_ids_.ui];
+   pipe.uniform_slot_usage = 2;
+}
+
 Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
    return create_material<UiUniform>(
        renderer, renderer->pipeline_ids_.ui,
