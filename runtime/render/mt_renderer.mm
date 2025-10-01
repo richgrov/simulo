@@ -174,3 +174,5 @@ void render_object(Renderer *renderer, const float *transform) {
                                         indexBuffer:renderer->last_binded_mesh_->buffer
                                   indexBufferOffset:renderer->last_binded_mesh_->indices_start];
 }
+
+void clear_ui_materials(Renderer *renderer) {}

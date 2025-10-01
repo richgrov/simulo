@@ -169,6 +169,8 @@ pub const Runtime = struct {
         const data = try std.fs.cwd().readFileAlloc(self.allocator, program_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
+        self.renderer.clearUiMaterials();
+
         try self.wasm.load(data);
 
         const init_func = self.wasm.getFunction("simulo_main") orelse {

@@ -160,7 +160,7 @@ pub const Renderer = struct {
         return .{ .id = @intCast(key) };
     }
 
-    pub fn clearUiMaterial(self: *Renderer) void {
+    pub fn clearUiMaterials(self: *Renderer) void {
         ffi.clear_ui_materials(self.handle);
     }
 
