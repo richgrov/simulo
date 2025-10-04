@@ -88,6 +88,7 @@ pub const Runtime = struct {
         start_ms: u64,
         stop_ms: u64,
     },
+    was_running: bool,
 
     pub fn init(runtime: *Runtime, allocator: std.mem.Allocator, camera_id: []const u8) !void {
         runtime.allocator = allocator;
@@ -124,8 +125,12 @@ pub const Runtime = struct {
         runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.mesh, runtime.white_pixel_texture);
         errdefer runtime.eyeguard.deinit();
 
+        runtime.schedule = null;
+
         runtime.chessboard = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), chessboard_material, 1);
         errdefer runtime.renderer.deleteObject(runtime.chessboard);
+
+        runtime.was_running = false;
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -305,8 +310,14 @@ pub const Runtime = struct {
             self.tryRunLatestProgram();
         }
 
-        try self.pose_detector.start();
         var last_time = std.time.milliTimestamp();
+
+        var time_of_day = @mod(last_time, 24 * 60 * 60 * 1000);
+        self.was_running = self.shouldRun(time_of_day);
+        self.logger.info("initial run state: {}", .{self.was_running});
+        if (self.was_running) {
+            try self.pose_detector.start();
+        }
 
         var frame_count: usize = 0;
         var second_timer: i64 = std.time.milliTimestamp();
@@ -327,6 +338,18 @@ pub const Runtime = struct {
             const now = std.time.milliTimestamp();
             const delta = now - last_time;
             last_time = now;
+
+            time_of_day = @mod(now, 24 * 60 * 60 * 1000);
+            const run_state = self.shouldRun(time_of_day);
+            if (run_state != self.was_running) {
+                self.logger.info("run state changed: {} -> {}", .{ self.was_running, run_state });
+                if (run_state) {
+                    try self.pose_detector.start();
+                } else {
+                    self.pose_detector.stop();
+                }
+                self.was_running = run_state;
+            }
 
             const width = self.window.getWidth();
             const height = self.window.getHeight();
@@ -357,15 +380,19 @@ pub const Runtime = struct {
                 profiler.log(.update);
             }
 
-            const ui_projection = Mat4.ortho(
-                @floatFromInt(self.last_window_width),
-                @floatFromInt(self.last_window_height),
-                -1.0,
-                1.0,
-            );
-            self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
-                self.logger.err("render failed: {any}", .{err});
-            };
+            if (self.was_running) {
+                const ui_projection = Mat4.ortho(
+                    @floatFromInt(self.last_window_width),
+                    @floatFromInt(self.last_window_height),
+                    -1.0,
+                    1.0,
+                );
+
+                self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
+                    self.logger.err("render failed: {any}", .{err});
+                };
+            }
+
             profiler.log(.render);
 
             while (self.remote.nextMessage()) |msg| {
@@ -418,11 +445,16 @@ pub const Runtime = struct {
                     },
                     .schedule => |maybe_schedule| {
                         if (maybe_schedule) |sched| {
+                            self.logger.info("remote set schedule to {D}-{D}", .{
+                                sched.start_ms * std.time.ns_per_ms,
+                                sched.stop_ms * std.time.ns_per_ms,
+                            });
                             self.schedule = .{
                                 .start_ms = sched.start_ms,
                                 .stop_ms = sched.stop_ms,
                             };
                         } else {
+                            self.logger.info("remote removed schedule", .{});
                             self.schedule = null;
                         }
                     },
@@ -581,6 +613,20 @@ pub const Runtime = struct {
     fn wasmUpdateMaterial(env: *Wasm, id: u32, r: f32, g: f32, b: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.renderer.updateMaterial(.{ .id = id }, r, g, b);
+    }
+
+    fn shouldRun(self: *Runtime, time_of_day: i64) bool {
+        const time: u64 = @intCast(time_of_day);
+        if (self.schedule) |sched| {
+            if (sched.start_ms > sched.stop_ms) {
+                // the active schedule runs over midnight across two days
+                return time >= sched.start_ms or time <= sched.stop_ms;
+            }
+
+            return time >= sched.start_ms and time <= sched.stop_ms;
+        } else {
+            return true;
+        }
     }
 };
 
