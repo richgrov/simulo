@@ -97,7 +97,6 @@ pub const PoseDetector = struct {
         const started = @cmpxchgStrong(bool, &self.running, false, true, .seq_cst, .seq_cst) == null;
         if (started) {
             self.thread = try std.Thread.spawn(.{}, PoseDetector.run, .{self});
-            last_detection_time = std.time.milliTimestamp();
         }
     }
 
@@ -185,6 +184,7 @@ pub const PoseDetector = struct {
                 continue;
             }
 
+            last_detection_time = std.time.milliTimestamp();
             if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
                 if (!is_in_low_power) {
                     self.logger.debug("entering low power mode", .{});
