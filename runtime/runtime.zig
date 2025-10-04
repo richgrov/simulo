@@ -78,7 +78,11 @@ pub const Runtime = struct {
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: Renderer.ObjectHandle,
     mesh: Renderer.MeshHandle,
-    calibrated: bool,
+    calibration_state: enum {
+        capturing_background,
+        capturing_chessboard,
+        calibrated,
+    },
     eyeguard: EyeGuard,
     schedule: ?struct {
         start_ms: u64,
@@ -102,7 +106,7 @@ pub const Runtime = struct {
         errdefer runtime.renderer.deinit();
         runtime.pose_detector = PoseDetector.init(camera_id);
         errdefer runtime.pose_detector.stop();
-        runtime.calibrated = false;
+        runtime.calibration_state = .capturing_background;
 
         runtime.wasm = try Wasm.init();
         errdefer runtime.wasm.deinit();
@@ -209,7 +213,7 @@ pub const Runtime = struct {
             self.assets.put(name, image) catch |err| util.crash.oom(err);
         }
 
-        if (self.calibrated) {
+        if (self.calibration_state == .calibrated) {
             _ = self.wasm.callFunction(init_func, .{}) catch unreachable;
 
             if (self.wasm_pose_buffer == null) {
@@ -336,7 +340,10 @@ pub const Runtime = struct {
                     self.renderer.handleResize(width, height, self.window.surface());
                 }
 
-                self.renderer.setObjectTransform(self.chessboard, if (self.calibrated) Mat4.zero() else Mat4.scale(.{ @floatFromInt(width), @floatFromInt(height), 1 }));
+                self.renderer.setObjectTransform(self.chessboard, switch (self.calibration_state) {
+                    .capturing_chessboard => Mat4.scale(.{ @floatFromInt(width), @floatFromInt(height), 1 }),
+                    else => Mat4.zero(),
+                });
 
                 profiler.log(.resize);
             }
@@ -344,7 +351,7 @@ pub const Runtime = struct {
             try self.processPoseDetections();
             profiler.log(.process_pose);
 
-            if (self.calibrated) {
+            if (self.calibration_state == .calibrated) {
                 const deltaf: f32 = @floatFromInt(delta);
                 _ = self.wasm.callFunction(self.wasm_funcs.?.update, .{deltaf / 1000.0}) catch unreachable;
                 profiler.log(.update);
@@ -443,8 +450,13 @@ pub const Runtime = struct {
 
         while (self.pose_detector.nextEvent()) |event| {
             switch (event) {
-                .calibrated => {
-                    self.calibrated = true;
+                .calibration_background_set => {
+                    self.logger.info("capturing chessboard", .{});
+                    self.calibration_state = .capturing_chessboard;
+                    self.renderer.setObjectTransform(self.chessboard, Mat4.scale(.{ width, height, 1 }));
+                },
+                .calibration_calibrated => {
+                    self.calibration_state = .calibrated;
 
                     if (self.wasm_pose_buffer == null) {
                         if (self.wasm_funcs) |funcs| {
@@ -483,7 +495,7 @@ pub const Runtime = struct {
                 },
                 .fault => |fault| {
                     switch (fault.category) {
-                        .camera_init, .inference_init, .calibrate_init => {
+                        .camera_init, .inference_init, .calibrate_init, .camera_stall, .background_swap, .set_background => {
                             self.logger.err("pose detector fatal fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
                             return fault.err;
                         },

@@ -49,7 +49,8 @@ const Profiler = profile.Profiler("pose", enum {
 });
 
 pub const PoseEvent = union(enum) {
-    calibrated: void,
+    calibration_background_set: void,
+    calibration_calibrated: void,
     move: struct {
         id: u64,
         detection: Detection,
@@ -61,6 +62,9 @@ pub const PoseEvent = union(enum) {
             camera_init,
             inference_init,
             inference_run,
+            camera_stall,
+            background_swap,
+            set_background,
             camera_swap,
             calibrate,
         },
@@ -118,7 +122,7 @@ pub const PoseDetector = struct {
         };
         defer calibrator.deinit();
 
-        var camera = Camera.init(calibrator.buffers(), self.camera_id) catch |err| {
+        var camera = Camera.init(calibrator.mats(), self.camera_id) catch |err| {
             self.logEvent(.{ .fault = .{ .category = .camera_init, .err = err } });
             return;
         };
@@ -132,19 +136,27 @@ pub const PoseDetector = struct {
 
         var tracker = BoxTracker.init();
 
+        // ignore first few frames as they may contain initialization artifacts
+        for (0..3) |_| {
+            _ = camera.swapBuffers() catch |err| {
+                self.logEvent(.{ .fault = .{ .category = .camera_stall, .err = err } });
+                return;
+            };
+        }
+
+        const background_frame_idx = camera.swapBuffers() catch |err| {
+            self.logEvent(.{ .fault = .{ .category = .background_swap, .err = err } });
+            return;
+        };
+
+        calibrator.setBackground(background_frame_idx) catch |err| {
+            self.logEvent(.{ .fault = .{ .category = .set_background, .err = err } });
+            return;
+        };
+        self.logEvent(.calibration_background_set);
+
         while (@atomicLoad(bool, &self.running, .monotonic)) {
             defer self.profiler.reset();
-
-            if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
-                if (!is_in_low_power) {
-                    self.logger.debug("entering low power mode", .{});
-                    is_in_low_power = true;
-                }
-                std.Thread.sleep(std.time.ns_per_s / 2);
-            } else if (is_in_low_power) {
-                self.logger.debug("exiting low power mode", .{});
-                is_in_low_power = false;
-            }
 
             const frame_idx = camera.swapBuffers() catch |err| {
                 self.logEvent(.{ .fault = .{ .category = .camera_swap, .err = err } });
@@ -166,11 +178,22 @@ pub const PoseDetector = struct {
                         inference.input_buffers[1],
                     });
                     calibrated = true;
-                    self.logEvent(.calibrated);
+                    self.logEvent(.calibration_calibrated);
                 }
 
                 self.profiler.log(.calibrate);
                 continue;
+            }
+
+            if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
+                if (!is_in_low_power) {
+                    self.logger.debug("entering low power mode", .{});
+                    is_in_low_power = true;
+                }
+                std.Thread.sleep(std.time.ns_per_s / 2);
+            } else if (is_in_low_power) {
+                self.logger.debug("exiting low power mode", .{});
+                is_in_low_power = false;
             }
 
             var local_detections: [DETECTION_CAPACITY]Detection = undefined;

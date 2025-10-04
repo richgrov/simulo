@@ -16,37 +16,49 @@ fn debugSaveImage(image: []u8) void {
 }
 
 pub const Calibrator = struct {
-    background_frame: [RGB_FRAME]u8 = undefined,
+    background_frame: Mat,
     calibration_frames: [2]Mat,
+    subtraction_buffer: Mat,
     transform: DMat3 = undefined,
 
     pub fn init() !Calibrator {
+        var background_frame = try Mat.init(HEIGHT, WIDTH, opencv.c.Type8UC3);
+        errdefer background_frame.deinit();
+
+        var subtraction_buffer = try Mat.init(HEIGHT, WIDTH, opencv.c.Type8UC3);
+        errdefer subtraction_buffer.deinit();
+
         return Calibrator{
+            .background_frame = background_frame,
             .calibration_frames = [2]Mat{
                 try Mat.init(HEIGHT, WIDTH, opencv.c.Type8UC3),
                 try Mat.init(HEIGHT, WIDTH, opencv.c.Type8UC3),
             },
+            .subtraction_buffer = subtraction_buffer,
         };
     }
 
     pub fn deinit(self: *Calibrator) void {
         self.calibration_frames[0].deinit();
         self.calibration_frames[1].deinit();
+        self.background_frame.deinit();
+        self.subtraction_buffer.deinit();
     }
 
-    pub fn buffers(self: *Calibrator) [2][*]u8 {
-        return [2][*]u8{
-            self.calibration_frames[0].data(),
-            self.calibration_frames[1].data(),
+    pub fn mats(self: *Calibrator) [2]*Mat {
+        return [2]*Mat{
+            &self.calibration_frames[0],
+            &self.calibration_frames[1],
         };
     }
 
-    pub fn setBackground(self: *Calibrator, frame: *[RGB_FRAME]u8) void {
-        @memcpy(&self.background_frame, frame);
+    pub fn setBackground(self: *Calibrator, frame: usize) !void {
+        try self.calibration_frames[frame].copyTo(&self.background_frame);
     }
 
     pub fn calibrate(self: *Calibrator, frame_idx: usize, chessboard_width: i32, chessboard_height: i32) !?DMat3 {
-        return self.calibration_frames[frame_idx].findChessboardTransform(
+        try self.calibration_frames[frame_idx].subtract(&self.background_frame, &self.subtraction_buffer);
+        return self.subtraction_buffer.findChessboardTransform(
             chessboard_width,
             chessboard_height,
             opencv.c.CalibCbExhaustive,
