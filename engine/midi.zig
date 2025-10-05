@@ -86,6 +86,22 @@ const Mthd = struct {
     }
 };
 
+pub const MidiEvent = struct {
+    track: u16,
+    data: MidiEventData,
+};
+
+pub const MidiEventData = union(enum) {
+    note_on: struct {
+        note: u8,
+        velocity: u8,
+    },
+    note_off: struct {
+        note: u8,
+        velocity: u8,
+    },
+};
+
 const MTrk = struct {
     const id = ('M' << 24) | ('T' << 16) | ('r' << 8) | 'k';
 
@@ -96,21 +112,14 @@ const MTrk = struct {
 
     const EventData = union(enum) {
         set_tempo: u32,
-        note_on: struct {
-            note: u8,
-            velocity: u8,
-        },
-        note_off: struct {
-            note: u8,
-            velocity: u8,
-        },
+        event: MidiEventData,
     };
 
     events: []Event,
 
     fn parse(reader: *Reader, allocator: std.mem.Allocator) !MTrk {
         var events = std.ArrayList(Event).initCapacity(allocator, 0) catch return error.OutOfMemory;
-        errdefer events.deinit();
+        errdefer events.deinit(allocator);
 
         var at_start = true;
         while (!reader.isEof()) {
@@ -122,7 +131,7 @@ const MTrk = struct {
             const status = try reader.readInt(u8);
             if (status == 0xFF) {
                 if (try parseMetaEvent(reader, at_start)) |event_data| {
-                    try events.append(.{
+                    try events.append(allocator, .{
                         .time = time,
                         .data = event_data,
                     });
@@ -132,30 +141,30 @@ const MTrk = struct {
             } else if (status >= 0x80 and status <= 0x8F) { // note off
                 const note = try reader.readInt(u8);
                 const velocity = try reader.readInt(u8);
-                try events.append(.{
+                try events.append(allocator, .{
                     .time = time,
-                    .data = .{ .note_off = .{
+                    .data = .{ .event = .{ .note_off = .{
                         .note = note,
                         .velocity = velocity,
-                    } },
+                    } } },
                 });
             } else if (status >= 0x90 and status <= 0x9F) { // note on
                 const note = try reader.readInt(u8);
                 const velocity = try reader.readInt(u8);
-                try events.append(.{
+                try events.append(allocator, .{
                     .time = time,
-                    .data = .{ .note_on = .{
+                    .data = .{ .event = .{ .note_on = .{
                         .note = note,
                         .velocity = velocity,
-                    } },
+                    } } },
                 });
             } else {
                 std.debug.print("???: {d} {d}\n", .{ time, status });
-                break;
+                return error.UnsupportedEvent;
             }
         }
 
-        return MTrk{ .events = try events.toOwnedSlice() };
+        return MTrk{ .events = try events.toOwnedSlice(allocator) };
     }
 
     fn parseMetaEvent(reader: *Reader, at_start: bool) !?EventData {
@@ -188,14 +197,72 @@ const MTrk = struct {
     }
 };
 
+const TrackPosition = struct {
+    index: usize,
+    accumulated_ticks: u32,
+};
+
 const Midi = struct {
     tracks: []MTrk,
+    track_positions: []TrackPosition,
+    ppqn: u32,
+    us_per_tick: u32,
+
+    pub fn init(allocator: std.mem.Allocator, tracks: []MTrk, ppqn: u16) !Midi {
+        const track_positions = try allocator.alloc(TrackPosition, tracks.len);
+        errdefer allocator.free(track_positions);
+        @memset(track_positions, .{ .index = 0, .accumulated_ticks = 0 });
+
+        const ticks_per_quarter_note = @as(u32, @intCast(ppqn));
+
+        return Midi{
+            .tracks = tracks,
+            .track_positions = track_positions,
+            .ppqn = ticks_per_quarter_note,
+            .us_per_tick = 500_000 / ticks_per_quarter_note,
+        };
+    }
 
     pub fn deinit(self: *Midi, allocator: std.mem.Allocator) void {
         for (self.tracks) |track| {
             allocator.free(track.events);
         }
         allocator.free(self.tracks);
+        allocator.free(self.track_positions);
+    }
+
+    pub fn progress(self: *Midi, absolute_us: u64, events: []MidiEvent) usize {
+        const ticks = absolute_us / self.us_per_tick;
+        var event_index: usize = 0;
+
+        for (self.tracks, 0..) |track, i| {
+            while (self.track_positions[i].index < track.events.len) {
+                const event = &track.events[self.track_positions[i].index];
+                const absolute_ticks = self.track_positions[i].accumulated_ticks + event.time;
+                if (absolute_ticks > ticks) {
+                    break;
+                }
+
+                switch (event.data) {
+                    .set_tempo => |tempo| {
+                        self.us_per_tick = tempo / self.ppqn;
+                    },
+                    .event => |ev| {
+                        events[event_index] = .{ .track = @intCast(i), .data = ev };
+                        event_index += 1;
+                    },
+                }
+
+                self.track_positions[i].accumulated_ticks = absolute_ticks;
+                self.track_positions[i].index += 1;
+
+                if (event_index >= events.len) {
+                    return event_index;
+                }
+            }
+        }
+
+        return event_index;
     }
 };
 
@@ -209,11 +276,10 @@ pub fn parseMidi(data: []const u8, allocator: std.mem.Allocator) !Midi {
     const mthd_len = try reader.readInt(u32);
     var mthd_reader = Reader.init(data[reader.read_index .. reader.read_index + mthd_len]);
     const mthd = try Mthd.parse(&mthd_reader);
-    _ = mthd;
     reader.read_index += mthd_len;
 
     var tracks = std.ArrayList(MTrk).initCapacity(allocator, 0) catch return error.OutOfMemory;
-    errdefer tracks.deinit();
+    errdefer tracks.deinit(allocator);
 
     while (!reader.isEof()) {
         const header = try reader.readInt(u32);
@@ -224,13 +290,17 @@ pub fn parseMidi(data: []const u8, allocator: std.mem.Allocator) !Midi {
         switch (header) {
             Mthd.id => return error.MthdSeenAgain,
             MTrk.id => {
-                try tracks.append(try MTrk.parse(&chunk_reader, allocator));
+                try tracks.append(allocator, try MTrk.parse(&chunk_reader, allocator));
             },
             else => {},
         }
     }
 
-    return Midi{ .tracks = try tracks.toOwnedSlice() };
+    switch (mthd.division) {
+        .ticks_per_quarter_note => |ppqn| {
+            return try Midi.init(allocator, try tracks.toOwnedSlice(allocator), ppqn);
+        },
+    }
 }
 
 test "midi varints" {
