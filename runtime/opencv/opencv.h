@@ -385,7 +385,6 @@ CvStatus mat_copy(CvMat *out, const CvMat *in);
 CvStatus mat_sub(CvMat *out, CvMat *in1, CvMat *in2);
 
 CvStatus mat_decode(CvMat *dst, const unsigned char *data, int data_len, CvImreadFlags flags);
-CvStatus mat_write(CvMat *mat, const char *path);
 
 CvStatus mat_flip(CvMat *out, const CvMat *in, int flip_code);
 

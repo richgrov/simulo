@@ -114,19 +114,6 @@ CvStatus mat_decode(CvMat *dst, const unsigned char *data, int data_len, CvImrea
    return StatOk;
 }
 
-CvStatus mat_write(CvMat *mat, const char *path) {
-   try {
-      cv::imwrite(path, *mat);
-   } catch (const cv::Exception &e) {
-      return static_cast<CvStatus>(e.code);
-   } catch (const std::exception &e) {
-      return StatStdException;
-   } catch (...) {
-      return StatUnknownException;
-   }
-   return StatOk;
-}
-
 CvStatus mat_flip(CvMat *out, const CvMat *in, int flip_code) {
    try {
       cv::Mat *in_mat = reinterpret_cast<cv::Mat *>(const_cast<CvMat *>(in));
