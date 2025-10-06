@@ -111,6 +111,7 @@ pub const Runtime = struct {
 
         runtime.wasm = try Wasm.init();
         errdefer runtime.wasm.deinit();
+        try runtime.wasm.startWatchdog();
         try registerWasmFuncs(&runtime.wasm);
         runtime.wasm_funcs = null;
         runtime.wasm_pose_buffer = null;
