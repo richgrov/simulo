@@ -39,7 +39,7 @@ pub fn Logger(comptime name: []const u8, fmt_buf_size: usize) type {
             defer std.debug.unlockStdErr();
 
             const msg = std.fmt.bufPrint(&self.write_buf, "{d} " ++ level_str ++ " [" ++ name ++ "] " ++ fmt ++ "\n", .{std.time.milliTimestamp()} ++ args) catch {
-                writer.writeAll("<log message too long>\n") catch {};
+                writer.writeAll("??? " ++ level_str ++ " [" ++ name ++ "] <log message too long>\n") catch {};
                 return;
             };
             writer.writeAll(msg) catch {};
