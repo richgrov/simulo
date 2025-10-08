@@ -6,9 +6,12 @@ const inference = @import("inference.zig");
 const Box = inference.Box;
 const Detection = inference.Detection;
 
+const BOX_LIFETIME = 3;
+
 const TrackedBox = struct {
     box: Box,
     id: u32,
+    lifetime: u32,
 };
 
 pub const TrackingEvent = union(enum) {
@@ -42,11 +45,12 @@ pub const BoxTracker = struct {
             if (association.new2prev[i]) |prev_idx| {
                 const prev = &self.prev_boxes.itemsMut()[prev_idx];
                 prev.box = detections[i].box;
+                prev.lifetime = BOX_LIFETIME;
                 self.events.append(.{ .moved = .{ .id = prev.id, .new_box = i } }) catch unreachable;
             } else {
                 const id = self.next_tracking_id;
                 self.next_tracking_id += 1;
-                self.prev_boxes.append(.{ .id = id, .box = detections[i].box }) catch unreachable;
+                self.prev_boxes.append(.{ .id = id, .box = detections[i].box, .lifetime = BOX_LIFETIME }) catch unreachable;
                 self.events.append(.{ .moved = .{ .id = id, .new_box = i } }) catch unreachable;
             }
         }
@@ -59,8 +63,14 @@ pub const BoxTracker = struct {
             if (association.prev_survived[i]) {
                 continue;
             }
-            const id = self.prev_boxes.items()[i].id;
-            self.events.append(.{ .lost = id }) catch unreachable;
+
+            const tracked = &self.prev_boxes.itemsMut()[i];
+            tracked.lifetime -= 1;
+            if (tracked.lifetime > 0) {
+                continue;
+            }
+
+            self.events.append(.{ .lost = tracked.id }) catch unreachable;
             self.prev_boxes.swapDelete(@intCast(i)) catch unreachable;
         }
 
