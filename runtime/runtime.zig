@@ -20,6 +20,8 @@ pub const Remote = if (build_options.cloud)
 else
     @import("remote/noop_remote.zig").NoOpRemote;
 
+const AudioPlayer = @import("audio/audio.zig").AudioPlayer;
+
 pub const Renderer = @import("render/renderer.zig").Renderer;
 pub const Window = @import("window/window.zig").Window;
 
@@ -56,6 +58,11 @@ const Asset = struct {
     real_path: []const u8,
 };
 
+const AssetData = union(enum) {
+    image: Renderer.ImageHandle,
+    sound: AudioPlayer.Sound,
+};
+
 pub const Runtime = struct {
     gpu: Gpu,
     window: Window,
@@ -74,7 +81,8 @@ pub const Runtime = struct {
         pose: Wasm.Function,
     },
     wasm_pose_buffer: ?[*]f32,
-    assets: std.StringHashMap(?Renderer.ImageHandle),
+    audio_player: AudioPlayer,
+    assets: std.StringHashMap(AssetData),
 
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: Renderer.ObjectHandle,
@@ -117,7 +125,10 @@ pub const Runtime = struct {
         runtime.wasm_funcs = null;
         runtime.wasm_pose_buffer = null;
 
-        runtime.assets = std.StringHashMap(?Renderer.ImageHandle).init(runtime.allocator);
+        //runtime.audio_player = try AudioPlayer.init();
+        //errdefer runtime.audio_player.deinit();
+
+        runtime.assets = std.StringHashMap(AssetData).init(runtime.allocator);
         errdefer runtime.assets.deinit();
 
         const image = createChessboard(&runtime.renderer);
@@ -129,7 +140,7 @@ pub const Runtime = struct {
 
         runtime.schedule = null;
 
-        runtime.chessboard = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), chessboard_material, 1);
+        runtime.chessboard = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), chessboard_material, 31);
         errdefer runtime.renderer.deleteObject(runtime.chessboard);
 
         runtime.was_running = false;
@@ -139,11 +150,20 @@ pub const Runtime = struct {
         self.wasm.deinit();
         self.eyeguard.deinit();
 
-        var assets_keys = self.assets.keyIterator();
-        while (assets_keys.next()) |key| {
-            self.allocator.free(key.*);
+        var asset_iterator = self.assets.iterator();
+        while (asset_iterator.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+            switch (entry.value_ptr.*) {
+                .sound => |*sound| {
+                    self.audio_player.unloadSound(sound);
+                },
+                .image => |_| {
+                    // TODO: delete image if present
+                },
+            }
         }
         self.assets.deinit();
+        //self.audio_player.deinit();
 
         self.pose_detector.stop();
         self.renderer.deinit();
@@ -173,7 +193,14 @@ pub const Runtime = struct {
         var assets_keys = self.assets.iterator();
         while (assets_keys.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
-            // TODO: delete image if present
+            switch (entry.value_ptr.*) {
+                .sound => |*sound| {
+                    self.audio_player.unloadSound(sound);
+                },
+                .image => |_| {
+                    // TODO: delete image if present
+                },
+            }
         }
         self.assets.clearRetainingCapacity();
 
@@ -204,21 +231,40 @@ pub const Runtime = struct {
         self.wasm_pose_buffer = null;
 
         for (assets) |*asset| {
-            const image_data = std.fs.cwd().readFileAlloc(self.allocator, asset.real_path, 10 * 1024 * 1024) catch |err| {
+            const file_data = std.fs.cwd().readFileAlloc(self.allocator, asset.real_path, 10 * 1024 * 1024) catch |err| {
                 self.logger.err("failed to read asset file at {s}: {s}", .{ asset.real_path, @errorName(err) });
                 return error.AssertReadFailed;
             };
-            defer self.allocator.free(image_data);
+            defer self.allocator.free(file_data);
 
-            const image_info = loadImage(image_data) catch |err| {
-                self.logger.err("failed to load data from {s}: {s}", .{ asset.real_path, @errorName(err) });
-                return error.AssertLoadFailed;
-            };
+            self.logger.info("loading asset: {s}", .{asset.name});
 
-            const image = self.renderer.createImage(image_info.data, image_info.width, image_info.height);
+            if (std.mem.endsWith(u8, asset.name, ".png")) {
+                const image_info = loadImage(file_data) catch |err| {
+                    self.logger.err("failed to load data from {s}: {s}", .{ asset.real_path, @errorName(err) });
+                    return error.AssertLoadFailed;
+                };
 
-            const name = self.allocator.dupe(u8, asset.name) catch |err| util.crash.oom(err);
-            self.assets.put(name, image) catch |err| util.crash.oom(err);
+                if (image_info.data.len > 1024 * 1024 * 8) {
+                    self.logger.err("image {s} is too large: {d}", .{ asset.name, image_info.data.len });
+                    return error.ImageTooLarge;
+                }
+
+                const image = self.renderer.createImage(image_info.data, image_info.width, image_info.height);
+
+                const name = self.allocator.dupe(u8, asset.name) catch |err| util.crash.oom(err);
+                self.assets.put(name, .{ .image = image }) catch |err| util.crash.oom(err);
+            } else if (std.mem.endsWith(u8, asset.name, ".wav")) {
+                const sound = self.audio_player.loadSound(file_data) catch |err| {
+                    self.logger.err("failed to load sound from {s}: {s}", .{ asset.real_path, @errorName(err) });
+                    return error.AssertLoadFailed;
+                };
+
+                const name = self.allocator.dupe(u8, asset.name) catch |err| util.crash.oom(err);
+                self.assets.put(name, .{ .sound = sound }) catch |err| util.crash.oom(err);
+            } else {
+                self.logger.err("unsupported asset: {s}", .{asset.name});
+            }
         }
 
         if (self.calibration_state == .calibrated) {
@@ -614,8 +660,14 @@ pub const Runtime = struct {
         const image = if (!runtime.wasm.isNullptr(name)) cond: {
             const name_slice = name[0..name_len];
             runtime.logger.trace("simulo_create_material(\"{s}\", {d}, {d}, {d})", .{ name_slice, r, g, b });
-            if (runtime.assets.get(name_slice)) |image| {
-                break :cond image.?;
+            if (runtime.assets.get(name_slice)) |asset| {
+                switch (asset) {
+                    .image => |img| break :cond img,
+                    .sound => |_| {
+                        runtime.logger.err("tried to create material with sound asset {s}", .{name_slice});
+                        return 0;
+                    },
+                }
             } else {
                 runtime.logger.err("tried to create material with non-existent asset {s}", .{name_slice});
                 return 0;
