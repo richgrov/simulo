@@ -81,8 +81,9 @@ pub const PoseDetector = struct {
     profiler: Profiler,
     logger: Logger("pose", 2048),
     camera_id: []const u8,
+    transform: ?DMat3,
 
-    pub fn init(camera_id: []const u8) PoseDetector {
+    pub fn init(camera_id: []const u8, calibration_override: ?DMat3) PoseDetector {
         return PoseDetector{
             .output = DetectionSpsc.init(),
             .running = false,
@@ -90,6 +91,7 @@ pub const PoseDetector = struct {
             .profiler = Profiler.init(),
             .logger = Logger("pose", 2048).init(),
             .camera_id = camera_id,
+            .transform = calibration_override,
         };
     }
 
@@ -112,9 +114,6 @@ pub const PoseDetector = struct {
     }
 
     fn run(self: *PoseDetector) void {
-        var transform: DMat3 = undefined;
-
-        var calibrated = false;
         var calibrator = Calibrator.init() catch |err| {
             self.logEvent(.{ .fault = .{ .category = .calibrate_init, .err = err } });
             return;
@@ -143,16 +142,23 @@ pub const PoseDetector = struct {
             };
         }
 
-        const background_frame_idx = camera.swapBuffers() catch |err| {
-            self.logEvent(.{ .fault = .{ .category = .background_swap, .err = err } });
-            return;
-        };
+        if (self.transform == null) { // only if calibration not overridden
+            const background_frame_idx = camera.swapBuffers() catch |err| {
+                self.logEvent(.{ .fault = .{ .category = .background_swap, .err = err } });
+                return;
+            };
 
-        calibrator.setBackground(background_frame_idx) catch |err| {
-            self.logEvent(.{ .fault = .{ .category = .set_background, .err = err } });
-            return;
-        };
-        self.logEvent(.calibration_background_set);
+            calibrator.setBackground(background_frame_idx) catch |err| {
+                self.logEvent(.{ .fault = .{ .category = .set_background, .err = err } });
+                return;
+            };
+            self.logEvent(.calibration_background_set);
+        } else {
+            camera.setFloatMode([2][*]f32{
+                inference.input_buffers[0],
+                inference.input_buffers[1],
+            });
+        }
 
         while (@atomicLoad(bool, &self.running, .monotonic)) {
             defer self.profiler.reset();
@@ -164,25 +170,24 @@ pub const PoseDetector = struct {
 
             self.profiler.log(.camera_swap);
 
-            if (!calibrated) {
+            const transform = self.transform orelse {
                 const maybe_transform = calibrator.calibrate(frame_idx, CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT) catch |err| {
                     self.logEvent(.{ .fault = .{ .category = .calibrate, .err = err } });
                     continue;
                 };
 
                 if (maybe_transform) |out_transform| {
-                    transform = out_transform;
+                    self.transform = out_transform;
                     camera.setFloatMode([2][*]f32{
                         inference.input_buffers[0],
                         inference.input_buffers[1],
                     });
-                    calibrated = true;
                     self.logEvent(.calibration_calibrated);
                 }
 
                 self.profiler.log(.calibrate);
                 continue;
-            }
+            };
 
             last_detection_time = std.time.milliTimestamp();
             if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {

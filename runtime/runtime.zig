@@ -5,6 +5,7 @@ const Logger = @import("log.zig").Logger;
 const engine = @import("engine");
 const Profiler = engine.profiler.Profiler;
 const Mat4 = engine.math.Mat4;
+const DMat3 = engine.math.DMat3;
 
 const util = @import("util");
 const reflect = util.reflect;
@@ -90,7 +91,7 @@ pub const Runtime = struct {
     },
     was_running: bool,
 
-    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator, camera_id: []const u8) !void {
+    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator, camera_id: []const u8, skip_calibration: bool) !void {
         runtime.allocator = allocator;
         runtime.logger = Logger("runtime", 2048).init();
         runtime.remote = try Remote.init(allocator);
@@ -105,9 +106,9 @@ pub const Runtime = struct {
         runtime.last_window_height = 0;
         runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
         errdefer runtime.renderer.deinit();
-        runtime.pose_detector = PoseDetector.init(camera_id);
+        runtime.pose_detector = PoseDetector.init(camera_id, if (skip_calibration) DMat3.scale(.{ 1.0 / 640.0, 1.0 / 640.0 }) else null);
         errdefer runtime.pose_detector.stop();
-        runtime.calibration_state = .capturing_background;
+        runtime.calibration_state = if (skip_calibration) .calibrated else .capturing_background;
 
         runtime.wasm = try Wasm.init();
         errdefer runtime.wasm.deinit();
