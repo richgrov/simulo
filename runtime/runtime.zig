@@ -156,6 +156,7 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_set_buffers", wasmSetBuffers);
 
         try wasm.exposeFunction("simulo_create_rendered_object", wasmCreateRenderedObject);
+        try wasm.exposeFunction("simulo_create_rendered_object2", wasmCreateRenderedObject2);
         try wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
         try wasm.exposeFunction("simulo_set_rendered_object_transform", wasmSetRenderedObjectTransform);
         try wasm.exposeFunction("simulo_drop_rendered_object", wasmDropRenderedObject);
@@ -561,6 +562,22 @@ pub const Runtime = struct {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.logger.trace("simulo_create_rendered_object({d})", .{material_id});
         const obj = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), .{ .id = material_id }, 0) catch |err| util.crash.oom(err);
+        return obj.id;
+    }
+
+    fn wasmCreateRenderedObject2(env: *Wasm, material_id: u32, render_order: u32) u32 {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        if (render_order >= 16) {
+            runtime.logger.err("tried to create rendered object with render order {d}", .{render_order});
+            return 0;
+        }
+        runtime.logger.trace("simulo_create_rendered_object2({d}, {d})", .{ material_id, render_order });
+        const obj = runtime.renderer.addObject(
+            runtime.mesh,
+            Mat4.identity(),
+            .{ .id = material_id },
+            8 + @as(u8, @intCast(render_order)),
+        ) catch |err| util.crash.oom(err);
         return obj.id;
     }
 

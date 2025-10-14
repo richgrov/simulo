@@ -73,6 +73,6 @@ pub const EyeGuard = struct {
             return mask_obj_id;
         }
 
-        return renderer.addObject(self.mesh, transform, self.mask_material, 1) catch |err| util.crash.oom(err);
+        return renderer.addObject(self.mesh, transform, self.mask_material, 31) catch |err| util.crash.oom(err);
     }
 };
