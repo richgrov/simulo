@@ -10,35 +10,54 @@ const Logger = @import("../log.zig").Logger;
 var logger = Logger("opencv", 512).init();
 
 pub const Mat = struct {
-    mat: opencv.CvMat,
+    mat: *opencv.CvMat,
 
     pub fn init(rows: i32, cols: i32, mat_type: c.CvMatType) !Mat {
-        var mat: opencv.CvMat = undefined;
+        var mat: ?*opencv.CvMat = null;
         const status = opencv.mat_init(&mat, rows, cols, mat_type);
         try tryStatus(status);
         return Mat{
-            .mat = mat,
+            .mat = mat.?,
         };
     }
 
     pub fn deinit(self: *Mat) void {
-        const status = opencv.mat_release(&self.mat);
+        const status = opencv.mat_release(self.mat);
         tryStatus(status) catch |err| {
             logger.err("failed to release OpenCV mat: {s}", .{@errorName(err)});
         };
     }
 
-    pub fn data(self: *Mat) [*c]u8 {
-        return opencv.mat_data(&self.mat);
+    pub fn write(self: *Mat, path: [:0]const u8) !void {
+        const status = opencv.mat_write(self.mat, path.ptr);
+        try tryStatus(status);
     }
 
-    pub fn convert(self: *Mat, to: opencv.CvConvert) !void {
-        const status = opencv.mat_convert(&self.mat, &self.mat, to);
+    pub fn decodeFrom(self: *Mat, bytes: []const u8, flags: opencv.CvImreadFlags) void {
+        opencv.mat_decode(self.mat, bytes.ptr, @intCast(bytes.len), flags);
+    }
+
+    pub fn data(self: *Mat) [*c]u8 {
+        return opencv.mat_data(self.mat);
+    }
+
+    pub fn convert(self: *Mat, to: opencv.CvConvert, out: *Mat) !void {
+        const status = opencv.mat_convert(out.mat, self.mat, to);
+        try tryStatus(status);
+    }
+
+    pub fn copyTo(self: *Mat, other: *Mat) !void {
+        const status = opencv.mat_copy(other.mat, self.mat);
+        try tryStatus(status);
+    }
+
+    pub fn subtract(self: *Mat, other: *Mat, dest: *Mat) !void {
+        const status = opencv.mat_sub(dest.mat, self.mat, other.mat);
         try tryStatus(status);
     }
 
     //pub fn wrap(self: *Mat, data: [*]u8, rows: i32, cols: i32, mat_type: opencv.CvMatType) !void {
-    //    const status = opencv.mat_wrap(&self.mat, data, rows, cols, mat_type);
+    //    const status = opencv.mat_wrap(self.mat, data, rows, cols, mat_type);
     //    try tryStatus(status);
     //}
 
@@ -50,7 +69,7 @@ pub const Mat = struct {
     ) !?DMat3 {
         var transform: [9]f64 = undefined;
         var found: bool = undefined;
-        const status = opencv.find_chessboard_transform(&self.mat, pattern_width, pattern_height, flags, &transform, &found);
+        const status = opencv.find_chessboard_transform(self.mat, pattern_width, pattern_height, flags, &transform, &found);
         try tryStatus(status);
         if (!found) {
             return null;

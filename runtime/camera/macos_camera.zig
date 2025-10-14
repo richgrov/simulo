@@ -7,15 +7,17 @@ const ffi = @cImport({
     @cInclude("camera/macos_camera.h");
 });
 
+const Mat = @import("../opencv/opencv.zig").Mat;
+
 pub const MacOsCamera = struct {
     camera: ffi.Camera,
     logger: Logger("macos_camera", 2048),
 
-    pub fn init(out: [2][*]u8, device_id: []const u8) !MacOsCamera {
+    pub fn init(out: [2]*Mat, device_id: []const u8) !MacOsCamera {
         var logger = Logger("macos_camera", 2048).init();
 
         var camera = ffi.Camera{};
-        const err = ffi.init_camera(&camera, out[0], out[1], device_id.ptr, device_id.len);
+        const err = ffi.init_camera(&camera, out[0].data(), out[1].data(), device_id.ptr, device_id.len);
         switch (err) {
             ffi.ErrorNone => {},
             ffi.ErrorNoCamera => return error.NoCamera,

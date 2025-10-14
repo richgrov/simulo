@@ -1,19 +1,24 @@
 #include "opencv.h"
 
-#include <cstring>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+
+#include <cstring>
 #include <vector>
 
-CvStatus mat_init(CvMat *mat, int rows, int cols, CvMatType type) {
-   static_assert(sizeof(cv::Mat) == sizeof(CvMat));
-   static_assert(alignof(cv::Mat) == alignof(CvMat));
+CvStatus mat_init(CvMat **mat, int rows, int cols, CvMatType type) {
+   static_assert(Type8UC1 == CV_8UC1);
+   static_assert(Type8UC3 == CV_8UC3);
+   static_assert(Type8UC4 == CV_8UC4);
+   static_assert(Type32FC1 == CV_32FC1);
+   static_assert(Type32FC3 == CV_32FC3);
+   static_assert(Type32FC4 == CV_32FC4);
 
    try {
-      new (mat) cv::Mat(rows, cols, type);
+      *mat = new cv::Mat(rows, cols, type, cv::Scalar(125, 90, 0));
    } catch (const cv::Exception &e) {
       return static_cast<CvStatus>(e.code);
    } catch (const std::exception &e) {
@@ -41,8 +46,7 @@ CvStatus mat_convert(CvMat *out, const CvMat *in, CvConvert convert) {
 
 CvStatus mat_release(CvMat *mat) {
    try {
-      cv::Mat *m = reinterpret_cast<cv::Mat *>(mat);
-      m->release();
+      delete mat;
    } catch (const cv::Exception &e) {
       return static_cast<CvStatus>(e.code);
    } catch (const std::exception &e) {
@@ -53,9 +57,38 @@ CvStatus mat_release(CvMat *mat) {
    return StatOk;
 }
 
-CvStatus mat_wrap(CvMat *out, void *data, int rows, int cols, CvMatType type) {
+CvStatus mat_wrap(CvMat **out, void *data, int rows, int cols, CvMatType type) {
    try {
-      new (out) cv::Mat(rows, cols, type, data);
+      *out = new cv::Mat(rows, cols, type, data);
+   } catch (const cv::Exception &e) {
+      return static_cast<CvStatus>(e.code);
+   } catch (const std::exception &e) {
+      return StatStdException;
+   } catch (...) {
+      return StatUnknownException;
+   }
+   return StatOk;
+}
+
+CvStatus mat_copy(CvMat *out, const CvMat *in) {
+   try {
+      in->copyTo(*out);
+   } catch (const cv::Exception &e) {
+      return static_cast<CvStatus>(e.code);
+   } catch (const std::exception &e) {
+      return StatStdException;
+   } catch (...) {
+      return StatUnknownException;
+   }
+   return StatOk;
+}
+
+CvStatus mat_sub(CvMat *out, CvMat *in1, CvMat *in2) {
+   try {
+      cv::Mat *out_mat = reinterpret_cast<cv::Mat *>(out);
+      cv::Mat *in1_mat = reinterpret_cast<cv::Mat *>(in1);
+      cv::Mat *in2_mat = reinterpret_cast<cv::Mat *>(in2);
+      cv::absdiff(*in1_mat, *in2_mat, *out_mat);
    } catch (const cv::Exception &e) {
       return static_cast<CvStatus>(e.code);
    } catch (const std::exception &e) {
@@ -151,8 +184,7 @@ unsigned long long mat_total(const CvMat *m) {
    return static_cast<unsigned long long>(mat->total());
 }
 
-unsigned char *mat_data(CvMat *m) {
-   cv::Mat *mat = reinterpret_cast<cv::Mat *>(m);
+unsigned char *mat_data(CvMat *mat) {
    return mat->data;
 }
 

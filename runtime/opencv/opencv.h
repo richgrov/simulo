@@ -3,12 +3,17 @@
 #include <stdbool.h>
 
 #ifdef __cplusplus
-extern "C" {
-#endif
 
-typedef struct {
-   _Alignas(8) unsigned char data[96];
-} CvMat;
+#include <opencv2/core.hpp>
+typedef cv::Mat CvMat;
+
+extern "C" {
+#else
+
+struct CvMat;
+typedef struct CvMat CvMat;
+
+#endif
 
 typedef enum {
    Type8UC1 = 0,
@@ -371,11 +376,13 @@ typedef enum {
    CalibCbPlain = 256
 } CvCalibChessboardFlags;
 
-CvStatus mat_init(CvMat *out, int rows, int cols, CvMatType type);
+CvStatus mat_init(CvMat **out, int rows, int cols, CvMatType type);
 CvStatus mat_release(CvMat *mat);
 
 CvStatus mat_convert(CvMat *out, const CvMat *in, CvConvert convert);
-CvStatus mat_wrap(CvMat *out, void *data, int rows, int cols, CvMatType type);
+CvStatus mat_wrap(CvMat **out, void *data, int rows, int cols, CvMatType type);
+CvStatus mat_copy(CvMat *out, const CvMat *in);
+CvStatus mat_sub(CvMat *out, CvMat *in1, CvMat *in2);
 
 CvStatus mat_decode(CvMat *dst, const unsigned char *data, int data_len, CvImreadFlags flags);
 

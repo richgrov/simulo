@@ -33,6 +33,9 @@ pub const Wasm = struct {
     memory: []u8 = undefined,
     logger: Logger("wasm", 2048),
 
+    watchdog_thread: ?std.Thread = null,
+    running: bool = false,
+
     pub const Function = wasm.wasmtime_func_t;
 
     pub fn exposeFunction(self: *Wasm, comptime name: []const u8, func: anytype) !void {
@@ -156,7 +159,10 @@ pub const Wasm = struct {
     pub fn init() !Wasm {
         var logger = Logger("wasm", 2048).init();
 
-        const engine = wasm.wasm_engine_new() orelse return error.CreateWasmEngineFailed;
+        const config = wasm.wasm_config_new() orelse return error.CreateWasmConfigFailed;
+        wasm.wasmtime_config_epoch_interruption_set(config, true);
+
+        const engine = wasm.wasm_engine_new_with_config(config) orelse return error.CreateWasmEngineFailed;
         errdefer wasm.wasm_engine_delete(engine);
 
         const linker = wasm.wasmtime_linker_new(engine).?;
@@ -173,6 +179,25 @@ pub const Wasm = struct {
             .linker = linker,
             .logger = logger,
         };
+    }
+
+    pub fn startWatchdog(self: *Wasm) !void {
+        @atomicStore(bool, &self.running, true, .seq_cst);
+
+        const Watchdog = struct {
+            pub fn run(this: *Wasm) void {
+                while (@atomicLoad(bool, &this.running, .seq_cst)) {
+                    wasm.wasmtime_engine_increment_epoch(this.engine);
+                    std.Thread.sleep(std.time.ns_per_s);
+                }
+            }
+        };
+
+        self.watchdog_thread = try std.Thread.spawn(
+            .{},
+            Watchdog.run,
+            .{self},
+        );
     }
 
     pub fn load(self: *Wasm, data: []const u8) !void {
@@ -248,6 +273,11 @@ pub const Wasm = struct {
     }
 
     pub fn deinit(self: *Wasm) void {
+        @atomicStore(bool, &self.running, false, .seq_cst);
+        if (self.watchdog_thread) |*thread| {
+            thread.join();
+        }
+
         self.unload();
 
         wasm.wasmtime_linker_delete(self.linker);
@@ -295,6 +325,8 @@ pub const Wasm = struct {
                 else => @compileError("can't pass " ++ @typeName(Arg) ++ " to wasm function"),
             }
         }
+
+        wasm.wasmtime_context_set_epoch_deadline(self.context, 10);
 
         var trap: ?*wasm.wasm_trap_t = null;
         if (wasm.wasmtime_func_call(self.context, &func, &wasm_args, args.len, null, 0, &trap)) |err| {

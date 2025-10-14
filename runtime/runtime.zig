@@ -5,6 +5,7 @@ const Logger = @import("log.zig").Logger;
 const engine = @import("engine");
 const Profiler = engine.profiler.Profiler;
 const Mat4 = engine.math.Mat4;
+const DMat3 = engine.math.DMat3;
 
 const util = @import("util");
 const reflect = util.reflect;
@@ -78,14 +79,19 @@ pub const Runtime = struct {
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: Renderer.ObjectHandle,
     mesh: Renderer.MeshHandle,
-    calibrated: bool,
+    calibration_state: enum {
+        capturing_background,
+        capturing_chessboard,
+        calibrated,
+    },
     eyeguard: EyeGuard,
     schedule: ?struct {
         start_ms: u64,
         stop_ms: u64,
     },
+    was_running: bool,
 
-    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator, camera_id: []const u8) !void {
+    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator, camera_id: []const u8, skip_calibration: bool) !void {
         runtime.allocator = allocator;
         runtime.logger = Logger("runtime", 2048).init();
         runtime.remote = try Remote.init(allocator);
@@ -100,12 +106,13 @@ pub const Runtime = struct {
         runtime.last_window_height = 0;
         runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
         errdefer runtime.renderer.deinit();
-        runtime.pose_detector = PoseDetector.init(camera_id);
+        runtime.pose_detector = PoseDetector.init(camera_id, if (skip_calibration) DMat3.scale(.{ 1.0 / 640.0, 1.0 / 640.0 }) else null);
         errdefer runtime.pose_detector.stop();
-        runtime.calibrated = false;
+        runtime.calibration_state = if (skip_calibration) .calibrated else .capturing_background;
 
         runtime.wasm = try Wasm.init();
         errdefer runtime.wasm.deinit();
+        try runtime.wasm.startWatchdog();
         try registerWasmFuncs(&runtime.wasm);
         runtime.wasm_funcs = null;
         runtime.wasm_pose_buffer = null;
@@ -120,8 +127,12 @@ pub const Runtime = struct {
         runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.mesh, runtime.white_pixel_texture);
         errdefer runtime.eyeguard.deinit();
 
+        runtime.schedule = null;
+
         runtime.chessboard = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), chessboard_material, 1);
         errdefer runtime.renderer.deleteObject(runtime.chessboard);
+
+        runtime.was_running = false;
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -209,7 +220,7 @@ pub const Runtime = struct {
             self.assets.put(name, image) catch |err| util.crash.oom(err);
         }
 
-        if (self.calibrated) {
+        if (self.calibration_state == .calibrated) {
             _ = self.wasm.callFunction(init_func, .{}) catch unreachable;
 
             if (self.wasm_pose_buffer == null) {
@@ -301,8 +312,14 @@ pub const Runtime = struct {
             self.tryRunLatestProgram();
         }
 
-        try self.pose_detector.start();
         var last_time = std.time.milliTimestamp();
+
+        var time_of_day = @mod(last_time, 24 * 60 * 60 * 1000);
+        self.was_running = self.shouldRun(time_of_day);
+        self.logger.info("initial run state: {}", .{self.was_running});
+        if (self.was_running) {
+            try self.pose_detector.start();
+        }
 
         var frame_count: usize = 0;
         var second_timer: i64 = std.time.milliTimestamp();
@@ -324,6 +341,18 @@ pub const Runtime = struct {
             const delta = now - last_time;
             last_time = now;
 
+            time_of_day = @mod(now, 24 * 60 * 60 * 1000);
+            const run_state = self.shouldRun(time_of_day);
+            if (run_state != self.was_running) {
+                self.logger.info("run state changed: {} -> {}", .{ self.was_running, run_state });
+                if (run_state) {
+                    try self.pose_detector.start();
+                } else {
+                    self.pose_detector.stop();
+                }
+                self.was_running = run_state;
+            }
+
             const width = self.window.getWidth();
             const height = self.window.getHeight();
             profiler.log(.setup_frame);
@@ -336,7 +365,10 @@ pub const Runtime = struct {
                     self.renderer.handleResize(width, height, self.window.surface());
                 }
 
-                self.renderer.setObjectTransform(self.chessboard, if (self.calibrated) Mat4.zero() else Mat4.scale(.{ @floatFromInt(width), @floatFromInt(height), 1 }));
+                self.renderer.setObjectTransform(self.chessboard, switch (self.calibration_state) {
+                    .capturing_chessboard => Mat4.scale(.{ @floatFromInt(width), @floatFromInt(height), 1 }),
+                    else => Mat4.zero(),
+                });
 
                 profiler.log(.resize);
             }
@@ -344,21 +376,25 @@ pub const Runtime = struct {
             try self.processPoseDetections();
             profiler.log(.process_pose);
 
-            if (self.calibrated) {
+            if (self.calibration_state == .calibrated) {
                 const deltaf: f32 = @floatFromInt(delta);
                 _ = self.wasm.callFunction(self.wasm_funcs.?.update, .{deltaf / 1000.0}) catch unreachable;
                 profiler.log(.update);
             }
 
-            const ui_projection = Mat4.ortho(
-                @floatFromInt(self.last_window_width),
-                @floatFromInt(self.last_window_height),
-                -1.0,
-                1.0,
-            );
-            self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
-                self.logger.err("render failed: {any}", .{err});
-            };
+            if (self.was_running) {
+                const ui_projection = Mat4.ortho(
+                    @floatFromInt(self.last_window_width),
+                    @floatFromInt(self.last_window_height),
+                    -1.0,
+                    1.0,
+                );
+
+                self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
+                    self.logger.err("render failed: {any}", .{err});
+                };
+            }
+
             profiler.log(.render);
 
             while (self.remote.nextMessage()) |msg| {
@@ -411,11 +447,16 @@ pub const Runtime = struct {
                     },
                     .schedule => |maybe_schedule| {
                         if (maybe_schedule) |sched| {
+                            self.logger.info("remote set schedule to {D}-{D}", .{
+                                sched.start_ms * std.time.ns_per_ms,
+                                sched.stop_ms * std.time.ns_per_ms,
+                            });
                             self.schedule = .{
                                 .start_ms = sched.start_ms,
                                 .stop_ms = sched.stop_ms,
                             };
                         } else {
+                            self.logger.info("remote removed schedule", .{});
                             self.schedule = null;
                         }
                     },
@@ -443,8 +484,13 @@ pub const Runtime = struct {
 
         while (self.pose_detector.nextEvent()) |event| {
             switch (event) {
-                .calibrated => {
-                    self.calibrated = true;
+                .calibration_background_set => {
+                    self.logger.info("capturing chessboard", .{});
+                    self.calibration_state = .capturing_chessboard;
+                    self.renderer.setObjectTransform(self.chessboard, Mat4.scale(.{ width, height, 1 }));
+                },
+                .calibration_calibrated => {
+                    self.calibration_state = .calibrated;
 
                     if (self.wasm_pose_buffer == null) {
                         if (self.wasm_funcs) |funcs| {
@@ -483,7 +529,7 @@ pub const Runtime = struct {
                 },
                 .fault => |fault| {
                     switch (fault.category) {
-                        .camera_init, .inference_init, .calibrate_init => {
+                        .camera_init, .inference_init, .calibrate_init, .camera_stall, .background_swap, .set_background => {
                             self.logger.err("pose detector fatal fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
                             return fault.err;
                         },
@@ -569,6 +615,20 @@ pub const Runtime = struct {
     fn wasmUpdateMaterial(env: *Wasm, id: u32, r: f32, g: f32, b: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.renderer.updateMaterial(.{ .id = id }, r, g, b);
+    }
+
+    fn shouldRun(self: *Runtime, time_of_day: i64) bool {
+        const time: u64 = @intCast(time_of_day);
+        if (self.schedule) |sched| {
+            if (sched.start_ms > sched.stop_ms) {
+                // the active schedule runs over midnight across two days
+                return time >= sched.start_ms or time <= sched.stop_ms;
+            }
+
+            return time >= sched.start_ms and time <= sched.stop_ms;
+        } else {
+            return true;
+        }
     }
 };
 

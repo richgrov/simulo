@@ -39,6 +39,7 @@
    self = [super init];
    if (self) {
       buffers = buffers_;
+      buffer_written = false;
    }
    return self;
 }
