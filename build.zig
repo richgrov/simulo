@@ -90,14 +90,22 @@ pub fn build(b: *std.Build) !void {
     //    editor.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
     //}
 
+    const headers = translateHeaders(b, target, optimize) catch @panic("Unable to translate header files");
+
     const runtime = createRuntime(b, optimize, target);
     runtime.addOptions("build_options", options);
     runtime.addImport("engine", engine);
     runtime.addImport("util", util);
+    runtime.addImport("vulkan", headers);
     runtime.addRPathSpecial("@executable_path/../Frameworks");
-    const bundle_step = try bundleExe(b, "runtime", runtime, target.result.os.tag, &[_][]const u8{
-        "runtime/inference/rtmo-m.onnx",
-    });
+
+    const bundle_step = try bundleExe(
+        b,
+        "runtime",
+        runtime,
+        target.result.os.tag,
+        &[_][]const u8{"runtime/inference/rtmo-m.onnx"},
+    );
     check_step.dependOn(bundle_step);
     b.getInstallStep().dependOn(bundle_step);
 
@@ -306,4 +314,28 @@ fn setupExecutable(b: *std.Build, mod: *std.Build.Step.Compile) void {
 
 fn usesVulkan(os: std.Target.Os.Tag) bool {
     return os == .windows or os == .linux;
+}
+
+fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*std.Build.Module {
+    const vulkan_sdk_env = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch @panic("VULKAN_SDK environment variable is not set");
+    defer b.allocator.free(vulkan_sdk_env);
+
+    const vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "{s}/include", .{vulkan_sdk_env});
+    const vulkan_include_h = try std.fmt.allocPrint(b.allocator, "{s}/include/vulkan/vulkan.h", .{vulkan_sdk_env});
+    defer b.allocator.free(vulkan_include_dir);
+    defer b.allocator.free(vulkan_include_h);
+
+    const translate_vulkan = b.addTranslateC(.{
+        .root_source_file = .{ .cwd_relative = vulkan_include_h },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    translate_vulkan.addIncludePath(.{ .cwd_relative = vulkan_include_dir });
+
+    if (target.result.os.tag == .macos) {
+        translate_vulkan.defineCMacro("VK_USE_PLATFORM_METAL_EXT", "1");
+    }
+
+    return translate_vulkan.createModule();
 }
