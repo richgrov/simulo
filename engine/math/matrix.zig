@@ -63,19 +63,23 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             };
         }
 
-        pub fn scale(v: @Vector(rows - 1, f32)) Matrix(f32, rows, rows) {
+        pub fn scale(v: @Vector(rows - 1, T)) Matrix(T, rows, rows) {
             if (rows != cols) {
                 @compileError("matrix must be square to scale");
             }
 
-            return .{
-                .data = [_]@Vector(rows, f32){
-                    .{ v[0], 0, 0, 0 },
-                    .{ 0, v[1], 0, 0 },
-                    .{ 0, 0, v[2], 0 },
-                    .{ 0, 0, 0, 1 },
-                },
-            };
+            var data: [cols]@Vector(rows, T) = undefined;
+            inline for (0..cols) |i| {
+                var vec: @Vector(rows, T) = @splat(0.0);
+                if (i == cols - 1) {
+                    vec[rows - 1] = 1.0;
+                } else {
+                    vec[i] = v[i];
+                }
+                data[i] = vec;
+            }
+
+            return .{ .data = data };
         }
 
         pub fn fromRowMajorPtr(p: [*]const T) Self {
@@ -208,4 +212,50 @@ test "matrix multiply and vector multiply" {
     const vec_res = a.vecmul(vec);
     try std.testing.expectEqual(@as(f32, 5), vec_res[0]);
     try std.testing.expectEqual(@as(f32, 11), vec_res[1]);
+}
+
+test "scale 2x2" {
+    const Mat2 = Matrix(f32, 2, 2);
+    const s = @Vector(1, f32){3.0};
+    const scale_mat = Mat2.scale(s);
+    try std.testing.expectEqual(@as(f32, 3.0), scale_mat.data[0][0]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[0][1]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[1][0]);
+    try std.testing.expectEqual(@as(f32, 1.0), scale_mat.data[1][1]);
+}
+
+test "scale 3x3" {
+    const Mat3 = Matrix(f64, 3, 3);
+    const v = @Vector(2, f64){ 2.0, 4.0 };
+    const scale_mat = Mat3.scale(v);
+    try std.testing.expectEqual(@as(f64, 2.0), scale_mat.data[0][0]);
+    try std.testing.expectEqual(@as(f64, 0.0), scale_mat.data[0][1]);
+    try std.testing.expectEqual(@as(f64, 0.0), scale_mat.data[0][2]);
+    try std.testing.expectEqual(@as(f64, 0.0), scale_mat.data[1][0]);
+    try std.testing.expectEqual(@as(f64, 4.0), scale_mat.data[1][1]);
+    try std.testing.expectEqual(@as(f64, 0.0), scale_mat.data[1][2]);
+    try std.testing.expectEqual(@as(f64, 0.0), scale_mat.data[2][0]);
+    try std.testing.expectEqual(@as(f64, 0.0), scale_mat.data[2][1]);
+    try std.testing.expectEqual(@as(f64, 1.0), scale_mat.data[2][2]);
+}
+
+test "scale 4x4 with different values" {
+    const v = @Vector(3, f32){ 1.0, 2.0, 3.0 };
+    const scale_mat = Mat4.scale(v);
+    try std.testing.expectEqual(@as(f32, 1.0), scale_mat.data[0][0]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[0][1]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[0][2]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[0][3]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[1][0]);
+    try std.testing.expectEqual(@as(f32, 2.0), scale_mat.data[1][1]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[1][2]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[1][3]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[2][0]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[2][1]);
+    try std.testing.expectEqual(@as(f32, 3.0), scale_mat.data[2][2]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[2][3]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[3][0]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[3][1]);
+    try std.testing.expectEqual(@as(f32, 0.0), scale_mat.data[3][2]);
+    try std.testing.expectEqual(@as(f32, 1.0), scale_mat.data[3][3]);
 }
