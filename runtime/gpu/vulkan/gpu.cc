@@ -58,7 +58,14 @@ Gpu::Gpu() {
 #ifdef VKAD_WINDOWS
        "VK_KHR_win32_surface",
 #elif defined(VKAD_LINUX)
+
+#ifdef(SIMULO_KIOSK)
+      "VK_KHR_display",
+      "VK_KHR_get_display_properties2",
+#else
        Window::running_on_wayland() ? "VK_KHR_wayland_surface" : "VK_KHR_xlib_surface",
+#endif
+
 #endif
    };
 

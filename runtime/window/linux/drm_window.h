@@ -1,0 +1,45 @@
+#pragma once
+
+#include <vulkan/vulkan_core.h>
+
+#include "gpu/vulkan/gpu.h"
+
+class Window {
+public:
+   Window(const Gpu &vk_instance, const char *display_name);
+
+   ~Window() {}
+
+   bool poll() = 0;
+
+   void set_capture_mouse(bool capture) {} // not supported
+
+   void request_close() = 0;
+
+   VkSurfaceKHR surface() const;
+
+   int width() const;
+
+   int height() const;
+
+   int mouse_x() const { return 0; } // not supported
+
+   int mouse_y() const { return 0; } // not supported
+
+   int delta_mouse_x() const { return 0; } // not supported
+
+   int delta_mouse_y() const { return 0; } // not supported
+
+   bool left_clicking() const { return false; } // not supported
+
+   bool is_key_down(uint8_t key_code) const { return false; } // not supported
+
+   bool key_just_pressed(uint8_t key_code) const { return false; } // not supported
+
+   std::string_view typed_chars() const { return std::string_view(); } // not supported
+
+private:
+    VkDisplayKHR display_;
+    int width_;
+    int height_;
+};

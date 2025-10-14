@@ -92,7 +92,7 @@ pub fn build(b: *std.Build) !void {
 
     const headers = translateHeaders(b, target, optimize) catch @panic("Unable to translate header files");
 
-    const runtime = createRuntime(b, optimize, target);
+    const runtime = createRuntime(b, optimize, target, cloud);
     runtime.addOptions("build_options", options);
     runtime.addImport("engine", engine);
     runtime.addImport("util", util);
@@ -206,7 +206,7 @@ fn createEngine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     return engine;
 }
 
-fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget) *std.Build.Module {
+fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.Build.ResolvedTarget, kiosk: bool) *std.Build.Module {
     const runtime = b.createModule(.{
         .target = target,
         .optimize = optimize,
@@ -216,6 +216,10 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
     runtime.link_libcpp = true;
     runtime.linkSystemLibrary("onnxruntime", .{});
     runtime.linkSystemLibrary("wasmtime", .{});
+
+    if (kiosk) {
+        runtime.addCMacro("SIMULO_KIOSK", "1");
+    }
 
     var cpp_sources = ArrayList([]const u8).initCapacity(b.allocator, 32) catch unreachable;
     defer cpp_sources.deinit(b.allocator);
