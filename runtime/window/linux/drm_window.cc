@@ -28,25 +28,27 @@ VkDisplayModeKHR best_display_mode(VkPhysicalDevice physical_device, VkDisplayKH
             mode.parameters.refreshRate
         );
     }
+    std::cout.flush();
     throw std::runtime_error("not implemented");
 }
 
-Window::Window(const Gpu &gpu, const char *display_name) {
+Window::Window(const Gpu &gpu, const char *window_title) {
+    (void)window_title;
+
     uint32_t n_displays;
     VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(gpu.physical_device(), &n_displays, nullptr));
 
     std::vector<VkDisplayProperties2KHR> displays(n_displays);
     VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(gpu.physical_device(), &n_displays, displays.data()));
 
+    // Code is structured like this in case we want to add conditions in the loop later on
     bool found = false;
     for (const auto &display : displays) {
-        if (std::strcmp(display.displayProperties.displayName, display_name) == 0) {
-            display_ = display.displayProperties.display;
-            width_ = static_cast<int>(display.displayProperties.physicalResolution.width);
-            height_ = static_cast<int>(display.displayProperties.physicalResolution.height);
-            found = true;
-            break;
-        }
+        display_ = display.displayProperties.display;
+        width_ = static_cast<int>(display.displayProperties.physicalResolution.width);
+        height_ = static_cast<int>(display.displayProperties.physicalResolution.height);
+        found = true;
+        break;
     }
 
     if (!found) {
@@ -58,7 +60,8 @@ Window::Window(const Gpu &gpu, const char *display_name) {
                 display.displayProperties.physicalResolution.height
             );
         }
-        throw std::runtime_error(std::format("display {} not found", display_name));
+        std::cout.flush();
+        throw std::runtime_error(std::format("display not found"));
     }
 
     best_display_mode(gpu.physical_device(), display_);
