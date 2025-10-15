@@ -1,20 +1,25 @@
 #pragma once
 
+#include <string_view>
+
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/vulkan/gpu.h"
+#include "gpu/vulkan/physical_device.h"
+
+namespace simulo {
 
 class Window {
 public:
-   Window(const Gpu &vk_instance, const char *display_name);
+   Window(const Gpu &vk_instance, const PhysicalDevice &physical_device, const char *display_name);
 
    ~Window() {}
 
-   bool poll() = 0;
+   bool poll() { return true; }
 
    void set_capture_mouse(bool capture) {} // not supported
 
-   void request_close() = 0;
+   void request_close() {}
 
    VkSurfaceKHR surface() const;
 
@@ -43,3 +48,5 @@ private:
     int width_;
     int height_;
 };
+
+} // namespace simulo

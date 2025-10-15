@@ -5,19 +5,21 @@
 #include <cstdint>
 #include <cstring>
 #include <format>
+#include <iostream>
 #include <stdexcept>
 #include <vector>
 
 #include "gpu/vulkan/status.h"
+#include "gpu/vulkan/physical_device.h"
 
 using namespace simulo;
 
-Window::Window(const Gpu &vk_instance, const char *display_name) {
+Window::Window(const Gpu &vk_instance, const PhysicalDevice &physical_device, const char *display_name) {
     uint32_t n_displays;
-    VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(vk_instance.physical_device(), &n_displays, nullptr));
+    VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(physical_device.handle(), &n_displays, nullptr));
 
     std::vector<VkDisplayProperties2KHR> displays(n_displays);
-    VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(vk_instance.physical_device(), &n_displays, displays.data()));
+    VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(physical_device.handle(), &n_displays, displays.data()));
 
     bool found = false;
     for (const auto &display : displays) {
@@ -42,30 +44,30 @@ Window::Window(const Gpu &vk_instance, const char *display_name) {
         throw std::runtime_error(std::format("display {} not found", display_name));
     }
 
-    best_display_mode(display_);
+    best_display_mode(physical_device, display_);
     /*VkDisplaySurfaceCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR,
         .pNext = nullptr,
         .flags = 0,
-        .displayMode = best_display_mode(display_),
+        .displayMode = best_display_mode(physical_device, display_),
     };
 
     vkCreateDisplayPlaneSurfaceKHR(vk_instance.instance(), &vk_create_info, nullptr, &surface_);*/
 }
 
-VkDisplayModeKHR best_display_mode(VkDisplayKHR display) {
+VkDisplayModeKHR best_display_mode(const PhysicalDevice &physical_device, VkDisplayKHR display) {
     uint32_t n_modes;
-    VKAD_VK(vkGetDisplayModePropertiesKHR(vk_instance.physical_device(), display, &n_modes, nullptr));
+    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device.handle(), display, &n_modes, nullptr));
 
     std::vector<VkDisplayModePropertiesKHR> modes(n_modes);
-    VKAD_VK(vkGetDisplayModePropertiesKHR(vk_instance.physical_device(), display, &n_modes, modes.data()));
+    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device.handle(), display, &n_modes, modes.data()));
 
     for (const auto &mode : modes) {
         std::cout << std::format(
             "mode: {}x{}, {}Hz\n",
-            mode.displayModeProperties.physicalResolution.width,
-            mode.displayModeProperties.physicalResolution.height,
-            mode.displayModeProperties.refreshRate
+            mode.parameters.visibleRegion.width,
+            mode.parameters.visibleRegion.height,
+            mode.parameters.refreshRate
         );
     }
     throw std::runtime_error("not implemented");
