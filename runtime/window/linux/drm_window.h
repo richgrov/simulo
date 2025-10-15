@@ -12,7 +12,7 @@ class Window {
 public:
    Window(const Gpu &vk_instance, const char *display_name);
 
-   ~Window() {}
+   ~Window();
 
    bool poll() { return true; }
 

@@ -13,23 +13,35 @@
 
 using namespace simulo;
 
-VkDisplayModeKHR best_display_mode(VkPhysicalDevice physical_device, VkDisplayKHR display) {
+VkDisplayModeKHR best_display_mode(VkPhysicalDevice physical_device, VkDisplayKHR display, VkExtent2D *out_extent) {
     uint32_t n_modes;
     VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device, display, &n_modes, nullptr));
+
+    if (n_modes == 0) {
+        throw std::runtime_error("no display modes found");
+    }
 
     std::vector<VkDisplayModePropertiesKHR> modes(n_modes);
     VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device, display, &n_modes, modes.data()));
 
+    VkExtent2D biggest_size = {0, 0};
+    uint32_t greatest_refresh_rate = 0;
+    VkDisplayModeKHR best_mode;
+
     for (const auto &mode : modes) {
-        std::cout << std::format(
-            "mode: {}x{}, {}Hz\n",
-            mode.parameters.visibleRegion.width,
-            mode.parameters.visibleRegion.height,
-            mode.parameters.refreshRate
-        );
+        if (mode.parameters.visibleRegion.width > biggest_size.width) {
+            biggest_size = mode.parameters.visibleRegion;
+            greatest_refresh_rate = mode.parameters.refreshRate;
+            best_mode = mode.displayMode;
+        } else if (mode.parameters.visibleRegion.width == biggest_size.width && mode.parameters.refreshRate > greatest_refresh_rate) {
+            biggest_size = mode.parameters.visibleRegion;
+            greatest_refresh_rate = mode.parameters.refreshRate;
+            best_mode = mode.displayMode;
+        }
     }
-    std::cout.flush();
-    throw std::runtime_error("not implemented");
+
+    *out_extent = biggest_size;
+    return best_mode;
 }
 
 Window::Window(const Gpu &gpu, const char *window_title) {
@@ -64,13 +76,31 @@ Window::Window(const Gpu &gpu, const char *window_title) {
         throw std::runtime_error(std::format("display not found"));
     }
 
-    best_display_mode(gpu.physical_device(), display_);
-    /*VkDisplaySurfaceCreateInfoKHR create_info = {
+    uint32_t n_planes;
+    VKAD_VK(vkGetPhysicalDeviceDisplayPlanePropertiesKHR(gpu.physical_device(), &n_planes, nullptr));
+
+    std::vector<VkDisplayPlanePropertiesKHR> planes(n_planes);
+    VKAD_VK(vkGetPhysicalDeviceDisplayPlanePropertiesKHR(gpu.physical_device(), &n_planes, planes.data()));
+
+    const uint32_t plane = 0;
+
+    VkExtent2D extent;
+    VkDisplayModeKHR display_mode = best_display_mode(gpu.physical_device(), display_, &extent_);
+    VkDisplaySurfaceCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR,
         .pNext = nullptr,
         .flags = 0,
-        .displayMode = best_display_mode(gpu.physical_device(), display_),
+        .displayMode = display_mode,
+        .planeIndex = plane,
+        .planeStackIndex = planes[plane].currentStackIndex,
+        .transform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+        .alphaMode = VK_DISPLAY_PLANE_ALPHA_GLOBAL_BIT_KHR,
+        .imageExtent = extent,
     };
 
-    vkCreateDisplayPlaneSurfaceKHR(gpu.instance(), &vk_create_info, nullptr, &surface_);*/
+    vkCreateDisplayPlaneSurfaceKHR(gpu.instance(), &create_info, nullptr, &surface_);
+}
+
+Window::~Window() {
+    vkDestroySurfaceKHR(gpu.instance(), surface_, nullptr);
 }
