@@ -289,7 +289,6 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
             "runtime/gpu/vulkan/gpu.cc",
             "runtime/gpu/vulkan/image.cc",
             "runtime/gpu/vulkan/pipeline.cc",
-            "runtime/gpu/vulkan/physical_device.cc",
             "runtime/gpu/vulkan/shader.cc",
             "runtime/gpu/vulkan/swapchain.cc",
             "runtime/gpu/vulkan/buffer.cc",
