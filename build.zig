@@ -256,6 +256,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
     } else if (os == .linux) {
         cpp_sources.appendSlice(b.allocator, &[_][]const u8{
             "runtime/camera/mjpg.cc",
+            "runtime/window/linux/drm_window.cc",
             "runtime/window/linux/wl_deleter.cc",
             "runtime/window/linux/wl_window.cc",
             "runtime/window/linux/x11_window.cc",
