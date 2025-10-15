@@ -186,7 +186,7 @@ Mesh create_mesh(
            VK_BUFFER_USAGE_TRANSFER_DST_BIT
        ),
        static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-       renderer->device().handle(), renderer->physical_device()
+       renderer->device().handle(), renderer->vk_instance_.physical_device()
    );
 
    mesh.num_indices = index_count;
