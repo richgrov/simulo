@@ -20,11 +20,11 @@ public:
 
    void request_close() {}
 
-   VkSurfaceKHR surface() const;
+   inline VkSurfaceKHR surface() const { return surface_; }
 
-   int width() const;
+   inline int width() const { return width_; }
 
-   int height() const;
+   inline int height() const { return height_; }
 
    int mouse_x() const { return 0; } // not supported
 
@@ -46,6 +46,7 @@ private:
     VkDisplayKHR display_;
     int width_;
     int height_;
+    VkSurfaceKHR surface_;
 };
 
 inline std::unique_ptr<Window> create_window(const Gpu &vk_instance, const char *title) {
