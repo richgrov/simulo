@@ -31,7 +31,15 @@ Window::Window(const Gpu &vk_instance, const char *display_name) {
     }
 
     if (!found) {
-        throw std::runtime_error(std::format("display {} not found. options: {}", display_name, displays));
+        for (const auto &display : displays) {
+            std::cout << std::format(
+                "display '{}', {}x{}\n",
+                display.displayProperties.displayName,
+                display.displayProperties.physicalResolution.width,
+                display.displayProperties.physicalResolution.height
+            );
+        }
+        throw std::runtime_error(std::format("display {} not found", display_name));
     }
 
     best_display_mode(display_);
@@ -52,5 +60,13 @@ VkDisplayModeKHR best_display_mode(VkDisplayKHR display) {
     std::vector<VkDisplayModePropertiesKHR> modes(n_modes);
     VKAD_VK(vkGetDisplayModePropertiesKHR(vk_instance.physical_device(), display, &n_modes, modes.data()));
 
-    throw std::runtime_error(std::format("modes: {}", modes));
+    for (const auto &mode : modes) {
+        std::cout << std::format(
+            "mode: {}x{}, {}Hz\n",
+            mode.displayModeProperties.physicalResolution.width,
+            mode.displayModeProperties.physicalResolution.height,
+            mode.displayModeProperties.refreshRate
+        );
+    }
+    throw std::runtime_error("not implemented");
 }
