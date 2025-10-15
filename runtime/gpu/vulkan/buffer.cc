@@ -4,7 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "physical_device.h"
+#include "gpu.h"
 #include "status.h"
 #include "util/memory.h"
 
@@ -13,7 +13,7 @@ using namespace simulo;
 void simulo::buffer_init(
     VkBuffer *buffer, VkDeviceMemory *allocation, size_t size, VkBufferUsageFlags usage,
     VkMemoryPropertyFlagBits memory_properties, VkDevice device,
-    const PhysicalDevice &physical_device
+    const Gpu &gpu
 ) {
    VkBufferCreateInfo create_info = {
        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -30,7 +30,7 @@ void simulo::buffer_init(
        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
        .allocationSize = requirements.size,
        .memoryTypeIndex =
-           physical_device.find_memory_type_index(requirements.memoryTypeBits, memory_properties),
+           gpu.find_memory_type_index(requirements.memoryTypeBits, memory_properties),
    };
 
    VKAD_VK(vkAllocateMemory(device, &alloc_info, nullptr, allocation));
@@ -43,7 +43,7 @@ void simulo::buffer_destroy(VkBuffer *buffer, VkDeviceMemory *allocation, VkDevi
 }
 
 StagingBuffer::StagingBuffer(
-    VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
+    VkDeviceSize capacity, VkDevice device, const Gpu &gpu
 )
     : capacity_(capacity), size_(0), device_(device) {
 
@@ -52,7 +52,7 @@ StagingBuffer::StagingBuffer(
        static_cast<VkMemoryPropertyFlagBits>(
            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
        ),
-       device, physical_device
+       device, gpu
    );
    vkMapMemory(device, allocation_, 0, capacity, 0, &mem_map_);
 }
@@ -86,15 +86,15 @@ void StagingBuffer::upload_mesh(
 
 UniformBuffer::UniformBuffer(
     VkDeviceSize element_size, VkDeviceSize num_elements, VkDevice device,
-    const PhysicalDevice &physical_device
+    const Gpu &gpu
 )
-    : element_size_(align_to(element_size, physical_device.min_uniform_alignment())),
+    : element_size_(align_to(element_size, gpu.min_uniform_alignment())),
       device_(device) {
 
    buffer_init(
        &buffer_, &allocation_, element_size_ * num_elements, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
        static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT), device,
-       physical_device
+       gpu
    );
 
    vkMapMemory(device, allocation_, 0, element_size_ * num_elements, 0, &mem_map_);

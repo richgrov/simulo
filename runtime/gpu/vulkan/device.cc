@@ -10,9 +10,9 @@
 
 using namespace simulo;
 
-Device::Device(const PhysicalDevice &physical_device) {
+Device::Device(const Gpu &gpu) {
    std::set<uint32_t> unique_queue_families = {
-       physical_device.graphics_queue(), physical_device.present_queue()
+       gpu.graphics_queue(), gpu.present_queue()
    };
 
    std::vector<VkDeviceQueueCreateInfo> create_queues;
@@ -43,10 +43,10 @@ Device::Device(const PhysicalDevice &physical_device) {
        .ppEnabledExtensionNames = &swapchain_extension,
        .pEnabledFeatures = &physical_device_features,
    };
-   VKAD_VK(vkCreateDevice(physical_device.handle(), &create_info, nullptr, &device_));
+   VKAD_VK(vkCreateDevice(gpu.physical_device(), &create_info, nullptr, &device_));
 
-   vkGetDeviceQueue(device_, physical_device.graphics_queue(), 0, &graphics_queue_);
-   vkGetDeviceQueue(device_, physical_device.present_queue(), 0, &present_queue_);
+   vkGetDeviceQueue(device_, gpu.graphics_queue(), 0, &graphics_queue_);
+   vkGetDeviceQueue(device_, gpu.present_queue(), 0, &present_queue_);
 }
 
 Device::~Device() {

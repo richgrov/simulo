@@ -24,8 +24,29 @@ public:
       return instance_;
    }
 
+   inline VkPhysicalDevice physical_device() const {
+      return physical_device_;
+   }
+
+   inline VkDeviceSize min_uniform_alignment() const {
+      return min_uniform_alignment_;
+   }
+
+   inline VkPhysicalDeviceMemoryProperties mem_properties() const {
+      return mem_properties_;
+   }
+
+   bool initialize_surface(VkSurfaceKHR surface);
+
+   uint32_t find_memory_type_index(uint32_t supported_bits, VkMemoryPropertyFlagBits extra) const;
+
 private:
+   bool find_queue_families(VkPhysicalDevice candidate_device, VkSurfaceKHR surface);
+
    VkInstance instance_;
+   VkPhysicalDevice physical_device_;
+   VkDeviceSize min_uniform_alignment_;
+   VkPhysicalDeviceMemoryProperties mem_properties_;
 };
 
 } // namespace simulo

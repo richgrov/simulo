@@ -5,13 +5,12 @@
 #include <vulkan/vulkan_core.h>
 
 #include "gpu/vulkan/gpu.h"
-#include "gpu/vulkan/physical_device.h"
 
 namespace simulo {
 
 class Window {
 public:
-   Window(const Gpu &vk_instance, const PhysicalDevice &physical_device, const char *display_name);
+   Window(const Gpu &vk_instance, const char *display_name);
 
    ~Window() {}
 
@@ -48,5 +47,10 @@ private:
     int width_;
     int height_;
 };
+
+inline std::unique_ptr<Window> create_window(const Gpu &vk_instance, const char *title) {
+    return std::make_unique<Window>(vk_instance, title);
+}
+
 
 } // namespace simulo

@@ -99,6 +99,15 @@ CvStatus mat_sub(CvMat *out, CvMat *in1, CvMat *in2) {
    return StatOk;
 }
 
+/*CvStatus mat_write(CvMat *out, const CvMat *in, CvImwriteFlags flags) {
+   try {
+      auto *in_mat = reinterpret_cast<const cv::Mat *>(in);
+      cv::Mat *out_mat = reinterpret_cast<cv::Mat *>(out);
+      cv::imencode(".png", flags, *in_mat, *out_mat);
+   }
+   return StatOk;
+}*/
+
 CvStatus mat_decode(CvMat *dst, const unsigned char *data, int data_len, CvImreadFlags flags) {
    try {
       auto *dst_mat = reinterpret_cast<cv::Mat *>(dst);

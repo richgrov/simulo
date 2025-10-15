@@ -17,7 +17,6 @@
 #include "gpu/vulkan/device.h"
 #include "gpu/vulkan/gpu.h"
 #include "gpu/vulkan/image.h"
-#include "gpu/vulkan/physical_device.h"
 #include "gpu/vulkan/pipeline.h"
 #include "gpu/vulkan/shader.h"
 #include "gpu/vulkan/swapchain.h"
@@ -84,10 +83,6 @@ public:
       return device_;
    }
 
-   inline PhysicalDevice &physical_device() {
-      return physical_device_;
-   }
-
    inline VkSampler image_sampler() const {
       return sampler_;
    }
@@ -132,7 +127,6 @@ public:
    };
 
    Gpu &vk_instance_;
-   PhysicalDevice physical_device_;
    Device device_;
    Swapchain swapchain_;
    VkRenderPass render_pass_;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "physical_device.h"
+#include "gpu.h"
 #include <vulkan/vulkan_core.h>
 
 namespace simulo {
@@ -8,7 +8,7 @@ namespace simulo {
 class Image {
 public:
    Image(
-       const PhysicalDevice &physical_device, VkDevice device, VkImageUsageFlags usage,
+       const Gpu &gpu, VkDevice device, VkImageUsageFlags usage,
        VkFormat format, uint32_t width, uint32_t height
    );
 

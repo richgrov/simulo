@@ -2,13 +2,13 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "physical_device.h"
+#include "gpu.h"
 
 namespace simulo {
 
 class Device {
 public:
-   Device(const PhysicalDevice &physical_device);
+   Device(const Gpu &gpu);
    ~Device();
 
    Device(const Device &other) = delete;

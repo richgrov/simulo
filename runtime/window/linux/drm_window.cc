@@ -10,16 +10,15 @@
 #include <vector>
 
 #include "gpu/vulkan/status.h"
-#include "gpu/vulkan/physical_device.h"
 
 using namespace simulo;
 
-VkDisplayModeKHR best_display_mode(const PhysicalDevice &physical_device, VkDisplayKHR display) {
+VkDisplayModeKHR best_display_mode(const Gpu &gpu, VkDisplayKHR display) {
     uint32_t n_modes;
-    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device.handle(), display, &n_modes, nullptr));
+    VKAD_VK(vkGetDisplayModePropertiesKHR(gpu.physical_device(), display, &n_modes, nullptr));
 
     std::vector<VkDisplayModePropertiesKHR> modes(n_modes);
-    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device.handle(), display, &n_modes, modes.data()));
+    VKAD_VK(vkGetDisplayModePropertiesKHR(gpu.physical_device(), display, &n_modes, modes.data()));
 
     for (const auto &mode : modes) {
         std::cout << std::format(
@@ -32,12 +31,12 @@ VkDisplayModeKHR best_display_mode(const PhysicalDevice &physical_device, VkDisp
     throw std::runtime_error("not implemented");
 }
 
-Window::Window(const Gpu &vk_instance, const PhysicalDevice &physical_device, const char *display_name) {
+Window::Window(const Gpu &gpu, const char *display_name) {
     uint32_t n_displays;
-    VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(physical_device.handle(), &n_displays, nullptr));
+    VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(gpu.physical_device(), &n_displays, nullptr));
 
     std::vector<VkDisplayProperties2KHR> displays(n_displays);
-    VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(physical_device.handle(), &n_displays, displays.data()));
+    VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(gpu.physical_device(), &n_displays, displays.data()));
 
     bool found = false;
     for (const auto &display : displays) {
@@ -62,13 +61,13 @@ Window::Window(const Gpu &vk_instance, const PhysicalDevice &physical_device, co
         throw std::runtime_error(std::format("display {} not found", display_name));
     }
 
-    best_display_mode(physical_device, display_);
+    best_display_mode(gpu.physical_device(), display_);
     /*VkDisplaySurfaceCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR,
         .pNext = nullptr,
         .flags = 0,
-        .displayMode = best_display_mode(physical_device, display_),
+        .displayMode = best_display_mode(gpu.physical_device(), display_),
     };
 
-    vkCreateDisplayPlaneSurfaceKHR(vk_instance.instance(), &vk_create_info, nullptr, &surface_);*/
+    vkCreateDisplayPlaneSurfaceKHR(gpu.instance(), &vk_create_info, nullptr, &surface_);*/
 }
