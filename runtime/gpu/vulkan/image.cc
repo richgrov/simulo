@@ -7,7 +7,7 @@
 using namespace simulo;
 
 Image::Image(
-    const PhysicalDevice &physical_device, VkDevice device, VkImageUsageFlags usage,
+    const Gpu &gpu, VkDevice device, VkImageUsageFlags usage,
     VkFormat format, uint32_t width, uint32_t height
 )
     : view_(VK_NULL_HANDLE), format_(format), device_(device), layout_(VK_IMAGE_LAYOUT_UNDEFINED),
@@ -33,7 +33,7 @@ Image::Image(
    VkMemoryAllocateInfo alloc = {
        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
        .allocationSize = img_mem.size,
-       .memoryTypeIndex = physical_device.find_memory_type_index(
+       .memoryTypeIndex = gpu.find_memory_type_index(
            img_mem.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
        ),
    };

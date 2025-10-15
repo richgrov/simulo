@@ -96,6 +96,7 @@ void *get_window_surface(const Window *window) {
 }
 
 Renderer *create_renderer(Gpu *gpu, const Window *window) {
+   gpu->initialize_surface(window->surface());
    return new Renderer(*gpu, window->surface(), window->width(), window->height());
 }
 
