@@ -44,7 +44,7 @@ VkDisplayModeKHR best_display_mode(VkPhysicalDevice physical_device, VkDisplayKH
     return best_mode;
 }
 
-Window::Window(const Gpu &gpu, const char *window_title) {
+Window::Window(const Gpu &gpu, const char *window_title) : vk_instance_(gpu.instance()) {
     (void)window_title;
 
     uint32_t n_displays;
@@ -85,7 +85,7 @@ Window::Window(const Gpu &gpu, const char *window_title) {
     const uint32_t plane = 0;
 
     VkExtent2D extent;
-    VkDisplayModeKHR display_mode = best_display_mode(gpu.physical_device(), display_, &extent_);
+    VkDisplayModeKHR display_mode = best_display_mode(gpu.physical_device(), display_, &extent);
     VkDisplaySurfaceCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR,
         .pNext = nullptr,
@@ -102,5 +102,5 @@ Window::Window(const Gpu &gpu, const char *window_title) {
 }
 
 Window::~Window() {
-    vkDestroySurfaceKHR(gpu.instance(), surface_, nullptr);
+    vkDestroySurfaceKHR(vk_instance_, surface_, nullptr);
 }

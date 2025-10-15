@@ -43,6 +43,7 @@ public:
    std::string_view typed_chars() const { return std::string_view(); } // not supported
 
 private:
+    VkInstance vk_instance_;
     VkDisplayKHR display_;
     int width_;
     int height_;
