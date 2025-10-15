@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "status.h"
+#include "swapchain.h"
 #include "util/memory.h"
 #include "util/os_detect.h"
 #ifdef VKAD_LINUX

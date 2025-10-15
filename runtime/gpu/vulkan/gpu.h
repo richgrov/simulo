@@ -38,6 +38,14 @@ public:
 
    bool initialize_surface(VkSurfaceKHR surface);
 
+   inline uint32_t graphics_queue() const {
+      return graphics_queue_;
+   }
+
+   inline uint32_t present_queue() const {
+      return present_queue_;
+   }
+
    uint32_t find_memory_type_index(uint32_t supported_bits, VkMemoryPropertyFlagBits extra) const;
 
 private:
@@ -47,6 +55,8 @@ private:
    VkPhysicalDevice physical_device_;
    VkDeviceSize min_uniform_alignment_;
    VkPhysicalDeviceMemoryProperties mem_properties_;
+   uint32_t graphics_queue_;
+   uint32_t present_queue_;
 };
 
 } // namespace simulo

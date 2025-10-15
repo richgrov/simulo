@@ -13,12 +13,12 @@
 
 using namespace simulo;
 
-VkDisplayModeKHR best_display_mode(const Gpu &gpu, VkDisplayKHR display) {
+VkDisplayModeKHR best_display_mode(VkPhysicalDevice physical_device, VkDisplayKHR display) {
     uint32_t n_modes;
-    VKAD_VK(vkGetDisplayModePropertiesKHR(gpu.physical_device(), display, &n_modes, nullptr));
+    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device, display, &n_modes, nullptr));
 
     std::vector<VkDisplayModePropertiesKHR> modes(n_modes);
-    VKAD_VK(vkGetDisplayModePropertiesKHR(gpu.physical_device(), display, &n_modes, modes.data()));
+    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device, display, &n_modes, modes.data()));
 
     for (const auto &mode : modes) {
         std::cout << std::format(
