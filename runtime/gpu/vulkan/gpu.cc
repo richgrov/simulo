@@ -59,7 +59,7 @@ Gpu::Gpu() {
        "VK_KHR_win32_surface",
 #elif defined(VKAD_LINUX)
 
-#ifdef(SIMULO_KIOSK)
+#ifdef SIMULO_KIOSK
       "VK_KHR_display",
       "VK_KHR_get_display_properties2",
 #else

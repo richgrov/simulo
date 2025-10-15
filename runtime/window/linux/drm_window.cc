@@ -14,6 +14,24 @@
 
 using namespace simulo;
 
+VkDisplayModeKHR best_display_mode(const PhysicalDevice &physical_device, VkDisplayKHR display) {
+    uint32_t n_modes;
+    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device.handle(), display, &n_modes, nullptr));
+
+    std::vector<VkDisplayModePropertiesKHR> modes(n_modes);
+    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device.handle(), display, &n_modes, modes.data()));
+
+    for (const auto &mode : modes) {
+        std::cout << std::format(
+            "mode: {}x{}, {}Hz\n",
+            mode.parameters.visibleRegion.width,
+            mode.parameters.visibleRegion.height,
+            mode.parameters.refreshRate
+        );
+    }
+    throw std::runtime_error("not implemented");
+}
+
 Window::Window(const Gpu &vk_instance, const PhysicalDevice &physical_device, const char *display_name) {
     uint32_t n_displays;
     VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(physical_device.handle(), &n_displays, nullptr));
@@ -53,22 +71,4 @@ Window::Window(const Gpu &vk_instance, const PhysicalDevice &physical_device, co
     };
 
     vkCreateDisplayPlaneSurfaceKHR(vk_instance.instance(), &vk_create_info, nullptr, &surface_);*/
-}
-
-VkDisplayModeKHR best_display_mode(const PhysicalDevice &physical_device, VkDisplayKHR display) {
-    uint32_t n_modes;
-    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device.handle(), display, &n_modes, nullptr));
-
-    std::vector<VkDisplayModePropertiesKHR> modes(n_modes);
-    VKAD_VK(vkGetDisplayModePropertiesKHR(physical_device.handle(), display, &n_modes, modes.data()));
-
-    for (const auto &mode : modes) {
-        std::cout << std::format(
-            "mode: {}x{}, {}Hz\n",
-            mode.parameters.visibleRegion.width,
-            mode.parameters.visibleRegion.height,
-            mode.parameters.refreshRate
-        );
-    }
-    throw std::runtime_error("not implemented");
 }
