@@ -50,31 +50,17 @@ Window::Window(const Gpu &gpu, const char *window_title) : vk_instance_(gpu.inst
     uint32_t n_displays;
     VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(gpu.physical_device(), &n_displays, nullptr));
 
+    if (n_displays == 0) {
+        throw std::runtime_error("no displays found");
+    }
+
     std::vector<VkDisplayProperties2KHR> displays(n_displays);
     VKAD_VK(vkGetPhysicalDeviceDisplayProperties2KHR(gpu.physical_device(), &n_displays, displays.data()));
 
-    // Code is structured like this in case we want to add conditions in the loop later on
-    bool found = false;
-    for (const auto &display : displays) {
-        display_ = display.displayProperties.display;
-        width_ = static_cast<int>(display.displayProperties.physicalResolution.width);
-        height_ = static_cast<int>(display.displayProperties.physicalResolution.height);
-        found = true;
-        break;
-    }
-
-    if (!found) {
-        for (const auto &display : displays) {
-            std::cout << std::format(
-                "display '{}', {}x{}\n",
-                display.displayProperties.displayName,
-                display.displayProperties.physicalResolution.width,
-                display.displayProperties.physicalResolution.height
-            );
-        }
-        std::cout.flush();
-        throw std::runtime_error(std::format("display not found"));
-    }
+    VkDisplayProperties2KHR display = displays[0];
+    display_ = display.displayProperties.display;
+    width_ = static_cast<int>(display.displayProperties.physicalResolution.width);
+    height_ = static_cast<int>(display.displayProperties.physicalResolution.height);
 
     uint32_t n_planes;
     VKAD_VK(vkGetPhysicalDeviceDisplayPlanePropertiesKHR(gpu.physical_device(), &n_planes, nullptr));
