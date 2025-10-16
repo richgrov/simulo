@@ -42,7 +42,7 @@ pub fn readCachedFile(hash: *const [32]u8, allocator: std.mem.Allocator, max_siz
     };
 }
 
-pub fn storeLatestProgram(program_hash: *const [32]u8, assets: []const ProgramAsset) !void {
+pub fn storeLatestProgram(program_path: [:0]const u8, assets: []const ProgramAsset) !void {
     var latest_info_buf: [128]u8 = undefined;
     const latest_info_path = getFilePath(&latest_info_buf, "latest") catch unreachable;
     const latest_info = try std.fs.cwd().createFile(latest_info_path, .{});
@@ -50,11 +50,13 @@ pub fn storeLatestProgram(program_hash: *const [32]u8, assets: []const ProgramAs
 
     var writer_struct = latest_info.writer(&.{});
     var writer = &writer_struct.interface;
-    try writer.writeAll(&[_]u8{1}); // version
-    try writer.writeAll(program_hash);
+    try writer.writeAll(&[_]u8{2}); // version
+    try writer.writeAll(program_path);
+    try writer.writeAll(&[_]u8{0});
     try writer.writeInt(u8, @intCast(assets.len), .big);
     for (assets) |asset| {
-        try writer.writeAll(&asset.hash);
+        try writer.writeAll(asset.real_path);
+        try writer.writeAll(&[_]u8{0});
         const name = asset.name.?;
         try writer.writeInt(u8, @intCast(name.len), .big);
         try writer.writeAll(name.items());
@@ -65,15 +67,15 @@ pub const max_asset_name_len = 64;
 
 pub const ProgramAsset = struct {
     name: ?FixedArrayList(u8, max_asset_name_len),
-    hash: [32]u8,
+    real_path: [:0]const u8,
 };
 
 pub const ProgramInfo = struct {
-    program_hash: [32]u8,
+    program_path: [:0]const u8,
     assets: FixedArrayList(ProgramAsset, 16),
 };
 
-pub fn loadLatestProgram() !?ProgramInfo {
+pub fn loadLatestProgram(allocator: std.mem.Allocator) !?ProgramInfo {
     var latest_info_buf: [128]u8 = undefined;
     const latest_info_path = getFilePath(&latest_info_buf, "latest") catch unreachable;
     const latest_info = std.fs.cwd().openFile(latest_info_path, .{}) catch |err| {
@@ -90,10 +92,17 @@ pub fn loadLatestProgram() !?ProgramInfo {
 
     var version: [1]u8 = undefined;
     try reader.readSliceEndian(u8, &version, .big);
-    if (version[0] > 1) return error.InvalidVersion;
+    if (version[0] > 2) return error.InvalidVersion;
 
-    var program_hash: [32]u8 = undefined;
-    try reader.readSliceAll(&program_hash);
+    const program_path: [:0]const u8 = if (version[0] >= 2) blk: {
+        const path = try reader.takeDelimiterInclusive(0);
+        break :blk @ptrCast(try allocator.dupe(u8, path));
+    } else blk: {
+        var program_hash: [32]u8 = undefined;
+        try reader.readSliceAll(&program_hash);
+        break :blk try getCachePathAlloc(allocator, &program_hash);
+    };
+    errdefer allocator.free(program_path);
 
     var num_assets: [1]u8 = undefined;
     try reader.readSliceEndian(u8, &num_assets, .big);
@@ -101,8 +110,16 @@ pub fn loadLatestProgram() !?ProgramInfo {
 
     var assets = FixedArrayList(ProgramAsset, 16).init();
     for (0..num_assets[0]) |_| {
-        var hash: [32]u8 = undefined;
-        try reader.readSliceAll(&hash);
+        const real_path: [:0]const u8 = if (version[0] >= 2) blk: {
+            const path = try reader.takeDelimiterInclusive(0);
+            break :blk @ptrCast(try allocator.dupe(u8, path));
+        } else blk: {
+            var hash: [32]u8 = undefined;
+            try reader.readSliceAll(&hash);
+
+            break :blk try getCachePathAlloc(allocator, &hash);
+        };
+        defer allocator.free(real_path);
 
         var maybe_name: ?FixedArrayList(u8, max_asset_name_len) = null;
         if (version[0] > 0) {
@@ -119,12 +136,12 @@ pub fn loadLatestProgram() !?ProgramInfo {
 
         try assets.append(.{
             .name = maybe_name,
-            .hash = hash,
+            .real_path = real_path,
         });
     }
 
     return ProgramInfo{
-        .program_hash = program_hash,
+        .program_path = program_path,
         .assets = assets,
     };
 }

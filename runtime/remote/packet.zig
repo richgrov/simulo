@@ -7,7 +7,9 @@ const util = @import("util");
 const engine = @import("engine");
 const profile = engine.profiler;
 
-const Reader = struct {
+const Remote = @import("./remote.zig").Remote;
+
+pub const Reader = struct {
     data: []const u8,
     read_index: usize,
 
@@ -115,76 +117,22 @@ pub fn outboundProfile(profiler: []const u8, labels: profile.Labels, logs: []con
     return writer;
 }
 
-pub const DownloadFile = struct {
-    url: []const u8,
-    asset: fs_storage.ProgramAsset,
-};
-
 pub const Packet = union(enum) {
     download: struct {
-        program_url: []const u8,
-        program_hash: [32]u8,
-        files: []const DownloadFile,
+        program_path: [:0]const u8,
+        files: []const fs_storage.ProgramAsset,
     },
     schedule: ?struct {
         start_ms: u64,
         stop_ms: u64,
     },
 
-    pub fn from(allocator: std.mem.Allocator, data: []const u8) !Packet {
-        var reader = Reader.init(data);
-        switch (try reader.readInt(u8)) {
-            0 => {
-                const program_url = try reader.readString(1024, allocator);
-                var program_hash: [32]u8 = undefined;
-                try reader.readFull(&program_hash);
-
-                const num_files = try reader.readInt(u8);
-                if (num_files > 16) {
-                    return error.InvalidNumFiles;
-                }
-
-                const files = try allocator.alloc(DownloadFile, num_files);
-                for (files) |*file| {
-                    const name = try reader.readString(fs_storage.max_asset_name_len, allocator);
-                    defer allocator.free(name);
-                    file.asset.name = util.FixedArrayList(u8, fs_storage.max_asset_name_len).initFrom(name) catch unreachable;
-
-                    file.url = try reader.readString(1024, allocator);
-
-                    try reader.readFull(&file.asset.hash);
-                }
-
-                return Packet{ .download = .{
-                    .program_url = program_url,
-                    .program_hash = program_hash,
-                    .files = files,
-                } };
-            },
-            1 => {
-                const has_schedule = try reader.readInt(u8);
-                if (has_schedule == 0) {
-                    return Packet{ .schedule = null };
-                }
-
-                const start_ms = try reader.readInt(u64);
-                const stop_ms = try reader.readInt(u64);
-
-                return Packet{ .schedule = .{
-                    .start_ms = start_ms,
-                    .stop_ms = stop_ms,
-                } };
-            },
-            else => return error.UnknownPacketId,
-        }
-    }
-
     pub fn deinit(self: *Packet, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .download => |download| {
-                allocator.free(download.program_url);
+                allocator.free(download.program_path);
                 for (download.files) |file| {
-                    allocator.free(file.url);
+                    allocator.free(file.real_path);
                 }
                 allocator.free(download.files);
             },

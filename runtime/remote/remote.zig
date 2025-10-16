@@ -164,7 +164,7 @@ pub const Remote = struct {
             return;
         };
 
-        const pkt = packet.Packet.from(self.allocator, b64_buf[0..len]) catch |err| {
+        const pkt = self.parsePacket(self.allocator, b64_buf[0..len]) catch |err| {
             self.logger.err("invalid event: {s}: {x}", .{ @errorName(err), b64_buf[0..len] });
             return;
         };
@@ -228,6 +228,79 @@ pub const Remote = struct {
         const length = try download.download(url, dest, self.allocator);
         self.logger.debug("Downloaded {d} bytes", .{length});
         try dest.setEndPos(length);
+    }
+
+    fn parsePacket(self: *Remote, allocator: std.mem.Allocator, data: []const u8) !Packet {
+        var reader = packet.Reader.init(data);
+        switch (try reader.readInt(u8)) {
+            0 => {
+                var encountered_error = false;
+
+                const program_url = try reader.readString(1024, allocator);
+                var program_hash: [32]u8 = undefined;
+                try reader.readFull(&program_hash);
+
+                const program_path = fs_storage.getCachePathAlloc(allocator, &program_hash) catch unreachable;
+                errdefer allocator.free(program_path);
+
+                self.fetch(program_url, &program_hash, program_path) catch |err| {
+                    self.logger.err("program download failed: {s}", .{@errorName(err)});
+                    encountered_error = true;
+                };
+
+                const num_files = try reader.readInt(u8);
+                if (num_files > 16) {
+                    return error.InvalidNumFiles;
+                }
+
+                const files = try allocator.alloc(fs_storage.ProgramAsset, num_files);
+                errdefer allocator.free(files);
+                for (files) |*file| {
+                    const name = try reader.readString(fs_storage.max_asset_name_len, allocator);
+                    defer allocator.free(name);
+                    file.name = util.FixedArrayList(u8, fs_storage.max_asset_name_len).initFrom(name) catch unreachable;
+
+                    const url = try reader.readString(1024, allocator);
+                    defer allocator.free(url);
+
+                    var hash: [32]u8 = undefined;
+                    try reader.readFull(&hash);
+                    const dest_path = fs_storage.getCachePathAlloc(allocator, &hash) catch unreachable;
+                    errdefer allocator.free(dest_path);
+
+                    self.fetch(url, &hash, dest_path) catch |err| {
+                        self.logger.err("asset download failed: {s}", .{@errorName(err)});
+                        encountered_error = true;
+                    };
+
+                    file.real_path = dest_path;
+                }
+
+                if (encountered_error) {
+                    return error.ProgramDownloadEncounteredError;
+                }
+
+                return Packet{ .download = .{
+                    .program_path = program_path,
+                    .files = files,
+                } };
+            },
+            1 => {
+                const has_schedule = try reader.readInt(u8);
+                if (has_schedule == 0) {
+                    return Packet{ .schedule = null };
+                }
+
+                const start_ms = try reader.readInt(u64);
+                const stop_ms = try reader.readInt(u64);
+
+                return Packet{ .schedule = .{
+                    .start_ms = start_ms,
+                    .stop_ms = stop_ms,
+                } };
+            },
+            else => return error.UnknownPacketId,
+        }
     }
 };
 
