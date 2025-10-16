@@ -53,6 +53,9 @@ const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 1.0, 0.0 }, .tex_coord = .{ 0.0, 1.0 } },
 };
 
+const FIRST_PROGRAM_VISIBLE_RENDER_LAYER = 8;
+const MAX_PROGRAM_VISIBLE_RENDER_LAYERS = 16;
+
 const Asset = struct {
     name: []const u8,
     real_path: []const u8,
@@ -150,18 +153,7 @@ pub const Runtime = struct {
         self.wasm.deinit();
         self.eyeguard.deinit();
 
-        var asset_iterator = self.assets.iterator();
-        while (asset_iterator.next()) |entry| {
-            self.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .sound => |*sound| {
-                    self.audio_player.unloadSound(sound);
-                },
-                .image => |_| {
-                    // TODO: delete image if present
-                },
-            }
-        }
+        self.disposeCurrentProgram();
         self.assets.deinit();
         //self.audio_player.deinit();
 
@@ -190,25 +182,11 @@ pub const Runtime = struct {
     }
 
     fn runProgram(self: *Runtime, program_path: []const u8, assets: []const Asset) !void {
-        var assets_keys = self.assets.iterator();
-        while (assets_keys.next()) |entry| {
-            self.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .sound => |*sound| {
-                    self.audio_player.unloadSound(sound);
-                },
-                .image => |_| {
-                    // TODO: delete image if present
-                },
-            }
-        }
-        self.assets.clearRetainingCapacity();
+        self.disposeCurrentProgram();
 
         self.logger.info("Reading program from {s}", .{program_path});
         const data = try std.fs.cwd().readFileAlloc(self.allocator, program_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
-
-        self.renderer.clearUiMaterials();
 
         try self.wasm.load(data);
 
@@ -228,7 +206,6 @@ pub const Runtime = struct {
                 return error.MissingFunction;
             },
         };
-        self.wasm_pose_buffer = null;
 
         for (assets) |*asset| {
             const file_data = std.fs.cwd().readFileAlloc(self.allocator, asset.real_path, 10 * 1024 * 1024) catch |err| {
@@ -274,6 +251,30 @@ pub const Runtime = struct {
                 return error.BuffersNotInitialized;
             }
         }
+    }
+
+    fn disposeCurrentProgram(self: *Runtime) void {
+        var assets_keys = self.assets.iterator();
+        while (assets_keys.next()) |entry| {
+            self.allocator.free(entry.key_ptr.*);
+            switch (entry.value_ptr.*) {
+                .sound => |*sound| {
+                    self.audio_player.unloadSound(sound);
+                },
+                .image => |_| {
+                    // TODO: delete image if present
+                },
+            }
+        }
+        self.assets.clearRetainingCapacity();
+
+        self.wasm_funcs = null;
+        self.wasm_pose_buffer = null;
+
+        for (FIRST_PROGRAM_VISIBLE_RENDER_LAYER..FIRST_PROGRAM_VISIBLE_RENDER_LAYER + MAX_PROGRAM_VISIBLE_RENDER_LAYERS) |layer| {
+            self.renderer.clearLayer(@intCast(layer));
+        }
+        self.renderer.clearUiMaterials();
     }
 
     fn runLocalProgram(self: *Runtime, path: []const u8) !void {
@@ -607,13 +608,18 @@ pub const Runtime = struct {
     fn wasmCreateRenderedObject(env: *Wasm, material_id: u32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.logger.trace("simulo_create_rendered_object({d})", .{material_id});
-        const obj = runtime.renderer.addObject(runtime.mesh, Mat4.identity(), .{ .id = material_id }, 0) catch |err| util.crash.oom(err);
+        const obj = runtime.renderer.addObject(
+            runtime.mesh,
+            Mat4.identity(),
+            .{ .id = material_id },
+            FIRST_PROGRAM_VISIBLE_RENDER_LAYER,
+        ) catch |err| util.crash.oom(err);
         return obj.id;
     }
 
     fn wasmCreateRenderedObject2(env: *Wasm, material_id: u32, render_order: u32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        if (render_order >= 16) {
+        if (render_order >= MAX_PROGRAM_VISIBLE_RENDER_LAYERS) {
             runtime.logger.err("tried to create rendered object with render order {d}", .{render_order});
             return 0;
         }
@@ -622,7 +628,7 @@ pub const Runtime = struct {
             runtime.mesh,
             Mat4.identity(),
             .{ .id = material_id },
-            8 + @as(u8, @intCast(render_order)),
+            FIRST_PROGRAM_VISIBLE_RENDER_LAYER + @as(u8, @intCast(render_order)),
         ) catch |err| util.crash.oom(err);
         return obj.id;
     }

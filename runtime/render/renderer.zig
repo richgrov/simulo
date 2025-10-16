@@ -236,7 +236,29 @@ pub const Renderer = struct {
         self.unrefMaterial(obj.material);
     }
 
-    pub fn deleteMaterial(self: *Renderer, material: MaterialHandle) void {
+    pub fn clearLayer(self: *Renderer, layer: u8) void {
+        const collection = &self.render_collections[layer];
+        var material_passes = collection.material_passes.valueIterator();
+        while (material_passes.next()) |material_pass_id| {
+            const material_pass = self.material_passes.get(material_pass_id.*).?;
+            var mesh_passes = material_pass.mesh_passes.valueIterator();
+
+            while (mesh_passes.next()) |mesh_pass_id| {
+                const mesh_pass = self.mesh_passes.get(mesh_pass_id.*).?;
+                var objects = mesh_pass.objects.iterator();
+
+                while (objects.next()) |object_id| {
+                    const object = self.objects.get(object_id).?;
+                    self.objects.delete(object_id) catch unreachable;
+                    material_pass.object_count -= 1;
+                    self.unrefMaterial(object.material);
+                }
+                mesh_pass.objects.clear();
+            }
+        }
+    }
+
+    fn deleteMaterial(self: *Renderer, material: MaterialHandle) void {
         for (&self.render_collections) |*collection| {
             const material_pass_id = collection.material_passes.get(material.id) orelse continue;
             const material_pass = self.material_passes.get(material_pass_id).?;
