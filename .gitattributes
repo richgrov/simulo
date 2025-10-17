@@ -1,6 +1,8 @@
+/legacy-editor/vendor/* linguist-vendored
+/runtime/window/linux/*-protocol.[ch] linguist-vendored=true
+/runtime/audio/miniaudio.h linguist-vendored=true
+
 *.png filter=lfs diff=lfs merge=lfs -text
-/src/vendor/* linguist-vendored
-/src/window/linux/*-protocol.[ch] linguist-vendored=true
 *.ttf filter=lfs diff=lfs merge=lfs -text
 .github/logo.svg filter=lfs diff=lfs merge=lfs -text
 *.onnx filter=lfs diff=lfs merge=lfs -text
