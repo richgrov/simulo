@@ -317,13 +317,27 @@ fn usesVulkan(os: std.Target.Os.Tag) bool {
 }
 
 fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*std.Build.Module {
-    const vulkan_sdk_env = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch @panic("VULKAN_SDK environment variable is not set");
-    defer b.allocator.free(vulkan_sdk_env);
-
-    const vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "{s}/include", .{vulkan_sdk_env});
-    const vulkan_include_h = try std.fmt.allocPrint(b.allocator, "{s}/include/vulkan/vulkan.h", .{vulkan_sdk_env});
+    var vulkan_include_dir: []u8 = undefined;
+    var vulkan_include_h: []u8 = undefined;
     defer b.allocator.free(vulkan_include_dir);
     defer b.allocator.free(vulkan_include_h);
+
+    switch (target.result.os.tag) {
+        .macos => {
+            const vulkan_sdk_env = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch @panic("VULKAN_SDK environment variable is not set");
+            defer b.allocator.free(vulkan_sdk_env);
+
+            vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "{s}/include", .{vulkan_sdk_env});
+            vulkan_include_h = try std.fmt.allocPrint(b.allocator, "{s}/include/vulkan/vulkan.h", .{vulkan_sdk_env});
+        },
+        .linux => {
+            vulkan_include_h = try std.fmt.allocPrint(b.allocator, "/usr/include/vulkan/vulkan.h", .{});
+            vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "/usr/include/vulkan", .{});
+        },
+        else => |os| {
+            std.debug.panic("Unsupported OS: {any}\n", .{os});
+        },
+    }
 
     const translate_vulkan = b.addTranslateC(.{
         .root_source_file = .{ .cwd_relative = vulkan_include_h },

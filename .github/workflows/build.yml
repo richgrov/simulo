@@ -55,6 +55,13 @@ jobs:
           curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-osx-arm64-1.22.0.tgz -o onnxruntime.tgz
           tar -xzf onnxruntime.tgz -C extern/onnxruntime --strip-components=1
 
+      - name: Download Vulkan SDK
+        run: |
+          export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
+          curl -O https://sdk.lunarg.com/sdk/download/latest/mac/vulkan_sdk.zip
+          sudo ./vulkansdk-macOS-${VULKAN_SDK_VERSION}.app/Contents/MacOS/vulkansdk-macOS-${VULKAN_SDK_VERSION} --root ~/VulkanSDK/${VULKAN_SDK_VERSION} --accept-licenses --default-answer --confirm-command install com.lunarg.vulkan.core com.lunarg.vulkan.usr com.lunarg.vulkan.sdl2 com.lunarg.vulkan.glm com.lunarg.vulkan.volk com.lunarg.vulkan.vma
+          export VULKAN_SDK=~/VulkanSDK/${VULKAN_SDK_VERSION}/macOS
+
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
