@@ -6,21 +6,21 @@
 #include <vulkan/vulkan_core.h>
 
 #include "ffi.h"
-#include "physical_device.h"
+#include "gpu.h"
 
 namespace simulo {
 
 void buffer_init(
     VkBuffer *buffer, VkDeviceMemory *allocation, size_t size, VkBufferUsageFlags usage,
     VkMemoryPropertyFlagBits memory_properties, VkDevice device,
-    const PhysicalDevice &physical_device
+    const Gpu &gpu
 );
 void buffer_destroy(VkBuffer *buffer, VkDeviceMemory *allocation, VkDevice device);
 
 class StagingBuffer {
 public:
    explicit StagingBuffer(
-       VkDeviceSize capacity, VkDevice device, const PhysicalDevice &physical_device
+       VkDeviceSize capacity, VkDevice device, const Gpu &gpu
    );
 
    StagingBuffer(const StagingBuffer &) = delete;
@@ -62,7 +62,7 @@ class UniformBuffer {
 public:
    explicit UniformBuffer(
        VkDeviceSize element_size, VkDeviceSize num_elements, VkDevice device,
-       const PhysicalDevice &physical_device
+       const Gpu &gpu
    );
 
    UniformBuffer(const UniformBuffer &) = delete;

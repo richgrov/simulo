@@ -8,7 +8,6 @@
 #include "ffi.h"
 #include "gpu/vulkan/buffer.h"
 #include "gpu/vulkan/gpu.h"
-#include "gpu/vulkan/physical_device.h"
 #include "gpu/vulkan/pipeline.h"
 #include "gpu/vulkan/status.h"
 #include "gpu/vulkan/swapchain.h"
@@ -23,15 +22,14 @@ Renderer::Renderer(
     Gpu &vk_instance, VkSurfaceKHR surface, uint32_t initial_width, uint32_t initial_height
 )
     : vk_instance_(vk_instance),
-      physical_device_(vk_instance_, surface),
-      device_(physical_device_),
+      device_(vk_instance_),
       swapchain_(
-          {physical_device_.graphics_queue(), physical_device_.present_queue()},
-          physical_device_.handle(), device_.handle(), surface, initial_width, initial_height
+          {vk_instance_.graphics_queue(), vk_instance_.present_queue()},
+          vk_instance_.physical_device(), device_.handle(), surface, initial_width, initial_height
       ),
       render_pass_(VK_NULL_HANDLE),
       images_(4),
-      staging_buffer_(1024 * 1024 * 8, device_.handle(), physical_device_) {
+      staging_buffer_(1024 * 1024 * 8, device_.handle(), vk_instance_) {
 
    VkAttachmentDescription color_attachment = {
        .format = swapchain_.img_format(),
@@ -89,7 +87,7 @@ Renderer::Renderer(
    };
    VKAD_VK(vkCreateSampler(device_.handle(), &sampler_create, nullptr, &sampler_));
 
-   command_pool_.init(device_.handle(), physical_device_.graphics_queue());
+   command_pool_.init(device_.handle(), vk_instance_.graphics_queue());
    command_buffer_ = command_pool_.allocate();
 
    VkSemaphoreCreateInfo semaphore_create = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
@@ -188,7 +186,7 @@ Mesh create_mesh(
            VK_BUFFER_USAGE_TRANSFER_DST_BIT
        ),
        static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-       renderer->device().handle(), renderer->physical_device()
+       renderer->device().handle(), renderer->vk_instance_
    );
 
    mesh.num_indices = index_count;
@@ -211,7 +209,7 @@ void delete_material(Renderer *renderer, Material *material) {
 
 RenderImage Renderer::create_image(std::span<uint8_t> img_data, int width, int height) {
    int image_id = images_.emplace(
-       physical_device_, device_.handle(),
+       vk_instance_, device_.handle(),
        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FORMAT_R8G8B8A8_UNORM,
        width, height
    );
@@ -330,7 +328,7 @@ RenderPipeline Renderer::create_pipeline(
                create_descriptor_pool(device_.handle(), layout, sizes, material_capacity),
            .uniform_slot_usage = 0,
            .uniforms =
-               UniformBuffer(uniform_size, material_capacity, device_.handle(), physical_device_),
+               UniformBuffer(uniform_size, material_capacity, device_.handle(), vk_instance_),
            .vertex_shader = std::move(vertex),
            .fragment_shader = std::move(fragment),
        }
@@ -346,8 +344,8 @@ void recreate_swapchain(Renderer *renderer, int32_t width, int32_t height, void 
 
    renderer->swapchain_.dispose();
    renderer->swapchain_ = std::move(Swapchain(
-       {renderer->physical_device().graphics_queue(), renderer->physical_device().present_queue()},
-       renderer->physical_device().handle(), renderer->device().handle(), surface, width, height
+       {renderer->vk_instance_.graphics_queue(), renderer->vk_instance_.present_queue()},
+       renderer->vk_instance_.physical_device(), renderer->device().handle(), surface, width, height
    ));
 
    for (const VkFramebuffer framebuffer : renderer->framebuffers_) {
