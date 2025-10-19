@@ -117,11 +117,21 @@ pub fn outboundProfile(profiler: []const u8, labels: profile.Labels, logs: []con
     return writer;
 }
 
+pub const DownloadPacket = struct {
+    program_path: [:0]const u8,
+    files: []const fs_storage.ProgramAsset,
+
+    pub fn deinit(self: *DownloadPacket, allocator: std.mem.Allocator) void {
+        allocator.free(self.program_path);
+        for (self.files) |file| {
+            allocator.free(file.real_path);
+        }
+        allocator.free(self.files);
+    }
+};
+
 pub const Packet = union(enum) {
-    download: struct {
-        program_path: [:0]const u8,
-        files: []const fs_storage.ProgramAsset,
-    },
+    download: DownloadPacket,
     schedule: ?struct {
         start_ms: u64,
         stop_ms: u64,
@@ -129,12 +139,8 @@ pub const Packet = union(enum) {
 
     pub fn deinit(self: *Packet, allocator: std.mem.Allocator) void {
         switch (self.*) {
-            .download => |download| {
-                allocator.free(download.program_path);
-                for (download.files) |file| {
-                    allocator.free(file.real_path);
-                }
-                allocator.free(download.files);
+            .download => |*download| {
+                download.deinit(allocator);
             },
             .schedule => {},
         }

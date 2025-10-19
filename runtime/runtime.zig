@@ -20,6 +20,8 @@ pub const Remote = if (build_options.cloud)
 else
     @import("remote/noop_remote.zig").NoOpRemote;
 
+const DownloadPacket = @import("remote/packet.zig").DownloadPacket;
+
 const AudioPlayer = @import("audio/audio.zig").AudioPlayer;
 
 pub const Renderer = @import("render/renderer.zig").Renderer;
@@ -28,6 +30,7 @@ pub const Window = @import("window/window.zig").Window;
 const wasm_mod = @import("wasm/wasm.zig");
 pub const Wasm = wasm_mod.Wasm;
 pub const WasmError = wasm_mod.Error;
+const wasm_message = @import("wasm_message.zig");
 
 const inference = @import("inference/inference.zig");
 pub const Inference = inference.Inference;
@@ -40,6 +43,16 @@ pub const Gpu = @import("gpu/gpu.zig").Gpu;
 const loadImage = @import("image/image.zig").loadImage;
 
 const EyeGuard = @import("eyeguard.zig").EyeGuard;
+
+const PollProiler = Profiler("runtime", enum {
+    setup_frame,
+    poll_window,
+    resize,
+    process_pose,
+    update,
+    render,
+    process_events,
+});
 
 const Vertex = struct {
     position: @Vector(3, f32) align(16),
@@ -72,15 +85,16 @@ pub const Runtime = struct {
     allocator: std.mem.Allocator,
     logger: Logger("runtime", 2048),
 
+    poll_profiler: PollProiler,
+    frame_count: usize,
+    second_timer: i64,
+
     wasm: Wasm,
-    wasm_funcs: ?struct {
-        init: Wasm.Function,
-        update: Wasm.Function,
-        pose: Wasm.Function,
-    },
+    wasm_entry: ?Wasm.Function,
     wasm_pose_buffer: ?[*]f32,
     audio_player: AudioPlayer,
     assets: std.StringHashMap(AssetData),
+    next_program: ?DownloadPacket,
 
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: Renderer.ObjectHandle,
@@ -104,6 +118,10 @@ pub const Runtime = struct {
         errdefer runtime.remote.deinit();
         try runtime.remote.start();
 
+        runtime.poll_profiler = PollProiler.init();
+        runtime.frame_count = 0;
+        runtime.second_timer = 0;
+
         runtime.gpu = Gpu.init();
         errdefer runtime.gpu.deinit();
         runtime.window = Window.init(&runtime.gpu, "simulo runtime");
@@ -120,7 +138,7 @@ pub const Runtime = struct {
         errdefer runtime.wasm.deinit();
         try runtime.wasm.startWatchdog();
         try registerWasmFuncs(&runtime.wasm);
-        runtime.wasm_funcs = null;
+        runtime.wasm_entry = null;
         runtime.wasm_pose_buffer = null;
 
         //runtime.audio_player = try AudioPlayer.init();
@@ -148,7 +166,6 @@ pub const Runtime = struct {
         self.wasm.deinit();
         self.eyeguard.deinit();
 
-        self.disposeCurrentProgram();
         self.assets.deinit();
         //self.audio_player.deinit();
 
@@ -161,8 +178,8 @@ pub const Runtime = struct {
 
     fn registerWasmFuncs(wasm: *Wasm) !void {
         try wasm.exposeFunction("simulo_set_buffers", wasmSetBuffers);
+        try wasm.exposeFunction("simulo_poll", wasmPoll);
 
-        try wasm.exposeFunction("simulo_create_rendered_object", wasmCreateRenderedObject);
         try wasm.exposeFunction("simulo_create_rendered_object2", wasmCreateRenderedObject2);
         try wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
         try wasm.exposeFunction("simulo_set_rendered_object_transform", wasmSetRenderedObjectTransform);
@@ -176,31 +193,19 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_drop_material", wasmDropMaterial);
     }
 
-    fn runProgram(self: *Runtime, program_path: []const u8, assets: []const fs_storage.ProgramAsset) !void {
-        self.disposeCurrentProgram();
-
+    fn loadProgram(self: *Runtime, program_path: []const u8, assets: []const fs_storage.ProgramAsset) !void {
         self.logger.info("Reading program from {s}", .{program_path});
         const data = try std.fs.cwd().readFileAlloc(self.allocator, program_path, std.math.maxInt(usize));
         defer self.allocator.free(data);
 
         try self.wasm.load(data);
 
-        const init_func = self.wasm.getFunction("simulo_main") orelse {
+        const init_func = self.wasm.getFunction("_start") orelse {
             self.logger.err("program missing init function", .{});
             return error.MissingFunction;
         };
 
-        self.wasm_funcs = .{
-            .init = init_func,
-            .update = self.wasm.getFunction("simulo__update") orelse {
-                self.logger.err("program missing update function", .{});
-                return error.MissingFunction;
-            },
-            .pose = self.wasm.getFunction("simulo__pose") orelse {
-                self.logger.err("program missing pose function", .{});
-                return error.MissingFunction;
-            },
-        };
+        self.wasm_entry = init_func;
 
         for (assets) |*asset| {
             const asset_name = asset.name.?.items();
@@ -240,14 +245,6 @@ pub const Runtime = struct {
                 self.logger.err("unsupported asset: {s}", .{asset_name});
             }
         }
-
-        if (self.calibration_state == .calibrated) {
-            _ = self.wasm.callFunction(init_func, .{}) catch unreachable;
-
-            if (self.wasm_pose_buffer == null) {
-                return error.BuffersNotInitialized;
-            }
-        }
     }
 
     fn disposeCurrentProgram(self: *Runtime) void {
@@ -265,7 +262,7 @@ pub const Runtime = struct {
         }
         self.assets.clearRetainingCapacity();
 
-        self.wasm_funcs = null;
+        self.wasm_entry = null;
         self.wasm_pose_buffer = null;
 
         for (FIRST_PROGRAM_VISIBLE_RENDER_LAYER..FIRST_PROGRAM_VISIBLE_RENDER_LAYER + MAX_PROGRAM_VISIBLE_RENDER_LAYERS) |layer| {
@@ -302,7 +299,7 @@ pub const Runtime = struct {
             }
         }
 
-        try self.runProgram(program_path, assets.items);
+        try self.loadProgram(program_path, assets.items);
     }
 
     fn tryRunLatestProgram(self: *Runtime) void {
@@ -314,7 +311,7 @@ pub const Runtime = struct {
         };
 
         if (program_info) |info| {
-            self.runProgram(info.program_path, info.assets.items()) catch |err| {
+            self.loadProgram(info.program_path, info.assets.items()) catch |err| {
                 self.logger.err("failed to run latest program: {s}", .{@errorName(err)});
             };
         }
@@ -337,139 +334,147 @@ pub const Runtime = struct {
             self.tryRunLatestProgram();
         }
 
-        var last_time = std.time.milliTimestamp();
-
-        var time_of_day = @mod(last_time, 24 * 60 * 60 * 1000);
-        self.was_running = self.shouldRun(time_of_day);
-        self.logger.info("initial run state: {}", .{self.was_running});
-        if (self.was_running) {
-            try self.pose_detector.start();
-        }
-
-        var frame_count: usize = 0;
-        var second_timer: i64 = std.time.milliTimestamp();
-
-        const RuntimeProiler = Profiler("runtime", enum {
-            setup_frame,
-            resize,
-            process_pose,
-            update,
-            render,
-            process_events,
-        });
-        var profiler = RuntimeProiler.init();
-
-        while (self.window.poll()) {
-            profiler.reset();
-
-            const now = std.time.milliTimestamp();
-            const delta = now - last_time;
-            last_time = now;
-
-            time_of_day = @mod(now, 24 * 60 * 60 * 1000);
-            const run_state = self.shouldRun(time_of_day);
-            if (run_state != self.was_running) {
-                self.logger.info("run state changed: {} -> {}", .{ self.was_running, run_state });
-                if (run_state) {
-                    try self.pose_detector.start();
-                } else {
-                    self.pose_detector.stop();
-                }
-                self.was_running = run_state;
-            }
-
-            const width = self.window.getWidth();
-            const height = self.window.getHeight();
-            profiler.log(.setup_frame);
-
-            if (width != self.last_window_width or height != self.last_window_height) {
-                self.last_window_width = width;
-                self.last_window_height = height;
-
-                if (comptime util.vulkan) {
-                    self.renderer.handleResize(width, height, self.window.surface());
-                }
-
-                self.renderer.setObjectTransform(self.chessboard, switch (self.calibration_state) {
-                    .capturing_chessboard => Mat4.scale(.{ @floatFromInt(width), @floatFromInt(height), 1 }),
-                    else => Mat4.zero(),
-                });
-
-                profiler.log(.resize);
-            }
-
-            try self.processPoseDetections();
-            profiler.log(.process_pose);
-
+        while (self.poll(null) != null) {
             if (self.calibration_state == .calibrated) {
-                const deltaf: f32 = @floatFromInt(delta);
-                _ = self.wasm.callFunction(self.wasm_funcs.?.update, .{deltaf / 1000.0}) catch unreachable;
-                profiler.log(.update);
-            }
-
-            if (self.was_running) {
-                const ui_projection = Mat4.ortho(
-                    @floatFromInt(self.last_window_width),
-                    @floatFromInt(self.last_window_height),
-                    -1.0,
-                    1.0,
-                );
-
-                self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
-                    self.logger.err("render failed: {any}", .{err});
-                };
-            }
-
-            profiler.log(.render);
-
-            while (self.remote.nextMessage()) |msg| {
-                var message = msg;
-                defer message.deinit(self.allocator);
-
-                switch (message) {
-                    .download => |download| {
-                        fs_storage.storeLatestProgram(download.program_path, download.files) catch |err| {
-                            self.logger.err("failed to store latest info: {s}", .{@errorName(err)});
-                        };
-
-                        try self.runProgram(download.program_path, download.files);
-                    },
-                    .schedule => |maybe_schedule| {
-                        if (maybe_schedule) |sched| {
-                            self.logger.info("remote set schedule to {D}-{D}", .{
-                                sched.start_ms * std.time.ns_per_ms,
-                                sched.stop_ms * std.time.ns_per_ms,
-                            });
-                            self.schedule = .{
-                                .start_ms = sched.start_ms,
-                                .stop_ms = sched.stop_ms,
-                            };
-                        } else {
-                            self.logger.info("remote removed schedule", .{});
-                            self.schedule = null;
-                        }
-                    },
+                if (self.wasm_entry) |wasm_entry| {
+                    _ = self.wasm.callFunction(wasm_entry, .{}) catch |err| {
+                        self.logger.err("failed to run program: {s}", .{@errorName(err)});
+                    };
                 }
-            }
 
-            profiler.log(.process_events);
+                if (self.next_program) |*program| {
+                    self.disposeCurrentProgram();
 
-            frame_count += 1;
-            if (now - second_timer >= 1000) {
-                if (frame_count < 59) {
-                    self.logger.warn("Low FPS ({d}), {f}", .{ frame_count, &profiler });
-                } else {
-                    self.logger.debug("FPS: {d}", .{frame_count});
+                    self.loadProgram(program.program_path, program.files) catch |err| {
+                        self.logger.err("failed to load new program: {s}", .{@errorName(err)});
+                    };
+                    program.deinit(self.allocator);
+                    self.next_program = null;
                 }
-                frame_count = 0;
-                second_timer = now;
             }
         }
+
+        self.disposeCurrentProgram();
     }
 
-    fn processPoseDetections(self: *Runtime) !void {
+    fn poll(self: *Runtime, event_buf: ?[]u8) ?usize {
+        self.poll_profiler.reset();
+
+        const now = std.time.milliTimestamp();
+
+        const time_of_day = @mod(now, 24 * 60 * 60 * 1000);
+        const run_state = self.shouldRun(time_of_day);
+        if (run_state != self.was_running) {
+            self.logger.info("run state changed: {} -> {}", .{ self.was_running, run_state });
+            if (run_state) {
+                self.pose_detector.start() catch |err| {
+                    self.logger.err("failed to start pose detector: {s}", .{@errorName(err)});
+                };
+            } else {
+                self.pose_detector.stop();
+            }
+            self.was_running = run_state;
+        }
+
+        const width = self.window.getWidth();
+        const height = self.window.getHeight();
+        self.poll_profiler.log(.setup_frame);
+
+        if (!self.window.poll()) {
+            return null;
+        }
+
+        self.poll_profiler.log(.poll_window);
+
+        if (width != self.last_window_width or height != self.last_window_height) {
+            self.last_window_width = width;
+            self.last_window_height = height;
+
+            if (comptime util.vulkan) {
+                self.renderer.handleResize(width, height, self.window.surface());
+            }
+
+            self.renderer.setObjectTransform(self.chessboard, switch (self.calibration_state) {
+                .capturing_chessboard => Mat4.scale(.{ @floatFromInt(width), @floatFromInt(height), 1 }),
+                else => Mat4.zero(),
+            });
+
+            self.poll_profiler.log(.resize);
+        }
+
+        const event_out_len = self.processPoseDetections(event_buf) catch |err| blk: {
+            self.logger.err("failed to process pose detections: {s}", .{@errorName(err)});
+            break :blk 0;
+        };
+        self.poll_profiler.log(.process_pose);
+
+        if (self.was_running) {
+            const ui_projection = Mat4.ortho(
+                @floatFromInt(self.last_window_width),
+                @floatFromInt(self.last_window_height),
+                -1.0,
+                1.0,
+            );
+
+            self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
+                self.logger.err("render failed: {any}", .{err});
+            };
+        }
+
+        self.poll_profiler.log(.render);
+
+        while (self.remote.nextMessage()) |msg| {
+            var message = msg;
+
+            switch (message) {
+                .download => |download| {
+                    fs_storage.storeLatestProgram(download.program_path, download.files) catch |err| {
+                        self.logger.err("failed to store latest info: {s}", .{@errorName(err)});
+                    };
+
+                    self.next_program = download;
+                },
+                .schedule => |maybe_schedule| {
+                    defer message.deinit(self.allocator);
+
+                    if (maybe_schedule) |sched| {
+                        self.logger.info("remote set schedule to {D}-{D}", .{
+                            sched.start_ms * std.time.ns_per_ms,
+                            sched.stop_ms * std.time.ns_per_ms,
+                        });
+                        self.schedule = .{
+                            .start_ms = sched.start_ms,
+                            .stop_ms = sched.stop_ms,
+                        };
+                    } else {
+                        self.logger.info("remote removed schedule", .{});
+                        self.schedule = null;
+                    }
+                },
+            }
+        }
+
+        self.poll_profiler.log(.process_events);
+
+        self.frame_count += 1;
+        if (now - self.second_timer >= 1000) {
+            if (self.frame_count < 59) {
+                self.logger.warn("Low FPS ({d}), {f}", .{ self.frame_count, &self.poll_profiler });
+            } else {
+                self.logger.debug("FPS: {d}", .{self.frame_count});
+            }
+            self.frame_count = 0;
+            self.second_timer = now;
+        }
+
+        return event_out_len;
+    }
+
+    fn processPoseDetections(self: *Runtime, event_buf: ?[]u8) !usize {
         const width: f32 = @floatFromInt(self.last_window_width);
         const height: f32 = @floatFromInt(self.last_window_height);
+
+        var writer = if (event_buf) |buf| std.io.Writer.fixed(buf) else null;
 
         while (self.pose_detector.nextEvent()) |event| {
             switch (event) {
@@ -480,41 +485,25 @@ pub const Runtime = struct {
                 },
                 .calibration_calibrated => {
                     self.calibration_state = .calibrated;
-
-                    if (self.wasm_pose_buffer == null) {
-                        if (self.wasm_funcs) |funcs| {
-                            _ = self.wasm.callFunction(funcs.init, .{}) catch unreachable;
-
-                            if (self.wasm_pose_buffer == null) {
-                                return error.BuffersNotInitialized;
-                            }
-                        }
-                    }
-
                     self.renderer.setObjectTransform(self.chessboard, Mat4.zero());
                 },
                 .move => |move| {
                     self.eyeguard.handleEvent(move.id, &move.detection, &self.renderer, width, height);
 
-                    const funcs = self.wasm_funcs orelse return;
-                    const pose_buffer = self.wasm_pose_buffer orelse return;
-
-                    const id_u32: u32 = @intCast(move.id);
-
-                    for (move.detection.keypoints, 0..) |kp, i| {
-                        pose_buffer[i * 2] = kp.pos[0] * width;
-                        pose_buffer[i * 2 + 1] = kp.pos[1] * height;
+                    if (writer) |*w| {
+                        wasm_message.writeMoveEvent(w, move.id, &move.detection, width, height) catch |err| {
+                            self.logger.err("failed to write move event: {s}", .{@errorName(err)});
+                        };
                     }
-
-                    _ = self.wasm.callFunction(funcs.pose, .{ id_u32, true }) catch unreachable;
                 },
                 .lost => |id| {
                     self.eyeguard.handleDelete(&self.renderer, id);
 
-                    const funcs = self.wasm_funcs orelse return;
-
-                    const id_u32: u32 = @intCast(id);
-                    _ = self.wasm.callFunction(funcs.pose, .{ id_u32, false }) catch unreachable;
+                    if (writer) |*w| {
+                        wasm_message.writeLostEvent(w, id) catch |err| {
+                            self.logger.err("failed to write lost event: {s}", .{@errorName(err)});
+                        };
+                    }
                 },
                 .fault => |fault| {
                     switch (fault.category) {
@@ -529,11 +518,28 @@ pub const Runtime = struct {
                 },
             }
         }
+
+        return if (writer) |*w| w.end else 0;
     }
 
     fn wasmSetBuffers(env: *Wasm, pose_buffer: [*]f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.wasm_pose_buffer = pose_buffer;
+    }
+
+    fn wasmPoll(env: *Wasm, buf: [*]u8, buf_len: u32) i32 {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+
+        const event_out_len = runtime.poll(buf[0..buf_len]) orelse {
+            return -1;
+        };
+
+        if (!runtime.was_running) {
+            return -1;
+        }
+
+        runtime.wasm.extendTimeout();
+        return @intCast(event_out_len);
     }
 
     fn deleteMaterial(runtime: *Runtime, id: u32) void {
