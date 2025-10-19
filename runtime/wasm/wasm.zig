@@ -348,6 +348,12 @@ pub const Wasm = struct {
         }
     }
 
+    pub fn extendTimeout(self: *Wasm) void {
+        if (self.context) |ctx| {
+            wasm.wasmtime_context_set_epoch_deadline(ctx, 2);
+        }
+    }
+
     pub fn isNullptr(self: *Wasm, ptr: *anyopaque) bool {
         return @as(*u8, @ptrCast(ptr)) - self.memory.ptr == 0;
     }
