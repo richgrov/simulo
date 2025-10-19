@@ -67,7 +67,7 @@ pub const Wasm = struct {
 
         const results = if (func_info.return_type.? == void) [_]*wasm.wasm_valtype_t{} else [_]*wasm.wasm_valtype_t{
             switch (func_info.return_type.?) {
-                u32, i32 => wasm.wasm_valtype_new_i32().?,
+                u32, i32, bool => wasm.wasm_valtype_new_i32().?,
                 u64, i64 => wasm.wasm_valtype_new_i64().?,
                 f32 => wasm.wasm_valtype_new_f32().?,
                 f64 => wasm.wasm_valtype_new_f64().?,
@@ -114,6 +114,10 @@ pub const Wasm = struct {
 
                 if (func_info.return_type.? != void) {
                     switch (func_info.return_type.?) {
+                        bool => {
+                            resultv.*.kind = wasm.WASMTIME_I32;
+                            resultv.*.of.i32 = @intFromBool(result);
+                        },
                         u32, i32 => {
                             resultv.*.kind = wasm.WASMTIME_I32;
                             resultv.*.of.i32 = @bitCast(result);
