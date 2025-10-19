@@ -274,9 +274,9 @@ pub const Runtime = struct {
         self.renderer.clearUiMaterials();
     }
 
-    fn runLocalProgram(self: *Runtime, path: []const u8) !void {
-        var asset_dir = std.fs.cwd().openDir(path, .{ .iterate = true }) catch |err| {
-            self.logger.err("failed to access directory {s}: {s}", .{ path, @errorName(err) });
+    fn runLocalProgram(self: *Runtime, program_path: []const u8, assets_path: []const u8) !void {
+        var asset_dir = std.fs.cwd().openDir(assets_path, .{ .iterate = true }) catch |err| {
+            self.logger.err("failed to access directory {s}: {s}", .{ assets_path, @errorName(err) });
             return err;
         };
         defer asset_dir.close();
@@ -286,19 +286,15 @@ pub const Runtime = struct {
         var assets = std.ArrayList(fs_storage.ProgramAsset).initCapacity(path_allocator.allocator(), 8) catch unreachable;
         defer assets.deinit(path_allocator.allocator());
 
-        var program_path: ?[]const u8 = null;
-
         var files = asset_dir.iterate();
         while (true) {
             const file = files.next() catch |err| {
-                self.logger.err("failed to access file in directory {s}: {s}", .{ path, @errorName(err) });
+                self.logger.err("failed to access file in directory {s}: {s}", .{ assets_path, @errorName(err) });
                 return err;
             } orelse break;
 
-            if (std.mem.eql(u8, file.name, "main.wasm")) {
-                program_path = try std.fs.path.join(path_allocator.allocator(), &.{ path, file.name });
-            } else if (std.mem.endsWith(u8, file.name, ".png")) {
-                const real_path = try std.fs.path.joinZ(path_allocator.allocator(), &.{ path, file.name });
+            if (std.mem.endsWith(u8, file.name, ".png")) {
+                const real_path = try std.fs.path.joinZ(path_allocator.allocator(), &.{ assets_path, file.name });
                 try assets.append(path_allocator.allocator(), .{
                     .name = util.FixedArrayList(u8, fs_storage.max_asset_name_len).initFrom(file.name) catch unreachable,
                     .real_path = real_path,
@@ -306,11 +302,7 @@ pub const Runtime = struct {
             }
         }
 
-        if (program_path) |prog| {
-            try self.runProgram(prog, assets.items);
-        } else {
-            self.logger.err("the path {s} doesn't contain a main.wasm file", .{path});
-        }
+        try self.runProgram(program_path, assets.items);
     }
 
     fn tryRunLatestProgram(self: *Runtime) void {
@@ -328,9 +320,16 @@ pub const Runtime = struct {
         }
     }
 
-    pub fn run(self: *Runtime, local_asset_path: ?[]const u8) !void {
-        if (local_asset_path) |path| {
-            self.runLocalProgram(path) catch |err| {
+    pub fn run(self: *Runtime, local_paths: struct { program: ?[]const u8, assets: []const u8 }) !void {
+        const time_of_day = @mod(std.time.milliTimestamp(), 24 * 60 * 60 * 1000);
+        self.was_running = self.shouldRun(time_of_day);
+        self.logger.info("initial run state: {}", .{self.was_running});
+        if (self.was_running) {
+            try self.pose_detector.start();
+        }
+
+        if (local_paths.program) |program| {
+            self.runLocalProgram(program, local_paths.assets) catch |err| {
                 self.logger.err("error running local program: {s}", .{@errorName(err)});
                 return;
             };

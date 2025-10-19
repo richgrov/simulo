@@ -9,7 +9,10 @@ const Logger = @import("log.zig").Logger;
 
 const fs_storage = @import("fs_storage.zig");
 
-const usage = if (build_options.cloud) "usage: runtime <camera_id>" else "usage: runtime <camera_id> <asset_path> [--nocalib]";
+const usage = if (build_options.cloud)
+    "usage: runtime <camera_id>"
+else
+    "usage: runtime <camera_id> <program path> <asset path> [--nocalib]";
 
 pub fn main() !void {
     var arg_buf: [128]u8 = undefined;
@@ -29,22 +32,27 @@ pub fn main() !void {
         return;
     };
 
-    const local_asset_path, const no_calibration = if (build_options.cloud) blk: {
+    const local_program_path, const local_asset_path, const no_calibration = if (build_options.cloud) blk: {
         logger.info("simulo runtime (git: {s}, api: {s})", .{
             build_options.git_hash,
             build_options.api_url,
         });
-        break :blk .{ null, false };
+        break :blk .{ null, null, false };
     } else blk: {
         logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
 
-        const path = args.next() orelse {
+        const program = args.next() orelse {
+            std.debug.print(usage ++ "\n", .{});
+            return;
+        };
+
+        const assets = args.next() orelse {
             std.debug.print(usage ++ "\n", .{});
             return;
         };
 
         const no_calibration = std.mem.eql(u8, args.next() orelse "", "--nocalib");
-        break :blk .{ path, no_calibration };
+        break :blk .{ program, assets, no_calibration };
     };
 
     var dba = std.heap.DebugAllocator(.{}).init;
@@ -64,7 +72,7 @@ pub fn main() !void {
     try Runtime.init(&runtime, allocator, camera_id, no_calibration);
     defer runtime.deinit();
 
-    try runtime.run(local_asset_path);
+    try runtime.run(.{ .program = local_program_path, .assets = local_asset_path });
 }
 
 const vulkan = builtin.target.os.tag == .windows or builtin.target.os.tag == .linux;
