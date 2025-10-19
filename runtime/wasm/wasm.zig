@@ -326,7 +326,7 @@ pub const Wasm = struct {
             }
         }
 
-        wasm.wasmtime_context_set_epoch_deadline(self.context, 10);
+        wasm.wasmtime_context_set_epoch_deadline(self.context, 2);
 
         var trap: ?*wasm.wasm_trap_t = null;
         if (wasm.wasmtime_func_call(self.context, &func, &wasm_args, args.len, null, 0, &trap)) |err| {
