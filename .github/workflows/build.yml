@@ -75,10 +75,16 @@ jobs:
           zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
 
       - name: Build local
-        run: zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
+        run: |
+          zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
+          export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
+          source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
 
       - name: Build cloud
-        run: zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+        run: |
+          export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
+          source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
+          zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
