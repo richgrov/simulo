@@ -317,7 +317,7 @@ pub const Runtime = struct {
         }
     }
 
-    pub fn run(self: *Runtime, local_paths: struct { program: ?[]const u8, assets: []const u8 }) !void {
+    pub fn run(self: *Runtime, local_paths: struct { program: ?[]const u8, assets: ?[]const u8 }) !void {
         const time_of_day = @mod(std.time.milliTimestamp(), 24 * 60 * 60 * 1000);
         self.was_running = self.shouldRun(time_of_day);
         self.logger.info("initial run state: {}", .{self.was_running});
@@ -326,7 +326,7 @@ pub const Runtime = struct {
         }
 
         if (local_paths.program) |program| {
-            self.runLocalProgram(program, local_paths.assets) catch |err| {
+            self.runLocalProgram(program, local_paths.assets.?) catch |err| {
                 self.logger.err("error running local program: {s}", .{@errorName(err)});
                 return;
             };
