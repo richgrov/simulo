@@ -69,7 +69,10 @@ jobs:
           version: 0.15.1
 
       - name: Run tests
-        run: zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
+        run: |
+          export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
+          source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
+          zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
 
       - name: Build local
         run: zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
