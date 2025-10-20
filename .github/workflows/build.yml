@@ -61,7 +61,6 @@ jobs:
           curl -O https://sdk.lunarg.com/sdk/download/latest/mac/vulkan_sdk.zip
           unzip vulkan_sdk.zip
           sudo ./vulkansdk-macOS-${VULKAN_SDK_VERSION}.app/Contents/MacOS/vulkansdk-macOS-${VULKAN_SDK_VERSION} --root ~/VulkanSDK/${VULKAN_SDK_VERSION} --accept-licenses --default-answer --confirm-command install com.lunarg.vulkan.core com.lunarg.vulkan.usr com.lunarg.vulkan.sdl2 com.lunarg.vulkan.glm com.lunarg.vulkan.volk com.lunarg.vulkan.vma
-          echo "source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh" >> ~/.zshenv
 
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
@@ -70,14 +69,20 @@ jobs:
 
       - name: Run tests
         run: |
+          export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
+          source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
           zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
 
       - name: Build local
         run: |
+          export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
+          source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
           zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
 
       - name: Build cloud
         run: |
+          export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
+          source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
           zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
 
       - name: Upload local artifact
