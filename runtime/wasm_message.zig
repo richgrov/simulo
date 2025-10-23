@@ -6,8 +6,8 @@ pub fn writeMoveEvent(writer: *std.io.Writer, id: u64, det: *const Detection, wi
     try writer.writeInt(u8, 0, .big);
     try writer.writeInt(u32, @intCast(id), .big);
     for (det.keypoints) |kp| {
-        try writer.writeInt(u16, @intFromFloat(kp.pos[0] * width), .big);
-        try writer.writeInt(u16, @intFromFloat(kp.pos[1] * height), .big);
+        try writer.writeInt(i16, @intFromFloat(kp.pos[0] * width), .big);
+        try writer.writeInt(i16, @intFromFloat(kp.pos[1] * height), .big);
     }
 }
 
