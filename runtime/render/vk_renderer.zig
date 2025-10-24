@@ -9,5 +9,7 @@ pub const Renderer = struct {
         return .{};
     }
 
-    pub fn deinit(self: *Self) void {}
+    pub fn deinit(self: *Self) void {
+        _ = self;
+    }
 };

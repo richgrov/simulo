@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) !void {
     const custom_api_url = b.option([]const u8, "api_url", "Override API URL") orelse "https://api.simulo.tech";
     const new_wasm = b.option(bool, "new_wasm", "Use the experimental WASM JIT compiler") orelse false;
     const cloud = b.option(bool, "cloud", "Enable cloud connectivity") orelse false;
+    const debug_vulkan = b.option(bool, "debug_vulkan", "Enable Vulkan debugging") orelse false;
 
     var out_code: u8 = undefined;
     const git_hash = b.runAllowFail(&[_][]const u8{ "git", "rev-parse", "--short", "HEAD" }, &out_code, .Close) catch unreachable;
@@ -21,6 +22,7 @@ pub fn build(b: *std.Build) !void {
     options.addOption(bool, "new_wasm", new_wasm);
     options.addOption(bool, "cloud", cloud);
     options.addOption([]const u8, "git_hash", git_hash[0 .. git_hash.len - 1]); // trim newline
+    options.addOption(bool, "debug_vulkan", debug_vulkan);
 
     const util = b.createModule(.{
         .root_source_file = b.path("util/util.zig"),
@@ -90,13 +92,13 @@ pub fn build(b: *std.Build) !void {
     //    editor.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
     //}
 
-    const headers = translateHeaders(b, target, optimize) catch @panic("Unable to translate header files");
+    const headers_module = translateHeaders(b, target, optimize) catch @panic("Unable to translate header files");
 
     const runtime = createRuntime(b, optimize, target, cloud);
     runtime.addOptions("build_options", options);
     runtime.addImport("engine", engine);
     runtime.addImport("util", util);
-    runtime.addImport("vulkan", headers);
+    runtime.addImport("vulkan", headers_module);
     runtime.addRPathSpecial("@executable_path/../Frameworks");
 
     const bundle_step = try bundleExe(
