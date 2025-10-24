@@ -37,6 +37,19 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             };
         }
 
+        pub fn perspective(aspect: f32, fov: f32, near: f32, far: f32) Matrix(f32, 4, 4) {
+            const tan_fov = @tan(fov / 2);
+            const depth = far / (far - near);
+            // zig fmt: off
+            return .{ .data = [_]@Vector(4, f32){
+                .{ 1.0 / (aspect * tan_fov), 0,                     0,             0 },
+                .{ 0,                        y_direction / tan_fov, 0,             0 },
+                .{ 0,                        0,                     depth,         1 },
+                .{ 0,                        0,                     -near * depth, 0 },
+            } };
+            // zig fmt: on
+        }
+
         pub fn translate(v: @Vector(rows - 1, f32)) Matrix(f32, rows, rows) {
             if (rows != cols) {
                 @compileError("matrix must be square to translate");

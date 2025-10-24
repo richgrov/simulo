@@ -99,6 +99,11 @@ pub const Runtime = struct {
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: Renderer.ObjectHandle,
     mesh: Renderer.MeshHandle,
+    camera: union(enum) {
+        d2: struct { near: f32, far: f32 },
+        d3: struct { x: f32, y: f32, z: f32, near: f32, far: f32, fov: f32 },
+    },
+
     calibration_state: enum {
         capturing_background,
         capturing_chessboard,
@@ -151,6 +156,8 @@ pub const Runtime = struct {
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
         const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
         runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
+        runtime.camera = .{ .d2 = .{ .near = -1.0, .far = 1.0 } };
+
         runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.mesh, runtime.white_pixel_texture);
         errdefer runtime.eyeguard.deinit();
 
@@ -184,6 +191,9 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
         try wasm.exposeFunction("simulo_set_rendered_object_transform", wasmSetRenderedObjectTransform);
         try wasm.exposeFunction("simulo_drop_rendered_object", wasmDropRenderedObject);
+
+        try wasm.exposeFunction("simulo_set_camera_2d", wasmSetCamera2d);
+        try wasm.exposeFunction("simulo_set_camera_3d", wasmSetCamera3d);
 
         try wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
         try wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
@@ -409,12 +419,13 @@ pub const Runtime = struct {
         self.poll_profiler.log(.process_pose);
 
         if (self.was_running) {
-            const ui_projection = Mat4.ortho(
-                @floatFromInt(self.last_window_width),
-                @floatFromInt(self.last_window_height),
-                -1.0,
-                1.0,
-            );
+            const w: f32 = @floatFromInt(width);
+            const h: f32 = @floatFromInt(height);
+
+            const ui_projection = switch (self.camera) {
+                .d2 => Mat4.ortho(w, h, -1.0, 1.0),
+                .d3 => |d| Mat4.perspective(w / h, d.fov, d.near, d.far).matmul(&Mat4.translate(.{ -d.x, -d.y, -d.z })),
+            };
 
             self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
                 self.logger.err("render failed: {any}", .{err});
@@ -596,6 +607,16 @@ pub const Runtime = struct {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.logger.trace("simulo_drop_rendered_object({d})", .{id});
         runtime.renderer.deleteObject(.{ .id = id });
+    }
+
+    fn wasmSetCamera2d(env: *Wasm, near: f32, far: f32) void {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.camera = .{ .d2 = .{ .near = near, .far = far } };
+    }
+
+    fn wasmSetCamera3d(env: *Wasm, x: f32, y: f32, z: f32, fov: f32, near: f32, far: f32) void {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.camera = .{ .d3 = .{ .x = x, .y = y, .z = z, .fov = fov, .near = near, .far = far } };
     }
 
     fn wasmWindowWidth(env: *Wasm) i32 {
