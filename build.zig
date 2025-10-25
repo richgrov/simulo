@@ -333,7 +333,7 @@ fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     defer b.allocator.free(vulkan_include_h);
 
     switch (target.result.os.tag) {
-        .macos => {
+        .windows, .macos => {
             const vulkan_sdk_env = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch @panic("VULKAN_SDK environment variable is not set");
             defer b.allocator.free(vulkan_sdk_env);
 
@@ -344,9 +344,7 @@ fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
             vulkan_include_h = try std.fmt.allocPrint(b.allocator, "/usr/include/vulkan/vulkan.h", .{});
             vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "/usr/include/vulkan", .{});
         },
-        else => |os| {
-            std.debug.panic("Unsupported OS: {any}\n", .{os});
-        },
+        else => |os| std.debug.panic("Unsupported OS: {any}\n", .{os}),
     }
 
     const translate_vulkan = b.addTranslateC(.{
@@ -357,8 +355,11 @@ fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
 
     translate_vulkan.addIncludePath(.{ .cwd_relative = vulkan_include_dir });
 
-    if (target.result.os.tag == .macos) {
-        translate_vulkan.defineCMacro("VK_USE_PLATFORM_METAL_EXT", "1");
+    switch (target.result.os.tag) {
+        .windows => translate_vulkan.defineCMacro("VK_USE_PLATFORM_WIN32_KHR", "1"),
+        .macos => translate_vulkan.defineCMacro("VK_USE_PLATFORM_METAL_EXT", "1"),
+        .linux => translate_vulkan.defineCMacro("VK_USE_PLATFORM_WAYLAND_KHR", "1"),
+        else => |os| std.debug.panic("Unsupported OS: {any}\n", .{os}),
     }
 
     return translate_vulkan.createModule();
