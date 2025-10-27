@@ -50,24 +50,12 @@ pub const Surface = struct {
 
     pub fn getSurfaceSupport(self: Self, physical_device: vk.VkPhysicalDevice, family_index: u32) bool {
         var supported = false;
-        var error_result = vk.VK_ERROR_FEATURE_NOT_PRESENT;
-        switch (builtin.os.tag) {
-            .windows => {
-                supported = vk.vkGetPhysicalDeviceWin32PresentationSupportKHR(physical_device, family_index);
-                error_result = vk.VK_SUCCESS;
-            },
-            .macos => error_result = vk.vkGetPhysicalDeviceSurfaceSupportKHR(
-                physical_device,
-                family_index,
-                self.surface,
-                &supported,
-            ),
-            .linux => {
-                supported = vk.vkGetPhysicalDeviceWaylandPresentationSupportKHR(physical_device, family_index, self.surface);
-                error_result = vk.VK_SUCCESS;
-            },
-            else => |os| std.debug.panic("OS not supported {any}\n", .{os}),
-        }
+        const error_result = vk.vkGetPhysicalDeviceSurfaceSupportKHR(
+            physical_device,
+            family_index,
+            self.surface,
+            &supported,
+        );
 
         vkAssert(error_result) catch std.debug.panic("Could not find surface support: {}\n", .{error_result});
         return supported;

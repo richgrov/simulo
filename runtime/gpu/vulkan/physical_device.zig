@@ -164,8 +164,18 @@ pub const Gpu = struct {
             }
 
             if (!present_found) {
-                var supported = false;
+                present_found = self.surface.?.getSurfaceSupport(self.physical_device, i);
+                self.present_queue = @intCast(i);
+            }
+
+            if (graphics_found and present_found) {
+                return;
             }
         }
+
+        std.debug.panic(
+            "Could not find one of the following: graphics_queue ({}) or present_queue ({})",
+            .{ graphics_found, present_found },
+        );
     }
 };
