@@ -99,9 +99,11 @@ pub const Runtime = struct {
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: Renderer.ObjectHandle,
     mesh: Renderer.MeshHandle,
-    camera: union(enum) {
+    view: Mat4,
+    projection: union(enum) {
         d2: struct { near: f32, far: f32 },
-        d3: struct { x: f32, y: f32, z: f32, near: f32, far: f32, fov: f32 },
+        d3: struct { near: f32, far: f32, fov: f32 },
+        off_axis: struct { top: f32, bottom: f32, left: f32, right: f32, near: f32, far: f32 },
     },
 
     calibration_state: enum {
@@ -156,7 +158,8 @@ pub const Runtime = struct {
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
         const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
         runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
-        runtime.camera = .{ .d2 = .{ .near = -1.0, .far = 1.0 } };
+        runtime.view = Mat4.identity();
+        runtime.projection = .{ .d2 = .{ .near = -1.0, .far = 1.0 } };
 
         runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.mesh, runtime.white_pixel_texture);
         errdefer runtime.eyeguard.deinit();
@@ -194,6 +197,8 @@ pub const Runtime = struct {
 
         try wasm.exposeFunction("simulo_set_camera_2d", wasmSetCamera2d);
         try wasm.exposeFunction("simulo_set_camera_3d", wasmSetCamera3d);
+        try wasm.exposeFunction("simulo_set_camera_off_axis", wasmSetCameraOffAxis);
+        try wasm.exposeFunction("simulo_set_view_matrix", wasmSetViewMatrix);
 
         try wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
         try wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
@@ -422,12 +427,15 @@ pub const Runtime = struct {
             const w: f32 = @floatFromInt(width);
             const h: f32 = @floatFromInt(height);
 
-            const ui_projection = switch (self.camera) {
+            const projection = switch (self.projection) {
                 .d2 => Mat4.ortho(w, h, -1.0, 1.0),
-                .d3 => |d| Mat4.perspective(w / h, d.fov, d.near, d.far).matmul(&Mat4.translate(.{ -d.x, -d.y, -d.z })),
+                .d3 => |d| Mat4.perspective(w / h, d.fov, d.near, d.far),
+                .off_axis => |d| Mat4.offAxisPerspective(d.top, d.bottom, d.left, d.right, d.near, d.far),
             };
 
-            self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
+            const view_projection = projection.matmul(&self.view);
+
+            self.renderer.render(&self.window, &view_projection, &view_projection) catch |err| {
                 self.logger.err("render failed: {any}", .{err});
             };
         }
@@ -611,12 +619,22 @@ pub const Runtime = struct {
 
     fn wasmSetCamera2d(env: *Wasm, near: f32, far: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.camera = .{ .d2 = .{ .near = near, .far = far } };
+        runtime.projection = .{ .d2 = .{ .near = near, .far = far } };
     }
 
-    fn wasmSetCamera3d(env: *Wasm, x: f32, y: f32, z: f32, fov: f32, near: f32, far: f32) void {
+    fn wasmSetCamera3d(env: *Wasm, fov: f32, near: f32, far: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.camera = .{ .d3 = .{ .x = x, .y = y, .z = z, .fov = fov, .near = near, .far = far } };
+        runtime.projection = .{ .d3 = .{ .fov = fov, .near = near, .far = far } };
+    }
+
+    fn wasmSetCameraOffAxis(env: *Wasm, top: f32, bottom: f32, left: f32, right: f32, near: f32, far: f32) void {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.projection = .{ .off_axis = .{ .top = top, .bottom = bottom, .left = left, .right = right, .near = near, .far = far } };
+    }
+
+    fn wasmSetViewMatrix(env: *Wasm, matrix: [*]f32) void {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.view = Mat4.fromColumnMajorPtr(matrix);
     }
 
     fn wasmWindowWidth(env: *Wasm) i32 {

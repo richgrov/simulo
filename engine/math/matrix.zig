@@ -50,6 +50,18 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
             // zig fmt: on
         }
 
+        pub fn offAxisPerspective(top: f32, bottom: f32, left: f32, right: f32, near: f32, far: f32) Matrix(f32, 4, 4) {
+            const depth = far / (far - near);
+            // zig fmt: off
+            return .{ .data = [_]@Vector(4, f32){
+                .{ (2 * near) / (right - left),     0,                               0,             0 },
+                .{ 0,                               (2 * near) / (top - bottom),     0,             0 },
+                .{ (right + left) / (right - left), (top + bottom) / (top - bottom), depth,         1 },
+                .{ 0,                               0,                               -near * depth, 0 },
+            } };
+            // zig fmt: on
+        }
+
         pub fn translate(v: @Vector(rows - 1, f32)) Matrix(f32, rows, rows) {
             if (rows != cols) {
                 @compileError("matrix must be square to translate");
