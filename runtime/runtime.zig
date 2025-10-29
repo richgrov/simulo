@@ -154,6 +154,8 @@ pub const Runtime = struct {
         runtime.assets = std.StringHashMap(AssetData).init(runtime.allocator);
         errdefer runtime.assets.deinit();
 
+        runtime.next_program = null;
+
         const image = createChessboard(&runtime.renderer);
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
         const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
