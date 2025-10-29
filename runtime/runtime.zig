@@ -91,7 +91,6 @@ pub const Runtime = struct {
 
     wasm: Wasm,
     wasm_entry: ?Wasm.Function,
-    wasm_pose_buffer: ?[*]f32,
     audio_player: AudioPlayer,
     assets: std.StringHashMap(AssetData),
     next_program: ?DownloadPacket,
@@ -146,7 +145,6 @@ pub const Runtime = struct {
         try runtime.wasm.startWatchdog();
         try registerWasmFuncs(&runtime.wasm);
         runtime.wasm_entry = null;
-        runtime.wasm_pose_buffer = null;
 
         //runtime.audio_player = try AudioPlayer.init();
         //errdefer runtime.audio_player.deinit();
@@ -280,7 +278,6 @@ pub const Runtime = struct {
         self.assets.clearRetainingCapacity();
 
         self.wasm_entry = null;
-        self.wasm_pose_buffer = null;
 
         for (FIRST_PROGRAM_VISIBLE_RENDER_LAYER..FIRST_PROGRAM_VISIBLE_RENDER_LAYER + MAX_PROGRAM_VISIBLE_RENDER_LAYERS) |layer| {
             self.renderer.clearLayer(@intCast(layer));
@@ -544,8 +541,9 @@ pub const Runtime = struct {
     }
 
     fn wasmSetBuffers(env: *Wasm, pose_buffer: [*]f32) void {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.wasm_pose_buffer = pose_buffer;
+        _ = env;
+        _ = pose_buffer;
+        // kept for backwards compatibility
     }
 
     fn wasmPoll(env: *Wasm, buf: [*]u8, buf_len: u32) i32 {
