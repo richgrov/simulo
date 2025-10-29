@@ -357,11 +357,11 @@ pub const Runtime = struct {
                     _ = self.wasm.callFunction(wasm_entry, .{}) catch |err| {
                         self.logger.err("failed to run program: {s}", .{@errorName(err)});
                     };
+
+                    self.disposeCurrentProgram();
                 }
 
                 if (self.next_program) |*program| {
-                    self.disposeCurrentProgram();
-
                     self.loadProgram(program.program_path, program.files) catch |err| {
                         self.logger.err("failed to load new program: {s}", .{@errorName(err)});
                     };
