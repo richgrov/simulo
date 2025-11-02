@@ -192,7 +192,7 @@ pub const Runtime = struct {
 
         try wasm.exposeFunction("simulo_create_rendered_object2", wasmCreateRenderedObject2);
         try wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
-        try wasm.exposeFunction("simulo_set_rendered_object_transform", wasmSetRenderedObjectTransform);
+        try wasm.exposeFunction("simulo_set_rendered_object_transforms", wasmSetRenderedObjectTransforms);
         try wasm.exposeFunction("simulo_drop_rendered_object", wasmDropRenderedObject);
 
         try wasm.exposeFunction("simulo_set_camera_2d", wasmSetCamera2d);
@@ -604,11 +604,14 @@ pub const Runtime = struct {
         runtime.renderer.setObjectMaterial(.{ .id = id }, .{ .id = material_id }) catch |err| util.crash.oom(err);
     }
 
-    fn wasmSetRenderedObjectTransform(env: *Wasm, id: u32, transform: [*]f32) void {
+    fn wasmSetRenderedObjectTransforms(env: *Wasm, count: u32, ids: [*]u32, transforms: [*]f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        const mat = Mat4.fromColumnMajorPtr(transform);
-        runtime.logger.trace("simulo_set_rendered_object_transform({d}, {f})", .{ id, mat });
-        runtime.renderer.setObjectTransform(.{ .id = id }, mat);
+        runtime.logger.trace("simulo_set_rendered_object_transforms({d}, {*}, {*})", .{ count, ids, transforms });
+
+        for (0..count) |i| {
+            const mat = Mat4.fromColumnMajorPtr(@ptrCast(&transforms[i * 16]));
+            runtime.renderer.setObjectTransform(.{ .id = ids[i] }, mat);
+        }
     }
 
     fn wasmDropRenderedObject(env: *Wasm, id: u32) void {
