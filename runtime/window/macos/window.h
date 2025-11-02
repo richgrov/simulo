@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <string_view>
 
+#define VK_USE_PLATFORM_METAL_EXT
+#include <vulkan/vulkan.h>
+
 #ifdef __OBJC__
 #import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
@@ -20,6 +23,15 @@ class Window {
 public:
    explicit Window(const Gpu &gpu, const char *title);
    ~Window();
+
+   inline VkSurfaceKHR surface() {
+      VkMetalSurfaceCreateInfoEXT create_info = {};
+      create_info.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+
+      VkSurfaceKHR surface = {};
+      vkCreateMetalSurfaceEXT(instance_, &create_info, nullptr, &surface);
+      return surface;
+   }
 
    bool poll();
 
@@ -82,6 +94,7 @@ private:
 
    bool closing_ = false;
    bool cursor_captured_ = false;
+   VkInstance instance_;
 };
 
 inline std::unique_ptr<Window> create_window(const Gpu &gpu, const char *title) {

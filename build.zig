@@ -92,13 +92,15 @@ pub fn build(b: *std.Build) !void {
     //    editor.step.dependOn(embedVkShader(b, "src/shader/model.frag"));
     //}
 
-    const headers_module = translateHeaders(b, target, optimize) catch @panic("Unable to translate header files");
+    var headers_module = translateHeaders(b, target, optimize) catch @panic("Unable to translate header files");
+    defer headers_module.deinit();
 
     const runtime = createRuntime(b, optimize, target, cloud);
     runtime.addOptions("build_options", options);
     runtime.addImport("engine", engine);
     runtime.addImport("util", util);
-    runtime.addImport("vulkan", headers_module);
+    runtime.addImport("vulkan", headers_module.get("vulkan").?);
+    runtime.addImport("ffi", headers_module.get("ffi").?);
     runtime.addRPathSpecial("@executable_path/../Frameworks");
 
     const bundle_step = try bundleExe(
@@ -214,7 +216,11 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         .optimize = optimize,
         .root_source_file = b.path("runtime/main.zig"),
     });
+
+    const vulkan_include = getVulkanIncludeDir(b, target.result.os.tag) catch @panic("Could not find Vulkan Include Path");
+    defer b.allocator.free(vulkan_include);
     runtime.addIncludePath(b.path("runtime"));
+    runtime.addIncludePath(.{ .cwd_relative = vulkan_include });
     runtime.link_libcpp = true;
     runtime.linkSystemLibrary("onnxruntime", .{});
     runtime.linkSystemLibrary("wasmtime", .{});
@@ -282,23 +288,23 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         runtime.linkSystemLibrary("xkbcommon", .{});
     }
 
-    if (usesVulkan(os)) {
-        cpp_sources.appendSlice(b.allocator, &[_][]const u8{
-            "runtime/render/vk_renderer.cc",
-            "runtime/gpu/vulkan/command_pool.cc",
-            "runtime/gpu/vulkan/descriptor_pool.cc",
-            "runtime/gpu/vulkan/device.cc",
-            "runtime/gpu/vulkan/gpu.cc",
-            "runtime/gpu/vulkan/image.cc",
-            "runtime/gpu/vulkan/pipeline.cc",
-            "runtime/gpu/vulkan/shader.cc",
-            "runtime/gpu/vulkan/swapchain.cc",
-            "runtime/gpu/vulkan/buffer.cc",
-        }) catch unreachable;
+    // if (usesVulkan(os)) {
+    //     cpp_sources.appendSlice(b.allocator, &[_][]const u8{
+    //         "runtime/render/vk_renderer.cc",
+    //         "runtime/gpu/vulkan/command_pool.cc",
+    //         "runtime/gpu/vulkan/descriptor_pool.cc",
+    //         "runtime/gpu/vulkan/device.cc",
+    //         "runtime/gpu/vulkan/gpu.cc",
+    //         "runtime/gpu/vulkan/image.cc",
+    //         "runtime/gpu/vulkan/pipeline.cc",
+    //         "runtime/gpu/vulkan/shader.cc",
+    //         "runtime/gpu/vulkan/swapchain.cc",
+    //         "runtime/gpu/vulkan/buffer.cc",
+    //     }) catch unreachable;
+    // }
 
-        if (optimize == .Debug) {
-            runtime.addCMacro("VKAD_DEBUG", "true");
-        }
+    if (optimize == .Debug) {
+        runtime.addCMacro("VKAD_DEBUG", "true");
     }
 
     runtime.linkSystemLibrary("opencv4", .{ .preferred_link_mode = .dynamic });
@@ -322,11 +328,31 @@ fn setupExecutable(b: *std.Build, mod: *std.Build.Step.Compile) void {
     mod.addIncludePath(b.path("src"));
 }
 
-fn usesVulkan(os: std.Target.Os.Tag) bool {
-    return os == .windows or os == .linux;
+fn getVulkanIncludeDir(b: *std.Build, os: std.Target.Os.Tag) ![]u8 {
+    switch (os) {
+        .windows, .macos => {
+            const vulkan_sdk_env = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch @panic("VULKAN_SDK environment variable is not set");
+            defer b.allocator.free(vulkan_sdk_env);
+
+            return try std.fmt.allocPrint(b.allocator, "{s}/include", .{vulkan_sdk_env});
+        },
+        .linux => {
+            return try std.fmt.allocPrint(b.allocator, "/usr/include/vulkan", .{});
+        },
+        else => std.debug.panic("Unsupported OS: {any}\n", .{os}),
+    }
 }
 
-fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*std.Build.Module {
+fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !std.StringHashMap(*std.Build.Module) {
+    var modules = std.StringHashMap(*std.Build.Module).init(b.allocator);
+
+    try modules.put("vulkan", try translateVulkanHeaders(b, target, optimize));
+    try modules.put("ffi", try translateFfiHeaders(b, target, optimize));
+
+    return modules;
+}
+
+fn translateVulkanHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*std.Build.Module {
     var vulkan_include_dir: []u8 = undefined;
     var vulkan_include_h: []u8 = undefined;
     defer b.allocator.free(vulkan_include_dir);
@@ -363,4 +389,32 @@ fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     }
 
     return translate_vulkan.createModule();
+}
+
+fn translateFfiHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*std.Build.Module {
+    var vulkan_include_dir: []u8 = undefined;
+    defer b.allocator.free(vulkan_include_dir);
+
+    switch (target.result.os.tag) {
+        .windows, .macos => {
+            const vulkan_sdk_env = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch @panic("VULKAN_SDK environment variable is not set");
+            defer b.allocator.free(vulkan_sdk_env);
+
+            vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "{s}/include", .{vulkan_sdk_env});
+        },
+        .linux => {
+            vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "/usr/include/vulkan", .{});
+        },
+        else => |os| std.debug.panic("Unsupported OS: {any}\n", .{os}),
+    }
+
+    const translate_ffi = b.addTranslateC(.{
+        .root_source_file = b.path("runtime/ffi.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    translate_ffi.addIncludePath(.{ .cwd_relative = vulkan_include_dir });
+
+    return translate_ffi.createModule();
 }

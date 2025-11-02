@@ -46,74 +46,78 @@ void ensure_validation_layers_supported() {
 
 } // namespace
 
-Gpu::Gpu() {
-   VkApplicationInfo app_info = {
-       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-       .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-       .apiVersion = VK_API_VERSION_1_0,
-   };
+// Gpu::Gpu() {
+//    VkApplicationInfo app_info = {
+//        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+//        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+//        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+//        .apiVersion = VK_API_VERSION_1_0,
+//    };
 
-   const char *extensions[] = {
-       "VK_KHR_surface",
-#ifdef VKAD_WINDOWS
-       "VK_KHR_win32_surface",
-#elif defined(VKAD_LINUX)
+//    const char *extensions[] = {
+//        "VK_KHR_surface",
+// #ifdef VKAD_WINDOWS
+//        "VK_KHR_win32_surface",
+// #elif defined(VKAD_LINUX)
 
-#ifdef SIMULO_KIOSK
-      "VK_KHR_display",
-      "VK_KHR_get_display_properties2",
-#else
-       Window::running_on_wayland() ? "VK_KHR_wayland_surface" : "VK_KHR_xlib_surface",
-#endif
+// #ifdef SIMULO_KIOSK
+//       "VK_KHR_display",
+//       "VK_KHR_get_display_properties2",
+// #else
+//        Window::running_on_wayland() ? "VK_KHR_wayland_surface" : "VK_KHR_xlib_surface",
+// #endif
 
-#endif
-   };
+// #endif
+//    };
 
-   VkInstanceCreateInfo create_info = {
-       .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-       .pApplicationInfo = &app_info,
-       .enabledExtensionCount = static_cast<uint32_t>(VKAD_ARRAY_LEN(extensions)),
-       .ppEnabledExtensionNames = extensions,
-   };
+//    VkInstanceCreateInfo create_info = {
+//        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+//        .pApplicationInfo = &app_info,
+//        .enabledExtensionCount = static_cast<uint32_t>(VKAD_ARRAY_LEN(extensions)),
+//        .ppEnabledExtensionNames = extensions,
+//    };
 
-#ifdef VKAD_DEBUG
-   ensure_validation_layers_supported();
-   create_info.enabledLayerCount = VKAD_ARRAY_LEN(kValidationLayers);
-   create_info.ppEnabledLayerNames = kValidationLayers;
-   std::cout << "Validation layers enabled\n";
-#endif
+// #ifdef VKAD_DEBUG
+//    ensure_validation_layers_supported();
+//    create_info.enabledLayerCount = VKAD_ARRAY_LEN(kValidationLayers);
+//    create_info.ppEnabledLayerNames = kValidationLayers;
+//    std::cout << "Validation layers enabled\n";
+// #endif
 
-   VKAD_VK(vkCreateInstance(&create_info, nullptr, &instance_));
+//    VKAD_VK(vkCreateInstance(&create_info, nullptr, &instance_));
 
-   uint32_t num_devices;
-   VKAD_VK(vkEnumeratePhysicalDevices(instance_, &num_devices, nullptr));
-   if (num_devices == 0) {
-      throw std::runtime_error("no physical devices");
-   }
+//    uint32_t num_devices;
+//    VKAD_VK(vkEnumeratePhysicalDevices(instance_, &num_devices, nullptr));
+//    if (num_devices == 0) {
+//       throw std::runtime_error("no physical devices");
+//    }
 
-   std::vector<VkPhysicalDevice> devices(num_devices);
-   vkEnumeratePhysicalDevices(instance_, &num_devices, devices.data());
+//    std::vector<VkPhysicalDevice> devices(num_devices);
+//    vkEnumeratePhysicalDevices(instance_, &num_devices, devices.data());
 
-   for (const auto &device : devices) {
-      VkPhysicalDeviceProperties properties;
-      vkGetPhysicalDeviceProperties(device, &properties);
+//    for (const auto &device : devices) {
+//       VkPhysicalDeviceProperties properties;
+//       vkGetPhysicalDeviceProperties(device, &properties);
 
-      if (properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-         continue;
-      }
+//       if (properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+//          continue;
+//       }
 
-      physical_device_ = device;
-      min_uniform_alignment_ = properties.limits.minUniformBufferOffsetAlignment;
-      vkGetPhysicalDeviceMemoryProperties(device, &mem_properties_);
-      return;
-   }
+//       physical_device_ = device;
+//       min_uniform_alignment_ = properties.limits.minUniformBufferOffsetAlignment;
+//       vkGetPhysicalDeviceMemoryProperties(device, &mem_properties_);
+//       return;
+//    }
 
-   throw std::runtime_error("no suitable physical device");
+//    throw std::runtime_error("no suitable physical device");
+// }
+
+Gpu::Gpu(GpuWrapper properties) {
+   wrapper_ = properties;
 }
 
 bool Gpu::initialize_surface(VkSurfaceKHR surface) {
-   return Swapchain::is_supported_on(physical_device_, surface) && find_queue_families(physical_device_, surface);
+   return Swapchain::is_supported_on(wrapper_.physical_device_, surface) && find_queue_families(wrapper_.physical_device_, surface);
 }
 
 bool Gpu::find_queue_families(VkPhysicalDevice candidate_device, VkSurfaceKHR surface) {
@@ -129,7 +133,7 @@ bool Gpu::find_queue_families(VkPhysicalDevice candidate_device, VkSurfaceKHR su
    bool presentation_found = false;
    for (int i = 0; i < queue_families.size(); ++i) {
       if (!graphics_found && (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
-         graphics_queue_ = i;
+         wrapper_.graphics_queue_ = i;
          graphics_found = true;
       }
 
@@ -137,7 +141,7 @@ bool Gpu::find_queue_families(VkPhysicalDevice candidate_device, VkSurfaceKHR su
          VkBool32 supported = false;
          vkGetPhysicalDeviceSurfaceSupportKHR(candidate_device, i, surface, &supported);
          if (supported) {
-            present_queue_ = i;
+            wrapper_.present_queue_ = i;
             presentation_found = true;
          }
       }
@@ -150,9 +154,9 @@ uint32_t Gpu::find_memory_type_index(
     uint32_t supported_bits, VkMemoryPropertyFlagBits extra
 ) const {
    VkMemoryType mem_type;
-   for (int i = 0; i < mem_properties_.memoryTypeCount; ++i) {
+   for (int i = 0; i < wrapper_.mem_properties_.memoryTypeCount; ++i) {
       bool supports_mem_type = (supported_bits & (1 << i)) != 0;
-      bool supports_extra = (mem_properties_.memoryTypes[i].propertyFlags & extra) == extra;
+      bool supports_extra = (wrapper_.mem_properties_.memoryTypes[i].propertyFlags & extra) == extra;
       if (supports_mem_type && supports_extra) {
          return i;
       }

@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "util/os_detect.h"
+#include <vulkan/vulkan.h>
 
 #if defined(VKAD_APPLE) && defined(__OBJC__)
 #import <Metal/Metal.h>
@@ -41,10 +42,12 @@ using OpenCvMat = cv::Mat;
 namespace simulo {
 class Renderer;
 class Gpu;
+struct GpuWrapper;
 class Window;
 } // namespace simulo
 using Renderer = simulo::Renderer;
 using Gpu = simulo::Gpu;
+using GpuWrapper = simulo::GpuWrapper;
 using Window = simulo::Window;
 
 #else
@@ -54,6 +57,9 @@ typedef struct SimuloRenderer Renderer;
 
 struct SimuloGpu;
 typedef struct SimuloGpu Gpu;
+
+struct SimuloGpuWrapper;
+typedef struct SimuloGpuWrapper GpuWrapper;
 
 struct SimuloWindow;
 typedef struct SimuloWindow Window;
@@ -145,7 +151,7 @@ void recreate_swapchain(Renderer *renderer, int32_t width, int32_t height, void 
 #endif
 void wait_idle(Renderer *renderer);
 
-Gpu *create_gpu(void);
+Gpu *create_gpu(GpuWrapper properties);
 void destroy_gpu(Gpu *gpu);
 
 Window *create_window(const Gpu *gpu, const char *title);
@@ -164,7 +170,7 @@ bool is_key_down(const Window *window, uint8_t key_code);
 bool key_just_pressed(const Window *window, uint8_t key_code);
 const char *get_typed_chars(const Window *window);
 int get_typed_chars_length(const Window *window);
-void *get_window_surface(const Window *window);
+VkSurfaceKHR get_window_surface(const Window *window);
 
 #ifdef __cplusplus
 }

@@ -2,62 +2,38 @@ const std = @import("std");
 const builtin = @import("builtin");
 const vk = @import("vulkan");
 const vkAssert = @import("status.zig").vkAssert;
+const ffi = @import("ffi");
+const Gpu = @import("physical_device.zig").Gpu;
 
 pub const Surface = struct {
-    surface: vk.VkSurfaceKHR = null,
+    gpu: *ffi.Gpu,
+    window: *ffi.Window,
 
     const Self = @This();
 
-    pub fn init(instance: vk.VkInstance) Self {
-        var surface = vk.VkSurfaceKHR{};
-        var create_result: c_int = vk.VK_ERROR_INITIALIZATION_FAILED;
+    pub fn init(gpu: Gpu, title: [*c]const u8) Self {
+        const gpu_properties = ffi.GpuWrapper{
+            .instance_ = gpu.instance,
+            .physical_device_ = gpu.physical_device,
+            .min_uniform_alignment_ = gpu.min_uniform_alignment,
+            .mem_properties_ = gpu.mem_properties,
+            .graphics_queue_ = gpu.graphics_queue,
+            .present_queue_ = gpu.present_queue,
+        };
+        const simulo_gpu = ffi.create_gpu(gpu_properties).?;
+        const simulo_window = ffi.create_window(simulo_gpu, title);
 
-        switch (builtin.os.tag) {
-            .windows => {
-                const create_info = vk.VkWin32SurfaceCreateInfoKHR{
-                    .sType = vk.VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-                };
-
-                create_result = vk.vkCreateWin32SurfaceKHR(instance, &create_info, null, &surface);
-            },
-            .macos => {
-                const create_info = vk.VkMetalSurfaceCreateInfoEXT{
-                    .sType = vk.VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
-                };
-
-                create_result = vk.vkCreateMetalSurfaceEXT(instance, &create_info, null, &surface);
-            },
-            .linux => {
-                const create_info = vk.VkWaylandSurfaceCreateInfoKHR{
-                    .sType = vk.VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
-                };
-
-                create_result = vk.vkCreateWaylandSurfaceKHR(instance, &create_info, null, &surface);
-            },
-            else => |os| std.debug.panic("OS not supported for creating a window surface ({})\n", .{os}),
-        }
-
-        vkAssert(create_result) catch std.debug.panic(
-            "Failed to Create window surface for {any} with error {}\n",
-            .{ builtin.os.tag, create_result },
-        );
-        return .{ .surface = surface };
+        return .{
+            .gpu = simulo_gpu,
+            .window = simulo_window,
+        };
     }
 
     pub fn deinit(self: Self, instance: vk.VkInstance) void {
         vk.vkDestroySurfaceKHR(instance, self.surface, null);
     }
 
-    pub fn getSurfaceSupport(self: Self, physical_device: vk.VkPhysicalDevice, family_index: u32) bool {
-        var supported = false;
-        const error_result = vk.vkGetPhysicalDeviceSurfaceSupportKHR(
-            physical_device,
-            family_index,
-            self.surface,
-            &supported,
-        );
-
-        vkAssert(error_result) catch std.debug.panic("Could not find surface support: {}\n", .{error_result});
-        return supported;
+    pub fn getSurface(self: Self) vk.VkSurfaceKHR {
+        ffi.get_window_surface(self.window).?;
     }
 };

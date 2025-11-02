@@ -219,6 +219,7 @@ Window::Window(const Gpu &gpu, const char *title) {
    window.contentView.layer = metal_layer_;
 
    this->ns_window_ = window;
+   instance_ = gpu.instance();
 
    [NSApp activateIgnoringOtherApps:YES];
 }

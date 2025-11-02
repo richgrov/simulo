@@ -83,6 +83,10 @@ int get_typed_chars_length(const Window *window) {
    return static_cast<int>(window->typed_chars().length());
 }
 
+VkSurfaceKHR get_window_surface(const Window *window) {
+   return window->surface();
+}
+
 #ifdef VKAD_APPLE
 
 Renderer *create_renderer(Gpu *gpu, const Window *window) {
@@ -90,10 +94,6 @@ Renderer *create_renderer(Gpu *gpu, const Window *window) {
 }
 
 #else
-
-void *get_window_surface(const Window *window) {
-   return reinterpret_cast<void *>(window->surface());
-}
 
 Renderer *create_renderer(Gpu *gpu, const Window *window) {
    gpu->initialize_surface(window->surface());
@@ -106,8 +106,8 @@ void destroy_renderer(Renderer *renderer) {
    delete renderer;
 }
 
-Gpu *create_gpu(void) {
-   return new Gpu();
+Gpu *create_gpu(GpuWrapper properties) {
+   return new Gpu(properties);
 }
 
 void destroy_gpu(Gpu *gpu) {
