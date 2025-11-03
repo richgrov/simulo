@@ -52,12 +52,13 @@ fn Matrix(T: type, comptime rows: usize, comptime cols: usize) type {
 
         pub fn offAxisPerspective(top: f32, bottom: f32, left: f32, right: f32, near: f32, far: f32) Matrix(f32, 4, 4) {
             const depth = far / (far - near);
+            const height = top - bottom;
             // zig fmt: off
             return .{ .data = [_]@Vector(4, f32){
-                .{ (2 * near) / (right - left),     0,                               0,             0 },
-                .{ 0,                               (2 * near) / (top - bottom),     0,             0 },
-                .{ (right + left) / (right - left), (top + bottom) / (top - bottom), depth,         1 },
-                .{ 0,                               0,                               -near * depth, 0 },
+                .{ (2 * near) / (right - left),     0,                                 0,             0 },
+                .{ 0,                               (y_direction * 2 * near) / height, 0,             0 },
+                .{ (right + left) / (right - left), (top + bottom) / height,           depth,         1 },
+                .{ 0,                               0,                                 -near * depth, 0 },
             } };
             // zig fmt: on
         }
