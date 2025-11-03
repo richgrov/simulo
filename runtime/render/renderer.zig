@@ -26,9 +26,15 @@ const MAX_OBJECT_PASSES = 1024;
 
 const Object = struct {
     transform: Mat4,
+    color: @Vector(4, f32),
     mesh: MeshId,
     material: MaterialId,
     render_order: RenderOrder,
+};
+
+const Material = struct {
+    handle: ffi.Material,
+    color: @Vector(4, f32),
 };
 
 const MeshPass = struct {
@@ -81,7 +87,7 @@ pub const Renderer = struct {
     objects: Slab(Object),
     meshes: Slab(ffi.Mesh),
     mesh_passes: Slab(MeshPass),
-    materials: Slab(ffi.Material),
+    materials: Slab(Material),
     material_passes: Slab(MaterialPass),
     render_collections: [MAX_RENDER_LAYERS]RenderCollection = undefined,
 
@@ -104,7 +110,7 @@ pub const Renderer = struct {
         var mesh_passes = try Slab(MeshPass).init(allocator, 64);
         errdefer mesh_passes.deinit();
 
-        var materials = try Slab(ffi.Material).init(allocator, 32);
+        var materials = try Slab(Material).init(allocator, 32);
         errdefer materials.deinit();
 
         var material_passes = try Slab(MaterialPass).init(allocator, 32);
@@ -154,9 +160,12 @@ pub const Renderer = struct {
         self.material_passes.deinit();
     }
 
-    pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32) error{OutOfMemory}!MaterialHandle {
-        const mat = ffi.create_ui_material(self.handle, image.id, r, g, b);
-        const key, _ = try self.materials.insert(mat);
+    pub fn createUiMaterial(self: *Renderer, image: ImageHandle, r: f32, g: f32, b: f32, a: f32) error{OutOfMemory}!MaterialHandle {
+        const mat = ffi.create_ui_material(self.handle, image.id);
+        const key, _ = try self.materials.insert(.{
+            .handle = mat,
+            .color = .{ r, g, b, a },
+        });
         return .{ .id = @intCast(key) };
     }
 
@@ -187,6 +196,7 @@ pub const Renderer = struct {
 
         const obj_id, _ = try self.objects.insert(.{
             .transform = transform,
+            .color = .{ 1.0, 1.0, 1.0, 1.0 },
             .mesh = mesh.id,
             .material = material.id,
             .render_order = render_order,
@@ -214,13 +224,16 @@ pub const Renderer = struct {
         try new_mesh_pass.objects.put(self.allocator, object.id);
     }
 
-    pub fn updateMaterial(self: *Renderer, material: MaterialHandle, r: f32, g: f32, b: f32) void {
-        const mat = self.materials.get(material.id).?;
-        ffi.update_material(self.handle, mat, r, g, b);
+    pub fn updateMaterial(self: *Renderer, material: MaterialHandle, r: f32, g: f32, b: f32, a: f32) void {
+        self.materials.get(material.id).?.color = .{ r, g, b, a };
     }
 
     pub fn setObjectTransform(self: *Renderer, object: ObjectHandle, transform: Mat4) void {
         self.objects.get(object.id).?.transform = transform;
+    }
+
+    pub fn setObjectColor(self: *Renderer, object: ObjectHandle, color: @Vector(4, f32)) void {
+        self.objects.get(object.id).?.color = color;
     }
 
     pub fn deleteObject(self: *Renderer, object: ObjectHandle) void {
@@ -278,7 +291,7 @@ pub const Renderer = struct {
         }
 
         const mat = self.materials.get(material.id).?;
-        ffi.delete_material(self.handle, mat);
+        ffi.delete_material(self.handle, &mat.handle);
         self.materials.delete(material.id) catch unreachable;
         std.debug.print("Deleted material {}\n", .{material.id});
     }
@@ -332,7 +345,7 @@ pub const Renderer = struct {
                 const mat_pass_id = mat.value_ptr.*;
 
                 const material = self.materials.get(mat_id).?;
-                ffi.set_material(self.handle, material);
+                ffi.set_material(self.handle, &material.handle);
 
                 const material_pass = self.material_passes.get(mat_pass_id).?;
                 var mesh_passes = material_pass.mesh_passes.iterator();
@@ -348,7 +361,11 @@ pub const Renderer = struct {
                     while (it.next()) |instance| {
                         const object = self.objects.get(instance).?;
                         const transform = ui_view_projection.matmul(&object.transform);
-                        ffi.render_object(self.handle, transform.ptr());
+                        var push_constants: ffi.PushConstants = undefined;
+                        @memcpy(&push_constants.transform, transform.ptr());
+                        const color = material.color * object.color;
+                        push_constants.color = .{ color[0], color[1], color[2], color[3] };
+                        ffi.render_object(self.handle, &push_constants);
                     }
                 }
             }

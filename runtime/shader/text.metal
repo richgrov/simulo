@@ -9,19 +9,26 @@ struct UiVertex {
 
 struct UiOut {
 	simd::float4 pos [[position]];
+	simd::float4 color;
 	simd::float2 uv;
 };
 
-vertex UiOut vertex_main(uint vert_id [[vertex_id]], constant UiVertex* vertices, constant simd::float4x4 *transform) {
+struct PushConstants {
+	simd::float4x4 transform;
+	simd::float4 color;
+};
+
+vertex UiOut vertex_main(uint vert_id [[vertex_id]], constant UiVertex* vertices, constant PushConstants *push_constants) {
 	UiOut out;
-	out.pos = transform[0] * simd::float4(vertices[vert_id].pos, 1.0);
+	out.pos = push_constants[0].transform * simd::float4(vertices[vert_id].pos, 1.0);
+	out.color = push_constants[0].color;
 	out.uv = vertices[vert_id].uv;
 	return out;
 }
 
-fragment float4 fragment_main(UiOut vert [[stage_in]], constant simd::float3 *color, texture2d<float> texture [[texture(0)]]) {
+fragment float4 fragment_main(UiOut vert [[stage_in]], texture2d<float> texture [[texture(0)]]) {
 	constexpr sampler tex_sampler(mag_filter::linear, min_filter::linear);
-	return texture.sample(tex_sampler, vert.uv) * float4(color[0], 1.0);
+	return texture.sample(tex_sampler, vert.uv) * vert.color;
 }
 
 struct MeshVertex {
@@ -36,10 +43,10 @@ struct MeshOut {
 
 constant const simd::float3 sun = simd::float3(1, 1, 1);
 
-vertex MeshOut vertex_main2(uint vert_id [[vertex_id]], constant MeshVertex* vertices, constant simd::float4x4 *transform) {
+vertex MeshOut vertex_main2(uint vert_id [[vertex_id]], constant MeshVertex* vertices, constant PushConstants *push_constants) {
 	MeshOut out;
 	float brightness = dot(sun, vertices[vert_id].normal);
-	out.pos = transform[0] * simd::float4(vertices[vert_id].pos, 1.0);
+	out.pos = push_constants[0].transform * simd::float4(vertices[vert_id].pos, 1.0);
 	out.brightness = (brightness / 4) + 0.75;
 	return out;
 }

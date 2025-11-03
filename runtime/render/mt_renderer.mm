@@ -66,20 +66,12 @@ Renderer::do_create_material(RenderPipeline pipeline_id, void *data, size_t size
    };
 }
 
-Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
+Material create_ui_material(Renderer *renderer, uint32_t image) {
    return renderer->create_material<UiUniform>(
        renderer->pipelines().ui, {
                                      {"image", static_cast<RenderImage>(image)},
-                                     {"color", Vec3{r, g, b}},
                                  }
    );
-}
-
-void update_material(Renderer *renderer, Material *material, float r, float g, float b) {
-      UiUniform data{
-         .color = Vec3{r, g, b}
-      };
-   std::memcpy([material->uniform_buffer contents], &data, sizeof(data));
 }
 
 Mesh create_mesh(
@@ -161,9 +153,9 @@ void set_mesh(Renderer *renderer, Mesh *mesh) {
    [renderer->render_encoder_ setVertexBuffer:mesh->buffer offset:0 atIndex:0];
 }
 
-void render_object(Renderer *renderer, const float *transform) {
-   [renderer->render_encoder_ setVertexBytes:reinterpret_cast<const void *>(transform)
-                                      length:sizeof(Mat4)
+void render_object(Renderer *renderer, const PushConstants *push_constants) {
+   [renderer->render_encoder_ setVertexBytes:reinterpret_cast<const void *>(push_constants)
+                                      length:sizeof(PushConstants)
                                      atIndex:1];
 
    static_assert(sizeof(IndexBufferType) == 2, "IndexBufferType != MTLIndexTypeUInt16");

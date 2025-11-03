@@ -24,7 +24,7 @@ pub const EyeGuard = struct {
 
     pub fn init(allocator: std.mem.Allocator, renderer: *Renderer, mesh: Renderer.MeshHandle, white_pixel_texture: Renderer.ImageHandle) !EyeGuard {
         return .{
-            .mask_material = try renderer.createUiMaterial(white_pixel_texture, 0.0, 0.0, 0.0),
+            .mask_material = try renderer.createUiMaterial(white_pixel_texture, 0.0, 0.0, 0.0, 1.0),
             .mesh = mesh,
             .masks = std.AutoHashMap(u64, MaskData).init(allocator),
         };
