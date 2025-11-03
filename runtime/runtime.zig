@@ -156,7 +156,7 @@ pub const Runtime = struct {
 
         const image = createChessboard(&runtime.renderer);
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
-        const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
+        const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0, 1.0);
         runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
         runtime.view = Mat4.identity();
         runtime.projection = .{ .d2 = .{ .near = -1.0, .far = 1.0 } };
@@ -193,6 +193,7 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_create_rendered_object2", wasmCreateRenderedObject2);
         try wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
         try wasm.exposeFunction("simulo_set_rendered_object_transforms", wasmSetRenderedObjectTransforms);
+        try wasm.exposeFunction("simulo_set_rendered_object_colors", wasmSetRenderedObjectColors);
         try wasm.exposeFunction("simulo_drop_rendered_object", wasmDropRenderedObject);
 
         try wasm.exposeFunction("simulo_set_camera_2d", wasmSetCamera2d);
@@ -614,6 +615,16 @@ pub const Runtime = struct {
         }
     }
 
+    fn wasmSetRenderedObjectColors(env: *Wasm, count: u32, ids: [*]u32, colors: [*]f32) void {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.logger.trace("simulo_set_rendered_object_colors({d}, {*}, {*})", .{ count, ids, colors });
+
+        for (0..count) |i| {
+            const color = @Vector(4, f32){ colors[i * 4 + 0], colors[i * 4 + 1], colors[i * 4 + 2], colors[i * 4 + 3] };
+            runtime.renderer.setObjectColor(.{ .id = ids[i] }, color);
+        }
+    }
+
     fn wasmDropRenderedObject(env: *Wasm, id: u32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.logger.trace("simulo_drop_rendered_object({d})", .{id});
@@ -650,11 +661,11 @@ pub const Runtime = struct {
         return runtime.window.getHeight();
     }
 
-    fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, name_len: u32, r: f32, g: f32, b: f32) u32 {
+    fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, name_len: u32, r: f32, g: f32, b: f32, a: f32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const image = if (!runtime.wasm.isNullptr(name)) cond: {
             const name_slice = name[0..name_len];
-            runtime.logger.trace("simulo_create_material(\"{s}\", {d}, {d}, {d})", .{ name_slice, r, g, b });
+            runtime.logger.trace("simulo_create_material(\"{s}\", {d}, {d}, {d}, {d})", .{ name_slice, r, g, b, a });
             if (runtime.assets.get(name_slice)) |asset| {
                 switch (asset) {
                     .image => |img| break :cond img,
@@ -668,17 +679,17 @@ pub const Runtime = struct {
                 return 0;
             }
         } else cond: {
-            runtime.logger.trace("simulo_create_material(null, {d}, {d}, {d})", .{ r, g, b });
+            runtime.logger.trace("simulo_create_material(null, {d}, {d}, {d}, {d})", .{ r, g, b, a });
             break :cond runtime.white_pixel_texture;
         };
 
-        const material = runtime.renderer.createUiMaterial(image, r, g, b) catch |err| util.crash.oom(err);
+        const material = runtime.renderer.createUiMaterial(image, r, g, b, a) catch |err| util.crash.oom(err);
         return material.id;
     }
 
-    fn wasmUpdateMaterial(env: *Wasm, id: u32, r: f32, g: f32, b: f32) void {
+    fn wasmUpdateMaterial(env: *Wasm, id: u32, r: f32, g: f32, b: f32, a: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.renderer.updateMaterial(.{ .id = id }, r, g, b);
+        runtime.renderer.updateMaterial(.{ .id = id }, r, g, b, a);
     }
 
     fn shouldRun(self: *Runtime, time_of_day: i64) bool {
