@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "ffi.h"
 #include "math/matrix.h"
 #include "status.h"
 #include "util/memory.h"
@@ -91,7 +92,7 @@ Pipeline::Pipeline(
    VkPushConstantRange push_constants = {
        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
        .offset = 0,
-       .size = sizeof(Mat4),
+       .size = sizeof(PushConstants),
    };
 
    VkPipelineLayoutCreateInfo layout_create = {
