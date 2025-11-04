@@ -1,4 +1,4 @@
-[<image-card alt="Thumbnail" src="https://img.youtube.com/vi/tMbLb4fy-kw/0.jpg"></image-card>](https://www.youtube.com/watch?v=tMbLb4fy-kw)
+[![Simulo Demo Video](https://img.youtube.com/vi/tMbLb4fy-kw/0.jpg)](https://www.youtube.com/watch?v=tMbLb4fy-kw)
 
 # simulo
 
