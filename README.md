@@ -1,4 +1,4 @@
-<iframe width="560" height="315" src="https://www.youtube.com/embed/tMbLb4fy-kw?si=ql8HBwH8TObgaMCx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[<image-card alt="Thumbnail" src="https://img.youtube.com/vi/tMbLb4fy-kw/0.jpg"></image-card>](https://www.youtube.com/watch?v=tMbLb4fy-kw)
 
 # simulo
 
