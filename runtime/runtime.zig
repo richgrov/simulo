@@ -201,9 +201,6 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_set_camera_off_axis", wasmSetCameraOffAxis);
         try wasm.exposeFunction("simulo_set_view_matrix", wasmSetViewMatrix);
 
-        try wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
-        try wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
-
         try wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
         try wasm.exposeFunction("simulo_update_material", wasmUpdateMaterial);
         try wasm.exposeFunction("simulo_drop_material", wasmDropMaterial);
@@ -401,9 +398,17 @@ pub const Runtime = struct {
 
         self.poll_profiler.log(.poll_window);
 
+        var writer: ?std.io.Writer = if (event_buf) |buf| std.io.Writer.fixed(buf) else null;
+
         if (width != self.last_window_width or height != self.last_window_height) {
             self.last_window_width = width;
             self.last_window_height = height;
+
+            if (writer) |*w| {
+                wasm_message.writeResizeEvent(w, @intCast(width), @intCast(height)) catch |err| {
+                    self.logger.err("failed to write resize event: {s}", .{@errorName(err)});
+                };
+            }
 
             if (comptime util.vulkan) {
                 self.renderer.handleResize(width, height, self.window.surface());
@@ -417,9 +422,8 @@ pub const Runtime = struct {
             self.poll_profiler.log(.resize);
         }
 
-        const event_out_len = self.processPoseDetections(event_buf) catch |err| blk: {
+        self.processPoseDetections(if (writer) |*w| w else null) catch |err| {
             self.logger.err("failed to process pose detections: {s}", .{@errorName(err)});
-            break :blk 0;
         };
         self.poll_profiler.log(.process_pose);
 
@@ -486,14 +490,12 @@ pub const Runtime = struct {
             self.second_timer = now;
         }
 
-        return event_out_len;
+        return if (writer) |*w| w.end else 0;
     }
 
-    fn processPoseDetections(self: *Runtime, event_buf: ?[]u8) !usize {
+    fn processPoseDetections(self: *Runtime, writer: ?*std.io.Writer) !void {
         const width: f32 = @floatFromInt(self.last_window_width);
         const height: f32 = @floatFromInt(self.last_window_height);
-
-        var writer = if (event_buf) |buf| std.io.Writer.fixed(buf) else null;
 
         while (self.pose_detector.nextEvent()) |event| {
             switch (event) {
@@ -509,7 +511,7 @@ pub const Runtime = struct {
                 .move => |move| {
                     self.eyeguard.handleEvent(move.id, &move.detection, &self.renderer, width, height);
 
-                    if (writer) |*w| {
+                    if (writer) |w| {
                         wasm_message.writeMoveEvent(w, move.id, &move.detection, width, height) catch |err| {
                             self.logger.err("failed to write move event: {s}", .{@errorName(err)});
                         };
@@ -518,7 +520,7 @@ pub const Runtime = struct {
                 .lost => |id| {
                     self.eyeguard.handleDelete(&self.renderer, id);
 
-                    if (writer) |*w| {
+                    if (writer) |w| {
                         wasm_message.writeLostEvent(w, id) catch |err| {
                             self.logger.err("failed to write lost event: {s}", .{@errorName(err)});
                         };
@@ -537,8 +539,6 @@ pub const Runtime = struct {
                 },
             }
         }
-
-        return if (writer) |*w| w.end else 0;
     }
 
     fn wasmSetBuffers(env: *Wasm, pose_buffer: [*]f32) void {
@@ -649,16 +649,6 @@ pub const Runtime = struct {
     fn wasmSetViewMatrix(env: *Wasm, matrix: [*]f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.view = Mat4.fromColumnMajorPtr(matrix);
-    }
-
-    fn wasmWindowWidth(env: *Wasm) i32 {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        return runtime.window.getWidth();
-    }
-
-    fn wasmWindowHeight(env: *Wasm) i32 {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        return runtime.window.getHeight();
     }
 
     fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, name_len: u32, r: f32, g: f32, b: f32, a: f32) u32 {
