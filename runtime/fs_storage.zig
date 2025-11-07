@@ -86,7 +86,7 @@ pub fn loadLatestProgram(allocator: std.mem.Allocator) !?ProgramInfo {
     };
     defer latest_info.close();
 
-    var buf: [32]u8 = undefined;
+    var buf: [128]u8 = undefined;
     var reader_struct = latest_info.reader(&buf);
     var reader = &reader_struct.interface;
 
@@ -95,8 +95,8 @@ pub fn loadLatestProgram(allocator: std.mem.Allocator) !?ProgramInfo {
     if (version[0] > 2) return error.InvalidVersion;
 
     const program_path: [:0]const u8 = if (version[0] >= 2) blk: {
-        const path = try reader.takeDelimiterInclusive(0);
-        break :blk @ptrCast(try allocator.dupe(u8, path));
+        const path = try reader.takeDelimiterExclusive(0);
+        break :blk try allocator.dupeZ(u8, path);
     } else blk: {
         var program_hash: [32]u8 = undefined;
         try reader.readSliceAll(&program_hash);
@@ -111,15 +111,15 @@ pub fn loadLatestProgram(allocator: std.mem.Allocator) !?ProgramInfo {
     var assets = FixedArrayList(ProgramAsset, 16).init();
     for (0..num_assets[0]) |_| {
         const real_path: [:0]const u8 = if (version[0] >= 2) blk: {
-            const path = try reader.takeDelimiterInclusive(0);
-            break :blk @ptrCast(try allocator.dupe(u8, path));
+            const path = try reader.takeDelimiterExclusive(0);
+            break :blk try allocator.dupeZ(u8, path);
         } else blk: {
             var hash: [32]u8 = undefined;
             try reader.readSliceAll(&hash);
 
             break :blk try getCachePathAlloc(allocator, &hash);
         };
-        defer allocator.free(real_path);
+        errdefer allocator.free(real_path);
 
         var maybe_name: ?FixedArrayList(u8, max_asset_name_len) = null;
         if (version[0] > 0) {

@@ -13,12 +13,8 @@ struct UiVertex {
 };
 
 struct UiUniform {
-   Vec3 color;
-
    static UiUniform from_props(const MaterialProperties &props) {
-      return UiUniform{
-          .color = props.get<Vec3>("color"),
-      };
+      return UiUniform{};
    }
 };
 

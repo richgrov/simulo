@@ -268,21 +268,13 @@ void clear_ui_materials(Renderer *renderer) {
    pipe.uniform_slot_usage = 2;
 }
 
-Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b) {
+Material create_ui_material(Renderer *renderer, uint32_t image) {
    return create_material<UiUniform>(
        renderer, renderer->pipeline_ids_.ui,
        {
            {"image", static_cast<RenderImage>(image)},
-           {"color", Vec3{r, g, b}},
        }
    );
-}
-
-void update_material(Renderer *renderer, Material *material, float r, float g, float b) {
-   Renderer::MaterialPipeline &mat = renderer->pipelines_[renderer->pipeline_ids_.ui];
-
-   UiUniform data{.color = Vec3{r, g, b}};
-   mat.uniforms.upload_memory(&data, sizeof(data), material->uniform_buffer_index);
 }
 
 RenderPipeline Renderer::create_pipeline(
@@ -521,10 +513,10 @@ void set_mesh(Renderer *renderer, Mesh *mesh) {
    renderer->last_bound_mesh_index_count_ = mesh->num_indices;
 }
 
-void render_object(Renderer *renderer, const float *transform) {
+void render_object(Renderer *renderer, const PushConstants *push_constants) {
    vkCmdPushConstants(
        renderer->command_buffer_, renderer->last_bound_pipeline_->pipeline.layout(),
-       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4), transform
+       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), push_constants
    );
 
    vkCmdDrawIndexed(renderer->command_buffer_, renderer->last_bound_mesh_index_count_, 1, 0, 0, 0);

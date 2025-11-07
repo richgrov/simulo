@@ -1,15 +1,16 @@
-![simulo logo](.github/simulo-banner.png)
-
 # simulo
 
 Software for creating and managing projection mapping experiences.
+
+Demo video:
+
+[![Simulo Demo Video](https://img.youtube.com/vi/tMbLb4fy-kw/0.jpg)](https://www.youtube.com/watch?v=tMbLb4fy-kw)
 
 ## Features
 
 - 🎥 Make interactive experiences through real-time pose detection
 - 📡 Automatically calibrate cameras and projectors
 - 🎨 Low-overhead rendering directly to HDMI output
-- 🤖 [AI-powered editor and simulation engine](https://github.com/richgrov/simulo-editor)
 - 🌐 Cloud connectivity for remote control and monitoring
 - 🔒 Robust error handling & fully offline capable
 - 🕶️ Real-time masking to avoid shining light directly into eyes

@@ -125,10 +125,9 @@ typedef struct {
 Renderer *create_renderer(Gpu *gpu, const Window *window);
 void destroy_renderer(Renderer *renderer);
 
-Material create_ui_material(Renderer *renderer, uint32_t image, float r, float g, float b);
+Material create_ui_material(Renderer *renderer, uint32_t image);
 uint32_t create_mesh_material(Renderer *renderer, float r, float g, float b);
 void clear_ui_materials(Renderer *renderer);
-void update_material(Renderer *renderer, Material *material, float r, float g, float b);
 void delete_material(Renderer *renderer, Material *material);
 
 Mesh create_mesh(
@@ -140,16 +139,20 @@ uint32_t
 add_object(Renderer *renderer, uint32_t mesh_id, const float *transform, uint32_t material_id);
 void delete_object(Renderer *renderer, uint32_t object_id);
 uint32_t create_image(Renderer *renderer, uint8_t *img_data, int width, int height);
-void set_object_transform(Renderer *renderer, uint32_t object_id, const float *transform);
 bool render(
     Renderer *renderer, const float *ui_view_projection, const float *world_view_projection
 );
+
+typedef struct {
+   float transform[16];
+   float color[4];
+} PushConstants;
 
 bool begin_render(Renderer *renderer);
 void set_pipeline(Renderer *renderer, uint32_t pipeline_id);
 void set_material(Renderer *renderer, Material *material);
 void set_mesh(Renderer *renderer, Mesh *mesh);
-void render_object(Renderer *renderer, const float *transform);
+void render_object(Renderer *renderer, const PushConstants *push_constants);
 void end_render(Renderer *renderer);
 
 #ifndef VKAD_APPLE

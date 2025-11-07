@@ -92,7 +92,6 @@ pub const Runtime = struct {
 
     wasm: Wasm,
     wasm_entry: ?Wasm.Function,
-    wasm_pose_buffer: ?[*]f32,
     audio_player: AudioPlayer,
     assets: std.StringHashMap(AssetData),
     next_program: ?DownloadPacket,
@@ -100,9 +99,11 @@ pub const Runtime = struct {
     white_pixel_texture: Renderer.ImageHandle,
     chessboard: Renderer.ObjectHandle,
     mesh: Renderer.MeshHandle,
-    camera: union(enum) {
+    view: Mat4,
+    projection: union(enum) {
         d2: struct { near: f32, far: f32 },
-        d3: struct { x: f32, y: f32, z: f32, near: f32, far: f32, fov: f32 },
+        d3: struct { near: f32, far: f32, fov: f32 },
+        off_axis: struct { top: f32, bottom: f32, left: f32, right: f32, near: f32, far: f32 },
     },
 
     calibration_state: enum {
@@ -145,7 +146,6 @@ pub const Runtime = struct {
         try runtime.wasm.startWatchdog();
         try registerWasmFuncs(&runtime.wasm);
         runtime.wasm_entry = null;
-        runtime.wasm_pose_buffer = null;
 
         //runtime.audio_player = try AudioPlayer.init();
         //errdefer runtime.audio_player.deinit();
@@ -153,11 +153,14 @@ pub const Runtime = struct {
         runtime.assets = std.StringHashMap(AssetData).init(runtime.allocator);
         errdefer runtime.assets.deinit();
 
+        runtime.next_program = null;
+
         const image = createChessboard(&runtime.renderer);
         runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
-        const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0);
+        const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0, 1.0);
         runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
-        runtime.camera = .{ .d2 = .{ .near = -1.0, .far = 1.0 } };
+        runtime.view = Mat4.identity();
+        runtime.projection = .{ .d2 = .{ .near = -1.0, .far = 1.0 } };
 
         runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.mesh, runtime.white_pixel_texture);
         errdefer runtime.eyeguard.deinit();
@@ -190,11 +193,14 @@ pub const Runtime = struct {
 
         try wasm.exposeFunction("simulo_create_rendered_object2", wasmCreateRenderedObject2);
         try wasm.exposeFunction("simulo_set_rendered_object_material", wasmSetRenderedObjectMaterial);
-        try wasm.exposeFunction("simulo_set_rendered_object_transform", wasmSetRenderedObjectTransform);
+        try wasm.exposeFunction("simulo_set_rendered_object_transforms", wasmSetRenderedObjectTransforms);
+        try wasm.exposeFunction("simulo_set_rendered_object_colors", wasmSetRenderedObjectColors);
         try wasm.exposeFunction("simulo_drop_rendered_object", wasmDropRenderedObject);
 
         try wasm.exposeFunction("simulo_set_camera_2d", wasmSetCamera2d);
         try wasm.exposeFunction("simulo_set_camera_3d", wasmSetCamera3d);
+        try wasm.exposeFunction("simulo_set_camera_off_axis", wasmSetCameraOffAxis);
+        try wasm.exposeFunction("simulo_set_view_matrix", wasmSetViewMatrix);
 
         try wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
         try wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
@@ -274,7 +280,6 @@ pub const Runtime = struct {
         self.assets.clearRetainingCapacity();
 
         self.wasm_entry = null;
-        self.wasm_pose_buffer = null;
 
         for (FIRST_PROGRAM_VISIBLE_RENDER_LAYER..FIRST_PROGRAM_VISIBLE_RENDER_LAYER + MAX_PROGRAM_VISIBLE_RENDER_LAYERS) |layer| {
             self.renderer.clearLayer(@intCast(layer));
@@ -351,11 +356,11 @@ pub const Runtime = struct {
                     _ = self.wasm.callFunction(wasm_entry, .{}) catch |err| {
                         self.logger.err("failed to run program: {s}", .{@errorName(err)});
                     };
+
+                    self.disposeCurrentProgram();
                 }
 
                 if (self.next_program) |*program| {
-                    self.disposeCurrentProgram();
-
                     self.loadProgram(program.program_path, program.files) catch |err| {
                         self.logger.err("failed to load new program: {s}", .{@errorName(err)});
                     };
@@ -423,12 +428,15 @@ pub const Runtime = struct {
             const w: f32 = @floatFromInt(width);
             const h: f32 = @floatFromInt(height);
 
-            const ui_projection = switch (self.camera) {
+            const projection = switch (self.projection) {
                 .d2 => Mat4.ortho(w, h, -1.0, 1.0),
-                .d3 => |d| Mat4.perspective(w / h, d.fov, d.near, d.far).matmul(&Mat4.translate(.{ -d.x, -d.y, -d.z })),
+                .d3 => |d| Mat4.perspective(w / h, d.fov, d.near, d.far),
+                .off_axis => |d| Mat4.offAxisPerspective(d.top, d.bottom, d.left, d.right, d.near, d.far),
             };
 
-            self.renderer.render(&self.surface, &ui_projection, &ui_projection) catch |err| {
+            const view_projection = projection.matmul(&self.view);
+
+            self.renderer.render(&self.window, &view_projection, &view_projection) catch |err| {
                 self.logger.err("render failed: {any}", .{err});
             };
         }
@@ -535,8 +543,9 @@ pub const Runtime = struct {
     }
 
     fn wasmSetBuffers(env: *Wasm, pose_buffer: [*]f32) void {
-        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.wasm_pose_buffer = pose_buffer;
+        _ = env;
+        _ = pose_buffer;
+        // kept for backwards compatibility
     }
 
     fn wasmPoll(env: *Wasm, buf: [*]u8, buf_len: u32) i32 {
@@ -597,11 +606,24 @@ pub const Runtime = struct {
         runtime.renderer.setObjectMaterial(.{ .id = id }, .{ .id = material_id }) catch |err| util.crash.oom(err);
     }
 
-    fn wasmSetRenderedObjectTransform(env: *Wasm, id: u32, transform: [*]f32) void {
+    fn wasmSetRenderedObjectTransforms(env: *Wasm, count: u32, ids: [*]u32, transforms: [*]f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        const mat = Mat4.fromColumnMajorPtr(transform);
-        runtime.logger.trace("simulo_set_rendered_object_transform({d}, {f})", .{ id, mat });
-        runtime.renderer.setObjectTransform(.{ .id = id }, mat);
+        runtime.logger.trace("simulo_set_rendered_object_transforms({d}, {*}, {*})", .{ count, ids, transforms });
+
+        for (0..count) |i| {
+            const mat = Mat4.fromColumnMajorPtr(@ptrCast(&transforms[i * 16]));
+            runtime.renderer.setObjectTransform(.{ .id = ids[i] }, mat);
+        }
+    }
+
+    fn wasmSetRenderedObjectColors(env: *Wasm, count: u32, ids: [*]u32, colors: [*]f32) void {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.logger.trace("simulo_set_rendered_object_colors({d}, {*}, {*})", .{ count, ids, colors });
+
+        for (0..count) |i| {
+            const color = @Vector(4, f32){ colors[i * 4 + 0], colors[i * 4 + 1], colors[i * 4 + 2], colors[i * 4 + 3] };
+            runtime.renderer.setObjectColor(.{ .id = ids[i] }, color);
+        }
     }
 
     fn wasmDropRenderedObject(env: *Wasm, id: u32) void {
@@ -612,12 +634,22 @@ pub const Runtime = struct {
 
     fn wasmSetCamera2d(env: *Wasm, near: f32, far: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.camera = .{ .d2 = .{ .near = near, .far = far } };
+        runtime.projection = .{ .d2 = .{ .near = near, .far = far } };
     }
 
-    fn wasmSetCamera3d(env: *Wasm, x: f32, y: f32, z: f32, fov: f32, near: f32, far: f32) void {
+    fn wasmSetCamera3d(env: *Wasm, fov: f32, near: f32, far: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.camera = .{ .d3 = .{ .x = x, .y = y, .z = z, .fov = fov, .near = near, .far = far } };
+        runtime.projection = .{ .d3 = .{ .fov = fov, .near = near, .far = far } };
+    }
+
+    fn wasmSetCameraOffAxis(env: *Wasm, top: f32, bottom: f32, left: f32, right: f32, near: f32, far: f32) void {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.projection = .{ .off_axis = .{ .top = top, .bottom = bottom, .left = left, .right = right, .near = near, .far = far } };
+    }
+
+    fn wasmSetViewMatrix(env: *Wasm, matrix: [*]f32) void {
+        const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        runtime.view = Mat4.fromColumnMajorPtr(matrix);
     }
 
     fn wasmWindowWidth(env: *Wasm) i32 {
@@ -630,11 +662,11 @@ pub const Runtime = struct {
         return runtime.surface.getHeight();
     }
 
-    fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, name_len: u32, r: f32, g: f32, b: f32) u32 {
+    fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, name_len: u32, r: f32, g: f32, b: f32, a: f32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const image = if (!runtime.wasm.isNullptr(name)) cond: {
             const name_slice = name[0..name_len];
-            runtime.logger.trace("simulo_create_material(\"{s}\", {d}, {d}, {d})", .{ name_slice, r, g, b });
+            runtime.logger.trace("simulo_create_material(\"{s}\", {d}, {d}, {d}, {d})", .{ name_slice, r, g, b, a });
             if (runtime.assets.get(name_slice)) |asset| {
                 switch (asset) {
                     .image => |img| break :cond img,
@@ -648,17 +680,17 @@ pub const Runtime = struct {
                 return 0;
             }
         } else cond: {
-            runtime.logger.trace("simulo_create_material(null, {d}, {d}, {d})", .{ r, g, b });
+            runtime.logger.trace("simulo_create_material(null, {d}, {d}, {d}, {d})", .{ r, g, b, a });
             break :cond runtime.white_pixel_texture;
         };
 
-        const material = runtime.renderer.createUiMaterial(image, r, g, b) catch |err| util.crash.oom(err);
+        const material = runtime.renderer.createUiMaterial(image, r, g, b, a) catch |err| util.crash.oom(err);
         return material.id;
     }
 
-    fn wasmUpdateMaterial(env: *Wasm, id: u32, r: f32, g: f32, b: f32) void {
+    fn wasmUpdateMaterial(env: *Wasm, id: u32, r: f32, g: f32, b: f32, a: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.renderer.updateMaterial(.{ .id = id }, r, g, b);
+        runtime.renderer.updateMaterial(.{ .id = id }, r, g, b, a);
     }
 
     fn shouldRun(self: *Runtime, time_of_day: i64) bool {

@@ -187,8 +187,6 @@ pub const Remote = struct {
     }
 
     pub fn fetch(self: *Remote, url: []const u8, hash: *const [32]u8, dest_path: []const u8) !void {
-        self.logger.info("Downloading {s} to {s}", .{ url, dest_path });
-
         var check_hash = true;
         const dest = std.fs.cwd().openFile(dest_path, .{ .mode = .read_write }) catch |err| file: {
             if (err == error.FileNotFound) {
@@ -243,6 +241,7 @@ pub const Remote = struct {
                 const program_path = fs_storage.getCachePathAlloc(allocator, &program_hash) catch unreachable;
                 errdefer allocator.free(program_path);
 
+                self.logger.info("Downloading program: {s} -> {s}", .{ program_url, program_path });
                 self.fetch(program_url, &program_hash, program_path) catch |err| {
                     self.logger.err("program download failed: {s}", .{@errorName(err)});
                     encountered_error = true;
@@ -268,6 +267,7 @@ pub const Remote = struct {
                     const dest_path = fs_storage.getCachePathAlloc(allocator, &hash) catch unreachable;
                     errdefer allocator.free(dest_path);
 
+                    self.logger.info("Downloading asset \"{s}\": {s} -> {s}", .{ name, url, dest_path });
                     self.fetch(url, &hash, dest_path) catch |err| {
                         self.logger.err("asset download failed: {s}", .{@errorName(err)});
                         encountered_error = true;
