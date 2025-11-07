@@ -91,6 +91,7 @@ pub const Runtime = struct {
 
     wasm: Wasm,
     wasm_entry: ?Wasm.Function,
+    first_poll: bool,
     audio_player: AudioPlayer,
     assets: std.StringHashMap(AssetData),
     next_program: ?DownloadPacket,
@@ -145,6 +146,7 @@ pub const Runtime = struct {
         try runtime.wasm.startWatchdog();
         try registerWasmFuncs(&runtime.wasm);
         runtime.wasm_entry = null;
+        runtime.first_poll = false;
 
         //runtime.audio_player = try AudioPlayer.init();
         //errdefer runtime.audio_player.deinit();
@@ -219,6 +221,7 @@ pub const Runtime = struct {
         };
 
         self.wasm_entry = init_func;
+        self.first_poll = true;
 
         for (assets) |*asset| {
             const asset_name = asset.name.?.items();
@@ -276,6 +279,7 @@ pub const Runtime = struct {
         self.assets.clearRetainingCapacity();
 
         self.wasm_entry = null;
+        self.first_poll = false;
 
         for (FIRST_PROGRAM_VISIBLE_RENDER_LAYER..FIRST_PROGRAM_VISIBLE_RENDER_LAYER + MAX_PROGRAM_VISIBLE_RENDER_LAYERS) |layer| {
             self.renderer.clearLayer(@intCast(layer));
@@ -420,6 +424,15 @@ pub const Runtime = struct {
             });
 
             self.poll_profiler.log(.resize);
+        }
+
+        if (writer) |*w| {
+            if (self.first_poll) {
+                self.first_poll = false;
+                wasm_message.writeResizeEvent(w, @intCast(width), @intCast(height)) catch |err| {
+                    self.logger.err("failed to write resize event: {s}", .{@errorName(err)});
+                };
+            }
         }
 
         self.processPoseDetections(if (writer) |*w| w else null) catch |err| {
