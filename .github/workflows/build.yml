@@ -1,5 +1,9 @@
 name: Build
-on: push
+# Ignore the pushes from the vulkan-migration branch for now
+on:
+  push:
+    branches-ignore:
+      - vulkan-migration
 
 jobs:
   #  Build-Windows:
