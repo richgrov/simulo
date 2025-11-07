@@ -25,7 +25,8 @@ const DownloadPacket = @import("remote/packet.zig").DownloadPacket;
 const AudioPlayer = @import("audio/audio.zig").AudioPlayer;
 
 pub const Renderer = @import("render/renderer.zig").Renderer;
-pub const Window = @import("window/window.zig").Window;
+pub const Surface = @import("gpu/vulkan/surface.zig").Surface;
+// pub const Window = @import("window/window.zig").Window;
 
 const wasm_mod = @import("wasm/wasm.zig");
 pub const Wasm = wasm_mod.Wasm;
@@ -38,7 +39,7 @@ pub const Detection = inference.Detection;
 pub const Keypoint = inference.Keypoint;
 
 pub const Camera = @import("camera/camera.zig").Camera;
-pub const Gpu = @import("gpu/gpu.zig").Gpu;
+pub const Gpu = @import("gpu/vulkan/gpu.zig").Gpu;
 
 const loadImage = @import("image/image.zig").loadImage;
 
@@ -76,7 +77,7 @@ const AssetData = union(enum) {
 
 pub const Runtime = struct {
     gpu: Gpu,
-    window: Window,
+    surface: Surface,
     last_window_width: i32,
     last_window_height: i32,
     renderer: Renderer,
@@ -127,13 +128,13 @@ pub const Runtime = struct {
         runtime.frame_count = 0;
         runtime.second_timer = 0;
 
-        runtime.gpu = Gpu.init();
+        runtime.gpu = Gpu.init(allocator);
         errdefer runtime.gpu.deinit();
-        runtime.window = Window.init(&runtime.gpu, "simulo runtime");
-        errdefer runtime.window.deinit();
+        runtime.surface = Surface.init(runtime.gpu, "simulo runtime");
+        errdefer runtime.surface.deinit();
         runtime.last_window_width = 0;
         runtime.last_window_height = 0;
-        runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
+        runtime.renderer = try Renderer.init(&runtime.surface, allocator);
         errdefer runtime.renderer.deinit();
         runtime.pose_detector = PoseDetector.init(camera_id, if (skip_calibration) DMat3.scale(.{ 1.0 / 640.0, 1.0 / 640.0 }) else null);
         errdefer runtime.pose_detector.stop();
@@ -178,7 +179,7 @@ pub const Runtime = struct {
 
         self.pose_detector.stop();
         self.renderer.deinit();
-        self.window.deinit();
+        self.surface.deinit();
         self.gpu.deinit();
         self.remote.deinit();
     }
@@ -386,11 +387,11 @@ pub const Runtime = struct {
             self.was_running = run_state;
         }
 
-        const width = self.window.getWidth();
-        const height = self.window.getHeight();
+        const width = self.surface.getWidth();
+        const height = self.surface.getHeight();
         self.poll_profiler.log(.setup_frame);
 
-        if (!self.window.poll()) {
+        if (!self.surface.poll()) {
             return null;
         }
 
@@ -401,7 +402,7 @@ pub const Runtime = struct {
             self.last_window_height = height;
 
             if (comptime util.vulkan) {
-                self.renderer.handleResize(width, height, self.window.surface());
+                self.renderer.handleResize(width, height, self.surface.surface());
             }
 
             self.renderer.setObjectTransform(self.chessboard, switch (self.calibration_state) {
@@ -427,7 +428,7 @@ pub const Runtime = struct {
                 .d3 => |d| Mat4.perspective(w / h, d.fov, d.near, d.far).matmul(&Mat4.translate(.{ -d.x, -d.y, -d.z })),
             };
 
-            self.renderer.render(&self.window, &ui_projection, &ui_projection) catch |err| {
+            self.renderer.render(&self.surface, &ui_projection, &ui_projection) catch |err| {
                 self.logger.err("render failed: {any}", .{err});
             };
         }
@@ -621,12 +622,12 @@ pub const Runtime = struct {
 
     fn wasmWindowWidth(env: *Wasm) i32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        return runtime.window.getWidth();
+        return runtime.surface.getWidth();
     }
 
     fn wasmWindowHeight(env: *Wasm) i32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        return runtime.window.getHeight();
+        return runtime.surface.getHeight();
     }
 
     fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, name_len: u32, r: f32, g: f32, b: f32) u32 {

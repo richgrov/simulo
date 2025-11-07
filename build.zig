@@ -219,8 +219,15 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
 
     const vulkan_include = getVulkanIncludeDir(b, target.result.os.tag) catch @panic("Could not find Vulkan Include Path");
     defer b.allocator.free(vulkan_include);
-    runtime.addIncludePath(b.path("runtime"));
     runtime.addIncludePath(.{ .cwd_relative = vulkan_include });
+    switch (target.result.os.tag) {
+        .windows => runtime.addCMacro("VK_USE_PLATFORM_WIN32_KHR", "1"),
+        .macos => runtime.addCMacro("VK_USE_PLATFORM_METAL_EXT", "1"),
+        .linux => runtime.addCMacro("VK_USE_PLATFORM_WAYLAND_KHR", "1"),
+        else => |os| std.debug.panic("Unsupported OS: {any}\n", .{os}),
+    }
+
+    runtime.addIncludePath(b.path("runtime"));
     runtime.link_libcpp = true;
     runtime.linkSystemLibrary("onnxruntime", .{});
     runtime.linkSystemLibrary("wasmtime", .{});
@@ -353,25 +360,10 @@ fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
 }
 
 fn translateVulkanHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*std.Build.Module {
-    var vulkan_include_dir: []u8 = undefined;
-    var vulkan_include_h: []u8 = undefined;
+    const vulkan_include_dir = try getVulkanIncludeDir(b, target.result.os.tag);
+    const vulkan_include_h = try std.fmt.allocPrint(b.allocator, "{s}/vulkan/vulkan.h", .{vulkan_include_dir});
     defer b.allocator.free(vulkan_include_dir);
     defer b.allocator.free(vulkan_include_h);
-
-    switch (target.result.os.tag) {
-        .windows, .macos => {
-            const vulkan_sdk_env = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch @panic("VULKAN_SDK environment variable is not set");
-            defer b.allocator.free(vulkan_sdk_env);
-
-            vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "{s}/include", .{vulkan_sdk_env});
-            vulkan_include_h = try std.fmt.allocPrint(b.allocator, "{s}/include/vulkan/vulkan.h", .{vulkan_sdk_env});
-        },
-        .linux => {
-            vulkan_include_h = try std.fmt.allocPrint(b.allocator, "/usr/include/vulkan/vulkan.h", .{});
-            vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "/usr/include/vulkan", .{});
-        },
-        else => |os| std.debug.panic("Unsupported OS: {any}\n", .{os}),
-    }
 
     const translate_vulkan = b.addTranslateC(.{
         .root_source_file = .{ .cwd_relative = vulkan_include_h },
@@ -392,21 +384,8 @@ fn translateVulkanHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optim
 }
 
 fn translateFfiHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*std.Build.Module {
-    var vulkan_include_dir: []u8 = undefined;
+    const vulkan_include_dir: []u8 = try getVulkanIncludeDir(b, target.result.os.tag);
     defer b.allocator.free(vulkan_include_dir);
-
-    switch (target.result.os.tag) {
-        .windows, .macos => {
-            const vulkan_sdk_env = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch @panic("VULKAN_SDK environment variable is not set");
-            defer b.allocator.free(vulkan_sdk_env);
-
-            vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "{s}/include", .{vulkan_sdk_env});
-        },
-        .linux => {
-            vulkan_include_dir = try std.fmt.allocPrint(b.allocator, "/usr/include/vulkan", .{});
-        },
-        else => |os| std.debug.panic("Unsupported OS: {any}\n", .{os}),
-    }
 
     const translate_ffi = b.addTranslateC(.{
         .root_source_file = b.path("runtime/ffi.h"),

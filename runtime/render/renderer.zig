@@ -15,8 +15,9 @@ const ffi = @cImport({
     @cInclude("ffi.h");
 });
 
-const Gpu = @import("../gpu/gpu.zig").Gpu;
-const Window = @import("../window/window.zig").Window;
+const Gpu = @import("../gpu/vulkan/gpu.zig").Gpu;
+const Surface = @import("../gpu/vulkan/surface.zig").Surface;
+// const Window = @import("../window/window.zig").Window;
 const Mat4 = @import("engine").math.Mat4;
 const Slab = util.Slab;
 const IntSet = util.IntSet;
@@ -91,8 +92,8 @@ pub const Renderer = struct {
     pub const ObjectHandle = struct { id: ObjectId };
     pub const ImageHandle = struct { id: ImageId };
 
-    pub fn init(gpu: *const Gpu, window: *const Window, allocator: std.mem.Allocator) !Renderer {
-        const renderer = ffi.create_renderer(@ptrCast(gpu.handle), @ptrCast(window.handle)).?;
+    pub fn init(surface: *const Surface, allocator: std.mem.Allocator) !Renderer {
+        const renderer = ffi.create_renderer(@ptrCast(surface.gpu), @ptrCast(surface.window)).?;
         errdefer ffi.destroy_renderer(renderer);
 
         var objects = try Slab(Object).init(allocator, 1024);
@@ -308,7 +309,7 @@ pub const Renderer = struct {
         return ImageHandle{ .id = id };
     }
 
-    pub fn render(self: *Renderer, window: *const Window, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) !void {
+    pub fn render(self: *Renderer, surface: *const Surface, ui_view_projection: *const Mat4, world_view_projection: *const Mat4) !void {
         _ = world_view_projection;
 
         if (!ffi.begin_render(self.handle)) {
@@ -316,7 +317,7 @@ pub const Renderer = struct {
                 return;
             }
 
-            ffi.recreate_swapchain(self.handle, window.getWidth(), window.getHeight(), window.surface());
+            ffi.recreate_swapchain(self.handle, surface.getWidth(), surface.getHeight(), surface.surface());
 
             if (!ffi.begin_render(self.handle)) {
                 return error.RenderFailed;

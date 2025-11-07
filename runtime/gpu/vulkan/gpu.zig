@@ -1,14 +1,10 @@
-// TODO: To be renamed to gpu.zig once all of the migration is finished
-// TODO: Didn't want to do it now because of gpu.zig that's in the parent directory
-
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const vk = @import("vulkan");
 const vkAssert = @import("status.zig").vkAssert;
 const Surface = @import("surface.zig").Surface;
-
-const validation_layers = [_][256]u8{"VK_LAYER_KHRONOS_validation"};
+const validation_layers = @import("validation_layers.zig").validation_layers;
 
 fn ensureLayersAreSupported(allocator: std.mem.Allocator) void {
     var total_layers: u32 = 0;
@@ -38,7 +34,7 @@ pub const Gpu = struct {
     instance: vk.VkInstance = null,
     physical_device: vk.VkPhysicalDevice = null,
     surface: ?Surface = null,
-    memory_properties: vk.VkPhysicalDeviceMemoryProperties = null,
+    memory_properties: vk.VkPhysicalDeviceMemoryProperties = .{},
     min_uniform_alignment: vk.VkDeviceSize = 0,
     graphics_queue: u32 = 0,
     present_queue: u32 = 0,
@@ -50,7 +46,7 @@ pub const Gpu = struct {
     }
 
     pub fn deinit(self: Self) void {
-        self.surface.?.deinit(self.instance);
+        self.surface.?.deinit();
         vk.vkDestroyInstance(self.instance, null);
     }
 

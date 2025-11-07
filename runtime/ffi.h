@@ -58,8 +58,14 @@ typedef struct SimuloRenderer Renderer;
 struct SimuloGpu;
 typedef struct SimuloGpu Gpu;
 
-struct SimuloGpuWrapper;
-typedef struct SimuloGpuWrapper GpuWrapper;
+typedef struct GpuWrapper {
+   VkInstance instance_;
+   VkPhysicalDevice physical_device_;
+   VkDeviceSize min_uniform_alignment_;
+   VkPhysicalDeviceMemoryProperties mem_properties_;
+   uint32_t graphics_queue_;
+   uint32_t present_queue_;
+} SimuloGpuWrapper;
 
 struct SimuloWindow;
 typedef struct SimuloWindow Window;
@@ -151,7 +157,7 @@ void recreate_swapchain(Renderer *renderer, int32_t width, int32_t height, void 
 #endif
 void wait_idle(Renderer *renderer);
 
-Gpu *create_gpu(GpuWrapper properties);
+Gpu *create_gpu(struct GpuWrapper properties);
 void destroy_gpu(Gpu *gpu);
 
 Window *create_window(const Gpu *gpu, const char *title);

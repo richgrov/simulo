@@ -186,42 +186,43 @@ void resize_metal_layer_to_window(NSWindow *window, CAMetalLayer *metal_layer) {
 @end
 
 Window::Window(const Gpu &gpu, const char *title) {
-   [NSApplication sharedApplication];
-   [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+   // [NSApplication sharedApplication];
+   // [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 
-   NSRect bounds = NSMakeRect(0, 0, 1280, 720);
-   NSWindow *window = [[NSWindow alloc]
-       initWithContentRect:bounds
-                 styleMask:NSWindowStyleMaskClosable | NSWindowStyleMaskResizable |
-                           NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskTitled
-                   backing:NSBackingStoreBuffered
-                     defer:NO];
+   // NSRect bounds = NSMakeRect(0, 0, 1280, 720);
+   // NSWindow *window = [[NSWindow alloc]
+   //     initWithContentRect:bounds
+   //               styleMask:NSWindowStyleMaskClosable | NSWindowStyleMaskResizable |
+   //                         NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskTitled
+   //                 backing:NSBackingStoreBuffered
+   //                   defer:NO];
 
-   window_delegate_ = [[WindowDelegate alloc] init];
-   window.delegate = window_delegate_;
-   [NSApp setDelegate:window_delegate_];
+   // window_delegate_ = [[WindowDelegate alloc] init];
+   // window.delegate = window_delegate_;
+   // [NSApp setDelegate:window_delegate_];
 
-   window_view_ = [[WindowView alloc] initWithDelegate:window_delegate_];
-   [window setContentView:window_view_];
+   // window_view_ = [[WindowView alloc] initWithDelegate:window_delegate_];
+   // [window setContentView:window_view_];
 
-   [window center];
-   window.title = [NSString stringWithUTF8String:title];
-   window.isVisible = YES;
-   window.acceptsMouseMovedEvents = YES;
-   [window makeKeyAndOrderFront:nil];
-   window.releasedWhenClosed = NO;
+   // [window center];
+   // window.title = [NSString stringWithUTF8String:title];
+   // window.isVisible = YES;
+   // window.acceptsMouseMovedEvents = YES;
+   // [window makeKeyAndOrderFront:nil];
+   // window.releasedWhenClosed = NO;
 
-   metal_layer_ = [[CAMetalLayer alloc] init];
-   metal_layer_.device = gpu.device();
-   metal_layer_.opaque = YES;
-   layer_pixel_format_ = metal_layer_.pixelFormat;
-   resize_metal_layer_to_window(window, metal_layer_);
-   window.contentView.layer = metal_layer_;
+   // metal_layer_ = [[CAMetalLayer alloc] init];
+   // metal_layer_.device = gpu.device();
+   // metal_layer_.opaque = YES;
+   // layer_pixel_format_ = metal_layer_.pixelFormat;
+   // resize_metal_layer_to_window(window, metal_layer_);
+   // window.contentView.layer = metal_layer_;
 
-   this->ns_window_ = window;
+   // this->ns_window_ = window;
+   // instance_ = gpu.instance();
+
+   // [NSApp activateIgnoringOtherApps:YES];
    instance_ = gpu.instance();
-
-   [NSApp activateIgnoringOtherApps:YES];
 }
 
 Window::~Window() {

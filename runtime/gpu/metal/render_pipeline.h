@@ -6,36 +6,36 @@
 #include <Metal/Metal.h>
 #endif
 
-namespace simulo {
+// namespace simulo {
 
-class Pipeline {
-public:
-   Pipeline(
-       const Gpu &gpu, void *pixel_format, const char *label, const char *vertex_fn,
-       const char *fragment_fn
-   );
+// class Pipeline {
+// public:
+//    Pipeline(
+//        const Gpu &gpu, void *pixel_format, const char *label, const char *vertex_fn,
+//        const char *fragment_fn
+//    );
 
-   Pipeline(Pipeline &&);
+//    Pipeline(Pipeline &&);
 
-   Pipeline(const Pipeline &) = delete;
+//    Pipeline(const Pipeline &) = delete;
 
-   ~Pipeline();
+//    ~Pipeline();
 
-   void operator=(const Pipeline &) = delete;
-   void operator=(Pipeline &&) = delete;
+//    void operator=(const Pipeline &) = delete;
+//    void operator=(Pipeline &&) = delete;
 
-#ifdef __OBJC__
-   id<MTLRenderPipelineState> _Nonnull pipeline_state() const {
-      return pipeline_state_;
-   }
-#endif
+// #ifdef __OBJC__
+//    id<MTLRenderPipelineState> _Nonnull pipeline_state() const {
+//       return pipeline_state_;
+//    }
+// #endif
 
-private:
-#ifdef __OBJC__
-   id<MTLRenderPipelineState> _Nonnull pipeline_state_;
-#else
-   void *pipeline_state_;
-#endif
-};
+// private:
+// #ifdef __OBJC__
+//    id<MTLRenderPipelineState> _Nonnull pipeline_state_;
+// #else
+//    void *pipeline_state_;
+// #endif
+// };
 
-} // namespace simulo
+// } // namespace simulo

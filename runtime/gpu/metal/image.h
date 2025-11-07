@@ -9,25 +9,25 @@
 
 #include "gpu/gpu.h"
 
-namespace simulo {
+// namespace simulo {
 
-class Image {
-public:
-   Image(const Gpu &gpu, std::span<const uint8_t> data, int width, int height);
-   ~Image();
+// class Image {
+// public:
+//    Image(const Gpu &gpu, std::span<const uint8_t> data, int width, int height);
+//    ~Image();
 
-#ifdef __OBJC__
-   id<MTLTexture> _Nonnull texture() const {
-      return texture_;
-   }
-#endif
+// #ifdef __OBJC__
+//    id<MTLTexture> _Nonnull texture() const {
+//       return texture_;
+//    }
+// #endif
 
-private:
-#ifdef __OBJC__
-   id<MTLTexture> _Nonnull texture_;
-#else
-   void *texture_;
-#endif
-};
+// private:
+// #ifdef __OBJC__
+//    id<MTLTexture> _Nonnull texture_;
+// #else
+//    void *texture_;
+// #endif
+// };
 
-}; // namespace simulo
+// }; // namespace simulo

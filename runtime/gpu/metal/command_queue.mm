@@ -7,12 +7,12 @@
 
 using namespace simulo;
 
-CommandQueue::CommandQueue(const Gpu &gpu) : command_queue_([gpu.device() newCommandQueue]) {
-   if (command_queue_ == nullptr) {
-      throw std::runtime_error("failed to create command queue");
-   }
-}
+// CommandQueue::CommandQueue(const Gpu &gpu) : command_queue_([gpu.device() newCommandQueue]) {
+//    if (command_queue_ == nullptr) {
+//       throw std::runtime_error("failed to create command queue");
+//    }
+// }
 
-CommandQueue::~CommandQueue() {
-   [command_queue_ release];
-}
+// CommandQueue::~CommandQueue() {
+//    [command_queue_ release];
+// }

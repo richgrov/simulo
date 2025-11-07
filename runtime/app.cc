@@ -83,7 +83,7 @@ int get_typed_chars_length(const Window *window) {
    return static_cast<int>(window->typed_chars().length());
 }
 
-VkSurfaceKHR get_window_surface(const Window *window) {
+VkSurfaceKHR get_window_surface(Window *window) {
    return window->surface();
 }
 
