@@ -356,6 +356,7 @@ pub const Runtime = struct {
                     _ = self.wasm.callFunction(wasm_entry, .{}) catch |err| {
                         self.logger.err("failed to run program: {s}", .{@errorName(err)});
                     };
+                    self.logger.info("program finished", .{});
 
                     self.disposeCurrentProgram();
                 }
