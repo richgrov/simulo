@@ -1,4 +1,5 @@
 name: Build
+# Ignore the pushes from the vulkan-migration branch for now
 on:
   push:
     branches-ignore:
