@@ -92,6 +92,7 @@ pub const Runtime = struct {
 
     wasm: Wasm,
     wasm_entry: ?Wasm.Function,
+    first_poll: bool,
     audio_player: AudioPlayer,
     assets: std.StringHashMap(AssetData),
     next_program: ?DownloadPacket,
@@ -146,6 +147,7 @@ pub const Runtime = struct {
         try runtime.wasm.startWatchdog();
         try registerWasmFuncs(&runtime.wasm);
         runtime.wasm_entry = null;
+        runtime.first_poll = false;
 
         //runtime.audio_player = try AudioPlayer.init();
         //errdefer runtime.audio_player.deinit();
@@ -202,9 +204,6 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_set_camera_off_axis", wasmSetCameraOffAxis);
         try wasm.exposeFunction("simulo_set_view_matrix", wasmSetViewMatrix);
 
-        try wasm.exposeFunction("simulo_window_width", wasmWindowWidth);
-        try wasm.exposeFunction("simulo_window_height", wasmWindowHeight);
-
         try wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
         try wasm.exposeFunction("simulo_update_material", wasmUpdateMaterial);
         try wasm.exposeFunction("simulo_drop_material", wasmDropMaterial);
@@ -223,6 +222,7 @@ pub const Runtime = struct {
         };
 
         self.wasm_entry = init_func;
+        self.first_poll = true;
 
         for (assets) |*asset| {
             const asset_name = asset.name.?.items();
@@ -280,6 +280,7 @@ pub const Runtime = struct {
         self.assets.clearRetainingCapacity();
 
         self.wasm_entry = null;
+        self.first_poll = false;
 
         for (FIRST_PROGRAM_VISIBLE_RENDER_LAYER..FIRST_PROGRAM_VISIBLE_RENDER_LAYER + MAX_PROGRAM_VISIBLE_RENDER_LAYERS) |layer| {
             self.renderer.clearLayer(@intCast(layer));
@@ -356,6 +357,7 @@ pub const Runtime = struct {
                     _ = self.wasm.callFunction(wasm_entry, .{}) catch |err| {
                         self.logger.err("failed to run program: {s}", .{@errorName(err)});
                     };
+                    self.logger.info("program finished", .{});
 
                     self.disposeCurrentProgram();
                 }
@@ -402,9 +404,17 @@ pub const Runtime = struct {
 
         self.poll_profiler.log(.poll_window);
 
+        var writer: ?std.io.Writer = if (event_buf) |buf| std.io.Writer.fixed(buf) else null;
+
         if (width != self.last_window_width or height != self.last_window_height) {
             self.last_window_width = width;
             self.last_window_height = height;
+
+            if (writer) |*w| {
+                wasm_message.writeResizeEvent(w, @intCast(width), @intCast(height)) catch |err| {
+                    self.logger.err("failed to write resize event: {s}", .{@errorName(err)});
+                };
+            }
 
             if (comptime util.vulkan) {
                 self.renderer.handleResize(width, height, self.surface.surface());
@@ -418,9 +428,17 @@ pub const Runtime = struct {
             self.poll_profiler.log(.resize);
         }
 
-        const event_out_len = self.processPoseDetections(event_buf) catch |err| blk: {
+        if (writer) |*w| {
+            if (self.first_poll) {
+                self.first_poll = false;
+                wasm_message.writeResizeEvent(w, @intCast(width), @intCast(height)) catch |err| {
+                    self.logger.err("failed to write resize event: {s}", .{@errorName(err)});
+                };
+            }
+        }
+
+        self.processPoseDetections(if (writer) |*w| w else null) catch |err| {
             self.logger.err("failed to process pose detections: {s}", .{@errorName(err)});
-            break :blk 0;
         };
         self.poll_profiler.log(.process_pose);
 
@@ -487,14 +505,12 @@ pub const Runtime = struct {
             self.second_timer = now;
         }
 
-        return event_out_len;
+        return if (writer) |*w| w.end else 0;
     }
 
-    fn processPoseDetections(self: *Runtime, event_buf: ?[]u8) !usize {
+    fn processPoseDetections(self: *Runtime, writer: ?*std.io.Writer) !void {
         const width: f32 = @floatFromInt(self.last_window_width);
         const height: f32 = @floatFromInt(self.last_window_height);
-
-        var writer = if (event_buf) |buf| std.io.Writer.fixed(buf) else null;
 
         while (self.pose_detector.nextEvent()) |event| {
             switch (event) {
@@ -510,7 +526,7 @@ pub const Runtime = struct {
                 .move => |move| {
                     self.eyeguard.handleEvent(move.id, &move.detection, &self.renderer, width, height);
 
-                    if (writer) |*w| {
+                    if (writer) |w| {
                         wasm_message.writeMoveEvent(w, move.id, &move.detection, width, height) catch |err| {
                             self.logger.err("failed to write move event: {s}", .{@errorName(err)});
                         };
@@ -519,7 +535,7 @@ pub const Runtime = struct {
                 .lost => |id| {
                     self.eyeguard.handleDelete(&self.renderer, id);
 
-                    if (writer) |*w| {
+                    if (writer) |w| {
                         wasm_message.writeLostEvent(w, id) catch |err| {
                             self.logger.err("failed to write lost event: {s}", .{@errorName(err)});
                         };
@@ -538,8 +554,6 @@ pub const Runtime = struct {
                 },
             }
         }
-
-        return if (writer) |*w| w.end else 0;
     }
 
     fn wasmSetBuffers(env: *Wasm, pose_buffer: [*]f32) void {

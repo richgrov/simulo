@@ -15,3 +15,9 @@ pub fn writeLostEvent(writer: *std.io.Writer, id: u64) !void {
     try writer.writeInt(u8, 1, .big);
     try writer.writeInt(u32, @intCast(id), .big);
 }
+
+pub fn writeResizeEvent(writer: *std.io.Writer, width: u16, height: u16) !void {
+    try writer.writeInt(u8, 2, .big);
+    try writer.writeInt(u16, width, .big);
+    try writer.writeInt(u16, height, .big);
+}
