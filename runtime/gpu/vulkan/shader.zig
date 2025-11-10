@@ -19,6 +19,8 @@ pub const Shader = struct {
         var shader_module: vk.VkShaderModule = null;
         vkAssert(vk.vkCreateShaderModule(device, &create_info, null, &shader_module)) catch
             @panic("Failed to create shader module");
+
+        return .{ .device = device, .module = shader_module };
     }
 
     pub fn deinit(self: *Self) void {
