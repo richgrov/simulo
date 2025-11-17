@@ -46,7 +46,6 @@ pub fn build(b: *std.Build) !void {
     //godot_lib.root_module.addImport("engine", engine);
     //godot_lib.addIncludePath(b.path("godot"));
     //godot_lib.linkLibCpp();
-    //godot_lib.linkSystemLibrary("onnxruntime");
 
     //godot_lib.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
 
@@ -202,9 +201,7 @@ fn createEngine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
         .optimize = optimize,
     });
 
-    engine.linkSystemLibrary("onnxruntime", .{});
-    engine.linkSystemLibrary("libdeflate", .{});
-
+    linkOnnxRuntime(b, engine, target);
     return engine;
 }
 
@@ -216,7 +213,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
     });
     runtime.addIncludePath(b.path("runtime"));
     runtime.link_libcpp = true;
-    runtime.linkSystemLibrary("onnxruntime", .{});
+    linkOnnxRuntime(b, runtime, target);
     runtime.linkSystemLibrary("wasmtime", .{});
 
     if (kiosk) {
@@ -363,4 +360,75 @@ fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     }
 
     return translate_vulkan.createModule();
+}
+
+fn linkOnnxRuntime(b: *std.Build, module: *std.Build.Module, target: std.Build.ResolvedTarget) void {
+    if (!target.result.isDarwinLibC()) {
+        module.linkSystemLibrary("opencv4", .{});
+        return;
+    }
+
+    module.addLibraryPath(b.path("vendor/onnxruntime/build/MacOS/RelWithDebInfo"));
+    module.addLibraryPath(b.path("vendor/onnxruntime/build/MacOS/RelWithDebInfo/vcpkg_installed/arm64-osx/lib"));
+    module.addLibraryPath(b.path("vendor/onnxruntime/build/MacOS/RelWithDebInfo/_deps/kleidiai-build"));
+    module.addLibraryPath(b.path("vendor/onnxruntime/build/MacOS/RelWithDebInfo/_deps/pytorch_cpuinfo-build"));
+
+    const libs = [_][]const u8{
+        "absl_base",
+        "absl_city",
+        "absl_debugging_internal",
+        "absl_demangle_internal",
+        "absl_demangle_rust",
+        "absl_utf8_for_code_point",
+        "absl_decode_rust_punycode",
+        "absl_examine_stack",
+        "absl_spinlock_wait",
+        "absl_synchronization",
+        "absl_kernel_timeout_internal",
+        "absl_int128",
+        "absl_hash",
+        "absl_hashtablez_sampler",
+        "absl_raw_hash_set",
+        "absl_raw_logging_internal",
+        "absl_low_level_hash",
+        "absl_log_internal_format",
+        "absl_log_internal_message",
+        "absl_log_internal_globals",
+        "absl_log_internal_nullguard",
+        "absl_log_internal_proto",
+        "absl_log_internal_structured_proto",
+        "absl_log_internal_log_sink_set",
+        "absl_log_globals",
+        "absl_log_sink",
+        "absl_str_format_internal",
+        "absl_strings",
+        "absl_strings_internal",
+        "absl_stacktrace",
+        "absl_strerror",
+        "absl_symbolize",
+        "absl_throw_delegate",
+        "absl_time",
+        "absl_time_zone",
+        "absl_malloc_internal",
+        "cpuinfo",
+        "kleidiai",
+        "onnxruntime_common",
+        "onnxruntime_session",
+        "onnxruntime_optimizer",
+        "onnxruntime_providers",
+        "onnxruntime_lora",
+        "onnxruntime_util",
+        "onnxruntime_framework",
+        "onnxruntime_graph",
+        "onnxruntime_mlas",
+        "onnxruntime_flatbuffers",
+        "onnx",
+        "onnx_proto",
+        "protobuf",
+        "re2",
+    };
+
+    for (libs) |lib| {
+        module.linkSystemLibrary(lib, .{ .use_pkg_config = .no, .preferred_link_mode = .static, .search_strategy = .mode_first });
+    }
 }
