@@ -7,3 +7,6 @@
 [submodule "vendor/onnxruntime"]
 	path = vendor/onnxruntime
 	url = https://github.com/microsoft/onnxruntime.git
+[submodule "vendor/opencv"]
+	path = vendor/opencv
+	url = https://github.com/opencv/opencv.git
