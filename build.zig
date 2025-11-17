@@ -298,7 +298,28 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         }
     }
 
-    runtime.linkSystemLibrary("opencv4", .{ .preferred_link_mode = .dynamic });
+    if (target.result.isDarwinLibC()) {
+        runtime.addLibraryPath(b.path("vendor/opencv/build/install/lib"));
+        runtime.addLibraryPath(b.path("vendor/opencv/build/install/lib/opencv4/3rdparty"));
+        runtime.addIncludePath(b.path("vendor/opencv/build/install/include/opencv4"));
+        runtime.linkSystemLibrary("blas", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("lapack", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("opencv_core", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("opencv_calib3d", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("opencv_features2d", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("opencv_flann", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("opencv_imgcodecs", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("opencv_imgproc", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("tegra_hal", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("libjpeg-turbo", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("libopenjp2", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("libpng", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("libtiff", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("libwebp", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("zlib", .{ .preferred_link_mode = .static });
+    } else {
+        runtime.linkSystemLibrary("opencv4", .{});
+    }
 
     runtime.addCSourceFiles(.{
         .files = &[_][]const u8{"runtime/audio/miniaudio.c"},
@@ -364,7 +385,7 @@ fn translateHeaders(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
 
 fn linkOnnxRuntime(b: *std.Build, module: *std.Build.Module, target: std.Build.ResolvedTarget) void {
     if (!target.result.isDarwinLibC()) {
-        module.linkSystemLibrary("opencv4", .{});
+        module.linkSystemLibrary("onnxruntime", .{});
         return;
     }
 
