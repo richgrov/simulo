@@ -4,3 +4,6 @@
 [submodule "src/vendor/MigroGD"]
 	path = src/vendor/MigroGD
 	url = https://github.com/richgrov/MicroGD.git
+[submodule "vendor/onnxruntime"]
+	path = vendor/onnxruntime
+	url = https://github.com/microsoft/onnxruntime.git
