@@ -8,6 +8,7 @@ const Runtime = @import("runtime.zig").Runtime;
 const Logger = @import("log.zig").Logger;
 
 const DeviceConfig = @import("device/config.zig").DeviceConfig;
+const DevConfig = @import("dev/config.zig").DevConfig;
 const fs_storage = @import("fs_storage.zig");
 
 const ini = @import("ini.zig");
@@ -15,7 +16,7 @@ const ini = @import("ini.zig");
 const usage = if (build_options.cloud)
     "usage: runtime"
 else
-    "usage: runtime <program path> <asset path>";
+    "usage: simulo dev";
 
 pub fn main() !void {
     var arg_buf: [128]u8 = undefined;
@@ -27,30 +28,6 @@ pub fn main() !void {
     defer args.deinit();
 
     var logger = Logger("init", 1024).init();
-
-    std.debug.assert(args.skip());
-
-    const local_program_path, const local_asset_path = if (build_options.cloud) blk: {
-        logger.info("simulo runtime (git: {s}, api: {s})", .{
-            build_options.git_hash,
-            build_options.api_url,
-        });
-        break :blk .{ null, null };
-    } else blk: {
-        logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
-
-        const program = args.next() orelse {
-            std.debug.print(usage ++ "\n", .{});
-            return;
-        };
-
-        const assets = args.next() orelse {
-            std.debug.print(usage ++ "\n", .{});
-            return;
-        };
-
-        break :blk .{ program, assets };
-    };
 
     var dba = std.heap.DebugAllocator(.{}).init;
     defer {
@@ -65,28 +42,55 @@ pub fn main() !void {
         return;
     };
 
-    var config_path_buf: [std.fs.max_path_bytes]u8 = undefined;
-    const config_path = fs_storage.getFilePath(&config_path_buf, "devices.ini") catch |err| {
-        logger.err("error: failed to get config path: {s}", .{@errorName(err)});
-        return;
-    };
-
-    var parser = ini.Iterator.init(config_path) catch |err| {
-        logger.err("error: failed to create config parser: {s}", .{@errorName(err)});
-        return;
-    };
-
-    var config = DeviceConfig.init(allocator, &parser) catch |err| {
-        logger.err("error: failed to parse config: {s}", .{@errorName(err)});
-        return;
-    };
-    defer config.deinit();
-
     var runtime: Runtime = undefined;
     try Runtime.init(&runtime, allocator);
     defer runtime.deinit();
 
-    try runtime.run(.{ .program = local_program_path, .assets = local_asset_path, .devices = &config });
+    std.debug.assert(args.skip());
+
+    if (build_options.cloud) {
+        logger.info("simulo runtime (git: {s}, api: {s})", .{
+            build_options.git_hash,
+            build_options.api_url,
+        });
+
+        try runtime.run(null);
+    } else {
+        logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
+
+        const command = args.next() orelse {
+            std.debug.print(usage ++ "\n", .{});
+            return;
+        };
+
+        if (!std.mem.eql(u8, command, "dev")) {
+            std.debug.print(usage ++ "\n", .{});
+            return;
+        }
+
+        var config_parser = ini.Iterator.init("devices.ini") catch |err| {
+            logger.err("error: failed to create parser for devices.ini: {s}", .{@errorName(err)});
+            return;
+        };
+
+        var config = DeviceConfig.init(allocator, &config_parser) catch |err| {
+            logger.err("error: failed to parse devices.ini: {s}", .{@errorName(err)});
+            return;
+        };
+        defer config.deinit();
+
+        var parser = ini.Iterator.init("simulo.ini") catch |err| {
+            logger.err("error: failed to open simulo.ini: {s}\n", .{@errorName(err)});
+            return;
+        };
+
+        const dev_config = DevConfig.init(&parser) catch |err| {
+            logger.err("error: failed to parse simulo.ini: {s}\n", .{@errorName(err)});
+            return;
+        };
+
+        try runtime.run(.{ .program = dev_config.program_path, .assets = dev_config.assets_dir, .devices = &config });
+    }
 }
 
 const vulkan = builtin.target.os.tag == .windows or builtin.target.os.tag == .linux;

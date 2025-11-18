@@ -9,7 +9,7 @@ pub fn FixedArrayList(comptime T: type, comptime capacity: u32) type {
             return .{};
         }
 
-        pub fn initFrom(from: []const T) !Self {
+        pub fn initFrom(from: []const T) error{TooManyItems}!Self {
             var self = Self.init();
             if (from.len > capacity) return error.TooManyItems;
             self.len = @intCast(from.len);

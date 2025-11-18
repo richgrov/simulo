@@ -10,6 +10,8 @@ const DMat3 = engine.math.DMat3;
 const util = @import("util");
 const reflect = util.reflect;
 
+const IniIterator = @import("ini.zig").Iterator;
+
 const DeviceConfig = @import("device/config.zig").DeviceConfig;
 const devices = @import("device/device.zig");
 const fs_storage = @import("fs_storage.zig");
@@ -171,20 +173,21 @@ pub const Runtime = struct {
         var device_iter = device_map.iterator();
         while (device_iter.next()) |entry| {
             const id = entry.key_ptr.*;
-            const device_type: devices.DeviceType = switch (entry.value_ptr.*) {
-                .camera => |*camera| .{ .camera = devices.CameraDevice.init(camera.port_path, self) },
+            const device_type: devices.Device = switch (entry.value_ptr.*) {
+                .camera => |*camera| .{ .camera = try devices.CameraDevice.init(id, camera.port_path, self) },
 
                 .projector => |*projector| blk: {
                     if (!projector.skip_calibration) display_count += 1;
                     break :blk .{ .display = try devices.DisplayDevice.init(
                         self.allocator,
+                        id,
                         if (projector.skip_calibration) DMat3.scale(.{ 1.0 / 640.0, 1.0 / 640.0 }) else null,
                         projector.port_path,
                     ) };
                 },
             };
 
-            try new_devices.append(self.allocator, devices.Device.init(id, device_type));
+            try new_devices.append(self.allocator, device_type);
         }
 
         for (self.devices.items) |*device| {
@@ -304,6 +307,28 @@ pub const Runtime = struct {
     }
 
     fn tryRunLatestProgram(self: *Runtime) void {
+        var config_path_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const config_path = fs_storage.getFilePath(&config_path_buf, "devices.ini") catch |err| {
+            self.logger.err("error: failed to get config path: {s}", .{@errorName(err)});
+            return;
+        };
+
+        var ini_parser = IniIterator.init(config_path) catch |err| {
+            self.logger.err("error: failed to open config: {s}", .{@errorName(err)});
+            return;
+        };
+
+        var devices_config = DeviceConfig.init(self.allocator, &ini_parser) catch |err| {
+            self.logger.err("error: failed to parse config: {s}", .{@errorName(err)});
+            return;
+        };
+        defer devices_config.deinit();
+
+        self.applyDeviceConfig(&devices_config) catch |err| {
+            self.logger.err("error: failed to apply config: {s}", .{@errorName(err)});
+            return;
+        };
+
         var buf: [1024 * 4]u8 = undefined;
         var allocator = std.heap.FixedBufferAllocator.init(&buf);
         const program_info = fs_storage.loadLatestProgram(allocator.allocator()) catch |err| {
@@ -335,7 +360,7 @@ pub const Runtime = struct {
         if (self.was_running) {
             for (self.devices.items) |*device| {
                 device.start(self) catch |err| {
-                    self.logger.err("failed to start device {s}: {s}", .{ device.id, @errorName(err) });
+                    self.logger.err("failed to start device {s}: {s}", .{ device.id(), @errorName(err) });
                     return err;
                 };
             }
@@ -377,7 +402,7 @@ pub const Runtime = struct {
             if (run_state) {
                 for (self.devices.items) |*device| {
                     device.start(self) catch |err| {
-                        self.logger.err("failed to start device {s}: {s}", .{ device.id, @errorName(err) });
+                        self.logger.err("failed to start device {s}: {s}", .{ device.id(), @errorName(err) });
                     };
                 }
             } else {
@@ -455,7 +480,7 @@ pub const Runtime = struct {
 
     fn tempGetDisplay(self: *Runtime) *devices.DisplayDevice {
         for (self.devices.items) |*device| {
-            switch (device.type) {
+            switch (device.*) {
                 .display => |*display| return display,
                 else => {},
             }

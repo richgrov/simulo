@@ -49,6 +49,7 @@ const power_on = [_]u8{ 0x06, 0x14, 0x00, 0x04, 0x00, 0x34, 0x11, 0x00, 0x00, 0x
 const power_off = [_]u8{ 0x06, 0x14, 0x00, 0x04, 0x00, 0x34, 0x11, 0x01, 0x00, 0x5E };
 
 pub const DisplayDevice = struct {
+    id: util.FixedArrayList(u8, 16),
     allocator: std.mem.Allocator,
 
     last_width: i32,
@@ -79,7 +80,7 @@ pub const DisplayDevice = struct {
 
     camera_chan: poses.DetectionSpsc,
 
-    pub fn init(allocator: std.mem.Allocator, transform_override: ?DMat3, serial_port: ?[:0]const u8) !DisplayDevice {
+    pub fn init(allocator: std.mem.Allocator, id: []const u8, transform_override: ?DMat3, serial_port: ?[:0]const u8) !DisplayDevice {
         const gpu = try allocator.create(Gpu);
         gpu.* = Gpu.init();
         errdefer gpu.deinit(); // TODO: this causes a segfault
@@ -106,6 +107,7 @@ pub const DisplayDevice = struct {
         errdefer if (serial) |*ser| ser.close();
 
         return DisplayDevice{
+            .id = util.FixedArrayList(u8, 16).initFrom(id) catch return error.DisplayIdTooLong,
             .allocator = allocator,
 
             .last_width = 0,
