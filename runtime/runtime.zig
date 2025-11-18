@@ -10,6 +10,8 @@ const DMat3 = engine.math.DMat3;
 const util = @import("util");
 const reflect = util.reflect;
 
+const DeviceConfig = @import("device/config.zig").DeviceConfig;
+const devices = @import("device/device.zig");
 const fs_storage = @import("fs_storage.zig");
 
 const pose = @import("inference/pose.zig");
@@ -42,9 +44,7 @@ pub const Gpu = @import("gpu/gpu.zig").Gpu;
 
 const loadImage = @import("image/image.zig").loadImage;
 
-const EyeGuard = @import("eyeguard.zig").EyeGuard;
-
-const PollProiler = Profiler("runtime", enum {
+const PollProfiler = Profiler("runtime", enum {
     setup_frame,
     poll_window,
     resize,
@@ -54,38 +54,25 @@ const PollProiler = Profiler("runtime", enum {
     process_events,
 });
 
-const Vertex = struct {
-    position: @Vector(3, f32) align(16),
-    tex_coord: @Vector(2, f32) align(8),
-};
-
-const vertices = [_]Vertex{
-    .{ .position = .{ 0.0, 0.0, 0.0 }, .tex_coord = .{ 0.0, 0.0 } },
-    .{ .position = .{ 1.0, 0.0, 0.0 }, .tex_coord = .{ 1.0, 0.0 } },
-    .{ .position = .{ 1.0, 1.0, 0.0 }, .tex_coord = .{ 1.0, 1.0 } },
-    .{ .position = .{ 0.0, 1.0, 0.0 }, .tex_coord = .{ 0.0, 1.0 } },
-};
-
-const FIRST_PROGRAM_VISIBLE_RENDER_LAYER = 8;
-const MAX_PROGRAM_VISIBLE_RENDER_LAYERS = 16;
-
 const AssetData = union(enum) {
     image: Renderer.ImageHandle,
     sound: AudioPlayer.Sound,
 };
 
+pub const DeviceId = struct { index: usize };
+
+pub const LocalRun = struct {
+    program: []const u8,
+    assets: []const u8,
+    devices: *const DeviceConfig,
+};
+
 pub const Runtime = struct {
-    gpu: Gpu,
-    window: Window,
-    last_window_width: i32,
-    last_window_height: i32,
-    renderer: Renderer,
-    pose_detector: PoseDetector,
     remote: Remote,
     allocator: std.mem.Allocator,
     logger: Logger("runtime", 2048),
 
-    poll_profiler: PollProiler,
+    poll_profiler: PollProfiler,
     frame_count: usize,
     second_timer: i64,
 
@@ -95,51 +82,25 @@ pub const Runtime = struct {
     audio_player: AudioPlayer,
     assets: std.StringHashMap(AssetData),
     next_program: ?DownloadPacket,
+    devices: std.ArrayList(devices.Device),
+    calibrations_remaining: usize,
 
-    white_pixel_texture: Renderer.ImageHandle,
-    chessboard: Renderer.ObjectHandle,
-    mesh: Renderer.MeshHandle,
-    view: Mat4,
-    projection: union(enum) {
-        d2: struct { near: f32, far: f32 },
-        d3: struct { near: f32, far: f32, fov: f32 },
-        off_axis: struct { top: f32, bottom: f32, left: f32, right: f32, near: f32, far: f32 },
-    },
-
-    calibration_state: enum {
-        capturing_background,
-        capturing_chessboard,
-        calibrated,
-    },
-    eyeguard: EyeGuard,
     schedule: ?struct {
         start_ms: u64,
         stop_ms: u64,
     },
     was_running: bool,
 
-    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator, camera_id: []const u8, skip_calibration: bool) !void {
+    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
         runtime.logger = Logger("runtime", 2048).init();
         runtime.remote = try Remote.init(allocator);
         errdefer runtime.remote.deinit();
         try runtime.remote.start();
 
-        runtime.poll_profiler = PollProiler.init();
+        runtime.poll_profiler = PollProfiler.init();
         runtime.frame_count = 0;
         runtime.second_timer = 0;
-
-        runtime.gpu = Gpu.init();
-        errdefer runtime.gpu.deinit();
-        runtime.window = Window.init(&runtime.gpu, "simulo runtime");
-        errdefer runtime.window.deinit();
-        runtime.last_window_width = 0;
-        runtime.last_window_height = 0;
-        runtime.renderer = try Renderer.init(&runtime.gpu, &runtime.window, allocator);
-        errdefer runtime.renderer.deinit();
-        runtime.pose_detector = PoseDetector.init(camera_id, if (skip_calibration) DMat3.scale(.{ 1.0 / 640.0, 1.0 / 640.0 }) else null);
-        errdefer runtime.pose_detector.stop();
-        runtime.calibration_state = if (skip_calibration) .calibrated else .capturing_background;
 
         runtime.wasm = try Wasm.init();
         errdefer runtime.wasm.deinit();
@@ -155,36 +116,24 @@ pub const Runtime = struct {
         errdefer runtime.assets.deinit();
 
         runtime.next_program = null;
-
-        const image = createChessboard(&runtime.renderer);
-        runtime.white_pixel_texture = runtime.renderer.createImage(&[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF }, 1, 1);
-        const chessboard_material = try runtime.renderer.createUiMaterial(image, 1.0, 1.0, 1.0, 1.0);
-        runtime.mesh = try runtime.renderer.createMesh(std.mem.asBytes(&vertices), &[_]u16{ 0, 1, 2, 2, 3, 0 });
-        runtime.view = Mat4.identity();
-        runtime.projection = .{ .d2 = .{ .near = -1.0, .far = 1.0 } };
-
-        runtime.eyeguard = try EyeGuard.init(runtime.allocator, &runtime.renderer, runtime.mesh, runtime.white_pixel_texture);
-        errdefer runtime.eyeguard.deinit();
+        runtime.devices = std.ArrayList(devices.Device).initCapacity(runtime.allocator, 0) catch unreachable;
+        runtime.calibrations_remaining = 0;
 
         runtime.schedule = null;
-
-        runtime.chessboard = try runtime.renderer.addObject(runtime.mesh, Mat4.identity(), chessboard_material, 31);
-        errdefer runtime.renderer.deleteObject(runtime.chessboard);
 
         runtime.was_running = false;
     }
 
     pub fn deinit(self: *Runtime) void {
         self.wasm.deinit();
-        self.eyeguard.deinit();
 
         self.assets.deinit();
         //self.audio_player.deinit();
+        for (self.devices.items) |*device| {
+            device.deinit(self);
+        }
+        self.devices.deinit(self.allocator);
 
-        self.pose_detector.stop();
-        self.renderer.deinit();
-        self.window.deinit();
-        self.gpu.deinit();
         self.remote.deinit();
     }
 
@@ -206,6 +155,44 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_create_material", wasmCreateMaterial);
         try wasm.exposeFunction("simulo_update_material", wasmUpdateMaterial);
         try wasm.exposeFunction("simulo_drop_material", wasmDropMaterial);
+    }
+
+    fn applyDeviceConfig(self: *Runtime, devices_config: *const DeviceConfig) !void {
+        const device_map = &devices_config.devices;
+        var new_devices = try std.ArrayList(devices.Device).initCapacity(self.allocator, device_map.count());
+        errdefer {
+            for (new_devices.items) |*device| {
+                device.deinit(self);
+            }
+            new_devices.deinit(self.allocator);
+        }
+
+        var display_count: usize = 0;
+        var device_iter = device_map.iterator();
+        while (device_iter.next()) |entry| {
+            const id = entry.key_ptr.*;
+            const device_type: devices.DeviceType = switch (entry.value_ptr.*) {
+                .camera => |*camera| .{ .camera = devices.CameraDevice.init(camera.port_path, self) },
+
+                .projector => |*projector| blk: {
+                    if (!projector.skip_calibration) display_count += 1;
+                    break :blk .{ .display = try devices.DisplayDevice.init(
+                        self.allocator,
+                        if (projector.skip_calibration) DMat3.scale(.{ 1.0 / 640.0, 1.0 / 640.0 }) else null,
+                    ) };
+                },
+            };
+
+            try new_devices.append(self.allocator, devices.Device.init(id, device_type));
+        }
+
+        for (self.devices.items) |*device| {
+            device.deinit(self);
+        }
+        self.devices.deinit(self.allocator);
+
+        self.devices = new_devices;
+        self.calibrations_remaining = display_count;
     }
 
     fn loadProgram(self: *Runtime, program_path: []const u8, assets: []const fs_storage.ProgramAsset) !void {
@@ -233,6 +220,7 @@ pub const Runtime = struct {
             defer self.allocator.free(file_data);
 
             self.logger.info("loading asset: {s}", .{asset_name});
+            const renderer = &self.tempGetDisplay().renderer;
 
             if (std.mem.endsWith(u8, asset_name, ".png")) {
                 const image_info = loadImage(file_data) catch |err| {
@@ -245,7 +233,7 @@ pub const Runtime = struct {
                     return error.ImageTooLarge;
                 }
 
-                const image = self.renderer.createImage(image_info.data, image_info.width, image_info.height);
+                const image = renderer.createImage(image_info.data, image_info.width, image_info.height);
 
                 const name = self.allocator.dupe(u8, asset_name) catch |err| util.crash.oom(err);
                 self.assets.put(name, .{ .image = image }) catch |err| util.crash.oom(err);
@@ -280,16 +268,11 @@ pub const Runtime = struct {
 
         self.wasm_entry = null;
         self.first_poll = false;
-
-        for (FIRST_PROGRAM_VISIBLE_RENDER_LAYER..FIRST_PROGRAM_VISIBLE_RENDER_LAYER + MAX_PROGRAM_VISIBLE_RENDER_LAYERS) |layer| {
-            self.renderer.clearLayer(@intCast(layer));
-        }
-        self.renderer.clearUiMaterials();
     }
 
-    fn runLocalProgram(self: *Runtime, program_path: []const u8, assets_path: []const u8) !void {
-        var asset_dir = std.fs.cwd().openDir(assets_path, .{ .iterate = true }) catch |err| {
-            self.logger.err("failed to access directory {s}: {s}", .{ assets_path, @errorName(err) });
+    fn runLocalProgram(self: *Runtime, run_info: *const LocalRun) !void {
+        var asset_dir = std.fs.cwd().openDir(run_info.assets, .{ .iterate = true }) catch |err| {
+            self.logger.err("failed to access directory {s}: {s}", .{ run_info.assets, @errorName(err) });
             return err;
         };
         defer asset_dir.close();
@@ -302,12 +285,12 @@ pub const Runtime = struct {
         var files = asset_dir.iterate();
         while (true) {
             const file = files.next() catch |err| {
-                self.logger.err("failed to access file in directory {s}: {s}", .{ assets_path, @errorName(err) });
+                self.logger.err("failed to access file in directory {s}: {s}", .{ run_info.assets, @errorName(err) });
                 return err;
             } orelse break;
 
             if (std.mem.endsWith(u8, file.name, ".png")) {
-                const real_path = try std.fs.path.joinZ(path_allocator.allocator(), &.{ assets_path, file.name });
+                const real_path = try std.fs.path.joinZ(path_allocator.allocator(), &.{ run_info.assets, file.name });
                 try assets.append(path_allocator.allocator(), .{
                     .name = util.FixedArrayList(u8, fs_storage.max_asset_name_len).initFrom(file.name) catch unreachable,
                     .real_path = real_path,
@@ -315,7 +298,8 @@ pub const Runtime = struct {
             }
         }
 
-        try self.loadProgram(program_path, assets.items);
+        try self.applyDeviceConfig(run_info.devices);
+        try self.loadProgram(run_info.program, assets.items);
     }
 
     fn tryRunLatestProgram(self: *Runtime) void {
@@ -333,16 +317,13 @@ pub const Runtime = struct {
         }
     }
 
-    pub fn run(self: *Runtime, local_paths: struct { program: ?[]const u8, assets: ?[]const u8 }) !void {
+    pub fn run(self: *Runtime, local_run: ?LocalRun) !void {
         const time_of_day = @mod(std.time.milliTimestamp(), 24 * 60 * 60 * 1000);
         self.was_running = self.shouldRun(time_of_day);
         self.logger.info("initial run state: {}", .{self.was_running});
-        if (self.was_running) {
-            try self.pose_detector.start();
-        }
 
-        if (local_paths.program) |program| {
-            self.runLocalProgram(program, local_paths.assets.?) catch |err| {
+        if (local_run) |*run_info| {
+            self.runLocalProgram(run_info) catch |err| {
                 self.logger.err("error running local program: {s}", .{@errorName(err)});
                 return;
             };
@@ -350,8 +331,17 @@ pub const Runtime = struct {
             self.tryRunLatestProgram();
         }
 
+        if (self.was_running) {
+            for (self.devices.items) |*device| {
+                device.start(self) catch |err| {
+                    self.logger.err("failed to start device {s}: {s}", .{ device.id, @errorName(err) });
+                    return err;
+                };
+            }
+        }
+
         while (self.poll(null) != null) {
-            if (self.calibration_state == .calibrated) {
+            if (self.calibrations_remaining == 0) {
                 if (self.wasm_entry) |wasm_entry| {
                     _ = self.wasm.callFunction(wasm_entry, .{}) catch |err| {
                         self.logger.err("failed to run program: {s}", .{@errorName(err)});
@@ -384,81 +374,27 @@ pub const Runtime = struct {
         if (run_state != self.was_running) {
             self.logger.info("run state changed: {} -> {}", .{ self.was_running, run_state });
             if (run_state) {
-                self.pose_detector.start() catch |err| {
-                    self.logger.err("failed to start pose detector: {s}", .{@errorName(err)});
-                };
+                for (self.devices.items) |*device| {
+                    device.start(self) catch |err| {
+                        self.logger.err("failed to start device {s}: {s}", .{ device.id, @errorName(err) });
+                    };
+                }
             } else {
-                self.pose_detector.stop();
+                for (self.devices.items) |*device| {
+                    device.stop(self);
+                }
             }
             self.was_running = run_state;
         }
 
-        const width = self.window.getWidth();
-        const height = self.window.getHeight();
-        self.poll_profiler.log(.setup_frame);
-
-        if (!self.window.poll()) {
-            return null;
-        }
-
-        self.poll_profiler.log(.poll_window);
-
         var writer: ?std.io.Writer = if (event_buf) |buf| std.io.Writer.fixed(buf) else null;
 
-        if (width != self.last_window_width or height != self.last_window_height) {
-            self.last_window_width = width;
-            self.last_window_height = height;
-
-            if (writer) |*w| {
-                wasm_message.writeResizeEvent(w, @intCast(width), @intCast(height)) catch |err| {
-                    self.logger.err("failed to write resize event: {s}", .{@errorName(err)});
-                };
-            }
-
-            if (comptime util.vulkan) {
-                self.renderer.handleResize(width, height, self.window.surface());
-            }
-
-            self.renderer.setObjectTransform(self.chessboard, switch (self.calibration_state) {
-                .capturing_chessboard => Mat4.scale(.{ @floatFromInt(width), @floatFromInt(height), 1 }),
-                else => Mat4.zero(),
-            });
-
-            self.poll_profiler.log(.resize);
-        }
-
-        if (writer) |*w| {
-            if (self.first_poll) {
-                self.first_poll = false;
-                wasm_message.writeResizeEvent(w, @intCast(width), @intCast(height)) catch |err| {
-                    self.logger.err("failed to write resize event: {s}", .{@errorName(err)});
-                };
-            }
-        }
-
-        self.processPoseDetections(if (writer) |*w| w else null) catch |err| {
-            self.logger.err("failed to process pose detections: {s}", .{@errorName(err)});
-        };
-        self.poll_profiler.log(.process_pose);
-
-        if (self.was_running) {
-            const w: f32 = @floatFromInt(width);
-            const h: f32 = @floatFromInt(height);
-
-            const projection = switch (self.projection) {
-                .d2 => Mat4.ortho(w, h, -1.0, 1.0),
-                .d3 => |d| Mat4.perspective(w / h, d.fov, d.near, d.far),
-                .off_axis => |d| Mat4.offAxisPerspective(d.top, d.bottom, d.left, d.right, d.near, d.far),
-            };
-
-            const view_projection = projection.matmul(&self.view);
-
-            self.renderer.render(&self.window, &view_projection, &view_projection) catch |err| {
-                self.logger.err("render failed: {any}", .{err});
+        for (self.devices.items) |*device| {
+            device.poll(if (writer) |*w| w else null, self) catch |err| {
+                self.logger.err("fatal device poll error: {s}", .{@errorName(err)});
+                return null;
             };
         }
-
-        self.poll_profiler.log(.render);
 
         while (self.remote.nextMessage()) |msg| {
             var message = msg;
@@ -507,52 +443,23 @@ pub const Runtime = struct {
         return if (writer) |*w| w.end else 0;
     }
 
-    fn processPoseDetections(self: *Runtime, writer: ?*std.io.Writer) !void {
-        const width: f32 = @floatFromInt(self.last_window_width);
-        const height: f32 = @floatFromInt(self.last_window_height);
-
-        while (self.pose_detector.nextEvent()) |event| {
-            switch (event) {
-                .calibration_background_set => {
-                    self.logger.info("capturing chessboard", .{});
-                    self.calibration_state = .capturing_chessboard;
-                    self.renderer.setObjectTransform(self.chessboard, Mat4.scale(.{ width, height, 1 }));
-                },
-                .calibration_calibrated => {
-                    self.calibration_state = .calibrated;
-                    self.renderer.setObjectTransform(self.chessboard, Mat4.zero());
-                },
-                .move => |move| {
-                    self.eyeguard.handleEvent(move.id, &move.detection, &self.renderer, width, height);
-
-                    if (writer) |w| {
-                        wasm_message.writeMoveEvent(w, move.id, &move.detection, width, height) catch |err| {
-                            self.logger.err("failed to write move event: {s}", .{@errorName(err)});
-                        };
-                    }
-                },
-                .lost => |id| {
-                    self.eyeguard.handleDelete(&self.renderer, id);
-
-                    if (writer) |w| {
-                        wasm_message.writeLostEvent(w, id) catch |err| {
-                            self.logger.err("failed to write lost event: {s}", .{@errorName(err)});
-                        };
-                    }
-                },
-                .fault => |fault| {
-                    switch (fault.category) {
-                        .camera_init, .inference_init, .calibrate_init, .camera_stall, .background_swap, .set_background => {
-                            self.logger.err("pose detector fatal fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
-                            return fault.err;
-                        },
-                        .inference_run, .camera_swap, .calibrate => {
-                            self.logger.err("pose detector fault: {s}: {any}", .{ @tagName(fault.category), fault.err });
-                        },
-                    }
-                },
+    pub fn getDevice(self: *Runtime, id: []const u8) ?DeviceId {
+        for (self.devices.items, 0..) |*device, i| {
+            if (std.mem.eql(u8, device.id, id)) {
+                return .{ .id = i };
             }
         }
+        return null;
+    }
+
+    fn tempGetDisplay(self: *Runtime) *devices.DisplayDevice {
+        for (self.devices.items) |*device| {
+            switch (device.type) {
+                .display => |*display| return display,
+                else => {},
+            }
+        }
+        unreachable;
     }
 
     fn wasmSetBuffers(env: *Wasm, pose_buffer: [*]f32) void {
@@ -568,6 +475,10 @@ pub const Runtime = struct {
             return -1;
         };
 
+        if (runtime.next_program != null) {
+            return -1;
+        }
+
         if (!runtime.was_running) {
             return -1;
         }
@@ -576,97 +487,91 @@ pub const Runtime = struct {
         return @intCast(event_out_len);
     }
 
-    fn deleteMaterial(runtime: *Runtime, id: u32) void {
-        const material_handle = Renderer.MaterialHandle{ .id = id };
-        runtime.renderer.deleteMaterial(material_handle);
-    }
-
     fn wasmDropMaterial(env: *Wasm, id: u32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.renderer.dropMaterial(id);
+        const display = runtime.tempGetDisplay();
+        display.dropMaterial(.{ .id = id });
     }
 
     fn wasmCreateRenderedObject(env: *Wasm, material_id: u32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.logger.trace("simulo_create_rendered_object({d})", .{material_id});
-        const obj = runtime.renderer.addObject(
-            runtime.mesh,
-            Mat4.identity(),
-            .{ .id = material_id },
-            FIRST_PROGRAM_VISIBLE_RENDER_LAYER,
-        ) catch |err| util.crash.oom(err);
+        const display = runtime.tempGetDisplay();
+        const obj = display.addObject(.{ .id = material_id }, 0) catch |err| {
+            runtime.logger.err("failed to create rendered object: {s}", .{@errorName(err)});
+            return 0;
+        };
         return obj.id;
     }
 
     fn wasmCreateRenderedObject2(env: *Wasm, material_id: u32, render_order: u32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        if (render_order >= MAX_PROGRAM_VISIBLE_RENDER_LAYERS) {
-            runtime.logger.err("tried to create rendered object with render order {d}", .{render_order});
-            return 0;
-        }
         runtime.logger.trace("simulo_create_rendered_object2({d}, {d})", .{ material_id, render_order });
-        const obj = runtime.renderer.addObject(
-            runtime.mesh,
-            Mat4.identity(),
-            .{ .id = material_id },
-            FIRST_PROGRAM_VISIBLE_RENDER_LAYER + @as(u8, @intCast(render_order)),
-        ) catch |err| util.crash.oom(err);
+        const display = runtime.tempGetDisplay();
+        const obj = display.addObject(.{ .id = material_id }, @intCast(render_order)) catch |err| {
+            runtime.logger.err("failed to create rendered object: {s}", .{@errorName(err)});
+            return 0;
+        };
         return obj.id;
     }
 
     fn wasmSetRenderedObjectMaterial(env: *Wasm, id: u32, material_id: u32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.renderer.setObjectMaterial(.{ .id = id }, .{ .id = material_id }) catch |err| util.crash.oom(err);
+        const display = runtime.tempGetDisplay();
+        display.setObjectMaterial(.{ .id = id }, .{ .id = material_id }) catch |err| util.crash.oom(err);
     }
 
     fn wasmSetRenderedObjectTransforms(env: *Wasm, count: u32, ids: [*]u32, transforms: [*]f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.logger.trace("simulo_set_rendered_object_transforms({d}, {*}, {*})", .{ count, ids, transforms });
 
-        for (0..count) |i| {
-            const mat = Mat4.fromColumnMajorPtr(@ptrCast(&transforms[i * 16]));
-            runtime.renderer.setObjectTransform(.{ .id = ids[i] }, mat);
-        }
+        const display = runtime.tempGetDisplay();
+        display.setObjectsTransforms(count, ids, transforms);
     }
 
     fn wasmSetRenderedObjectColors(env: *Wasm, count: u32, ids: [*]u32, colors: [*]f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.logger.trace("simulo_set_rendered_object_colors({d}, {*}, {*})", .{ count, ids, colors });
 
-        for (0..count) |i| {
-            const color = @Vector(4, f32){ colors[i * 4 + 0], colors[i * 4 + 1], colors[i * 4 + 2], colors[i * 4 + 3] };
-            runtime.renderer.setObjectColor(.{ .id = ids[i] }, color);
-        }
+        const display = runtime.tempGetDisplay();
+        display.setObjectsColors(count, ids, colors);
     }
 
     fn wasmDropRenderedObject(env: *Wasm, id: u32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         runtime.logger.trace("simulo_drop_rendered_object({d})", .{id});
-        runtime.renderer.deleteObject(.{ .id = id });
+        const display = runtime.tempGetDisplay();
+        display.deleteObject(.{ .id = id });
     }
 
     fn wasmSetCamera2d(env: *Wasm, near: f32, far: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.projection = .{ .d2 = .{ .near = near, .far = far } };
+        const display = runtime.tempGetDisplay();
+        display.setCamera2d(near, far);
     }
 
     fn wasmSetCamera3d(env: *Wasm, fov: f32, near: f32, far: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.projection = .{ .d3 = .{ .fov = fov, .near = near, .far = far } };
+        const display = runtime.tempGetDisplay();
+        display.setCamera3d(fov, near, far);
     }
 
     fn wasmSetCameraOffAxis(env: *Wasm, top: f32, bottom: f32, left: f32, right: f32, near: f32, far: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.projection = .{ .off_axis = .{ .top = top, .bottom = bottom, .left = left, .right = right, .near = near, .far = far } };
+        const display = runtime.tempGetDisplay();
+        display.setCameraOffAxis(top, bottom, left, right, near, far);
     }
 
     fn wasmSetViewMatrix(env: *Wasm, matrix: [*]f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.view = Mat4.fromColumnMajorPtr(matrix);
+        const display = runtime.tempGetDisplay();
+        display.setViewMatrix(Mat4.fromColumnMajorPtr(matrix));
     }
 
     fn wasmCreateMaterial(env: *Wasm, name: [*c]u8, name_len: u32, r: f32, g: f32, b: f32, a: f32) u32 {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
+        const display = runtime.tempGetDisplay();
+
         const image = if (!runtime.wasm.isNullptr(name)) cond: {
             const name_slice = name[0..name_len];
             runtime.logger.trace("simulo_create_material(\"{s}\", {d}, {d}, {d}, {d})", .{ name_slice, r, g, b, a });
@@ -684,16 +589,17 @@ pub const Runtime = struct {
             }
         } else cond: {
             runtime.logger.trace("simulo_create_material(null, {d}, {d}, {d}, {d})", .{ r, g, b, a });
-            break :cond runtime.white_pixel_texture;
+            break :cond null;
         };
 
-        const material = runtime.renderer.createUiMaterial(image, r, g, b, a) catch |err| util.crash.oom(err);
+        const material = display.createUiMaterial(image, r, g, b, a) catch |err| util.crash.oom(err);
         return material.id;
     }
 
     fn wasmUpdateMaterial(env: *Wasm, id: u32, r: f32, g: f32, b: f32, a: f32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
-        runtime.renderer.updateMaterial(.{ .id = id }, r, g, b, a);
+        const display = runtime.tempGetDisplay();
+        display.updateMaterial(.{ .id = id }, r, g, b, a);
     }
 
     fn shouldRun(self: *Runtime, time_of_day: i64) bool {
@@ -710,87 +616,3 @@ pub const Runtime = struct {
         }
     }
 };
-
-pub fn createChessboard(renderer: *Renderer) Renderer.ImageHandle {
-    const width = 1280;
-    const height = 800;
-    const square = 160;
-    const radius: i32 = square / 2;
-    const radius_sq = radius * radius;
-    const cols = width / square;
-    const rows = height / square;
-
-    var checkerboard: [width * height * 4]u8 = undefined;
-    @memset(&checkerboard, 0);
-
-    for (0..width) |x| {
-        for (0..height) |y| {
-            var white = false;
-            const x_square = x / square;
-            const y_square = y / square;
-            if (x_square % 2 == y_square % 2) {
-                white = true;
-
-                const local_x: i32 = @intCast(x % square);
-                const local_y: i32 = @intCast(y % square);
-
-                const top = y_square == 0;
-                const bottom = y_square == rows - 1;
-                const left = x_square == 0;
-                const right = x_square == cols - 1;
-
-                if (top and local_y < radius) {
-                    if (local_x < radius) {
-                        const dx = radius - local_x;
-                        const dy = radius - local_y;
-                        if (dx * dx + dy * dy > radius_sq) white = false;
-                    } else if (local_x >= square - radius) {
-                        const dx = local_x - (square - radius);
-                        const dy = radius - local_y;
-                        if (dx * dx + dy * dy > radius_sq) white = false;
-                    }
-                }
-
-                if (bottom and local_y >= square - radius) {
-                    if (local_x < radius) {
-                        const dx = radius - local_x;
-                        const dy = local_y - (square - radius);
-                        if (dx * dx + dy * dy > radius_sq) white = false;
-                    } else if (local_x >= square - radius) {
-                        const dx = local_x - (square - radius);
-                        const dy = local_y - (square - radius);
-                        if (dx * dx + dy * dy > radius_sq) white = false;
-                    }
-                }
-
-                if (left and local_x < radius and !top and local_y < radius) {
-                    const dx = radius - local_x;
-                    const dy = radius - local_y;
-                    if (dx * dx + dy * dy > radius_sq) white = false;
-                } else if (left and local_x < radius and !bottom and local_y >= square - radius) {
-                    const dx = radius - local_x;
-                    const dy = local_y - (square - radius);
-                    if (dx * dx + dy * dy > radius_sq) white = false;
-                }
-
-                if (right and local_x >= square - radius and !top and local_y < radius) {
-                    const dx = local_x - (square - radius);
-                    const dy = radius - local_y;
-                    if (dx * dx + dy * dy > radius_sq) white = false;
-                } else if (right and local_x >= square - radius and !bottom and local_y >= square - radius) {
-                    const dx = local_x - (square - radius);
-                    const dy = local_y - (square - radius);
-                    if (dx * dx + dy * dy > radius_sq) white = false;
-                }
-            }
-
-            if (white) {
-                checkerboard[(y * width + x) * 4 + 0] = 0xFF;
-                checkerboard[(y * width + x) * 4 + 1] = 0xFF;
-                checkerboard[(y * width + x) * 4 + 2] = 0xFF;
-            }
-            checkerboard[(y * width + x) * 4 + 3] = 0xFF;
-        }
-    }
-    return renderer.createImage(&checkerboard, width, height);
-}

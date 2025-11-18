@@ -35,12 +35,6 @@ const CHESSBOARD_WIDTH = 7;
 const CHESSBOARD_HEIGHT = 4;
 const DETECTION_CAPACITY = 20;
 
-fn perspective_transform(x: f32, y: f32, transform: *const DMat3) @Vector(2, f32) {
-    const real_y = (y - (640 - 480) / 2);
-    const res = transform.vecmul(.{ @floatCast(x), @floatCast(real_y), 1 });
-    return @Vector(2, f32){ @floatCast(res[0] / res[2]), @floatCast(res[1] / res[2]) };
-}
-
 const Profiler = profile.Profiler("pose", enum {
     camera_swap,
     calibrate,
@@ -49,8 +43,8 @@ const Profiler = profile.Profiler("pose", enum {
 });
 
 pub const PoseEvent = union(enum) {
-    calibration_background_set: void,
-    calibration_calibrated: void,
+    ready_to_calibrate: void,
+    calibrated: DMat3,
     move: struct {
         id: u64,
         detection: Detection,
@@ -72,26 +66,25 @@ pub const PoseEvent = union(enum) {
     },
 };
 
-const DetectionSpsc = Spsc(PoseEvent, DETECTION_CAPACITY * 8);
+pub const DetectionSpsc = Spsc(PoseEvent, DETECTION_CAPACITY * 8);
 
 pub const PoseDetector = struct {
-    output: DetectionSpsc,
+    outputs: util.FixedArrayList(*DetectionSpsc, 8),
     running: bool,
     thread: std.Thread,
     profiler: Profiler,
     logger: Logger("pose", 2048),
     camera_id: []const u8,
-    transform: ?DMat3,
+    calibrated: bool = false,
 
-    pub fn init(camera_id: []const u8, calibration_override: ?DMat3) PoseDetector {
+    pub fn init(camera_id: []const u8) PoseDetector {
         return PoseDetector{
-            .output = DetectionSpsc.init(),
+            .outputs = util.FixedArrayList(*DetectionSpsc, 8).init(),
             .running = false,
             .thread = undefined,
             .profiler = Profiler.init(),
             .logger = Logger("pose", 2048).init(),
             .camera_id = camera_id,
-            .transform = calibration_override,
         };
     }
 
@@ -115,19 +108,19 @@ pub const PoseDetector = struct {
 
     fn run(self: *PoseDetector) void {
         var calibrator = Calibrator.init() catch |err| {
-            self.logEvent(.{ .fault = .{ .category = .calibrate_init, .err = err } });
+            self.logger.err("failed to initialize calibrator: {s}", .{@errorName(err)});
             return;
         };
         defer calibrator.deinit();
 
         var camera = Camera.init(calibrator.mats(), self.camera_id) catch |err| {
-            self.logEvent(.{ .fault = .{ .category = .camera_init, .err = err } });
+            self.logger.err("failed to initialize camera: {s}", .{@errorName(err)});
             return;
         };
         defer camera.deinit();
 
         var inference = Inference.init() catch |err| {
-            self.logEvent(.{ .fault = .{ .category = .inference_init, .err = err } });
+            self.logger.err("failed to initialize inference: {s}", .{@errorName(err)});
             return;
         };
         defer inference.deinit();
@@ -142,9 +135,9 @@ pub const PoseDetector = struct {
             };
         }
 
-        if (self.transform == null) { // only if calibration not overridden
+        if (!self.calibrated) {
             const background_frame_idx = camera.swapBuffers() catch |err| {
-                self.logEvent(.{ .fault = .{ .category = .background_swap, .err = err } });
+                self.logger.err("failed to swap buffers: {s}", .{@errorName(err)});
                 return;
             };
 
@@ -152,7 +145,7 @@ pub const PoseDetector = struct {
                 self.logEvent(.{ .fault = .{ .category = .set_background, .err = err } });
                 return;
             };
-            self.logEvent(.calibration_background_set);
+            self.logEvent(.ready_to_calibrate);
         } else {
             camera.setFloatMode([2][*]f32{
                 inference.input_buffers[0],
@@ -170,24 +163,23 @@ pub const PoseDetector = struct {
 
             self.profiler.log(.camera_swap);
 
-            const transform = self.transform orelse {
+            if (!self.calibrated) {
                 const maybe_transform = calibrator.calibrate(frame_idx, CHESSBOARD_WIDTH, CHESSBOARD_HEIGHT) catch |err| {
-                    self.logEvent(.{ .fault = .{ .category = .calibrate, .err = err } });
+                    self.logger.err("calibration failed: {s}", .{@errorName(err)});
                     continue;
                 };
 
                 if (maybe_transform) |out_transform| {
-                    self.transform = out_transform;
                     camera.setFloatMode([2][*]f32{
                         inference.input_buffers[0],
                         inference.input_buffers[1],
                     });
-                    self.logEvent(.calibration_calibrated);
+                    self.logEvent(.{ .calibrated = out_transform });
                 }
 
                 self.profiler.log(.calibrate);
                 continue;
-            };
+            }
 
             last_detection_time = std.time.milliTimestamp();
             if (std.time.milliTimestamp() - last_detection_time >= time_until_low_power) {
@@ -216,20 +208,7 @@ pub const PoseDetector = struct {
                     .moved => |moved| {
                         last_detection_time = now;
 
-                        var det = local_detections[moved.new_box];
-
-                        const transformed_pos = perspective_transform(det.box.pos[0], det.box.pos[1], &transform);
-                        det.box.pos = .{ transformed_pos[0], 1 - transformed_pos[1] };
-                        det.box.size = perspective_transform(det.box.size[0], det.box.size[1], &transform);
-
-                        for (0..det.keypoints.len) |k| {
-                            const kp = det.keypoints[k];
-                            const transformed_kp_pos = perspective_transform(kp.pos[0], kp.pos[1], &transform);
-                            const kp_pos = .{ transformed_kp_pos[0], 1 - transformed_kp_pos[1] };
-                            det.keypoints[k].pos = kp_pos;
-                            det.keypoints[k].score = @floatCast(kp.score);
-                        }
-
+                        const det = local_detections[moved.new_box];
                         self.logEvent(.{ .move = .{ .id = moved.id, .detection = det } });
                     },
                     .lost => |id| {
@@ -243,8 +222,10 @@ pub const PoseDetector = struct {
     }
 
     fn logEvent(self: *PoseDetector, event: PoseEvent) void {
-        self.output.enqueue(event) catch {
-            self.logger.warn("detection output message queue full", .{});
-        };
+        for (self.outputs.items(), 0..) |output, i| {
+            output.enqueue(event) catch {
+                self.logger.warn("detection output message queue {d} full", .{i});
+            };
+        }
     }
 };
