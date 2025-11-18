@@ -80,12 +80,6 @@ pub const Inference = struct {
 
         var ort_rt_options: ?*ort.OrtTensorRTProviderOptionsV2 = null;
         switch (comptime builtin.os.tag) {
-            .macos => {
-                if (ort_api.*.SessionOptionsAppendExecutionProvider.?(ort_options, "CoreML", null, null, 0)) |status| {
-                    logOnnxError(status, ort_api, &logger);
-                    return error.OnnxError;
-                }
-            },
             .linux => {
                 if (ort_api.CreateTensorRTProviderOptions.?(&ort_rt_options)) |status| {
                     logOnnxError(status, ort_api, &logger);
