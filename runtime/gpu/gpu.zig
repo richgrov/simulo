@@ -9,7 +9,7 @@ pub const Gpu = struct {
         return Gpu{ .handle = ffi.create_gpu().? };
     }
 
-    pub fn deinit(self: Gpu) void {
+    pub fn deinit(self: *Gpu) void {
         ffi.destroy_gpu(self.handle);
     }
 };

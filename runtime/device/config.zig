@@ -85,7 +85,7 @@ pub const DeviceConfig = struct {
                             } else if (std.mem.eql(u8, pair.key, "name")) {
                                 name = pair.value;
                             } else {
-                                return error.UnexpectedValue;
+                                return error.UnexpectedProjectorKey;
                             }
                         },
                         .camera => |*camera| {
@@ -94,7 +94,7 @@ pub const DeviceConfig = struct {
                             } else if (std.mem.eql(u8, pair.key, "name")) {
                                 name = pair.value;
                             } else {
-                                return error.UnexpectedValue;
+                                return error.UnexpectedCameraKey;
                             }
                         },
                         .none => return error.ValueOutsideDeviceSection,
