@@ -2,26 +2,40 @@ const std = @import("std");
 
 pub const Event = union(enum) {
     section: []const u8,
-    pair: struct { key: []const u8, value: []const u8 },
+    pair: struct { key: []const u8, value: [:0]const u8 },
+    err: struct { line: usize, message: []const u8 },
 };
 
 pub const Iterator = struct {
     const Self = @This();
-    const BufferSize = 300;
 
-    data: []u8,
+    buf: [1024 * 2]u8 = undefined,
+    len: usize,
     read_index: usize = 0,
+    write_index: usize = 0,
+    line: usize = 1,
 
-    pub fn init(data: []u8) !Self {
+    pub fn init(path: []const u8) !Self {
+        var buf: [1024 * 2]u8 = undefined;
+        const data = try std.fs.cwd().readFile(path, &buf);
+
+        if (data.len >= buf.len - 1) {
+            return error.FileTooBig; // need the last byte free for inserting a null terminator
+        }
+
         return Self{
-            .data = data,
+            .buf = buf,
+            .len = data.len,
         };
     }
 
     fn skipWhitespace(self: *Self, newlines: bool) void {
-        while (self.read_index < self.data.len) {
-            const c = self.data[self.read_index];
-            if (c == ' ' or c == '\t' or c == '\r' or (newlines and c == '\n')) {
+        while (self.read_index < self.len) {
+            const c = self.buf[self.read_index];
+            if (c == ' ' or c == '\t' or c == '\r') {
+                self.read_index += 1;
+            } else if (newlines and c == '\n') {
+                self.line += 1;
                 self.read_index += 1;
             } else {
                 break;
@@ -30,50 +44,46 @@ pub const Iterator = struct {
     }
 
     pub fn next(self: *Self) !?Event {
-        while (self.read_index < self.data.len) {
+        while (self.read_index < self.len) {
             self.skipWhitespace(true);
 
-            if (self.read_index >= self.data.len) {
+            if (self.read_index >= self.len) {
                 return null;
             }
 
-            const c = self.data[self.read_index];
+            const c = self.buf[self.read_index];
             if (c == ';' or c == '#') {
-                while (self.read_index < self.data.len) {
-                    self.read_index += 1;
-                    if (self.data[self.read_index] == '\n') {
-                        break;
-                    }
-                }
+                while (self.read_index < self.len and self.buf[self.read_index] != '\n') : (self.read_index += 1) {}
                 continue;
             }
 
             break;
         }
 
-        if (self.read_index >= self.data.len) {
+        if (self.read_index >= self.len) {
             return null;
         }
 
-        const c = self.data[self.read_index];
+        const c = self.buf[self.read_index];
         if (c == '[') {
             self.read_index += 1;
-            const start = self.read_index;
+            const start = self.write_index;
             var end: usize = undefined;
 
             while (true) {
-                if (self.read_index >= self.data.len) {
+                if (self.read_index >= self.len) {
                     return error.EofInSectionName;
                 }
 
-                if (self.data[self.read_index] == ']') {
-                    end = self.read_index;
+                if (self.buf[self.read_index] == ']') {
+                    end = self.write_index;
                     self.read_index += 1;
 
                     self.skipWhitespace(false);
-                    if (self.read_index < self.data.len) {
-                        if (self.data[self.read_index] == '\n') {
+                    if (self.read_index < self.len) {
+                        if (self.buf[self.read_index] == '\n') {
                             self.read_index += 1;
+                            self.line += 1;
                         } else {
                             return error.ExpectedNewLineAfterSection;
                         }
@@ -82,31 +92,28 @@ pub const Iterator = struct {
                     break;
                 }
 
+                self.write(self.buf[self.read_index]);
                 self.read_index += 1;
             }
 
-            return .{ .section = self.data[start..end] };
+            return .{ .section = self.buf[start..end] };
         }
 
-        const key_start = self.read_index;
+        const key_start = self.write_index;
         var key_end: usize = undefined;
-        var last_non_space: usize = self.read_index;
 
         while (true) {
-            if (self.read_index >= self.data.len) {
+            if (self.read_index >= self.len) {
                 return error.EofInKey;
             }
 
-            const e = self.data[self.read_index];
-            if (e == '=') {
-                key_end = last_non_space;
-                self.read_index += 1;
+            const e = self.buf[self.read_index];
+            if (!std.ascii.isAlphanumeric(e) and e != '_') {
+                key_end = self.write_index;
                 break;
-            } else if (e == '\n' or e == '\r') {
-                return error.EndOfLineInKey;
-            } else if (e != ' ' and e != '\t') {
-                last_non_space = self.read_index;
             }
+
+            self.write(e);
             self.read_index += 1;
         }
 
@@ -116,28 +123,50 @@ pub const Iterator = struct {
 
         self.skipWhitespace(false);
 
-        const value_start = self.read_index;
-        var value_end: usize = self.read_index;
-        last_non_space = self.read_index;
-        while (self.read_index < self.data.len) {
-            const e = self.data[self.read_index];
-            if (e == '\n') {
-                value_end = last_non_space + 1;
-                break;
-            } else if (e != ' ' and e != '\t' and e != '\r') {
-                last_non_space = self.read_index;
+        if (self.read_index >= self.len) {
+            return error.EofExpectingEquals;
+        } else if (self.buf[self.read_index] != '=') {
+            return self.mkError("expected '='");
+        }
+        self.read_index += 1;
+
+        self.skipWhitespace(false);
+
+        const value_start = self.write_index;
+        var value_end: usize = value_start;
+        while (self.read_index < self.len and self.buf[self.read_index] != '\n') : (self.read_index += 1) {
+            const e = self.buf[self.read_index];
+            if (e != ' ' and e != '\t' and e != '\r') {
+                value_end = self.write_index + 1;
             }
-            self.read_index += 1;
+            self.write(e);
         }
 
+        self.buf[value_end] = 0;
+
         return .{ .pair = .{
-            .key = self.data[key_start .. key_end + 1],
-            .value = self.data[value_start..value_end],
+            .key = self.buf[key_start..key_end],
+            .value = @ptrCast(self.buf[value_start..value_end]),
         } };
+    }
+
+    fn write(self: *Self, c: u8) void {
+        self.buf[self.write_index] = c;
+        self.write_index += 1;
+    }
+
+    fn mkError(self: *Self, message: []const u8) Event {
+        return .{ .err = .{ .line = self.line, .message = message } };
     }
 };
 
 const testing = std.testing;
+
+fn mkIter(data: []u8) Iterator {
+    var buf: [1024 * 2]u8 = undefined;
+    @memcpy(buf[0..data.len], data);
+    return .{ .buf = buf, .len = data.len };
+}
 
 test "Parses section headers" {
     const data = "[section]\n";
@@ -145,7 +174,7 @@ test "Parses section headers" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const event = (try iterator.next()).?;
 
     try testing.expect(event == .section);
@@ -155,10 +184,10 @@ test "Parses section headers" {
 test "Parses key value pairs" {
     const data = "key=value\n";
     const allocator = testing.allocator;
-    const buffer = try allocator.dupe(u8, data);
+    const buffer = try allocator.dupeZ(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const event = (try iterator.next()).?;
 
     try testing.expect(event == .pair);
@@ -172,7 +201,7 @@ test "Trims whitespace" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const event = (try iterator.next()).?;
 
     try testing.expect(event == .pair);
@@ -191,15 +220,17 @@ test "Ignores comments" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
 
     const event1 = (try iterator.next()).?;
     try testing.expect(event1 == .pair);
     try testing.expectEqualStrings("key", event1.pair.key);
+    try testing.expectEqualStrings("value", event1.pair.value);
 
-    const event2 = (try iterator.next()).?;
-    try testing.expect(event2 == .pair);
-    try testing.expectEqualStrings("another_key", event2.pair.key);
+    try testing.expectEqualDeep(Event{ .pair = .{
+        .key = "another_key",
+        .value = "another_value",
+    } }, try iterator.next());
 }
 
 test "Parses mixed content" {
@@ -216,7 +247,7 @@ test "Parses mixed content" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
 
     const event1 = (try iterator.next()).?;
     try testing.expect(event1 == .section);
@@ -245,7 +276,7 @@ test "Empty input returns null" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const event = try iterator.next();
 
     try testing.expect(event == null);
@@ -257,7 +288,7 @@ test "Whitespace only returns null" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const event = try iterator.next();
 
     try testing.expect(event == null);
@@ -269,7 +300,7 @@ test "Empty value" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const result = (try iterator.next()).?;
 
     try testing.expect(result == .pair);
@@ -283,7 +314,7 @@ test "Error on unclosed section" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const result = iterator.next();
 
     try testing.expectError(error.EofInSectionName, result);
@@ -295,7 +326,7 @@ test "Error on extra after section" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const result = iterator.next();
 
     try testing.expectError(error.ExpectedNewLineAfterSection, result);
@@ -307,7 +338,7 @@ test "Error on empty key" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const result = iterator.next();
 
     try testing.expectError(error.EmptyKey, result);
@@ -319,7 +350,7 @@ test "Preserves special characters" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const event = (try iterator.next()).?;
 
     try testing.expect(event == .pair);
@@ -333,7 +364,7 @@ test "Allows spaces in sections" {
     const buffer = try allocator.dupe(u8, data);
     defer allocator.free(buffer);
 
-    var iterator = try Iterator.init(buffer);
+    var iterator = mkIter(buffer);
     const event = (try iterator.next()).?;
 
     try testing.expect(event == .section);

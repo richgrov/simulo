@@ -100,6 +100,9 @@ pub const DeviceConfig = struct {
                         .none => return error.ValueOutsideDeviceSection,
                     }
                 },
+                .err => |_| {
+                    return error.ConfigParseError;
+                },
             }
         }
 

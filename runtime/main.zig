@@ -71,13 +71,7 @@ pub fn main() !void {
         return;
     };
 
-    var config_buf: [1024 * 2]u8 = undefined;
-    const config_data = std.fs.cwd().readFile(config_path, &config_buf) catch |err| {
-        logger.err("error: failed to read config file: {s}", .{@errorName(err)});
-        return;
-    };
-
-    var parser = ini.Iterator.init(config_data) catch |err| {
+    var parser = ini.Iterator.init(config_path) catch |err| {
         logger.err("error: failed to create config parser: {s}", .{@errorName(err)});
         return;
     };
