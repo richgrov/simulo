@@ -47,8 +47,6 @@ pub fn build(b: *std.Build) !void {
     //godot_lib.addIncludePath(b.path("godot"));
     //godot_lib.linkLibCpp();
 
-    //godot_lib.linkSystemLibrary2("opencv4", .{ .preferred_link_mode = .dynamic });
-
     //bundleFramework(b, godot_lib, "gdperception");
     //check_step.dependOn(&godot_lib.step);
 
@@ -100,14 +98,18 @@ pub fn build(b: *std.Build) !void {
     runtime.addImport("vulkan", headers_module);
     runtime.addRPathSpecial("@executable_path/../Frameworks");
 
+    const runtime_exe = b.addExecutable(.{
+        .name = "runtime",
+        .root_module = runtime,
+    });
+
     const bundle_step = try bundleExe(
         b,
-        "runtime",
-        runtime,
+        runtime_exe,
         target.result.os.tag,
         &[_][]const u8{"runtime/inference/rtmo-m.onnx"},
     );
-    check_step.dependOn(bundle_step);
+    check_step.dependOn(&runtime_exe.step);
     b.getInstallStep().dependOn(bundle_step);
 
     const engine_tests = b.addRunArtifact(b.addTest(.{ .root_module = engine }));
@@ -129,12 +131,7 @@ fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
     return &run.step;
 }
 
-fn bundleExe(b: *std.Build, name: []const u8, mod: *std.Build.Module, target: std.Target.Os.Tag, resources: []const []const u8) !*std.Build.Step {
-    const exe = b.addExecutable(.{
-        .name = name,
-        .root_module = mod,
-    });
-
+fn bundleExe(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Target.Os.Tag, resources: []const []const u8) !*std.Build.Step {
     const install_step = if (target == .macos) cond: {
         const install_exe = b.addInstallArtifact(exe, .{
             .dest_dir = .{
