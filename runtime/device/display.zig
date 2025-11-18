@@ -10,6 +10,7 @@ const Renderer = @import("../render/renderer.zig").Renderer;
 const Runtime = @import("../runtime.zig").Runtime;
 const Window = @import("../window/window.zig").Window;
 const Gpu = @import("../gpu/gpu.zig").Gpu;
+const Serial = @import("../serial/serial.zig").Serial;
 
 const EyeGuard = @import("../eyeguard.zig").EyeGuard;
 const Logger = @import("../log.zig").Logger;
@@ -44,6 +45,9 @@ const vertices = [_]Vertex{
     .{ .position = .{ 0.0, 1.0, 0.0 }, .tex_coord = .{ 0.0, 1.0 } },
 };
 
+const power_on = [_]u8{ 0x06, 0x14, 0x00, 0x04, 0x00, 0x34, 0x11, 0x00, 0x00, 0x5D };
+const power_off = [_]u8{ 0x06, 0x14, 0x00, 0x04, 0x00, 0x34, 0x11, 0x01, 0x00, 0x5E };
+
 pub const DisplayDevice = struct {
     allocator: std.mem.Allocator,
 
@@ -52,6 +56,7 @@ pub const DisplayDevice = struct {
     gpu: *Gpu,
     window: Window,
     renderer: Renderer,
+    serial: ?Serial,
 
     logger: Logger("display", 1024),
     poll_profiler: DisplayProfiler,
@@ -74,10 +79,10 @@ pub const DisplayDevice = struct {
 
     camera_chan: poses.DetectionSpsc,
 
-    pub fn init(allocator: std.mem.Allocator, transform_override: ?DMat3) !DisplayDevice {
+    pub fn init(allocator: std.mem.Allocator, transform_override: ?DMat3, serial_port: ?[:0]const u8) !DisplayDevice {
         const gpu = try allocator.create(Gpu);
         gpu.* = Gpu.init();
-        errdefer gpu.deinit();
+        errdefer gpu.deinit(); // TODO: this causes a segfault
         errdefer allocator.destroy(gpu);
 
         var window = Window.init(gpu, "simulo runtime");
@@ -94,8 +99,11 @@ pub const DisplayDevice = struct {
         const chessboard = try renderer.addObject(mesh, Mat4.identity(), chessboard_material, 31);
         errdefer renderer.deleteObject(chessboard);
 
-        const eyeguard = try EyeGuard.init(allocator, &renderer, mesh, white_pixel_texture);
+        var eyeguard = try EyeGuard.init(allocator, &renderer, mesh, white_pixel_texture);
         errdefer eyeguard.deinit();
+
+        var serial = if (serial_port) |ser_port| Serial.open(ser_port, 1000) catch return error.OpenDisplaySerialFailed else null;
+        errdefer if (serial) |*ser| ser.close();
 
         return DisplayDevice{
             .allocator = allocator,
@@ -105,6 +113,7 @@ pub const DisplayDevice = struct {
             .gpu = gpu,
             .window = window,
             .renderer = renderer,
+            .serial = serial,
 
             .logger = Logger("display", 1024).init(),
             .poll_profiler = DisplayProfiler.init(),
@@ -121,12 +130,24 @@ pub const DisplayDevice = struct {
     }
 
     pub fn start(self: *DisplayDevice, runtime: *Runtime) !void {
-        _ = self;
         _ = runtime;
+
+        if (self.serial) |*serial| {
+            serial.writeAll(&power_on) catch |err| {
+                self.logger.err("failed to send power-on command to projector- must be done manually: {s}", .{@errorName(err)});
+            };
+        }
     }
 
     pub fn stop(self: *DisplayDevice, runtime: *Runtime) void {
         _ = runtime;
+
+        if (self.serial) |*serial| {
+            serial.writeAll(&power_off) catch |err| {
+                self.logger.err("failed to send power-off command to projector- must be done manually: {s}", .{@errorName(err)});
+            };
+        }
+
         for (FIRST_PROGRAM_VISIBLE_RENDER_LAYER..FIRST_PROGRAM_VISIBLE_RENDER_LAYER + MAX_PROGRAM_VISIBLE_RENDER_LAYERS) |layer| {
             self.renderer.clearLayer(@intCast(layer));
         }

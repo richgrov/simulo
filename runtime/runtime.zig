@@ -179,6 +179,7 @@ pub const Runtime = struct {
                     break :blk .{ .display = try devices.DisplayDevice.init(
                         self.allocator,
                         if (projector.skip_calibration) DMat3.scale(.{ 1.0 / 640.0, 1.0 / 640.0 }) else null,
+                        projector.port_path,
                     ) };
                 },
             };

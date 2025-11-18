@@ -13,7 +13,7 @@ pub const DeviceConfig = struct {
         const DeviceBuilder = union(enum) {
             projector: struct {
                 display_name: ?[]const u8 = null,
-                port_path: ?[]const u8 = null,
+                port_path: ?[:0]const u8 = null,
                 skip_calibration: bool = false,
             },
             camera: struct {
@@ -146,7 +146,7 @@ pub const DeviceConfig = struct {
 pub const Device = union(enum) {
     projector: struct {
         display_name: []const u8,
-        port_path: ?[]const u8,
+        port_path: ?[:0]const u8,
         skip_calibration: bool = false,
     },
     camera: struct {
