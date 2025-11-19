@@ -277,7 +277,7 @@ pub const Renderer = struct {
             const material_pass = self.material_passes.get(material_pass_id).?;
             defer {
                 material_pass.deinit();
-                _ = collection.material_passes.remove(material_pass_id);
+                _ = collection.material_passes.remove(material.id);
             }
 
             var mesh_it = material_pass.mesh_passes.iterator();
