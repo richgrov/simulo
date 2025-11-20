@@ -74,17 +74,18 @@ pub const PoseDetector = struct {
     thread: std.Thread,
     profiler: Profiler,
     logger: Logger("pose", 2048),
-    camera_id: []const u8,
-    calibrated: bool = false,
+    camera_id: util.FixedArrayList(u8, 64),
+    calibrated: bool,
 
-    pub fn init(camera_id: []const u8) PoseDetector {
+    pub fn init(camera_id: []const u8, needs_calibrate: bool) !PoseDetector {
         return PoseDetector{
             .outputs = util.FixedArrayList(*DetectionSpsc, 8).init(),
             .running = false,
             .thread = undefined,
             .profiler = Profiler.init(),
             .logger = Logger("pose", 2048).init(),
-            .camera_id = camera_id,
+            .camera_id = util.FixedArrayList(u8, 64).initFrom(camera_id) catch return error.CameraPathTooLong,
+            .calibrated = !needs_calibrate,
         };
     }
 
@@ -113,8 +114,8 @@ pub const PoseDetector = struct {
         };
         defer calibrator.deinit();
 
-        var camera = Camera.init(calibrator.mats(), self.camera_id) catch |err| {
-            self.logger.err("failed to initialize pose camera at '{s}': {s}", .{ self.camera_id, @errorName(err) });
+        var camera = Camera.init(calibrator.mats(), self.camera_id.items()) catch |err| {
+            self.logger.err("failed to initialize pose camera at '{s}': {s}", .{ self.camera_id.items(), @errorName(err) });
             return;
         };
         defer camera.deinit();

@@ -14,10 +14,9 @@ pub const CameraDevice = struct {
     logger: Logger("camera", 1024) = Logger("camera", 1024).init(),
 
     pub fn init(id: []const u8, camera_id: []const u8, runtime: *Runtime) !CameraDevice {
-        _ = runtime;
         return .{
             .id = util.FixedArrayList(u8, 16).initFrom(id) catch return error.CameraIdTooLong,
-            .pose_detector = PoseDetector.init(camera_id),
+            .pose_detector = try PoseDetector.init(camera_id, runtime.calibrations_remaining > 0),
         };
     }
 
