@@ -248,7 +248,7 @@ pub const Remote = struct {
                 };
 
                 const num_files = try reader.readInt(u8);
-                if (num_files > 16) {
+                if (num_files > fs_storage.max_assets) {
                     return error.InvalidNumFiles;
                 }
 

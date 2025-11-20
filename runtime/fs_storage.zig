@@ -70,9 +70,11 @@ pub const ProgramAsset = struct {
     real_path: [:0]const u8,
 };
 
+pub const max_assets = 32;
+
 pub const ProgramInfo = struct {
     program_path: [:0]const u8,
-    assets: FixedArrayList(ProgramAsset, 16),
+    assets: FixedArrayList(ProgramAsset, max_assets),
 };
 
 pub fn loadLatestProgram(allocator: std.mem.Allocator) !?ProgramInfo {
@@ -106,9 +108,9 @@ pub fn loadLatestProgram(allocator: std.mem.Allocator) !?ProgramInfo {
 
     var num_assets: [1]u8 = undefined;
     try reader.readSliceEndian(u8, &num_assets, .big);
-    if (num_assets[0] > 16) return error.InvalidNumAssets;
+    if (num_assets[0] > max_assets) return error.InvalidNumAssets;
 
-    var assets = FixedArrayList(ProgramAsset, 16).init();
+    var assets = FixedArrayList(ProgramAsset, max_assets).init();
     for (0..num_assets[0]) |_| {
         const real_path: [:0]const u8 = if (version[0] >= 2) blk: {
             const path = try reader.takeDelimiterExclusive(0);
