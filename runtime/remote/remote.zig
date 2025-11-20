@@ -116,7 +116,7 @@ pub const Remote = struct {
             var client = std.http.Client{ .allocator = self.allocator };
             defer client.deinit();
 
-            var sse_buf: [1024 * 8]u8 = undefined;
+            var sse_buf: [1024 * 16]u8 = undefined;
             self.sse_handler = SseHandler.init(self.allocator, &sse_buf, &Remote.onEvent);
 
             const response = client.fetch(.{
