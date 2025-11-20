@@ -204,6 +204,9 @@ pub const DisplayDevice = struct {
             self.poll_profiler.log(.resize);
         }
 
+        try self.processPoseDetections(events, runtime);
+        self.poll_profiler.log(.process_pose);
+
         const w: f32 = @floatFromInt(width);
         const h: f32 = @floatFromInt(height);
 
@@ -307,7 +310,7 @@ pub const DisplayDevice = struct {
         }
     }
 
-    fn processPoseDetections(self: *DisplayDevice, writer: ?*std.io.Writer) !void {
+    fn processPoseDetections(self: *DisplayDevice, writer: ?*std.io.Writer, runtime: *Runtime) !void {
         const width: f32 = @floatFromInt(self.last_width);
         const height: f32 = @floatFromInt(self.last_height);
 
@@ -319,8 +322,11 @@ pub const DisplayDevice = struct {
                     self.renderer.setObjectTransform(self.chessboard, Mat4.scale(.{ width, height, 1 }));
                 },
                 .calibrated => |transform| {
+                    if (self.calibration_state != .capturing_chessboard) return;
+
                     self.calibration_state = .{ .calibrated = transform };
                     self.renderer.setObjectTransform(self.chessboard, Mat4.zero());
+                    runtime.calibrations_remaining -= 1;
                 },
                 .move => |move| {
                     const transform = switch (self.calibration_state) {
