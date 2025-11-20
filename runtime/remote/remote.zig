@@ -158,7 +158,7 @@ pub const Remote = struct {
             return;
         };
 
-        var b64_buf: [1024 * 8]u8 = undefined;
+        var b64_buf: [1024 * 16]u8 = undefined;
         std.base64.standard.Decoder.decode(&b64_buf, data[prefix_len..]) catch |err| {
             self.logger.err("undecodable event: {s}: {s}", .{ @errorName(err), data });
             return;

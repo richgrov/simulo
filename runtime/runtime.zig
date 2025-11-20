@@ -281,7 +281,7 @@ pub const Runtime = struct {
         };
         defer asset_dir.close();
 
-        var path_buf: [4 * 1024]u8 = undefined;
+        var path_buf: [8 * 1024]u8 = undefined;
         var path_allocator = std.heap.FixedBufferAllocator.init(&path_buf);
         var assets = std.ArrayList(fs_storage.ProgramAsset).initCapacity(path_allocator.allocator(), 8) catch unreachable;
         defer assets.deinit(path_allocator.allocator());
