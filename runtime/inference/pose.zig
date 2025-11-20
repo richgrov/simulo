@@ -114,7 +114,7 @@ pub const PoseDetector = struct {
         defer calibrator.deinit();
 
         var camera = Camera.init(calibrator.mats(), self.camera_id) catch |err| {
-            self.logger.err("failed to initialize camera: {s}", .{@errorName(err)});
+            self.logger.err("failed to initialize pose camera at '{s}': {s}", .{ self.camera_id, @errorName(err) });
             return;
         };
         defer camera.deinit();
