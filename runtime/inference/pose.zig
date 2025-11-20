@@ -176,6 +176,7 @@ pub const PoseDetector = struct {
                         inference.input_buffers[1],
                     });
                     self.logEvent(.{ .calibrated = out_transform });
+                    self.calibrated = true;
                 }
 
                 self.profiler.log(.calibrate);
