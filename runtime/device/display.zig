@@ -169,6 +169,8 @@ pub const DisplayDevice = struct {
                     self.logger.err("failed to write resize event: {s}", .{@errorName(err)});
                 };
             }
+        } else {
+            self.first_poll = true;
         }
 
         self.poll_profiler.log(.setup_frame);
