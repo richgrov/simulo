@@ -49,7 +49,7 @@ pub fn Logger(comptime name: []const u8, fmt_buf_size: usize) type {
                 "{d:0>5} {d:0>2}:{d:0>2}:{d:0>2}.{d:0>3} " ++ level_str ++ " [" ++ name ++ "] " ++ fmt ++ "\n",
                 .{ days, hrs % 24, mins % 60, secs % 60, now % 1000 } ++ args,
             ) catch {
-                writer.writeAll("????? ??:??:??.??? " ++ level_str ++ " [" ++ name ++ "] <log message too long>\n") catch {};
+                writer.writeAll("????? ??:??:??.??? " ++ level_str ++ " [" ++ name ++ "] <log message too long; fmt:> " ++ fmt ++ "\n") catch {};
                 return;
             };
             writer.writeAll(msg) catch {};
