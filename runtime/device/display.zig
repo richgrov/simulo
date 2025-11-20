@@ -247,7 +247,7 @@ pub const DisplayDevice = struct {
     }
 
     pub fn dropMaterial(self: *DisplayDevice, material_id: Renderer.MaterialHandle) void {
-        self.renderer.dropMaterial(material_id.id);
+        self.renderer.unrefMaterial(material_id.id);
     }
 
     pub fn setObjectMaterial(self: *DisplayDevice, object: Renderer.ObjectHandle, material: Renderer.MaterialHandle) !void {

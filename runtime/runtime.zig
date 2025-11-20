@@ -516,7 +516,7 @@ pub const Runtime = struct {
     fn wasmDropMaterial(env: *Wasm, id: u32) void {
         const runtime: *Runtime = @alignCast(@fieldParentPtr("wasm", env));
         const display = runtime.tempGetDisplay();
-        display.dropMaterial(.{ .id = id });
+        display.renderer.markMaterialDropped(.{ .id = id });
     }
 
     fn wasmCreateRenderedObject(env: *Wasm, material_id: u32) u32 {

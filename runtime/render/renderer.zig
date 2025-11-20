@@ -28,11 +28,13 @@ const Object = struct {
     transform: Mat4,
     color: @Vector(4, f32),
     mesh: MeshId,
-    material: MaterialId,
+    material: Renderer.MaterialHandle,
     render_order: RenderOrder,
 };
 
 const Material = struct {
+    object_count: u32 = 0,
+    material_dropped: bool = false,
     handle: ffi.Material,
     color: @Vector(4, f32),
 };
@@ -53,8 +55,6 @@ const MeshPass = struct {
 
 const MaterialPass = struct {
     mesh_passes: std.AutoHashMap(MeshId, MeshPassId),
-    object_count: u32 = 0,
-    material_dropped: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) MaterialPass {
         return MaterialPass{
@@ -198,10 +198,10 @@ pub const Renderer = struct {
             .transform = transform,
             .color = .{ 1.0, 1.0, 1.0, 1.0 },
             .mesh = mesh.id,
-            .material = material.id,
+            .material = material,
             .render_order = render_order,
         });
-        material_pass.object_count += 1;
+        self.materials.get(material.id).?.object_count += 1;
         try mesh_pass.objects.put(self.allocator, @intCast(obj_id));
         return ObjectHandle{ .id = @intCast(obj_id) };
     }
@@ -209,16 +209,19 @@ pub const Renderer = struct {
     pub fn setObjectMaterial(self: *Renderer, object: ObjectHandle, material: MaterialHandle) error{OutOfMemory}!void {
         const obj = self.objects.get(object.id).?;
 
-        if (obj.material == material.id) return;
+        if (obj.material.id == material.id) return;
+
+        self.unrefMaterial(obj.material);
+        self.materials.get(material.id).?.object_count += 1;
 
         const collection = &self.render_collections[obj.render_order];
-        const material_pass_id = collection.material_passes.get(obj.material).?;
+        const material_pass_id = collection.material_passes.get(obj.material.id).?;
         const material_pass = self.material_passes.get(material_pass_id).?;
         const mesh_pass_id = material_pass.mesh_passes.get(obj.mesh).?;
         const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
         std.debug.assert(mesh_pass.objects.delete(object.id));
 
-        obj.material = material.id;
+        obj.material = material;
         const new_mat_pass = try self.getOrInsertMaterialPass(collection, material.id);
         const new_mesh_pass = try self.getOrInsertMeshPass(new_mat_pass, obj.mesh);
         try new_mesh_pass.objects.put(self.allocator, object.id);
@@ -239,13 +242,12 @@ pub const Renderer = struct {
     pub fn deleteObject(self: *Renderer, object: ObjectHandle) void {
         const obj = self.objects.get(object.id).?;
         const collection = &self.render_collections[obj.render_order];
-        const material_pass_id = collection.material_passes.get(obj.material).?;
+        const material_pass_id = collection.material_passes.get(obj.material.id).?;
         const material_pass = self.material_passes.get(material_pass_id).?;
         const mesh_pass_id = material_pass.mesh_passes.get(obj.mesh).?;
         const mesh_pass = self.mesh_passes.get(mesh_pass_id).?;
         std.debug.assert(mesh_pass.objects.delete(object.id));
         self.objects.delete(object.id) catch unreachable;
-        material_pass.object_count -= 1;
         self.unrefMaterial(obj.material);
     }
 
@@ -263,7 +265,6 @@ pub const Renderer = struct {
                 while (objects.next()) |object_id| {
                     const object = self.objects.get(object_id).?;
                     self.objects.delete(object_id) catch unreachable;
-                    material_pass.object_count -= 1;
                     self.unrefMaterial(object.material);
                 }
                 mesh_pass.objects.clear();
@@ -271,7 +272,16 @@ pub const Renderer = struct {
         }
     }
 
-    fn deleteMaterial(self: *Renderer, material: MaterialHandle) void {
+    pub fn markMaterialDropped(self: *Renderer, material: MaterialHandle) void {
+        const mat = self.materials.get(material.id).?;
+        mat.material_dropped = true;
+        self.deleteMaterialIfUnreferenced(material);
+    }
+
+    fn deleteMaterialIfUnreferenced(self: *Renderer, material: MaterialHandle) void {
+        const mat = self.materials.get(material.id).?;
+        if (!(mat.object_count == 0 and mat.material_dropped)) return;
+
         for (&self.render_collections) |*collection| {
             const material_pass_id = collection.material_passes.get(material.id) orelse continue;
             const material_pass = self.material_passes.get(material_pass_id).?;
@@ -290,30 +300,13 @@ pub const Renderer = struct {
             std.debug.assert(collection.material_passes.remove(material.id));
         }
 
-        const mat = self.materials.get(material.id).?;
         ffi.delete_material(self.handle, &mat.handle);
         self.materials.delete(material.id) catch unreachable;
-        std.debug.print("Deleted material {}\n", .{material.id});
     }
 
-    pub fn unrefMaterial(self: *Renderer, mat_id: MaterialId) void {
-        for (self.render_collections) |collection| {
-            const material_pass_id = collection.material_passes.get(mat_id) orelse continue;
-            const material_pass = self.material_passes.get(material_pass_id).?;
-
-            if (material_pass.object_count == 0 and material_pass.material_dropped) {
-                std.debug.print("Deleting material {}\n", .{mat_id});
-                self.deleteMaterial(.{ .id = mat_id });
-            }
-        }
-    }
-
-    pub fn dropMaterial(self: *Renderer, mat_id: MaterialId) void {
-        for (self.render_collections) |collection| {
-            const material_pass_id = collection.material_passes.get(mat_id) orelse continue;
-            const material_pass = self.material_passes.get(material_pass_id).?;
-            material_pass.material_dropped = true;
-        }
+    pub fn unrefMaterial(self: *Renderer, material: MaterialHandle) void {
+        self.materials.get(material.id).?.object_count -= 1;
+        self.deleteMaterialIfUnreferenced(material);
     }
 
     pub fn createImage(self: *Renderer, image_data: []const u8, width: i32, height: i32) ImageHandle {
