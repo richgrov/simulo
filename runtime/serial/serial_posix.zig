@@ -6,7 +6,7 @@ const c = @cImport({
     @cInclude("unistd.h");
 });
 
-fn ucast(i: c_int) c_ulong {
+fn flag_cast(i: c_int) c.tcflag_t {
     return @intCast(@as(c_uint, @bitCast(i)));
 }
 
@@ -30,13 +30,13 @@ pub const Serial = struct {
         tio.c_cflag &= ~(@as(c_uint, c.CSIZE));
         tio.c_cflag |= c.CS8;
         // No parity
-        tio.c_cflag &= ucast(~c.PARENB);
+        tio.c_cflag &= flag_cast(~c.PARENB);
         // 1 stop bit
-        tio.c_cflag &= ucast(~c.CSTOPB);
+        tio.c_cflag &= flag_cast(~c.CSTOPB);
         // Enable receiver, ignore modem control lines
         tio.c_cflag |= c.CREAD | c.CLOCAL;
         // Disable HW flow control if defined
-        tio.c_cflag &= ucast(~c.CRTSCTS);
+        tio.c_cflag &= flag_cast(~c.CRTSCTS);
 
         // Set read timeout: VTIME in deciseconds, VMIN=0 for read-with-timeout semantics
         const ds: u8 = @truncate(if (timeout_ms == 0) 0 else @min((timeout_ms + 99) / 100, 255));
