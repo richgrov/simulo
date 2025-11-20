@@ -75,9 +75,9 @@ pub const PoseDetector = struct {
     profiler: Profiler,
     logger: Logger("pose", 2048),
     camera_id: util.FixedArrayList(u8, 64),
-    calibrated: bool,
+    calibrated: bool = false,
 
-    pub fn init(camera_id: []const u8, needs_calibrate: bool) !PoseDetector {
+    pub fn init(camera_id: []const u8) !PoseDetector {
         return PoseDetector{
             .outputs = util.FixedArrayList(*DetectionSpsc, 8).init(),
             .running = false,
@@ -85,13 +85,13 @@ pub const PoseDetector = struct {
             .profiler = Profiler.init(),
             .logger = Logger("pose", 2048).init(),
             .camera_id = util.FixedArrayList(u8, 64).initFrom(camera_id) catch return error.CameraPathTooLong,
-            .calibrated = !needs_calibrate,
         };
     }
 
-    pub fn start(self: *PoseDetector) !void {
+    pub fn start(self: *PoseDetector, needs_calibrate: bool) !void {
         const started = @cmpxchgStrong(bool, &self.running, false, true, .seq_cst, .seq_cst) == null;
         if (started) {
+            self.calibrated = !needs_calibrate;
             self.thread = try std.Thread.spawn(.{}, PoseDetector.run, .{self});
         }
     }

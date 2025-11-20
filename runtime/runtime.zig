@@ -174,7 +174,7 @@ pub const Runtime = struct {
         while (device_iter.next()) |entry| {
             const id = entry.key_ptr.*;
             const device_type: devices.Device = switch (entry.value_ptr.*) {
-                .camera => |*camera| .{ .camera = try devices.CameraDevice.init(id, camera.port_path, self) },
+                .camera => |*camera| .{ .camera = try devices.CameraDevice.init(id, camera.port_path) },
 
                 .projector => |*projector| blk: {
                     if (!projector.skip_calibration) display_count += 1;
