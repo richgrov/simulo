@@ -279,23 +279,23 @@ jobs:
           ./runtime &
           RUNTIME_PID=$!
           # Ensure runtime is still running after 10 seconds; fail otherwise
-          #for i in $(seq 1 10); do
-          #  if kill -0 "$RUNTIME_PID" 2>/dev/null; then
-          #    sleep 1
-          #  else
-          #    echo "runtime exited prematurely" >&2
-          #    kill "$XVFB_PID" || true
-          #    wait "$XVFB_PID" || true
-          #    exit 1
-          #  fi
-          #done
-          # Capture screenshot with a single tool (ImageMagick import)
-          #import -window root screenshot.png
-          # Cleanup
-          #kill "$RUNTIME_PID" || true
-          #wait "$RUNTIME_PID" || true
-          #kill "$XVFB_PID" || true
-          #wait "$XVFB_PID" || true
+          for i in $(seq 1 10); do
+            if kill -0 "$RUNTIME_PID" 2>/dev/null; then
+              sleep 1
+            else
+              echo "runtime exited prematurely" >&2
+              kill "$XVFB_PID" || true
+              wait "$XVFB_PID" || true
+              exit 1
+            fi
+          done
+           Capture screenshot with a single tool (ImageMagick import)
+          import -window root screenshot.png
+           Cleanup
+          kill "$RUNTIME_PID" || true
+          wait "$RUNTIME_PID" || true
+          kill "$XVFB_PID" || true
+          wait "$XVFB_PID" || true
 
 #      - name: Upload screenshot artifact
 #        uses: actions/upload-artifact@v4
