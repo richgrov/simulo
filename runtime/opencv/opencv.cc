@@ -7,7 +7,6 @@
 #include <opencv2/imgproc.hpp>
 
 #include <cstring>
-#include <limits>
 #include <vector>
 
 CvStatus mat_init(CvMat **mat, int rows, int cols, CvMatType type) {
@@ -206,61 +205,26 @@ CvStatus find_chessboard_transform(
          return StatOk;
       }
 
-      // Normalize corner ordering to ensure consistent orientation
-      // findChessboardCornersSB can occasionally return inverted coordinates
-      cv::Point2f potential_tl = corners[0];
-      cv::Point2f potential_tr = corners[pattern_width - 1];
-      cv::Point2f potential_bl = corners[corners.size() - pattern_width];
-      cv::Point2f potential_br = corners[corners.size() - 1];
+      // Extract the four corners from guaranteed positions
+      cv::Point2f tl = corners[0];
+      cv::Point2f tr = corners[pattern_width - 1];
+      cv::Point2f bl = corners[corners.size() - pattern_width];
+      cv::Point2f br = corners[corners.size() - 1];
 
-      // Determine the actual corners by finding the minimum bounding box
-      float min_x = std::min({potential_tl.x, potential_tr.x, potential_bl.x, potential_br.x});
-      float max_x = std::max({potential_tl.x, potential_tr.x, potential_bl.x, potential_br.x});
-      float min_y = std::min({potential_tl.y, potential_tr.y, potential_bl.y, potential_br.y});
-      float max_y = std::max({potential_tl.y, potential_tr.y, potential_bl.y, potential_br.y});
-
-      // Find the corner closest to each expected position
-      cv::Point2f tl, tr, bl, br;
-      std::vector<cv::Point2f> candidates = {potential_tl, potential_tr, potential_bl, potential_br};
+      // Detect if coordinates are inverted by checking if corners[0] is closer to 
+      // image top-left vs bottom-right. If inverted, flip both X and Y coordinates.
+      float image_width = static_cast<float>(frame->cols);
+      float image_height = static_cast<float>(frame->rows);
       
-      // Top-left: minimize distance to (min_x, min_y)
-      float min_dist_tl = std::numeric_limits<float>::max();
-      for (const auto& pt : candidates) {
-         float dist = (pt.x - min_x) * (pt.x - min_x) + (pt.y - min_y) * (pt.y - min_y);
-         if (dist < min_dist_tl) {
-            min_dist_tl = dist;
-            tl = pt;
-         }
-      }
-
-      // Top-right: minimize distance to (max_x, min_y)
-      float min_dist_tr = std::numeric_limits<float>::max();
-      for (const auto& pt : candidates) {
-         float dist = (pt.x - max_x) * (pt.x - max_x) + (pt.y - min_y) * (pt.y - min_y);
-         if (dist < min_dist_tr) {
-            min_dist_tr = dist;
-            tr = pt;
-         }
-      }
-
-      // Bottom-left: minimize distance to (min_x, max_y)
-      float min_dist_bl = std::numeric_limits<float>::max();
-      for (const auto& pt : candidates) {
-         float dist = (pt.x - min_x) * (pt.x - min_x) + (pt.y - max_y) * (pt.y - max_y);
-         if (dist < min_dist_bl) {
-            min_dist_bl = dist;
-            bl = pt;
-         }
-      }
-
-      // Bottom-right: minimize distance to (max_x, max_y)
-      float min_dist_br = std::numeric_limits<float>::max();
-      for (const auto& pt : candidates) {
-         float dist = (pt.x - max_x) * (pt.x - max_x) + (pt.y - max_y) * (pt.y - max_y);
-         if (dist < min_dist_br) {
-            min_dist_br = dist;
-            br = pt;
-         }
+      float dist_to_tl = tl.x * tl.x + tl.y * tl.y;
+      float dist_to_br = (tl.x - image_width) * (tl.x - image_width) + (tl.y - image_height) * (tl.y - image_height);
+      
+      if (dist_to_br < dist_to_tl) {
+         // Coordinates are inverted - flip both X and Y
+         tl = corners[corners.size() - 1];
+         tr = corners[corners.size() - pattern_width];
+         bl = corners[pattern_width - 1];
+         br = corners[0];
       }
 
       std::vector<cv::Point2f> src_points = {tl, tr, bl, br};
