@@ -70,70 +70,68 @@ pub const LocalRun = struct {
 };
 
 pub const Runtime = struct {
-    remote: Remote,
     allocator: std.mem.Allocator,
+    remote: Remote,
     logger: Logger("runtime", 2048),
 
     poll_profiler: PollProfiler,
-    frame_count: usize,
-    second_timer: i64,
+    frame_count: usize = 0,
+    second_timer: i64 = 0,
 
     wasm: Wasm,
-    wasm_entry: ?Wasm.Function,
-    first_poll: bool,
-    audio_player: AudioPlayer,
+    wasm_entry: ?Wasm.Function = null,
+    first_poll: bool = false,
+    //audio_player: AudioPlayer,
     assets: std.StringHashMap(AssetData),
-    next_program: ?DownloadPacket,
+    next_program: ?DownloadPacket = null,
     devices: std.ArrayList(devices.Device),
-    calibrations_remaining: usize,
+    calibrations_remaining: usize = 0,
 
     schedule: ?struct {
         start_ms: u64,
         stop_ms: u64,
-    },
-    was_running: bool,
+    } = null,
+    was_running: bool = false,
 
-    pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
-        runtime.allocator = allocator;
-        runtime.logger = Logger("runtime", 2048).init();
+    pub fn init(allocator: std.mem.Allocator) !Runtime {
+        var logger = Logger("runtime", 2048).init();
 
         if (build_options.cloud) {
-            runtime.logger.info("simulo runtime (git: {s}, api: {s})", .{
+            logger.info("simulo runtime (git: {s}, api: {s})", .{
                 build_options.git_hash,
                 build_options.api_url,
             });
         } else {
-            runtime.logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
+            logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
         }
 
-        runtime.remote = try Remote.init(allocator);
-        errdefer runtime.remote.deinit();
-        try runtime.remote.start();
+        var remote = try Remote.init(allocator);
+        errdefer remote.deinit();
+        try remote.start();
 
-        runtime.poll_profiler = PollProfiler.init();
-        runtime.frame_count = 0;
-        runtime.second_timer = 0;
+        const poll_profiler = PollProfiler.init();
 
-        runtime.wasm = try Wasm.init();
-        errdefer runtime.wasm.deinit();
-        try runtime.wasm.startWatchdog();
-        try registerWasmFuncs(&runtime.wasm);
-        runtime.wasm_entry = null;
-        runtime.first_poll = false;
+        var wasm = try Wasm.init();
+        errdefer wasm.deinit();
+        try wasm.startWatchdog();
 
         //runtime.audio_player = try AudioPlayer.init();
         //errdefer runtime.audio_player.deinit();
 
-        runtime.assets = std.StringHashMap(AssetData).init(runtime.allocator);
-        errdefer runtime.assets.deinit();
+        var assets = std.StringHashMap(AssetData).init(allocator);
+        errdefer assets.deinit();
 
-        runtime.next_program = null;
-        runtime.devices = std.ArrayList(devices.Device).initCapacity(runtime.allocator, 0) catch unreachable;
-        runtime.calibrations_remaining = 0;
+        const device_list = std.ArrayList(devices.Device).initCapacity(allocator, 0) catch unreachable;
 
-        runtime.schedule = null;
-
-        runtime.was_running = false;
+        return .{
+            .allocator = allocator,
+            .remote = remote,
+            .logger = logger,
+            .poll_profiler = poll_profiler,
+            .wasm = wasm,
+            .assets = assets,
+            .devices = device_list,
+        };
     }
 
     pub fn deinit(self: *Runtime) void {
@@ -252,13 +250,13 @@ pub const Runtime = struct {
                 const name = self.allocator.dupe(u8, asset_name) catch |err| util.crash.oom(err);
                 self.assets.put(name, .{ .image = image }) catch |err| util.crash.oom(err);
             } else if (std.mem.endsWith(u8, asset_name, ".wav")) {
-                const sound = self.audio_player.loadSound(file_data) catch |err| {
-                    self.logger.err("failed to load sound from {s}: {s}", .{ asset.real_path, @errorName(err) });
-                    return error.AssertLoadFailed;
-                };
+                //const sound = self.audio_player.loadSound(file_data) catch |err| {
+                //    self.logger.err("failed to load sound from {s}: {s}", .{ asset.real_path, @errorName(err) });
+                //    return error.AssertLoadFailed;
+                //};
 
-                const name = self.allocator.dupe(u8, asset_name) catch |err| util.crash.oom(err);
-                self.assets.put(name, .{ .sound = sound }) catch |err| util.crash.oom(err);
+                //const name = self.allocator.dupe(u8, asset_name) catch |err| util.crash.oom(err);
+                //self.assets.put(name, .{ .sound = sound }) catch |err| util.crash.oom(err);
             } else {
                 self.logger.err("unsupported asset: {s}", .{asset_name});
             }
@@ -270,8 +268,8 @@ pub const Runtime = struct {
         while (assets_keys.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
             switch (entry.value_ptr.*) {
-                .sound => |*sound| {
-                    self.audio_player.unloadSound(sound);
+                .sound => |_| {
+                    //self.audio_player.unloadSound(sound);
                 },
                 .image => |_| {
                     // TODO: delete image if present
@@ -354,6 +352,8 @@ pub const Runtime = struct {
     }
 
     pub fn run(self: *Runtime, local_run: ?LocalRun) !void {
+        try registerWasmFuncs(&self.wasm);
+
         const time_of_day = @mod(std.time.milliTimestamp(), 24 * 60 * 60 * 1000);
         self.was_running = self.shouldRun(time_of_day);
         self.logger.info("initial run state: {}", .{self.was_running});

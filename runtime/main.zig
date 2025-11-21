@@ -36,8 +36,7 @@ pub fn main() !void {
         return;
     };
 
-    var runtime: Runtime = undefined;
-    try Runtime.init(&runtime, allocator);
+    var runtime = try Runtime.init(allocator);
     defer runtime.deinit();
 
     if (build_options.cloud) {
