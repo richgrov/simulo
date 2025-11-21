@@ -23,18 +23,16 @@ pub fn main() !void {
     defer args.deinit();
     std.debug.assert(args.skip());
 
-    var logger = Logger("init", 1024).init();
-
     var dba = std.heap.DebugAllocator(.{}).init;
     defer {
         if (dba.deinit() == .leak) {
-            logger.err("memory leak detected", .{});
+            std.debug.print("memory leak detected\n", .{});
         }
     }
     const allocator = dba.allocator();
 
     fs_storage.globalInit(allocator) catch |err| {
-        logger.err("error: failed to initialize fs storage: {s}", .{@errorName(err)});
+        std.debug.print("error: failed to initialize fs storage: {s}", .{@errorName(err)});
         return;
     };
 
@@ -43,15 +41,8 @@ pub fn main() !void {
     defer runtime.deinit();
 
     if (build_options.cloud) {
-        logger.info("simulo runtime (git: {s}, api: {s})", .{
-            build_options.git_hash,
-            build_options.api_url,
-        });
-
         try runtime.run(null);
     } else {
-        logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
-
         const command = args.next() orelse {
             std.debug.print(usage ++ "\n", .{});
             return;
@@ -63,23 +54,23 @@ pub fn main() !void {
         }
 
         var config_parser = ini.Iterator.init("devices.ini") catch |err| {
-            logger.err("error: failed to create parser for devices.ini: {s}", .{@errorName(err)});
+            std.debug.print("error: failed to create parser for devices.ini: {s}", .{@errorName(err)});
             return;
         };
 
         var config = DeviceConfig.init(allocator, &config_parser) catch |err| {
-            logger.err("error: failed to parse devices.ini: {s}", .{@errorName(err)});
+            std.debug.print("error: failed to parse devices.ini: {s}", .{@errorName(err)});
             return;
         };
         defer config.deinit();
 
         var parser = ini.Iterator.init("simulo.ini") catch |err| {
-            logger.err("error: failed to open simulo.ini: {s}\n", .{@errorName(err)});
+            std.debug.print("error: failed to open simulo.ini: {s}\n", .{@errorName(err)});
             return;
         };
 
         const dev_config = DevConfig.init(&parser) catch |err| {
-            logger.err("error: failed to parse simulo.ini: {s}\n", .{@errorName(err)});
+            std.debug.print("error: failed to parse simulo.ini: {s}\n", .{@errorName(err)});
             return;
         };
 

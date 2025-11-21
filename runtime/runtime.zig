@@ -96,6 +96,16 @@ pub const Runtime = struct {
     pub fn init(runtime: *Runtime, allocator: std.mem.Allocator) !void {
         runtime.allocator = allocator;
         runtime.logger = Logger("runtime", 2048).init();
+
+        if (build_options.cloud) {
+            runtime.logger.info("simulo runtime (git: {s}, api: {s})", .{
+                build_options.git_hash,
+                build_options.api_url,
+            });
+        } else {
+            runtime.logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
+        }
+
         runtime.remote = try Remote.init(allocator);
         errdefer runtime.remote.deinit();
         try runtime.remote.start();
