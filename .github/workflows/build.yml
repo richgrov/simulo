@@ -51,13 +51,22 @@ jobs:
 
       - uses: tecolicom/actions-use-homebrew-tools@v1
         with:
-          tools: opencv wasmtime
+          tools: ninja cmake wasmtime
 
-      - name: Download ONNX Runtime
+      - name: Cache dependencies
+        id: cache-dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor/onnxruntime/build
+            vendor/opencv/build
+          key: ${{ runner.os }}-dependencies-${{ hashFiles('setup_macos.sh', '**/build.yml') }}
+
+      - name: Build ONNX Runtime and OpenCV
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
         run: |
-          mkdir -p extern/onnxruntime
-          curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-osx-arm64-1.22.0.tgz -o onnxruntime.tgz
-          tar -xzf onnxruntime.tgz -C extern/onnxruntime --strip-components=1
+          chmod +x ./setup_macos.sh
+          ./setup_macos.sh
 
       - name: Download Vulkan SDK
         run: |
@@ -75,19 +84,19 @@ jobs:
         run: |
           export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
           source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
-          zig build test -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime
+          zig build test -Doptimize=ReleaseSafe
 
       - name: Build local
         run: |
           export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
           source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
-          zig build install -Doptimize=ReleaseSafe --search-prefix extern/onnxruntime -p zig-out-local
+          zig build install -Doptimize=ReleaseSafe -p zig-out-local
 
       - name: Build cloud
         run: |
           export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
           source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
-          zig build install -Doptimize=ReleaseSafe -Dcloud=true --search-prefix extern/onnxruntime -p zig-out-cloud
+          zig build install -Doptimize=ReleaseSafe -Dcloud=true -p zig-out-cloud
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
