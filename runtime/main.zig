@@ -19,13 +19,9 @@ else
     "usage: simulo dev";
 
 pub fn main() !void {
-    var arg_buf: [128]u8 = undefined;
-    var arg_allocator = std.heap.FixedBufferAllocator.init(&arg_buf);
-    var args = std.process.argsWithAllocator(arg_allocator.allocator()) catch |err| {
-        std.debug.print("failed to read program args: {s}\n", .{@errorName(err)});
-        return;
-    };
+    var args = std.process.args();
     defer args.deinit();
+    std.debug.assert(args.skip());
 
     var logger = Logger("init", 1024).init();
 
@@ -45,8 +41,6 @@ pub fn main() !void {
     var runtime: Runtime = undefined;
     try Runtime.init(&runtime, allocator);
     defer runtime.deinit();
-
-    std.debug.assert(args.skip());
 
     if (build_options.cloud) {
         logger.info("simulo runtime (git: {s}, api: {s})", .{
