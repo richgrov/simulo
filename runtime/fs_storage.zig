@@ -5,16 +5,14 @@ const FixedArrayList = util.FixedArrayList;
 
 const packet = @import("remote/packet.zig");
 
-var data_dir_buf: [128]u8 = undefined;
+var data_dir_buf: [256 + "/.simulo".len]u8 = undefined;
 var data_dir: ?[]const u8 = null;
 
-pub fn globalInit(allocator: std.mem.Allocator) !void {
-    const home_dir = try std.process.getEnvVarOwned(allocator, "HOME");
-    defer allocator.free(home_dir);
+pub fn globalInit() (error{ NoHomeDir, HomeDirTooLong } || std.posix.MakeDirError || std.fs.Dir.StatFileError)!void {
+    const home_dir = std.posix.getenv("HOME") orelse return error.NoHomeDir;
+    data_dir = std.fmt.bufPrint(&data_dir_buf, "{s}/.simulo", .{home_dir}) catch return error.HomeDirTooLong;
 
-    data_dir = try std.fmt.bufPrint(&data_dir_buf, "{s}/.simulo", .{home_dir});
-
-    var object_dir_buf: [128]u8 = undefined;
+    var object_dir_buf: [data_dir_buf.len + "/objects".len]u8 = undefined;
     const object_dir = getFilePath(&object_dir_buf, "objects") catch unreachable;
     try std.fs.cwd().makePath(object_dir);
 }

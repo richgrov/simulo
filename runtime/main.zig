@@ -31,7 +31,7 @@ pub fn main() !void {
     }
     const allocator = dba.allocator();
 
-    fs_storage.globalInit(allocator) catch |err| {
+    fs_storage.globalInit() catch |err| {
         std.debug.print("error: failed to initialize fs storage: {s}", .{@errorName(err)});
         return;
     };
