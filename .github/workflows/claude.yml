@@ -23,6 +23,7 @@ jobs:
       pull-requests: read
       issues: read
       id-token: write
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -79,3 +80,5 @@ jobs:
           timeout_minutes: "60"
           mode: tag
           claude_args: --dangerously-skip-permissions
+          additional_permissions: |
+            actions: read
