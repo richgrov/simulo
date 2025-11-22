@@ -205,7 +205,6 @@ CvStatus find_chessboard_transform(
          return StatOk;
       }
 
-      // Extract the four corners from guaranteed positions
       cv::Point2f tl = corners[0];
       cv::Point2f tr = corners[pattern_width - 1];
       cv::Point2f bl = corners[corners.size() - pattern_width];
@@ -220,7 +219,7 @@ CvStatus find_chessboard_transform(
       float dist_to_br = (tl.x - image_width) * (tl.x - image_width) + (tl.y - image_height) * (tl.y - image_height);
       
       if (dist_to_br < dist_to_tl) {
-         // Coordinates are inverted - flip both X and Y
+         // Detect 180° inversion
          tl = corners[corners.size() - 1];
          tr = corners[corners.size() - pattern_width];
          bl = corners[pattern_width - 1];
