@@ -305,6 +305,9 @@ jobs:
         if: failure()
         run: |
           find /tmp -name "core.runtime.*" -type f -exec cp {} ./core.dump \; || true
+
+      - name: Upload core dump artifact
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: runtime-core-dump-linux
