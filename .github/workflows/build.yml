@@ -90,13 +90,13 @@ jobs:
         run: |
           export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
           source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
-          zig build install -Doptimize=ReleaseSafe -p zig-out-local
+          zig build install -Doptimize=ReleaseSafe -p zig-out-local -Dcpu=baseline
 
       - name: Build cloud
         run: |
           export VULKAN_SDK_VERSION=$(curl -s https://vulkan.lunarg.com/sdk/latest/mac.txt)
           source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
-          zig build install -Doptimize=ReleaseSafe -Dcloud=true -p zig-out-cloud
+          zig build install -Doptimize=ReleaseSafe -Dcloud=true -p zig-out-cloud -Dcpu=baseline
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
@@ -166,10 +166,10 @@ jobs:
         run: zig build test --search-prefix extern/onnxruntime --search-prefix extern/wasmtime --verbose
 
       - name: Build local
-        run: zig build install --search-prefix extern/onnxruntime --search-prefix extern/wasmtime -p zig-out-local -Doptimize=ReleaseSafe
+        run: zig build install --search-prefix extern/onnxruntime --search-prefix extern/wasmtime -p zig-out-local -Doptimize=ReleaseSafe -Dcpu=baseline
 
       - name: Build cloud
-        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime --search-prefix extern/wasmtime -p zig-out-cloud -Doptimize=ReleaseSafe
+        run: zig build install -Dcloud=true --search-prefix extern/onnxruntime --search-prefix extern/wasmtime -p zig-out-cloud -Doptimize=ReleaseSafe -Dcpu=baseline
 
       - name: Upload local artifact
         uses: actions/upload-artifact@v4
