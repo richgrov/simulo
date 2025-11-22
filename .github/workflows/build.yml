@@ -269,13 +269,17 @@ jobs:
         env:
           DISPLAY: :99
         run: |
-          #set -euo pipefail
+          set -euo pipefail
           export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          echo "/tmp/core.%e.%p.%t" | sudo tee /proc/sys/kernel/core_pattern
+          sudo sysctl -w kernel.core_pattern=/tmp/core.%e.%p.%t
+          ulimit -c unlimited
           Xvfb :99 -screen 0 1280x720x24 &
           XVFB_PID=$!
           export DISPLAY=:99
           sleep 1
           chmod +x ./runtime
+
           ./runtime &
           RUNTIME_PID=$!
           # Ensure runtime is still running after 10 seconds; fail otherwise
@@ -289,13 +293,22 @@ jobs:
               exit 1
             fi
           done
-           Capture screenshot with a single tool (ImageMagick import)
-          import -window root screenshot.png
-           Cleanup
+
+          import -window root screenshot.png || true
+
           kill "$RUNTIME_PID" || true
           wait "$RUNTIME_PID" || true
           kill "$XVFB_PID" || true
           wait "$XVFB_PID" || true
+
+      - name: Upload core dump if runtime failed
+        if: failure()
+        run: |
+          find /tmp -name "core.runtime.*" -type f -exec cp {} ./core.dump \; || true
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-core-dump-linux
+          path: core.dump
 
 #      - name: Upload screenshot artifact
 #        uses: actions/upload-artifact@v4
