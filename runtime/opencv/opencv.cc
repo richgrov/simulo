@@ -210,16 +210,10 @@ CvStatus find_chessboard_transform(
       cv::Point2f bl = corners[corners.size() - pattern_width];
       cv::Point2f br = corners[corners.size() - 1];
 
-      // Detect if coordinates are inverted by checking if corners[0] is closer to 
-      // image top-left vs bottom-right. If inverted, flip both X and Y coordinates.
-      float image_width = static_cast<float>(frame->cols);
-      float image_height = static_cast<float>(frame->rows);
+      bool detection_inverted = tl.x + tl.y > br.x + br.y;
       
-      float dist_to_tl = tl.x * tl.x + tl.y * tl.y;
-      float dist_to_br = (tl.x - image_width) * (tl.x - image_width) + (tl.y - image_height) * (tl.y - image_height);
-      
-      if (dist_to_br < dist_to_tl) {
-         // Detect 180° inversion
+      if (detection_inverted) {
+         // Sometimes, the chessboard detection algorithm returns the corners in an inverted direction because it's unable to tell the orientation. We detect that here and correct it.
          tl = corners[corners.size() - 1];
          tr = corners[corners.size() - pattern_width];
          bl = corners[pattern_width - 1];
