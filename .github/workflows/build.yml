@@ -51,7 +51,7 @@ jobs:
 
       - uses: tecolicom/actions-use-homebrew-tools@v1
         with:
-          tools: ninja cmake wasmtime
+          tools: ninja cmake wasmtime libtiff eigen
 
       - name: Cache dependencies
         id: cache-dependencies
