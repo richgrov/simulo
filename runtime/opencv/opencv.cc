@@ -210,6 +210,18 @@ CvStatus find_chessboard_transform(
       cv::Point2f bl = corners[corners.size() - pattern_width];
       cv::Point2f br = corners[corners.size() - 1];
 
+      bool detection_inverted = tl.x + tl.y > br.x + br.y;
+
+      if (detection_inverted) {
+         // Sometimes, the chessboard detection algorithm returns the corners in an inverted
+         // direction because it's unable to tell the orientation. We detect that here and correct
+         // it.
+         tl = corners[corners.size() - 1];
+         tr = corners[corners.size() - pattern_width];
+         bl = corners[pattern_width - 1];
+         br = corners[0];
+      }
+
       std::vector<cv::Point2f> src_points = {tl, tr, bl, br};
       float x_offset = 1.f / (pattern_width + 1);
       float y_offset = 1.f / (pattern_height + 1);
