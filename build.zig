@@ -273,6 +273,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         runtime.linkSystemLibrary("wayland-client", .{});
         runtime.linkSystemLibrary("wayland-protocols", .{});
         runtime.linkSystemLibrary("xkbcommon", .{});
+        runtime.linkSystemLibrary("uring", .{});
     }
 
     if (usesVulkan(os)) {
