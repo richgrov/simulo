@@ -87,6 +87,7 @@ const arial = @embedFile("res/arial.ttf");
 test {
     comptime {
         _ = ini;
+        _ = @import("io/event_loop.zig");
     }
 }
 

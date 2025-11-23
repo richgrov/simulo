@@ -1,0 +1,3 @@
+Hello, World!
+This is a test file for the EventLoop implementation.
+It contains multiple lines of text to test reading functionality.
