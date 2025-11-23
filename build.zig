@@ -45,7 +45,6 @@ pub fn build(b: *std.Build) !void {
     //godot_lib.root_module.addImport("util", util);
     //godot_lib.root_module.addImport("engine", engine);
     //godot_lib.addIncludePath(b.path("godot"));
-    //godot_lib.linkLibCpp();
 
     //bundleFramework(b, godot_lib, "gdperception");
     //check_step.dependOn(&godot_lib.step);
@@ -333,7 +332,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
 }
 
 fn setupExecutable(b: *std.Build, mod: *std.Build.Step.Compile) void {
-    mod.linkLibCpp();
+    mod.root_module.link_libcpp = true;
     mod.addIncludePath(b.path("src"));
 }
 
