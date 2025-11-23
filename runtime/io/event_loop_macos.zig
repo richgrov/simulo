@@ -65,6 +65,8 @@ pub const EventLoop = struct {
 
     pub fn openFile(self: *EventLoop, path: [:0]const u8, events: *std.ArrayList(EventType)) !void {
         _ = self;
+        // macOS doesn't support opening files asynchronously. Prod is all linux, so this
+        // performance cost is acceptable.
         const fd = std.posix.open(path, .{ .ACCMODE = .RDONLY }, 0) catch |err| {
             try events.appendBounded(.{
                 .err = .{
@@ -89,9 +91,8 @@ pub const EventLoop = struct {
             .events = events,
             .fd = fd,
         };
-        
-        const index, _ = try self.read_slab.insert(context);
 
+        const index, _ = try self.read_slab.insert(context);
 
         const change_event = c.struct_kevent{
             .ident = @as(c_uint, @intCast(fd)),
@@ -147,7 +148,7 @@ pub const EventLoop = struct {
                     if (event.data > 0 or !reached_eof) {
                         // Data available or we want to check for EOF by reading
                         const buffer = context.buffer;
-                        
+
                         // Loop to drain available data and check for EOF
                         while (true) {
                             const bytes_read = std.posix.read(fd, buffer) catch |err| {
@@ -189,7 +190,7 @@ pub const EventLoop = struct {
                                 .bytes_read = 0,
                             },
                         });
-                        
+
                         // Cleanup slab
                         self.read_slab.delete(index) catch unreachable;
                     }
