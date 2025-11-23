@@ -143,7 +143,7 @@ pub const EventLoop = struct {
         while (c.io_uring_peek_cqe(&self.ring, &cqe) == 0) {
             defer c.io_uring_cqe_seen(&self.ring, cqe.?);
 
-            const index = @intFromPtr(cqe.?.user_data);
+            const index = @as(usize, cqe.?.user_data);
             const res = cqe.?.res;
 
             if (self.slab.get(index)) |context| {
