@@ -35,5 +35,6 @@ test {
         _ = IntSet;
         _ = SparseIntSet;
         _ = Spsc;
+        _ = error_util;
     }
 }
