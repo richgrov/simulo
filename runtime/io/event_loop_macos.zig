@@ -60,6 +60,12 @@ pub const EventLoop = struct {
     allocator: std.mem.Allocator,
     slab: Slab(Context),
 
+    pub const OpenMode = enum {
+        read_only,
+        write_only,
+        read_write,
+    };
+
     pub fn init(allocator: std.mem.Allocator) !EventLoop {
         const kq = c.kqueue();
         if (kq == -1) {
@@ -84,11 +90,17 @@ pub const EventLoop = struct {
         self.slab.deinit();
     }
 
-    pub fn openFile(self: *EventLoop, path: [:0]const u8, events: *std.ArrayList(EventType)) !void {
+    pub fn openFile(self: *EventLoop, path: [:0]const u8, events: *std.ArrayList(EventType), mode: OpenMode) !void {
         _ = self;
         // macOS doesn't support opening files asynchronously. Prod is all linux, so this
         // performance cost is acceptable.
-        const fd = std.posix.open(path, .{ .ACCMODE = .RDONLY }, 0) catch |err| {
+        const flags: std.posix.O = switch (mode) {
+            .read_only => .{ .ACCMODE = .RDONLY },
+            .write_only => .{ .ACCMODE = .WRONLY },
+            .read_write => .{ .ACCMODE = .RDWR },
+        };
+
+        const fd = std.posix.open(path, flags, 0) catch |err| {
             try events.appendBounded(.{
                 .err = .{
                     .fd = null,

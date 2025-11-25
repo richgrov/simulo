@@ -27,7 +27,7 @@ test "EventLoop file reading" {
     var received_content = try std.ArrayList(u8).initCapacity(allocator, 4096);
     defer received_content.deinit(allocator);
 
-    try loop.openFile("runtime/io/test.txt", &events);
+    try loop.openFile("runtime/io/test.txt", &events, EventLoop.OpenMode.read_only);
 
     var open_retries: usize = 0;
     while (events.items.len == 0 and open_retries < 100) : (open_retries += 1) {
@@ -116,23 +116,27 @@ test "EventLoop file writing" {
     var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
     defer events.deinit(allocator);
 
-    // Open file using the loop (assuming we have write permissions and it works similar to read open for now,
-    // although openFile implementation in linux/macos is hardcoded for O_RDONLY in the previous code...
-    // Wait, the linux implementation uses O_RDONLY. macos implementation uses O_RDONLY.
-    // I need to update openFile to support writing or adding a new openFileForWrite.
-    // For now, I'll use std.posix.open to get an fd and pass it to the loop,
-    // or better, I should update openFile to accept flags.
+    try loop.openFile(test_filename, &events, EventLoop.OpenMode.read_write);
 
-    // Check previous implementation of openFile:
-    // Linux: c.io_uring_prep_openat(..., c.O_RDONLY, 0);
-    // MacOS: std.posix.open(..., .{ .ACCMODE = .RDONLY }, 0)
+    var open_retries: usize = 0;
+    while (events.items.len == 0 and open_retries < 100) : (open_retries += 1) {
+        try loop.poll();
+        if (events.items.len == 0) std.Thread.sleep(1 * std.time.ns_per_ms);
+    }
 
-    // So I cannot use loop.openFile for writing yet.
-    // I will use std.posix.open directly for this test to verify startWriteFile,
-    // but ideally I should improve openFile.
+    if (events.items.len != 1) {
+        std.debug.print("Failed to receive open event after {} retries. Events len: {}\n", .{ open_retries, events.items.len });
+        return error.TestFailed;
+    }
 
-    const fd = try std.posix.open(test_filename, .{ .ACCMODE = .RDWR }, 0o644);
-    defer std.posix.close(fd);
+    const open_event = events.items[0];
+    if (open_event == .err) {
+        std.debug.print("Open failed: {}\n", .{open_event.err.error_code});
+        return error.TestFailed;
+    }
+
+    const fd = open_event.open_complete.fd;
+    defer loop.closeFile(fd);
 
     try loop.startWriteFile(fd, test_content, &events);
 

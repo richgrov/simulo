@@ -66,6 +66,12 @@ pub const EventLoop = struct {
     allocator: std.mem.Allocator,
     slab: Slab(Context),
 
+    pub const OpenMode = enum {
+        read_only,
+        write_only,
+        read_write,
+    };
+
     pub fn init(allocator: std.mem.Allocator) !EventLoop {
         var ring: c.io_uring = undefined;
         const ret = c.io_uring_queue_init(32, &ring, 0);
@@ -94,7 +100,7 @@ pub const EventLoop = struct {
         self.slab.deinit();
     }
 
-    pub fn openFile(self: *EventLoop, path: [:0]const u8, events: *std.ArrayList(EventType)) !void {
+    pub fn openFile(self: *EventLoop, path: [:0]const u8, events: *std.ArrayList(EventType), mode: OpenMode) !void {
         const path_dupe = try self.allocator.dupeZ(u8, path);
         errdefer self.allocator.free(path_dupe);
 
@@ -111,7 +117,13 @@ pub const EventLoop = struct {
             return error.SubmissionQueueFull;
         }
 
-        c.io_uring_prep_openat(sqe, c.AT_FDCWD, path_dupe.ptr, c.O_RDONLY, 0);
+        const flags: c_int = switch (mode) {
+            .read_only => c.O_RDONLY,
+            .write_only => c.O_WRONLY,
+            .read_write => c.O_RDWR,
+        };
+
+        c.io_uring_prep_openat(sqe, c.AT_FDCWD, path_dupe.ptr, flags, 0);
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
