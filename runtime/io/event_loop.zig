@@ -100,3 +100,80 @@ test "EventLoop file reading" {
     // Verify content matches
     try std.testing.expectEqualSlices(u8, expected_content, received_content.items);
 }
+
+test "EventLoop file writing" {
+    const allocator = std.testing.allocator;
+    const test_content = "Hello, EventLoop Write!";
+    const test_filename = "runtime/io/test_write.txt";
+
+    // Create/Truncate file for writing
+    const file = try std.fs.cwd().createFile(test_filename, .{ .read = true });
+    file.close();
+
+    var loop = try EventLoop.init(allocator);
+    defer loop.deinit();
+
+    var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
+    defer events.deinit(allocator);
+
+    // Open file using the loop (assuming we have write permissions and it works similar to read open for now,
+    // although openFile implementation in linux/macos is hardcoded for O_RDONLY in the previous code...
+    // Wait, the linux implementation uses O_RDONLY. macos implementation uses O_RDONLY.
+    // I need to update openFile to support writing or adding a new openFileForWrite.
+    // For now, I'll use std.posix.open to get an fd and pass it to the loop,
+    // or better, I should update openFile to accept flags.
+
+    // Check previous implementation of openFile:
+    // Linux: c.io_uring_prep_openat(..., c.O_RDONLY, 0);
+    // MacOS: std.posix.open(..., .{ .ACCMODE = .RDONLY }, 0)
+
+    // So I cannot use loop.openFile for writing yet.
+    // I will use std.posix.open directly for this test to verify startWriteFile,
+    // but ideally I should improve openFile.
+
+    const fd = try std.posix.open(test_filename, .{ .ACCMODE = .RDWR }, 0o644);
+    defer std.posix.close(fd);
+
+    try loop.startWriteFile(fd, test_content, &events);
+
+    var total_bytes_written: usize = 0;
+    var write_complete = false;
+
+    var loops: usize = 0;
+    while (!write_complete and loops < 100) {
+        loops += 1;
+        events.clearRetainingCapacity();
+        try loop.poll();
+
+        if (events.items.len == 0) {
+            std.Thread.sleep(1 * std.time.ns_per_ms);
+            continue;
+        }
+
+        for (events.items) |event| {
+            switch (event) {
+                .write_complete => |write_event| {
+                    total_bytes_written += write_event.bytes_written;
+                    if (total_bytes_written >= test_content.len) {
+                        write_complete = true;
+                    }
+                },
+                .err => |err_event| {
+                    std.debug.print("Error during write test: {}\n", .{err_event.error_code});
+                    return error.TestFailed;
+                },
+                else => {},
+            }
+        }
+    }
+
+    try std.testing.expect(write_complete);
+    try std.testing.expectEqual(test_content.len, total_bytes_written);
+
+    // Verify content
+    const read_content = try std.fs.cwd().readFileAlloc(allocator, test_filename, 1024);
+    defer allocator.free(read_content);
+    try std.testing.expectEqualSlices(u8, test_content, read_content);
+
+    try std.fs.cwd().deleteFile(test_filename);
+}

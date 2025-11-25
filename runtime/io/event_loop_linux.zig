@@ -10,6 +10,7 @@ const c = @cImport({
 
 pub const EventType = union(enum) {
     read_complete: ReadCompleteEvent,
+    write_complete: WriteCompleteEvent,
     open_complete: OpenCompleteEvent,
     err: ErrorEvent,
 };
@@ -18,6 +19,11 @@ pub const ReadCompleteEvent = struct {
     fd: std.c.fd_t,
     data: []const u8,
     bytes_read: usize,
+};
+
+pub const WriteCompleteEvent = struct {
+    fd: std.c.fd_t,
+    bytes_written: usize,
 };
 
 pub const OpenCompleteEvent = struct {
@@ -32,12 +38,18 @@ pub const ErrorEvent = struct {
 
 const Operation = union(enum) {
     read: ReadContext,
+    write: WriteContext,
     open: OpenContext,
 };
 
 const ReadContext = struct {
     fd: std.c.fd_t,
     buffer: []u8,
+};
+
+const WriteContext = struct {
+    fd: std.c.fd_t,
+    buffer: []const u8,
 };
 
 const OpenContext = struct {
@@ -103,7 +115,7 @@ pub const EventLoop = struct {
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
-    pub fn startRead(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
+    pub fn startReadFile(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
         const context = Context{
             .events = events,
             .op = .{ .read = .{ .fd = fd, .buffer = buffer } },
@@ -117,7 +129,7 @@ pub const EventLoop = struct {
     fn submitRead(self: *EventLoop, index: usize, fd: std.c.fd_t, buffer: []u8) !void {
         const sqe = c.io_uring_get_sqe(&self.ring);
         if (sqe == null) {
-            // If we can't submit, we have a problem. 
+            // If we can't submit, we have a problem.
             // If this is a re-submission, the context is already in the slab.
             // We should probably error out or handle backpressure.
             // For now, return error.
@@ -125,6 +137,24 @@ pub const EventLoop = struct {
         }
 
         c.io_uring_prep_read(sqe, fd, buffer.ptr, @intCast(buffer.len), 0);
+        c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
+    }
+
+    pub fn startWriteFile(self: *EventLoop, fd: std.c.fd_t, buffer: []const u8, events: *std.ArrayList(EventType)) !void {
+        const context = Context{
+            .events = events,
+            .op = .{ .write = .{ .fd = fd, .buffer = buffer } },
+        };
+
+        const index, _ = try self.slab.insert(context);
+
+        const sqe = c.io_uring_get_sqe(&self.ring);
+        if (sqe == null) {
+            self.slab.delete(index) catch unreachable;
+            return error.SubmissionQueueFull;
+        }
+
+        c.io_uring_prep_write(sqe, fd, buffer.ptr, @intCast(buffer.len), -1);
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
@@ -150,7 +180,7 @@ pub const EventLoop = struct {
                 switch (context.op) {
                     .open => |*open_ctx| {
                         defer self.allocator.free(open_ctx.path);
-                        
+
                         if (res < 0) {
                             const err_code = posixErrToAnyErr(std.posix.errno(res));
                             try context.events.appendBounded(.{
@@ -185,7 +215,7 @@ pub const EventLoop = struct {
                             self.slab.delete(index) catch unreachable;
                         } else if (res == 0) {
                             // EOF
-                             try context.events.appendBounded(.{
+                            try context.events.appendBounded(.{
                                 .read_complete = .{
                                     .fd = read_ctx.fd,
                                     .data = &[_]u8{},
@@ -203,11 +233,11 @@ pub const EventLoop = struct {
                                     .bytes_read = bytes_read,
                                 },
                             });
-                            
+
                             // Resubmit read
                             // If resubmission fails, we should probably report error or stop.
                             self.submitRead(index, read_ctx.fd, read_ctx.buffer) catch |err| {
-                                 try context.events.appendBounded(.{
+                                try context.events.appendBounded(.{
                                     .err = .{
                                         .fd = read_ctx.fd,
                                         .error_code = err,
@@ -216,6 +246,27 @@ pub const EventLoop = struct {
                                 self.slab.delete(index) catch unreachable;
                             };
                         }
+                    },
+                    .write => |write_ctx| {
+                        if (res < 0) {
+                            const err = std.posix.errno(res);
+                            if (err != .CANCELED and err != .BADF) {
+                                try context.events.appendBounded(.{
+                                    .err = .{
+                                        .fd = write_ctx.fd,
+                                        .error_code = posixErrToAnyErr(err),
+                                    },
+                                });
+                            }
+                        } else {
+                            try context.events.appendBounded(.{
+                                .write_complete = .{
+                                    .fd = write_ctx.fd,
+                                    .bytes_written = @intCast(res),
+                                },
+                            });
+                        }
+                        self.slab.delete(index) catch unreachable;
                     },
                 }
             }
