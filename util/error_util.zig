@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn posixErrToAnyErr(err: std.posix.Errno) anyerror {
+pub fn posixErrToAnyErr(err: std.c.E) anyerror {
     return switch (err) {
         .NOENT => error.FileNotFound,
         .ACCES, .PERM => error.AccessDenied,
