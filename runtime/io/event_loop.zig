@@ -23,7 +23,7 @@ test "EventLoop file reading" {
     var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
     defer events.deinit(allocator);
 
-    var test_buffer: [4096]u8 = undefined;
+    var test_buffer: [16]u8 = undefined;
     var received_content = try std.ArrayList(u8).initCapacity(allocator, 4096);
     defer received_content.deinit(allocator);
 
@@ -50,7 +50,7 @@ test "EventLoop file reading" {
 
     const fd = open_event.open_complete.fd;
 
-    try loop.startRead(fd, &test_buffer, &events);
+    try loop.startReadFile(fd, &test_buffer, &events);
 
     var total_bytes: usize = 0;
     var found_complete = false;

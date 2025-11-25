@@ -32,6 +32,7 @@ const ReadContext = struct {
     buffer: []u8,
     events: *std.ArrayList(EventType),
     fd: std.c.fd_t,
+    is_file: bool,
 };
 
 pub const EventLoop = struct {
@@ -85,11 +86,12 @@ pub const EventLoop = struct {
         });
     }
 
-    pub fn startRead(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
+    fn startReadFd(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType), is_file: bool) !void {
         const context = ReadContext{
             .buffer = buffer,
             .events = events,
             .fd = fd,
+            .is_file = is_file,
         };
 
         const index, _ = try self.read_slab.insert(context);
@@ -109,6 +111,10 @@ pub const EventLoop = struct {
             self.read_slab.delete(index) catch unreachable;
             return error.KQueueEventAddFailed;
         }
+    }
+
+    pub fn startReadFile(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
+        try self.startReadFd(fd, buffer, events, true);
     }
 
     pub fn closeFile(self: *EventLoop, fd: std.c.fd_t) void {
@@ -137,52 +143,62 @@ pub const EventLoop = struct {
             const fd = @as(std.c.fd_t, @intCast(event.ident));
 
             if (event.filter == c.EVFILT_READ) {
-                var reached_eof = false;
-
-                if (event.flags & c.EV_EOF != 0) {
-                    reached_eof = true;
-                }
-
                 const index = @intFromPtr(event.udata);
                 if (self.read_slab.get(index)) |context| {
-                    if (event.data > 0 or !reached_eof) {
-                        // Data available or we want to check for EOF by reading
-                        const buffer = context.buffer;
+                    const buffer = context.buffer;
 
-                        // Loop to drain available data and check for EOF
-                        while (true) {
-                            const bytes_read = std.posix.read(fd, buffer) catch |err| {
-                                if (err == error.WouldBlock) {
-                                    break;
-                                }
-                                try context.events.appendBounded(.{
-                                    .err = .{
-                                        .fd = fd,
-                                        .error_code = err,
-                                    },
-                                });
-                                reached_eof = true; // Stop on error
-                                break;
-                            };
+                    const bytes_read = std.posix.read(fd, buffer) catch |err| {
+                        if (err != error.WouldBlock) {
+                            try context.events.appendBounded(.{
+                                .err = .{
+                                    .fd = fd,
+                                    .error_code = err,
+                                },
+                            });
+                            // Cleanup slab on error
+                            self.read_slab.delete(index) catch unreachable;
+                        }
+                        continue;
+                    };
 
-                            if (bytes_read > 0) {
-                                const data_slice = buffer[0..bytes_read];
-                                try context.events.appendBounded(.{
-                                    .read_complete = .{
-                                        .fd = fd,
-                                        .data = data_slice,
-                                        .bytes_read = bytes_read,
-                                    },
-                                });
-                            } else if (bytes_read == 0) {
-                                reached_eof = true;
-                                break;
+                    if (bytes_read > 0) {
+                        const data_slice = buffer[0..bytes_read];
+                        try context.events.appendBounded(.{
+                            .read_complete = .{
+                                .fd = fd,
+                                .data = data_slice,
+                                .bytes_read = bytes_read,
+                            },
+                        });
+
+                        var is_eof = false;
+                        if (event.flags & c.EV_EOF != 0) {
+                            // If EV_EOF is set, we are at EOF if we consumed everything available
+                            // kqueue reports remaining bytes in data. If we read >= data, we are done.
+                            if (bytes_read >= event.data) {
+                                is_eof = true;
+                            }
+                        } else if (context.is_file) {
+                            // For regular files, kqueue stops firing when offset == size.
+                            // So if we read exactly what was remaining, we must signal EOF now.
+                            if (bytes_read == @as(usize, @intCast(event.data))) {
+                                is_eof = true;
                             }
                         }
-                    }
 
-                    if (reached_eof) {
-                        // End of file reached
+                        if (is_eof) {
+                            try context.events.appendBounded(.{
+                                .read_complete = .{
+                                    .fd = fd,
+                                    .data = &[_]u8{},
+                                    .bytes_read = 0,
+                                },
+                            });
+                            self.read_slab.delete(index) catch unreachable;
+                        }
+                    } else {
+                        // 0 bytes read usually means EOF for sockets (if we got here)
+                        // or just empty read.
                         try context.events.appendBounded(.{
                             .read_complete = .{
                                 .fd = fd,
@@ -190,8 +206,6 @@ pub const EventLoop = struct {
                                 .bytes_read = 0,
                             },
                         });
-
-                        // Cleanup slab
                         self.read_slab.delete(index) catch unreachable;
                     }
                 }
