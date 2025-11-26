@@ -264,6 +264,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
                 "runtime/window/linux/fractional-scale-protocol.c",
                 "runtime/window/linux/viewporter-protocol.c",
                 "runtime/window/linux/xdg-shell-protocol.c",
+                "runtime/io/uring_wrappers.c",
             },
         });
 
@@ -273,6 +274,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         runtime.linkSystemLibrary("wayland-client", .{});
         runtime.linkSystemLibrary("wayland-protocols", .{});
         runtime.linkSystemLibrary("xkbcommon", .{});
+        runtime.linkSystemLibrary("uring", .{});
     }
 
     if (usesVulkan(os)) {

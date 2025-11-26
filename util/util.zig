@@ -11,6 +11,7 @@ pub const IntSet = @import("int_set.zig").IntSet;
 pub const SparseIntSet = @import("packed_set.zig").SparseIntSet;
 pub const Spsc = @import("spsc_ring.zig").Spsc;
 
+pub const error_util = @import("error_util.zig");
 pub const crash = @import("crash.zig");
 
 pub fn getResourcePath(name: []const u8, buf: []u8) ![]const u8 {
@@ -34,5 +35,6 @@ test {
         _ = IntSet;
         _ = SparseIntSet;
         _ = Spsc;
+        _ = error_util;
     }
 }
