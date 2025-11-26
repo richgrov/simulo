@@ -109,17 +109,25 @@ pub fn build(b: *std.Build) !void {
         &[_][]const u8{"runtime/inference/rtmo-m.onnx"},
     );
     check_step.dependOn(&runtime_exe.step);
+
+    const tests = [_]*std.Build.Step.Compile{
+        b.addTest(.{ .root_module = engine }),
+        b.addTest(.{ .root_module = runtime }),
+        b.addTest(.{ .root_module = util }),
+    };
+    tests[1].step.dependOn(bundle_step);
+
+    for (tests) |tes| {
+        check_step.dependOn(&tes.step);
+    }
+
     b.getInstallStep().dependOn(bundle_step);
 
-    const engine_tests = b.addRunArtifact(b.addTest(.{ .root_module = engine }));
-    const runtime_tests = b.addRunArtifact(b.addTest(.{ .root_module = runtime }));
-    runtime_tests.step.dependOn(bundle_step);
-    const util_tests = b.addRunArtifact(b.addTest(.{ .root_module = util }));
-
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&runtime_tests.step);
-    test_step.dependOn(&util_tests.step);
-    test_step.dependOn(&engine_tests.step);
+    for (tests) |tes| {
+        const run = b.addRunArtifact(tes);
+        test_step.dependOn(&run.step);
+    }
 }
 
 fn embedVkShader(b: *std.Build, comptime file: []const u8) *std.Build.Step {
