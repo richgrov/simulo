@@ -14,7 +14,12 @@ pub const EventType = union(enum) {
     write_complete: WriteCompleteEvent,
     open_complete: OpenCompleteEvent,
     connect_complete: ConnectCompleteEvent,
+    timer_complete: TimerCompleteEvent,
     err: ErrorEvent,
+};
+
+pub const TimerCompleteEvent = struct {
+    id: usize,
 };
 
 pub const ConnectCompleteEvent = struct {
@@ -45,6 +50,11 @@ pub const ErrorEvent = struct {
 const Operation = union {
     read: ReadContext,
     write: WriteContext,
+    timer: TimerContext,
+};
+
+const TimerContext = struct {
+    id: usize,
 };
 
 const ReadContext = struct {
@@ -243,6 +253,35 @@ pub const EventLoop = struct {
         }
     }
 
+    pub fn startTimer(self: *EventLoop, delay_ms: u64, id: usize, events: *std.ArrayList(EventType)) !void {
+        const context = Context{
+            .events = events,
+            .op = .{
+                .timer = .{
+                    .id = id,
+                },
+            },
+        };
+
+        const index, _ = try self.slab.insert(context);
+
+        const change_event = c.struct_kevent{
+            .ident = @as(c_uint, @intCast(index)),
+            .filter = c.EVFILT_TIMER,
+            .flags = c.EV_ADD | c.EV_ENABLE | c.EV_ONESHOT,
+            .fflags = c.NOTE_USECONDS,
+            .data = @as(isize, @intCast(delay_ms * 1000)),
+            .udata = @ptrFromInt(index),
+        };
+
+        const changelist = [_]c.struct_kevent{change_event};
+        const nevents = c.kevent(self.kqueue_fd, &changelist, changelist.len, null, 0, null);
+        if (nevents == -1) {
+            self.slab.delete(index) catch unreachable;
+            return error.KQueueEventAddFailed;
+        }
+    }
+
     pub fn startReadFile(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
         try self.startReadFd(fd, buffer, events, true);
     }
@@ -370,27 +409,34 @@ pub const EventLoop = struct {
                             self.slab.delete(index) catch unreachable;
                         },
                         .connect => |connect_ctx| {
-                             const fd_conn = connect_ctx.fd;
-                             var err_code: i32 = 0;
-                             var len: c.socklen_t = @sizeOf(i32);
-                             const ret = c.getsockopt(fd_conn, c.SOL_SOCKET, c.SO_ERROR, &err_code, &len);
+                            const fd_conn = connect_ctx.fd;
+                            var err_code: i32 = 0;
+                            var len: c.socklen_t = @sizeOf(i32);
+                            const ret = c.getsockopt(fd_conn, c.SOL_SOCKET, c.SO_ERROR, &err_code, &len);
 
-                             if (ret != 0) {
-                                 try context.events.appendBounded(.{
-                                     .err = .{ .fd = fd_conn, .error_code = error.SocketOptionFailed },
-                                 });
-                             } else if (err_code != 0) {
-                                 try context.events.appendBounded(.{
-                                     .err = .{ .fd = fd_conn, .error_code = posixErrToAnyErr(@enumFromInt(err_code)) },
-                                 });
-                             } else {
-                                 try context.events.appendBounded(.{
-                                     .connect_complete = .{ .fd = fd_conn },
-                                 });
-                             }
-                             self.slab.delete(index) catch unreachable;
+                            if (ret != 0) {
+                                try context.events.appendBounded(.{
+                                    .err = .{ .fd = fd_conn, .error_code = error.SocketOptionFailed },
+                                });
+                            } else if (err_code != 0) {
+                                try context.events.appendBounded(.{
+                                    .err = .{ .fd = fd_conn, .error_code = posixErrToAnyErr(@enumFromInt(err_code)) },
+                                });
+                            } else {
+                                try context.events.appendBounded(.{
+                                    .connect_complete = .{ .fd = fd_conn },
+                                });
+                            }
+                            self.slab.delete(index) catch unreachable;
                         },
                     }
+                } else if (event.filter == c.EVFILT_TIMER) {
+                    try context.events.appendBounded(.{
+                        .timer_complete = .{
+                            .id = context.op.timer.id,
+                        },
+                    });
+                    self.slab.delete(index) catch unreachable;
                 }
             }
         }

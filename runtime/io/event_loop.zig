@@ -303,3 +303,36 @@ test "EventLoop TCP connection" {
 
     try std.testing.expect(std.mem.indexOf(u8, response.items, "Ack: Hello Server") != null);
 }
+
+test "EventLoop timer" {
+    const allocator = std.testing.allocator;
+    var loop = try EventLoop.init(allocator);
+    defer loop.deinit();
+
+    var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
+    defer events.deinit(allocator);
+
+    // Start a 10ms timer
+    try loop.startTimer(10, 12345, &events);
+
+    var timer_fired = false;
+    var loops: usize = 0;
+    while (!timer_fired and loops < 100) {
+        loops += 1;
+        events.clearRetainingCapacity();
+        try loop.poll();
+
+        for (events.items) |event| {
+            switch (event) {
+                .timer_complete => |ev| {
+                    if (ev.id == 12345) timer_fired = true;
+                },
+                .err => return error.TestFailed,
+                else => {},
+            }
+        }
+        if (!timer_fired) std.Thread.sleep(1 * std.time.ns_per_ms);
+    }
+
+    try std.testing.expect(timer_fired);
+}

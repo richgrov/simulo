@@ -13,7 +13,12 @@ pub const EventType = union(enum) {
     write_complete: WriteCompleteEvent,
     open_complete: OpenCompleteEvent,
     connect_complete: ConnectCompleteEvent,
+    timer_complete: TimerCompleteEvent,
     err: ErrorEvent,
+};
+
+pub const TimerCompleteEvent = struct {
+    id: usize,
 };
 
 pub const ConnectCompleteEvent = struct {
@@ -46,6 +51,12 @@ const Operation = union(enum) {
     write: WriteContext,
     open: OpenContext,
     connect: ConnectContext,
+    timer: TimerContext,
+};
+
+const TimerContext = struct {
+    id: usize,
+    ts: *c.struct___kernel_timespec,
 };
 
 const ReadContext = struct {
@@ -161,6 +172,40 @@ pub const EventLoop = struct {
         }
 
         c.io_uring_prep_connect(sqe, fd, &addr_ptr.any, addr_ptr.getOsSockLen());
+        c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
+    }
+
+    pub fn startTimer(self: *EventLoop, delay_ms: u64, id: usize, events: *std.ArrayList(EventType)) !void {
+        const sec = delay_ms / 1000;
+        const nsec = (delay_ms % 1000) * 1000000;
+
+        const ts_ptr = try self.allocator.create(c.struct___kernel_timespec);
+        ts_ptr.* = .{
+            .tv_sec = @intCast(sec),
+            .tv_nsec = @intCast(nsec),
+        };
+        errdefer self.allocator.destroy(ts_ptr);
+
+        const context = Context{
+            .events = events,
+            .op = .{
+                .timer = .{
+                    .id = id,
+                    .ts = ts_ptr,
+                },
+            },
+        };
+
+        const index, _ = try self.slab.insert(context);
+
+        const sqe = c.io_uring_get_sqe(&self.ring);
+        if (sqe == null) {
+            self.slab.delete(index) catch unreachable;
+            return error.SubmissionQueueFull;
+        }
+
+        // Use the heap-allocated pointer which is stable
+        c.io_uring_prep_timeout(sqe, ts_ptr, 0, 0);
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
@@ -335,6 +380,48 @@ pub const EventLoop = struct {
                             try context.events.appendBounded(.{
                                 .connect_complete = .{
                                     .fd = connect_ctx.fd,
+                                },
+                            });
+                        }
+                        self.slab.delete(index) catch unreachable;
+                    },
+                    .timer => |timer_ctx| {
+                        defer self.allocator.destroy(timer_ctx.ts);
+                        if (res == -@as(i32, @intCast(std.os.linux.ETIME))) {
+                            // Timeout expired successfully
+                            try context.events.appendBounded(.{
+                                .timer_complete = .{
+                                    .id = timer_ctx.id,
+                                },
+                            });
+                        } else if (res < 0) {
+                            // Canceled or other error
+                            // We treat generic timeout errors as just completion or ignored if canceled?
+                            // Usually -ETIME is success for timeout operation.
+                            // Other errors might be cancellation.
+                            const err = std.posix.errno(res);
+                            if (err != .CANCELED) {
+                                try context.events.appendBounded(.{
+                                    .err = .{
+                                        .fd = null, // No FD for timer
+                                        .error_code = posixErrToAnyErr(err),
+                                    },
+                                });
+                            }
+                        } else {
+                            // Should be -ETIME usually?
+                            // "This system call returns 0 if the timeout expired" -> Wait, io_uring_prep_timeout?
+                            // man io_uring_prep_timeout:
+                            // "If the timeout expires, the CQE result will be -ETIME."
+                            // "If count is 0, the timeout will expire when the time is up."
+
+                            // Wait, if I used count=0, it triggers on timeout.
+                            // Result is -ETIME.
+
+                            // Let's handle 0 as success too just in case.
+                            try context.events.appendBounded(.{
+                                .timer_complete = .{
+                                    .id = timer_ctx.id,
                                 },
                             });
                         }
