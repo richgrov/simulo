@@ -264,6 +264,7 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
                 "runtime/window/linux/fractional-scale-protocol.c",
                 "runtime/window/linux/viewporter-protocol.c",
                 "runtime/window/linux/xdg-shell-protocol.c",
+                "runtime/io/uring_wrappers.c",
             },
         });
 
