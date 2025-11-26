@@ -181,3 +181,125 @@ test "EventLoop file writing" {
 
     try std.fs.cwd().deleteFile(test_filename);
 }
+
+test "EventLoop TCP connection" {
+    const allocator = std.testing.allocator;
+    const port = 9001;
+
+    // Start python server
+    const args = [_][]const u8{ "python3", "runtime/io/test_tcp.py", "9001" };
+    var child = std.process.Child.init(&args, allocator);
+    child.stdout_behavior = .Ignore;
+    child.stderr_behavior = .Ignore;
+    try child.spawn();
+
+    // Give it a moment to start
+    std.Thread.sleep(500 * std.time.ns_per_ms);
+
+    defer {
+        _ = child.kill() catch {};
+        _ = child.wait() catch {};
+    }
+
+    var loop = try EventLoop.init(allocator);
+    defer loop.deinit();
+
+    var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
+    defer events.deinit(allocator);
+
+    const address = try std.net.Address.parseIp("127.0.0.1", port);
+
+    try loop.connectTcp(address, &events);
+
+    var connected = false;
+    var fd: std.c.fd_t = -1;
+
+    // Wait for connection
+    var loops: usize = 0;
+    while (!connected and loops < 100) {
+        loops += 1;
+        events.clearRetainingCapacity();
+        try loop.poll();
+
+        if (events.items.len == 0) {
+            std.Thread.sleep(10 * std.time.ns_per_ms);
+            continue;
+        }
+
+        for (events.items) |event| {
+            switch (event) {
+                .connect_complete => |ev| {
+                    connected = true;
+                    fd = ev.fd;
+                },
+                .err => |err| {
+                    std.debug.print("Connect error: {}\n", .{err.error_code});
+                    return error.TestFailed;
+                },
+                else => {},
+            }
+        }
+    }
+    try std.testing.expect(connected);
+    defer loop.closeFile(fd);
+
+    // Write data
+    const message = "Hello Server";
+    try loop.startWriteFile(fd, message, &events);
+
+    var write_complete = false;
+    loops = 0;
+    while (!write_complete and loops < 100) {
+        loops += 1;
+        events.clearRetainingCapacity();
+        try loop.poll();
+
+        for (events.items) |event| {
+            switch (event) {
+                .write_complete => |ev| {
+                    if (ev.bytes_written == message.len) write_complete = true;
+                },
+                .err => return error.TestFailed,
+                else => {},
+            }
+        }
+        if (!write_complete) std.Thread.sleep(10 * std.time.ns_per_ms);
+    }
+    try std.testing.expect(write_complete);
+
+    // Read response
+    var read_buffer: [1024]u8 = undefined;
+    var response = try std.ArrayList(u8).initCapacity(allocator, 1024);
+    defer response.deinit(allocator);
+
+    try loop.startReadSocket(fd, &read_buffer, &events);
+
+    var read_complete = false;
+    loops = 0;
+    while (!read_complete and loops < 100) {
+        loops += 1;
+        events.clearRetainingCapacity();
+        try loop.poll();
+
+        for (events.items) |event| {
+            switch (event) {
+                .read_complete => |ev| {
+                    if (ev.bytes_read > 0) {
+                        try response.appendSlice(allocator, ev.data);
+                        if (std.mem.indexOf(u8, response.items, "Ack: Hello Server") != null) {
+                            read_complete = true;
+                        }
+                    } else {
+                        // EOF or 0 read
+                        read_complete = true;
+                    }
+                },
+                .err => return error.TestFailed,
+                else => {},
+            }
+        }
+        if (!read_complete) std.Thread.sleep(10 * std.time.ns_per_ms);
+    }
+
+    try std.testing.expect(std.mem.indexOf(u8, response.items, "Ack: Hello Server") != null);
+}

@@ -1,8 +1,11 @@
 const std = @import("std");
-const Slab = @import("util").Slab;
+const util = @import("util");
+const Slab = util.Slab;
+const posixErrToAnyErr = util.error_util.posixErrToAnyErr;
 const c = @cImport({
     @cInclude("time.h");
     @cInclude("sys/event.h");
+    @cInclude("sys/socket.h");
 });
 const c_unistd = @cImport(@cInclude("unistd.h"));
 
@@ -10,7 +13,12 @@ pub const EventType = union(enum) {
     read_complete: ReadCompleteEvent,
     write_complete: WriteCompleteEvent,
     open_complete: OpenCompleteEvent,
+    connect_complete: ConnectCompleteEvent,
     err: ErrorEvent,
+};
+
+pub const ConnectCompleteEvent = struct {
+    fd: std.c.fd_t,
 };
 
 pub const ReadCompleteEvent = struct {
@@ -45,9 +53,14 @@ const ReadContext = struct {
     is_file: bool,
 };
 
-const WriteContext = struct {
-    fd: std.c.fd_t,
-    buffer: []const u8,
+const WriteContext = union(enum) {
+    write: struct {
+        fd: std.c.fd_t,
+        buffer: []const u8,
+    },
+    connect: struct {
+        fd: std.c.fd_t,
+    },
 };
 
 const Context = struct {
@@ -118,6 +131,55 @@ pub const EventLoop = struct {
         });
     }
 
+    pub fn connectTcp(self: *EventLoop, address: std.net.Address, events: *std.ArrayList(EventType)) !void {
+        const sock_flags = std.posix.SOCK.STREAM | std.posix.SOCK.NONBLOCK | std.posix.SOCK.CLOEXEC;
+        const fd = try std.posix.socket(address.any.family, sock_flags, std.posix.IPPROTO.TCP);
+        errdefer std.posix.close(fd);
+
+        std.posix.connect(fd, &address.any, address.getOsSockLen()) catch |err| {
+            if (err == error.WouldBlock) {
+                // Connection in progress, register for write event
+                const context = Context{
+                    .events = events,
+                    .op = .{
+                        .write = .{
+                            .connect = .{
+                                .fd = fd,
+                            },
+                        },
+                    },
+                };
+
+                const index, _ = try self.slab.insert(context);
+
+                const change_event = c.struct_kevent{
+                    .ident = @as(c_uint, @intCast(fd)),
+                    .filter = c.EVFILT_WRITE,
+                    .flags = c.EV_ADD | c.EV_ENABLE | c.EV_ONESHOT,
+                    .fflags = 0,
+                    .data = 0,
+                    .udata = @ptrFromInt(index),
+                };
+
+                const changelist = [_]c.struct_kevent{change_event};
+                const nevents = c.kevent(self.kqueue_fd, &changelist, changelist.len, null, 0, null);
+                if (nevents == -1) {
+                    self.slab.delete(index) catch unreachable;
+                    return error.KQueueEventAddFailed;
+                }
+                return;
+            }
+            return err;
+        };
+
+        // If connect returned immediately
+        try events.appendBounded(.{
+            .connect_complete = .{
+                .fd = fd,
+            },
+        });
+    }
+
     fn startReadFd(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType), is_file: bool) !void {
         const context = Context{
             .events = events,
@@ -154,8 +216,10 @@ pub const EventLoop = struct {
             .events = events,
             .op = .{
                 .write = .{
-                    .fd = fd,
-                    .buffer = buffer,
+                    .write = .{
+                        .fd = fd,
+                        .buffer = buffer,
+                    },
                 },
             },
         };
@@ -165,7 +229,7 @@ pub const EventLoop = struct {
         const change_event = c.struct_kevent{
             .ident = @as(c_uint, @intCast(fd)),
             .filter = c.EVFILT_WRITE,
-            .flags = c.EV_ADD | c.EV_ENABLE,
+            .flags = c.EV_ADD | c.EV_ENABLE | c.EV_ONESHOT,
             .fflags = 0,
             .data = 0,
             .udata = @ptrFromInt(index),
@@ -181,6 +245,10 @@ pub const EventLoop = struct {
 
     pub fn startReadFile(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
         try self.startReadFd(fd, buffer, events, true);
+    }
+
+    pub fn startReadSocket(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
+        try self.startReadFd(fd, buffer, events, false);
     }
 
     pub fn closeFile(self: *EventLoop, fd: std.c.fd_t) void {
@@ -276,29 +344,53 @@ pub const EventLoop = struct {
                         self.slab.delete(index) catch unreachable;
                     }
                 } else if (event.filter == c.EVFILT_WRITE) {
-                    const write_ctx = context.op.write;
-                    const buffer = write_ctx.buffer;
+                    switch (context.op.write) {
+                        .write => |write_ctx| {
+                            const buffer = write_ctx.buffer;
 
-                    const bytes_written = std.posix.write(fd, buffer) catch |err| {
-                        if (err != error.WouldBlock) {
+                            const bytes_written = std.posix.write(fd, buffer) catch |err| {
+                                if (err != error.WouldBlock) {
+                                    try context.events.appendBounded(.{
+                                        .err = .{
+                                            .fd = fd,
+                                            .error_code = err,
+                                        },
+                                    });
+                                    self.slab.delete(index) catch unreachable;
+                                }
+                                continue;
+                            };
+
                             try context.events.appendBounded(.{
-                                .err = .{
+                                .write_complete = .{
                                     .fd = fd,
-                                    .error_code = err,
+                                    .bytes_written = bytes_written,
                                 },
                             });
                             self.slab.delete(index) catch unreachable;
-                        }
-                        continue;
-                    };
-
-                    try context.events.appendBounded(.{
-                        .write_complete = .{
-                            .fd = fd,
-                            .bytes_written = bytes_written,
                         },
-                    });
-                    self.slab.delete(index) catch unreachable;
+                        .connect => |connect_ctx| {
+                             const fd_conn = connect_ctx.fd;
+                             var err_code: i32 = 0;
+                             var len: c.socklen_t = @sizeOf(i32);
+                             const ret = c.getsockopt(fd_conn, c.SOL_SOCKET, c.SO_ERROR, &err_code, &len);
+
+                             if (ret != 0) {
+                                 try context.events.appendBounded(.{
+                                     .err = .{ .fd = fd_conn, .error_code = error.SocketOptionFailed },
+                                 });
+                             } else if (err_code != 0) {
+                                 try context.events.appendBounded(.{
+                                     .err = .{ .fd = fd_conn, .error_code = posixErrToAnyErr(@enumFromInt(err_code)) },
+                                 });
+                             } else {
+                                 try context.events.appendBounded(.{
+                                     .connect_complete = .{ .fd = fd_conn },
+                                 });
+                             }
+                             self.slab.delete(index) catch unreachable;
+                        },
+                    }
                 }
             }
         }

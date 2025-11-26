@@ -12,7 +12,12 @@ pub const EventType = union(enum) {
     read_complete: ReadCompleteEvent,
     write_complete: WriteCompleteEvent,
     open_complete: OpenCompleteEvent,
+    connect_complete: ConnectCompleteEvent,
     err: ErrorEvent,
+};
+
+pub const ConnectCompleteEvent = struct {
+    fd: std.c.fd_t,
 };
 
 pub const ReadCompleteEvent = struct {
@@ -40,6 +45,7 @@ const Operation = union(enum) {
     read: ReadContext,
     write: WriteContext,
     open: OpenContext,
+    connect: ConnectContext,
 };
 
 const ReadContext = struct {
@@ -54,6 +60,11 @@ const WriteContext = struct {
 
 const OpenContext = struct {
     path: [:0]u8,
+};
+
+const ConnectContext = struct {
+    fd: std.c.fd_t,
+    addr: *std.net.Address,
 };
 
 const Context = struct {
@@ -127,6 +138,32 @@ pub const EventLoop = struct {
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
+    pub fn connectTcp(self: *EventLoop, address: std.net.Address, events: *std.ArrayList(EventType)) !void {
+        const sock_flags = std.posix.SOCK.STREAM | std.posix.SOCK.CLOEXEC;
+        const fd = try std.posix.socket(address.any.family, sock_flags, std.posix.IPPROTO.TCP);
+        errdefer std.posix.close(fd);
+
+        const addr_ptr = try self.allocator.create(std.net.Address);
+        addr_ptr.* = address;
+        errdefer self.allocator.destroy(addr_ptr);
+
+        const context = Context{
+            .events = events,
+            .op = .{ .connect = .{ .fd = fd, .addr = addr_ptr } },
+        };
+
+        const index, _ = try self.slab.insert(context);
+
+        const sqe = c.io_uring_get_sqe(&self.ring);
+        if (sqe == null) {
+            self.slab.delete(index) catch unreachable;
+            return error.SubmissionQueueFull;
+        }
+
+        c.io_uring_prep_connect(sqe, fd, &addr_ptr.any, addr_ptr.getOsSockLen());
+        c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
+    }
+
     pub fn startReadFile(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
         const context = Context{
             .events = events,
@@ -136,6 +173,10 @@ pub const EventLoop = struct {
         const index, _ = try self.slab.insert(context);
 
         try self.submitRead(index, fd, buffer);
+    }
+
+    pub fn startReadSocket(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
+        try self.startReadFile(fd, buffer, events);
     }
 
     fn submitRead(self: *EventLoop, index: usize, fd: std.c.fd_t, buffer: []u8) !void {
@@ -275,6 +316,25 @@ pub const EventLoop = struct {
                                 .write_complete = .{
                                     .fd = write_ctx.fd,
                                     .bytes_written = @intCast(res),
+                                },
+                            });
+                        }
+                        self.slab.delete(index) catch unreachable;
+                    },
+                    .connect => |*connect_ctx| {
+                        defer self.allocator.destroy(connect_ctx.addr);
+                        if (res < 0) {
+                            const err_code = posixErrToAnyErr(std.posix.errno(res));
+                            try context.events.appendBounded(.{
+                                .err = .{
+                                    .fd = connect_ctx.fd,
+                                    .error_code = err_code,
+                                },
+                            });
+                        } else {
+                            try context.events.appendBounded(.{
+                                .connect_complete = .{
+                                    .fd = connect_ctx.fd,
                                 },
                             });
                         }
