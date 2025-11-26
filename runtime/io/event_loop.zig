@@ -336,3 +336,74 @@ test "EventLoop timer" {
 
     try std.testing.expect(timer_fired);
 }
+
+test "EventLoop file async close" {
+    const allocator = std.testing.allocator;
+    const test_filename = "runtime/io/test_async_close.txt";
+
+    // Create a dummy file
+    const file = try std.fs.cwd().createFile(test_filename, .{ .read = true });
+    file.close();
+    defer std.fs.cwd().deleteFile(test_filename) catch {};
+
+    var loop = try EventLoop.init(allocator);
+    defer loop.deinit();
+
+    var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
+    defer events.deinit(allocator);
+
+    // Open file first
+    try loop.openFile(test_filename, &events, EventLoop.OpenMode.read_only);
+
+    var open_retries: usize = 0;
+    while (events.items.len == 0 and open_retries < 100) : (open_retries += 1) {
+        try loop.poll();
+        if (events.items.len == 0) std.Thread.sleep(1 * std.time.ns_per_ms);
+    }
+
+    if (events.items.len != 1) return error.TestFailed;
+    const open_event = events.items[0];
+    const fd = open_event.open_complete.fd;
+
+    // Now async close
+    events.clearRetainingCapacity();
+    try loop.startCloseFile(fd, &events);
+
+    var close_retries: usize = 0;
+    var closed = false;
+
+    // Check for immediate completion (macOS/Synchronous)
+    for (events.items) |event| {
+        switch (event) {
+            .close_complete => |ev| {
+                if (ev.fd == fd) closed = true;
+            },
+            .err => |err| {
+                std.debug.print("Close error: {}\n", .{err.error_code});
+                return error.TestFailed;
+            },
+            else => {},
+        }
+    }
+
+    while (!closed and close_retries < 100) : (close_retries += 1) {
+        events.clearRetainingCapacity();
+        try loop.poll();
+
+        for (events.items) |event| {
+            switch (event) {
+                .close_complete => |ev| {
+                    if (ev.fd == fd) closed = true;
+                },
+                .err => |err| {
+                    std.debug.print("Close error: {}\n", .{err.error_code});
+                    return error.TestFailed;
+                },
+                else => {},
+            }
+        }
+        if (!closed) std.Thread.sleep(1 * std.time.ns_per_ms);
+    }
+
+    try std.testing.expect(closed);
+}

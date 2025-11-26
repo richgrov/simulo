@@ -13,8 +13,13 @@ pub const EventType = union(enum) {
     write_complete: WriteCompleteEvent,
     open_complete: OpenCompleteEvent,
     connect_complete: ConnectCompleteEvent,
+    close_complete: CloseCompleteEvent,
     timer_complete: TimerCompleteEvent,
     err: ErrorEvent,
+};
+
+pub const CloseCompleteEvent = struct {
+    fd: std.c.fd_t,
 };
 
 pub const TimerCompleteEvent = struct {
@@ -50,6 +55,7 @@ const Operation = union(enum) {
     read: ReadContext,
     write: WriteContext,
     open: OpenContext,
+    close: CloseContext,
     connect: ConnectContext,
     timer: TimerContext,
 };
@@ -71,6 +77,10 @@ const WriteContext = struct {
 
 const OpenContext = struct {
     path: [:0]u8,
+};
+
+const CloseContext = struct {
+    fd: std.c.fd_t,
 };
 
 const ConnectContext = struct {
@@ -256,6 +266,24 @@ pub const EventLoop = struct {
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
+    pub fn startCloseFile(self: *EventLoop, fd: std.c.fd_t, events: *std.ArrayList(EventType)) !void {
+        const context = Context{
+            .events = events,
+            .op = .{ .close = .{ .fd = fd } },
+        };
+
+        const index, _ = try self.slab.insert(context);
+
+        const sqe = c.io_uring_get_sqe(&self.ring);
+        if (sqe == null) {
+            self.slab.delete(index) catch unreachable;
+            return error.SubmissionQueueFull;
+        }
+
+        c.io_uring_prep_close(sqe, fd);
+        c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
+    }
+
     pub fn closeFile(self: *EventLoop, fd: std.c.fd_t) void {
         _ = self;
         _ = c.close(fd);
@@ -296,6 +324,24 @@ pub const EventLoop = struct {
                             });
                         }
                         // Open is one-shot, always remove
+                        self.slab.delete(index) catch unreachable;
+                    },
+                    .close => |close_ctx| {
+                        if (res < 0) {
+                            const err_code = posixErrToAnyErr(std.posix.errno(res));
+                            try context.events.appendBounded(.{
+                                .err = .{
+                                    .fd = close_ctx.fd,
+                                    .error_code = err_code,
+                                },
+                            });
+                        } else {
+                            try context.events.appendBounded(.{
+                                .close_complete = .{
+                                    .fd = close_ctx.fd,
+                                },
+                            });
+                        }
                         self.slab.delete(index) catch unreachable;
                     },
                     .read => |read_ctx| {

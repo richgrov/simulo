@@ -14,8 +14,13 @@ pub const EventType = union(enum) {
     write_complete: WriteCompleteEvent,
     open_complete: OpenCompleteEvent,
     connect_complete: ConnectCompleteEvent,
+    close_complete: CloseCompleteEvent,
     timer_complete: TimerCompleteEvent,
     err: ErrorEvent,
+};
+
+pub const CloseCompleteEvent = struct {
+    fd: std.c.fd_t,
 };
 
 pub const TimerCompleteEvent = struct {
@@ -293,6 +298,17 @@ pub const EventLoop = struct {
     pub fn closeFile(self: *EventLoop, fd: std.c.fd_t) void {
         _ = self;
         _ = c_unistd.close(fd);
+    }
+
+    pub fn startCloseFile(self: *EventLoop, fd: std.c.fd_t, events: *std.ArrayList(EventType)) !void {
+        _ = self;
+        std.posix.close(fd);
+
+        try events.appendBounded(.{
+            .close_complete = .{
+                .fd = fd,
+            },
+        });
     }
 
     pub fn poll(self: *EventLoop) !void {
