@@ -214,7 +214,7 @@ pub const EventLoop = struct {
     pub fn startCloseFile(self: *EventLoop, fd: std.c.fd_t, events: *std.ArrayList(EventType)) !void {
         const context = Context{
             .events = events,
-            .op = .{ .close = .{ .fd = fd } },
+            .op = .{ .close = .{} },
         };
 
         const index, _ = try self.slab.insert(context);
