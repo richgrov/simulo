@@ -6,6 +6,7 @@ const c = @cImport({
     @cInclude("liburing.h");
     @cInclude("unistd.h");
     @cInclude("fcntl.h");
+    @cInclude("errno.h");
 });
 
 pub const EventType = union(enum) {
@@ -181,7 +182,7 @@ pub const EventLoop = struct {
             return error.SubmissionQueueFull;
         }
 
-        c.io_uring_prep_connect(sqe, fd, &addr_ptr.any, addr_ptr.getOsSockLen());
+        c.io_uring_prep_connect(sqe, fd, @ptrCast(&addr_ptr.any), addr_ptr.getOsSockLen());
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
@@ -433,7 +434,7 @@ pub const EventLoop = struct {
                     },
                     .timer => |timer_ctx| {
                         defer self.allocator.destroy(timer_ctx.ts);
-                        if (res == -@as(i32, @intCast(std.os.linux.ETIME))) {
+                        if (res == -@as(i32, @intCast(c.ETIME))) {
                             // Timeout expired successfully
                             try context.events.appendBounded(.{
                                 .timer_complete = .{
