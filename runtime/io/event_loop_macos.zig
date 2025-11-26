@@ -9,48 +9,6 @@ const c = @cImport({
 });
 const c_unistd = @cImport(@cInclude("unistd.h"));
 
-pub const EventType = union(enum) {
-    read_complete: ReadCompleteEvent,
-    write_complete: WriteCompleteEvent,
-    open_complete: OpenCompleteEvent,
-    connect_complete: ConnectCompleteEvent,
-    close_complete: CloseCompleteEvent,
-    timer_complete: TimerCompleteEvent,
-    err: ErrorEvent,
-};
-
-pub const CloseCompleteEvent = struct {
-    fd: std.c.fd_t,
-};
-
-pub const TimerCompleteEvent = struct {
-    id: usize,
-};
-
-pub const ConnectCompleteEvent = struct {
-    fd: std.c.fd_t,
-};
-
-pub const ReadCompleteEvent = struct {
-    fd: std.c.fd_t,
-    data: []const u8,
-    bytes_read: usize,
-};
-
-pub const WriteCompleteEvent = struct {
-    fd: std.c.fd_t,
-    bytes_written: usize,
-};
-
-pub const OpenCompleteEvent = struct {
-    fd: std.c.fd_t,
-};
-
-pub const ErrorEvent = struct {
-    fd: ?std.c.fd_t,
-    error_code: anyerror,
-};
-
 const Operation = union {
     read: ReadContext,
     write: WriteContext,
@@ -78,13 +36,22 @@ const WriteContext = union(enum) {
 };
 
 const Context = struct {
-    events: *std.ArrayList(EventType),
+    events: *std.ArrayList(EventLoop.EventType),
     op: Operation,
 };
 
 pub const EventLoop = struct {
+    pub const EventType = union(enum) {
+        read_complete: struct { bytes_read: usize },
+        write_complete: struct { bytes_written: usize },
+        open_complete: struct { fd: std.c.fd_t },
+        connect_complete: struct { fd: std.c.fd_t },
+        close_complete: struct {},
+        timer_complete: struct { id: usize },
+        err: struct { code: anyerror },
+    };
+
     kqueue_fd: std.c.fd_t,
-    allocator: std.mem.Allocator,
     slab: Slab(Context),
 
     pub const OpenMode = enum {
@@ -105,15 +72,12 @@ pub const EventLoop = struct {
 
         return EventLoop{
             .kqueue_fd = kq,
-            .allocator = allocator,
             .slab = slab,
         };
     }
 
     pub fn deinit(self: *EventLoop) void {
-        if (self.kqueue_fd != -1) {
-            _ = c_unistd.close(self.kqueue_fd);
-        }
+        _ = c_unistd.close(self.kqueue_fd);
         self.slab.deinit();
     }
 
@@ -128,20 +92,11 @@ pub const EventLoop = struct {
         };
 
         const fd = std.posix.open(path, flags, 0) catch |err| {
-            try events.appendBounded(.{
-                .err = .{
-                    .fd = null,
-                    .error_code = err,
-                },
-            });
+            try events.appendBounded(.{ .err = .{ .code = err } });
             return;
         };
 
-        try events.appendBounded(.{
-            .open_complete = .{
-                .fd = fd,
-            },
-        });
+        try events.appendBounded(.{ .open_complete = .{ .fd = fd } });
     }
 
     pub fn connectTcp(self: *EventLoop, address: std.net.Address, events: *std.ArrayList(EventType)) !void {
@@ -150,47 +105,38 @@ pub const EventLoop = struct {
         errdefer std.posix.close(fd);
 
         std.posix.connect(fd, &address.any, address.getOsSockLen()) catch |err| {
-            if (err == error.WouldBlock) {
-                // Connection in progress, register for write event
-                const context = Context{
-                    .events = events,
-                    .op = .{
-                        .write = .{
-                            .connect = .{
-                                .fd = fd,
-                            },
-                        },
-                    },
-                };
-
-                const index, _ = try self.slab.insert(context);
-
-                const change_event = c.struct_kevent{
-                    .ident = @as(c_uint, @intCast(fd)),
-                    .filter = c.EVFILT_WRITE,
-                    .flags = c.EV_ADD | c.EV_ENABLE | c.EV_ONESHOT,
-                    .fflags = 0,
-                    .data = 0,
-                    .udata = @ptrFromInt(index),
-                };
-
-                const changelist = [_]c.struct_kevent{change_event};
-                const nevents = c.kevent(self.kqueue_fd, &changelist, changelist.len, null, 0, null);
-                if (nevents == -1) {
-                    self.slab.delete(index) catch unreachable;
-                    return error.KQueueEventAddFailed;
-                }
-                return;
+            if (err != error.WouldBlock) {
+                return err;
             }
-            return err;
+
+            const context = Context{
+                .events = events,
+                .op = .{
+                    .write = .{ .connect = .{ .fd = fd } },
+                },
+            };
+
+            const index, _ = try self.slab.insert(context);
+            errdefer self.slab.delete(index) catch unreachable;
+
+            const change_event = c.struct_kevent{
+                .ident = @as(c_uint, @intCast(fd)),
+                .filter = c.EVFILT_WRITE,
+                .flags = c.EV_ADD | c.EV_ENABLE | c.EV_ONESHOT,
+                .fflags = 0,
+                .data = 0,
+                .udata = @ptrFromInt(index),
+            };
+
+            const changelist = [_]c.struct_kevent{change_event};
+            const nevents = c.kevent(self.kqueue_fd, &changelist, changelist.len, null, 0, null);
+            if (nevents == -1) {
+                return error.KQueueEventAddFailed;
+            }
+            return;
         };
 
-        // If connect returned immediately
-        try events.appendBounded(.{
-            .connect_complete = .{
-                .fd = fd,
-            },
-        });
+        try events.appendBounded(.{ .connect_complete = .{ .fd = fd } });
     }
 
     fn startReadFd(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType), is_file: bool) !void {
@@ -206,6 +152,7 @@ pub const EventLoop = struct {
         };
 
         const index, _ = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
 
         const change_event = c.struct_kevent{
             .ident = @as(c_uint, @intCast(fd)),
@@ -219,7 +166,6 @@ pub const EventLoop = struct {
         const changelist = [_]c.struct_kevent{change_event};
         const nevents = c.kevent(self.kqueue_fd, &changelist, changelist.len, null, 0, null);
         if (nevents == -1) {
-            self.slab.delete(index) catch unreachable;
             return error.KQueueEventAddFailed;
         }
     }
@@ -238,6 +184,7 @@ pub const EventLoop = struct {
         };
 
         const index, _ = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
 
         const change_event = c.struct_kevent{
             .ident = @as(c_uint, @intCast(fd)),
@@ -251,7 +198,6 @@ pub const EventLoop = struct {
         const changelist = [_]c.struct_kevent{change_event};
         const nevents = c.kevent(self.kqueue_fd, &changelist, changelist.len, null, 0, null);
         if (nevents == -1) {
-            self.slab.delete(index) catch unreachable;
             return error.KQueueEventAddFailed;
         }
     }
@@ -267,6 +213,7 @@ pub const EventLoop = struct {
         };
 
         const index, _ = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
 
         const change_event = c.struct_kevent{
             .ident = @as(c_uint, @intCast(index)),
@@ -280,7 +227,6 @@ pub const EventLoop = struct {
         const changelist = [_]c.struct_kevent{change_event};
         const nevents = c.kevent(self.kqueue_fd, &changelist, changelist.len, null, 0, null);
         if (nevents == -1) {
-            self.slab.delete(index) catch unreachable;
             return error.KQueueEventAddFailed;
         }
     }
@@ -302,11 +248,7 @@ pub const EventLoop = struct {
         _ = self;
         std.posix.close(fd);
 
-        try events.appendBounded(.{
-            .close_complete = .{
-                .fd = fd,
-            },
-        });
+        try events.appendBounded(.{ .close_complete = .{} });
     }
 
     pub fn poll(self: *EventLoop) !void {
@@ -337,64 +279,31 @@ pub const EventLoop = struct {
 
                     const bytes_read = std.posix.read(fd, buffer) catch |err| {
                         if (err != error.WouldBlock) {
-                            try context.events.appendBounded(.{
-                                .err = .{
-                                    .fd = fd,
-                                    .error_code = err,
-                                },
-                            });
-                            // Cleanup slab on error
-                            self.slab.delete(index) catch unreachable;
+                            defer self.slab.delete(index) catch unreachable;
+                            try context.events.appendBounded(.{ .err = .{ .code = err } });
                         }
                         continue;
                     };
 
                     if (bytes_read > 0) {
-                        const data_slice = buffer[0..bytes_read];
-                        try context.events.appendBounded(.{
-                            .read_complete = .{
-                                .fd = fd,
-                                .data = data_slice,
-                                .bytes_read = bytes_read,
-                            },
-                        });
+                        try context.events.appendBounded(
+                            .{ .read_complete = .{ .bytes_read = bytes_read } },
+                        );
 
-                        var is_eof = false;
-                        if (event.flags & c.EV_EOF != 0) {
-                            // If EV_EOF is set, we are at EOF if we consumed everything available
-                            // kqueue reports remaining bytes in data. If we read >= data, we are done.
-                            if (bytes_read >= event.data) {
-                                is_eof = true;
-                            }
-                        } else if (read_ctx.is_file) {
-                            // For regular files, kqueue stops firing when offset == size.
-                            // So if we read exactly what was remaining, we must signal EOF now.
-                            if (bytes_read == @as(usize, @intCast(event.data))) {
-                                is_eof = true;
-                            }
-                        }
-
+                        const is_eof = bytes_read >= event.data;
                         if (is_eof) {
-                            try context.events.appendBounded(.{
-                                .read_complete = .{
-                                    .fd = fd,
-                                    .data = &[_]u8{},
-                                    .bytes_read = 0,
-                                },
-                            });
-                            self.slab.delete(index) catch unreachable;
+                            defer self.slab.delete(index) catch unreachable;
+                            try context.events.appendBounded(
+                                .{ .read_complete = .{ .bytes_read = 0 } },
+                            );
                         }
                     } else {
                         // 0 bytes read usually means EOF for sockets (if we got here)
                         // or just empty read.
-                        try context.events.appendBounded(.{
-                            .read_complete = .{
-                                .fd = fd,
-                                .data = &[_]u8{},
-                                .bytes_read = 0,
-                            },
-                        });
-                        self.slab.delete(index) catch unreachable;
+                        defer self.slab.delete(index) catch unreachable;
+                        try context.events.appendBounded(
+                            .{ .read_complete = .{ .bytes_read = 0 } },
+                        );
                     }
                 } else if (event.filter == c.EVFILT_WRITE) {
                     switch (context.op.write) {
@@ -403,24 +312,16 @@ pub const EventLoop = struct {
 
                             const bytes_written = std.posix.write(fd, buffer) catch |err| {
                                 if (err != error.WouldBlock) {
-                                    try context.events.appendBounded(.{
-                                        .err = .{
-                                            .fd = fd,
-                                            .error_code = err,
-                                        },
-                                    });
-                                    self.slab.delete(index) catch unreachable;
+                                    defer self.slab.delete(index) catch unreachable;
+                                    try context.events.appendBounded(.{ .err = .{ .code = err } });
                                 }
                                 continue;
                             };
 
-                            try context.events.appendBounded(.{
-                                .write_complete = .{
-                                    .fd = fd,
-                                    .bytes_written = bytes_written,
-                                },
-                            });
-                            self.slab.delete(index) catch unreachable;
+                            defer self.slab.delete(index) catch unreachable;
+                            try context.events.appendBounded(
+                                .{ .write_complete = .{ .bytes_written = bytes_written } },
+                            );
                         },
                         .connect => |connect_ctx| {
                             const fd_conn = connect_ctx.fd;
@@ -428,29 +329,30 @@ pub const EventLoop = struct {
                             var len: c.socklen_t = @sizeOf(i32);
                             const ret = c.getsockopt(fd_conn, c.SOL_SOCKET, c.SO_ERROR, &err_code, &len);
 
+                            defer self.slab.delete(index) catch unreachable;
+
                             if (ret != 0) {
-                                try context.events.appendBounded(.{
-                                    .err = .{ .fd = fd_conn, .error_code = error.SocketOptionFailed },
-                                });
+                                try context.events.appendBounded(
+                                    .{ .err = .{ .code = error.SocketOptionFailed } },
+                                );
                             } else if (err_code != 0) {
                                 try context.events.appendBounded(.{
-                                    .err = .{ .fd = fd_conn, .error_code = posixErrToAnyErr(@enumFromInt(err_code)) },
+                                    .err = .{ .code = posixErrToAnyErr(@enumFromInt(err_code)) },
                                 });
                             } else {
                                 try context.events.appendBounded(.{
                                     .connect_complete = .{ .fd = fd_conn },
                                 });
                             }
-                            self.slab.delete(index) catch unreachable;
                         },
                     }
                 } else if (event.filter == c.EVFILT_TIMER) {
+                    defer self.slab.delete(index) catch unreachable;
                     try context.events.appendBounded(.{
                         .timer_complete = .{
                             .id = context.op.timer.id,
                         },
                     });
-                    self.slab.delete(index) catch unreachable;
                 }
             }
         }

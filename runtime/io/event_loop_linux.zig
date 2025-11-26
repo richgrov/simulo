@@ -13,60 +13,18 @@ extern fn zig_io_uring_get_sqe(ring: *c.io_uring) ?*c.io_uring_sqe;
 extern fn zig_io_uring_peek_cqe(ring: *c.io_uring, cqe_ptr: *?*c.io_uring_cqe) c_int;
 extern fn zig_io_uring_cqe_seen(ring: *c.io_uring, cqe: *c.io_uring_cqe) void;
 
-pub const EventType = union(enum) {
-    read_complete: ReadCompleteEvent,
-    write_complete: WriteCompleteEvent,
-    open_complete: OpenCompleteEvent,
-    connect_complete: ConnectCompleteEvent,
-    close_complete: CloseCompleteEvent,
-    timer_complete: TimerCompleteEvent,
-    err: ErrorEvent,
-};
-
-pub const CloseCompleteEvent = struct {
-    fd: std.c.fd_t,
-};
-
-pub const TimerCompleteEvent = struct {
-    id: usize,
-};
-
-pub const ConnectCompleteEvent = struct {
-    fd: std.c.fd_t,
-};
-
-pub const ReadCompleteEvent = struct {
-    fd: std.c.fd_t,
-    data: []const u8,
-    bytes_read: usize,
-};
-
-pub const WriteCompleteEvent = struct {
-    fd: std.c.fd_t,
-    bytes_written: usize,
-};
-
-pub const OpenCompleteEvent = struct {
-    fd: std.c.fd_t,
-};
-
-pub const ErrorEvent = struct {
-    fd: ?std.c.fd_t,
-    error_code: anyerror,
-};
-
 const Operation = union(enum) {
     read: ReadContext,
-    write: WriteContext,
+    write: struct {},
     open: struct {},
-    close: CloseContext,
+    close: struct {},
     connect: ConnectContext,
     timer: TimerContext,
 };
 
 const TimerContext = struct {
     id: usize,
-    ts: *c.struct___kernel_timespec,
+    ts: c.struct___kernel_timespec,
 };
 
 const ReadContext = struct {
@@ -74,28 +32,28 @@ const ReadContext = struct {
     buffer: []u8,
 };
 
-const WriteContext = struct {
-    fd: std.c.fd_t,
-    buffer: []const u8,
-};
-
-const CloseContext = struct {
-    fd: std.c.fd_t,
-};
-
 const ConnectContext = struct {
     fd: std.c.fd_t,
-    addr: *std.net.Address,
+    addr: std.net.Address,
 };
 
 const Context = struct {
-    events: *std.ArrayList(EventType),
+    events: *std.ArrayList(EventLoop.EventType),
     op: Operation,
 };
 
 pub const EventLoop = struct {
+    pub const EventType = union(enum) {
+        read_complete: struct { bytes_read: usize },
+        write_complete: struct { bytes_written: usize },
+        open_complete: struct { fd: std.c.fd_t },
+        connect_complete: struct { fd: std.c.fd_t },
+        close_complete: struct {},
+        timer_complete: struct { id: usize },
+        err: struct { code: anyerror },
+    };
+
     ring: c.io_uring,
-    allocator: std.mem.Allocator,
     slab: Slab(Context),
 
     pub const OpenMode = enum {
@@ -117,7 +75,6 @@ pub const EventLoop = struct {
 
         return EventLoop{
             .ring = ring,
-            .allocator = allocator,
             .slab = slab,
         };
     }
@@ -139,10 +96,10 @@ pub const EventLoop = struct {
         };
 
         const index, _ = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
 
         const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
-            self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
         }
 
@@ -161,24 +118,19 @@ pub const EventLoop = struct {
         const fd = try std.posix.socket(address.any.family, sock_flags, std.posix.IPPROTO.TCP);
         errdefer std.posix.close(fd);
 
-        const addr_ptr = try self.allocator.create(std.net.Address);
-        addr_ptr.* = address;
-        errdefer self.allocator.destroy(addr_ptr);
-
         const context = Context{
             .events = events,
-            .op = .{ .connect = .{ .fd = fd, .addr = addr_ptr } },
+            .op = .{ .connect = .{ .fd = fd, .addr = address } },
         };
-
-        const index, _ = try self.slab.insert(context);
+        const index, const ctx_ptr = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
 
         const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
-            self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
         }
 
-        c.io_uring_prep_connect(sqe, fd, @ptrCast(&addr_ptr.any), addr_ptr.getOsSockLen());
+        c.io_uring_prep_connect(sqe, fd, @ptrCast(&ctx_ptr.op.connect.addr.any), ctx_ptr.op.connect.addr.getOsSockLen());
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
@@ -186,33 +138,28 @@ pub const EventLoop = struct {
         const sec = delay_ms / 1000;
         const nsec = (delay_ms % 1000) * 1000000;
 
-        const ts_ptr = try self.allocator.create(c.struct___kernel_timespec);
-        ts_ptr.* = .{
-            .tv_sec = @intCast(sec),
-            .tv_nsec = @intCast(nsec),
-        };
-        errdefer self.allocator.destroy(ts_ptr);
-
         const context = Context{
             .events = events,
             .op = .{
                 .timer = .{
                     .id = id,
-                    .ts = ts_ptr,
+                    .ts = c.struct___kernel_timespec{
+                        .tv_sec = @intCast(sec),
+                        .tv_nsec = @intCast(nsec),
+                    },
                 },
             },
         };
 
-        const index, _ = try self.slab.insert(context);
+        const index, const ctx_ptr = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
 
         const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
-            self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
         }
 
-        // Use the heap-allocated pointer which is stable
-        c.io_uring_prep_timeout(sqe, ts_ptr, 0, 0);
+        c.io_uring_prep_timeout(sqe, &ctx_ptr.op.timer.ts, 0, 0);
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
@@ -223,6 +170,7 @@ pub const EventLoop = struct {
         };
 
         const index, _ = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
 
         try self.submitRead(index, fd, buffer);
     }
@@ -248,14 +196,14 @@ pub const EventLoop = struct {
     pub fn startWriteFile(self: *EventLoop, fd: std.c.fd_t, buffer: []const u8, events: *std.ArrayList(EventType)) !void {
         const context = Context{
             .events = events,
-            .op = .{ .write = .{ .fd = fd, .buffer = buffer } },
+            .op = .{ .write = .{} },
         };
 
         const index, _ = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
 
         const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
-            self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
         }
 
@@ -270,10 +218,10 @@ pub const EventLoop = struct {
         };
 
         const index, _ = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
 
         const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
-            self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
         }
 
@@ -302,137 +250,90 @@ pub const EventLoop = struct {
             if (self.slab.get(index)) |context| {
                 switch (context.op) {
                     .open => |_| {
+                        defer self.slab.delete(index) catch unreachable;
                         if (res < 0) {
                             const err_code = posixErrToAnyErr(std.posix.errno(res));
-                            try context.events.appendBounded(.{
-                                .err = .{
-                                    .fd = null,
-                                    .error_code = err_code,
-                                },
-                            });
+                            try context.events.appendBounded(.{ .err = .{ .code = err_code } });
                         } else {
                             try context.events.appendBounded(.{
-                                .open_complete = .{
-                                    .fd = @intCast(res),
-                                },
+                                .open_complete = .{ .fd = @intCast(res) },
                             });
                         }
-                        // Open is one-shot, always remove
-                        self.slab.delete(index) catch unreachable;
                     },
-                    .close => |close_ctx| {
+                    .close => {
+                        defer self.slab.delete(index) catch unreachable;
                         if (res < 0) {
                             const err_code = posixErrToAnyErr(std.posix.errno(res));
-                            try context.events.appendBounded(.{
-                                .err = .{
-                                    .fd = close_ctx.fd,
-                                    .error_code = err_code,
-                                },
-                            });
+                            try context.events.appendBounded(.{ .err = .{ .code = err_code } });
                         } else {
-                            try context.events.appendBounded(.{
-                                .close_complete = .{
-                                    .fd = close_ctx.fd,
-                                },
-                            });
+                            try context.events.appendBounded(.{ .close_complete = .{} });
                         }
-                        self.slab.delete(index) catch unreachable;
                     },
                     .read => |read_ctx| {
                         if (res < 0) {
+                            defer self.slab.delete(index) catch unreachable;
                             const err = std.posix.errno(res);
                             // If canceled (likely due to close), just stop
                             if (err != .CANCELED and err != .BADF) {
                                 try context.events.appendBounded(.{
-                                    .err = .{
-                                        .fd = read_ctx.fd,
-                                        .error_code = posixErrToAnyErr(err),
-                                    },
+                                    .err = .{ .code = posixErrToAnyErr(err) },
                                 });
                             }
-                            self.slab.delete(index) catch unreachable;
                         } else if (res == 0) {
                             // EOF
+                            defer self.slab.delete(index) catch unreachable;
                             try context.events.appendBounded(.{
-                                .read_complete = .{
-                                    .fd = read_ctx.fd,
-                                    .data = &[_]u8{},
-                                    .bytes_read = 0,
-                                },
+                                .read_complete = .{ .bytes_read = 0 },
                             });
-                            self.slab.delete(index) catch unreachable;
                         } else {
                             // Data read
                             const bytes_read = @as(usize, @intCast(res));
                             try context.events.appendBounded(.{
-                                .read_complete = .{
-                                    .fd = read_ctx.fd,
-                                    .data = read_ctx.buffer[0..bytes_read],
-                                    .bytes_read = bytes_read,
-                                },
+                                .read_complete = .{ .bytes_read = bytes_read },
                             });
 
                             // Resubmit read
                             // If resubmission fails, we should probably report error or stop.
                             self.submitRead(index, read_ctx.fd, read_ctx.buffer) catch |err| {
-                                try context.events.appendBounded(.{
-                                    .err = .{
-                                        .fd = read_ctx.fd,
-                                        .error_code = err,
-                                    },
-                                });
-                                self.slab.delete(index) catch unreachable;
+                                defer self.slab.delete(index) catch unreachable;
+                                try context.events.appendBounded(.{ .err = .{ .code = err } });
                             };
                         }
                     },
-                    .write => |write_ctx| {
+                    .write => {
+                        defer self.slab.delete(index) catch unreachable;
                         if (res < 0) {
                             const err = std.posix.errno(res);
                             if (err != .CANCELED and err != .BADF) {
                                 try context.events.appendBounded(.{
-                                    .err = .{
-                                        .fd = write_ctx.fd,
-                                        .error_code = posixErrToAnyErr(err),
-                                    },
+                                    .err = .{ .code = posixErrToAnyErr(err) },
                                 });
                             }
                         } else {
                             try context.events.appendBounded(.{
-                                .write_complete = .{
-                                    .fd = write_ctx.fd,
-                                    .bytes_written = @intCast(res),
-                                },
+                                .write_complete = .{ .bytes_written = @intCast(res) },
                             });
                         }
-                        self.slab.delete(index) catch unreachable;
                     },
                     .connect => |*connect_ctx| {
-                        defer self.allocator.destroy(connect_ctx.addr);
+                        defer self.slab.delete(index) catch unreachable;
                         if (res < 0) {
                             const err_code = posixErrToAnyErr(std.posix.errno(res));
                             try context.events.appendBounded(.{
-                                .err = .{
-                                    .fd = connect_ctx.fd,
-                                    .error_code = err_code,
-                                },
+                                .err = .{ .code = err_code },
                             });
                         } else {
                             try context.events.appendBounded(.{
-                                .connect_complete = .{
-                                    .fd = connect_ctx.fd,
-                                },
+                                .connect_complete = .{ .fd = connect_ctx.fd },
                             });
                         }
-                        self.slab.delete(index) catch unreachable;
                     },
                     .timer => |timer_ctx| {
-                        defer self.allocator.destroy(timer_ctx.ts);
+                        defer self.slab.delete(index) catch unreachable;
                         if (res == -@as(i32, @intCast(c.ETIME))) {
                             // Timeout expired successfully
                             try context.events.appendBounded(.{
-                                .timer_complete = .{
-                                    .id = timer_ctx.id,
-                                },
+                                .timer_complete = .{ .id = timer_ctx.id },
                             });
                         } else if (res < 0) {
                             // Canceled or other error
@@ -442,10 +343,7 @@ pub const EventLoop = struct {
                             const err = std.posix.errno(res);
                             if (err != .CANCELED) {
                                 try context.events.appendBounded(.{
-                                    .err = .{
-                                        .fd = null, // No FD for timer
-                                        .error_code = posixErrToAnyErr(err),
-                                    },
+                                    .err = .{ .code = posixErrToAnyErr(err) },
                                 });
                             }
                         } else {
@@ -460,12 +358,9 @@ pub const EventLoop = struct {
 
                             // Let's handle 0 as success too just in case.
                             try context.events.appendBounded(.{
-                                .timer_complete = .{
-                                    .id = timer_ctx.id,
-                                },
+                                .timer_complete = .{ .id = timer_ctx.id },
                             });
                         }
-                        self.slab.delete(index) catch unreachable;
                     },
                 }
             }

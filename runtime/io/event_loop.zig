@@ -1,12 +1,6 @@
 const builtin = @import("builtin");
 const std = @import("std");
 
-const EventType = switch (builtin.target.os.tag) {
-    .macos => @import("event_loop_macos.zig").EventType,
-    .linux => @import("event_loop_linux.zig").EventType,
-    else => @compileError("Unsupported platform for EventLoop"),
-};
-
 pub const EventLoop = switch (builtin.target.os.tag) {
     .macos => @import("event_loop_macos.zig").EventLoop,
     .linux => @import("event_loop_linux.zig").EventLoop,
@@ -20,7 +14,7 @@ test "EventLoop file reading" {
     var loop = try EventLoop.init(allocator);
     defer loop.deinit();
 
-    var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
+    var events = try std.ArrayList(EventLoop.EventType).initCapacity(allocator, 64);
     defer events.deinit(allocator);
 
     var test_buffer: [16]u8 = undefined;
@@ -29,21 +23,12 @@ test "EventLoop file reading" {
 
     try loop.openFile("runtime/io/test.txt", &events, EventLoop.OpenMode.read_only);
 
-    var open_retries: usize = 0;
-    while (events.items.len == 0 and open_retries < 100) : (open_retries += 1) {
-        try loop.poll();
-        if (events.items.len == 0) std.Thread.sleep(1 * std.time.ns_per_ms);
-    }
-
-    if (events.items.len != 1) {
-        std.debug.print("Failed to receive open event after {} retries. Events len: {}\n", .{ open_retries, events.items.len });
-        return error.TestFailed;
-    }
+    try pollUntilEvent(&loop, &events);
 
     const open_event = events.items[0];
     if (open_event == .err) {
-        std.debug.print("Open failed: {}\n", .{open_event.err.error_code});
-        return error.TestFailed;
+        std.debug.print("Open failed: {}\n", .{open_event.err.code});
+        unreachable;
     }
     try std.testing.expect(open_event.open_complete.fd >= 0);
 
@@ -54,49 +39,34 @@ test "EventLoop file reading" {
     var total_bytes: usize = 0;
     var found_complete = false;
 
-    var loops: usize = 0;
-    while (!found_complete and loops < 100) {
-        loops += 1;
-
+    while (!found_complete) {
         events.clearRetainingCapacity();
 
-        try loop.poll();
-
-        if (events.items.len == 0) {
-            std.debug.print("Poll returned 0 events (loop {})\n", .{loops});
-            std.Thread.sleep(10 * std.time.ns_per_ms);
-            continue;
-        }
+        try pollUntilEvent(&loop, &events);
 
         for (events.items) |event| {
             switch (event) {
                 .read_complete => |read_event| {
                     if (read_event.bytes_read == 0) {
-                        found_complete = true; // End of file detected
-                        loop.closeFile(read_event.fd);
+                        found_complete = true;
+                        loop.closeFile(fd);
                     } else {
                         total_bytes += read_event.bytes_read;
-                        try received_content.appendSlice(allocator, read_event.data);
+                        try received_content.appendSlice(allocator, test_buffer[0..read_event.bytes_read]);
                     }
                 },
                 .err => |err_event| {
-                    std.debug.print("Error during test: {}\n", .{err_event.error_code});
-                    try std.testing.expect(false); // Should not have errors
+                    std.debug.print("Error during test: {}\n", .{err_event.code});
+                    unreachable;
                 },
-                else => {}, // Ignore other event types
+                else => unreachable,
             }
         }
     }
 
-    if (!found_complete) {
-        std.debug.print("Failed to find EOF after {} loops. Total bytes: {}\n", .{ loops, total_bytes });
-    }
-
-    // Verify we read data and detected end of file
     try std.testing.expect(total_bytes > 0);
     try std.testing.expect(found_complete);
 
-    // Verify content matches
     try std.testing.expectEqualSlices(u8, expected_content, received_content.items);
 }
 
@@ -105,32 +75,22 @@ test "EventLoop file writing" {
     const test_content = "Hello, EventLoop Write!";
     const test_filename = "runtime/io/test_write.txt";
 
-    // Create/Truncate file for writing
     const file = try std.fs.cwd().createFile(test_filename, .{ .read = true });
     file.close();
 
     var loop = try EventLoop.init(allocator);
     defer loop.deinit();
 
-    var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
+    var events = try std.ArrayList(EventLoop.EventType).initCapacity(allocator, 64);
     defer events.deinit(allocator);
 
     try loop.openFile(test_filename, &events, EventLoop.OpenMode.read_write);
 
-    var open_retries: usize = 0;
-    while (events.items.len == 0 and open_retries < 100) : (open_retries += 1) {
-        try loop.poll();
-        if (events.items.len == 0) std.Thread.sleep(1 * std.time.ns_per_ms);
-    }
-
-    if (events.items.len != 1) {
-        std.debug.print("Failed to receive open event after {} retries. Events len: {}\n", .{ open_retries, events.items.len });
-        return error.TestFailed;
-    }
+    try pollUntilEvent(&loop, &events);
 
     const open_event = events.items[0];
     if (open_event == .err) {
-        std.debug.print("Open failed: {}\n", .{open_event.err.error_code});
+        std.debug.print("Open failed: {}\n", .{open_event.err.code});
         return error.TestFailed;
     }
 
@@ -142,16 +102,9 @@ test "EventLoop file writing" {
     var total_bytes_written: usize = 0;
     var write_complete = false;
 
-    var loops: usize = 0;
-    while (!write_complete and loops < 100) {
-        loops += 1;
+    while (!write_complete) {
         events.clearRetainingCapacity();
-        try loop.poll();
-
-        if (events.items.len == 0) {
-            std.Thread.sleep(1 * std.time.ns_per_ms);
-            continue;
-        }
+        try pollUntilEvent(&loop, &events);
 
         for (events.items) |event| {
             switch (event) {
@@ -162,7 +115,7 @@ test "EventLoop file writing" {
                     }
                 },
                 .err => |err_event| {
-                    std.debug.print("Error during write test: {}\n", .{err_event.error_code});
+                    std.debug.print("Error during write test: {}\n", .{err_event.code});
                     return error.TestFailed;
                 },
                 else => {},
@@ -173,7 +126,6 @@ test "EventLoop file writing" {
     try std.testing.expect(write_complete);
     try std.testing.expectEqual(test_content.len, total_bytes_written);
 
-    // Verify content
     const read_content = try std.fs.cwd().readFileAlloc(allocator, test_filename, 1024);
     defer allocator.free(read_content);
     try std.testing.expectEqualSlices(u8, test_content, read_content);
@@ -183,16 +135,13 @@ test "EventLoop file writing" {
 
 test "EventLoop TCP connection" {
     const allocator = std.testing.allocator;
-    const port = 9001;
 
-    // Start python server
     const args = [_][]const u8{ "python3", "runtime/io/test_tcp.py", "9001" };
     var child = std.process.Child.init(&args, allocator);
     child.stdout_behavior = .Ignore;
     child.stderr_behavior = .Ignore;
     try child.spawn();
 
-    // Give it a moment to start
     std.Thread.sleep(500 * std.time.ns_per_ms);
 
     defer {
@@ -203,27 +152,19 @@ test "EventLoop TCP connection" {
     var loop = try EventLoop.init(allocator);
     defer loop.deinit();
 
-    var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
+    var events = try std.ArrayList(EventLoop.EventType).initCapacity(allocator, 64);
     defer events.deinit(allocator);
 
-    const address = try std.net.Address.parseIp("127.0.0.1", port);
+    const address = try std.net.Address.parseIp("127.0.0.1", 9001);
 
     try loop.connectTcp(address, &events);
 
     var connected = false;
     var fd: std.c.fd_t = -1;
 
-    // Wait for connection
-    var loops: usize = 0;
-    while (!connected and loops < 100) {
-        loops += 1;
+    while (!connected) {
         events.clearRetainingCapacity();
-        try loop.poll();
-
-        if (events.items.len == 0) {
-            std.Thread.sleep(10 * std.time.ns_per_ms);
-            continue;
-        }
+        try pollUntilEvent(&loop, &events);
 
         for (events.items) |event| {
             switch (event) {
@@ -232,7 +173,7 @@ test "EventLoop TCP connection" {
                     fd = ev.fd;
                 },
                 .err => |err| {
-                    std.debug.print("Connect error: {}\n", .{err.error_code});
+                    std.debug.print("Connect error: {}\n", .{err.code});
                     return error.TestFailed;
                 },
                 else => {},
@@ -242,16 +183,13 @@ test "EventLoop TCP connection" {
     try std.testing.expect(connected);
     defer loop.closeFile(fd);
 
-    // Write data
     const message = "Hello Server";
     try loop.startWriteFile(fd, message, &events);
 
     var write_complete = false;
-    loops = 0;
-    while (!write_complete and loops < 100) {
-        loops += 1;
+    while (!write_complete) {
         events.clearRetainingCapacity();
-        try loop.poll();
+        try pollUntilEvent(&loop, &events);
 
         for (events.items) |event| {
             switch (event) {
@@ -262,7 +200,6 @@ test "EventLoop TCP connection" {
                 else => {},
             }
         }
-        if (!write_complete) std.Thread.sleep(10 * std.time.ns_per_ms);
     }
     try std.testing.expect(write_complete);
 
@@ -274,30 +211,26 @@ test "EventLoop TCP connection" {
     try loop.startReadSocket(fd, &read_buffer, &events);
 
     var read_complete = false;
-    loops = 0;
-    while (!read_complete and loops < 100) {
-        loops += 1;
+    while (!read_complete) {
         events.clearRetainingCapacity();
-        try loop.poll();
+        try pollUntilEvent(&loop, &events);
 
         for (events.items) |event| {
             switch (event) {
                 .read_complete => |ev| {
                     if (ev.bytes_read > 0) {
-                        try response.appendSlice(allocator, ev.data);
-                        if (std.mem.indexOf(u8, response.items, "Ack: Hello Server") != null) {
-                            read_complete = true;
-                        }
+                        try response.appendSlice(allocator, read_buffer[0..ev.bytes_read]);
                     } else {
-                        // EOF or 0 read
                         read_complete = true;
                     }
                 },
-                .err => return error.TestFailed,
-                else => {},
+                .err => {
+                    std.debug.print("Error during read test: {}\n", .{event.err.code});
+                    unreachable;
+                },
+                else => unreachable,
             }
         }
-        if (!read_complete) std.Thread.sleep(10 * std.time.ns_per_ms);
     }
 
     try std.testing.expect(std.mem.indexOf(u8, response.items, "Ack: Hello Server") != null);
@@ -308,39 +241,40 @@ test "EventLoop timer" {
     var loop = try EventLoop.init(allocator);
     defer loop.deinit();
 
-    var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
+    var events = try std.ArrayList(EventLoop.EventType).initCapacity(allocator, 64);
     defer events.deinit(allocator);
 
-    // Start a 10ms timer
     try loop.startTimer(10, 12345, &events);
 
-    var timer_fired = false;
-    var loops: usize = 0;
-    while (!timer_fired and loops < 100) {
-        loops += 1;
+    const now = std.time.milliTimestamp();
+    var stop: ?i64 = null;
+
+    while (stop == null) {
         events.clearRetainingCapacity();
-        try loop.poll();
+        try pollUntilEvent(&loop, &events);
 
         for (events.items) |event| {
             switch (event) {
                 .timer_complete => |ev| {
-                    if (ev.id == 12345) timer_fired = true;
+                    try std.testing.expectEqual(ev.id, 12345);
+                    stop = std.time.milliTimestamp();
                 },
-                .err => return error.TestFailed,
-                else => {},
+                .err => {
+                    std.debug.print("Timer error: {s}", .{@errorName(event.err.code)});
+                    unreachable;
+                },
+                else => unreachable,
             }
         }
-        if (!timer_fired) std.Thread.sleep(1 * std.time.ns_per_ms);
     }
 
-    try std.testing.expect(timer_fired);
+    try std.testing.expect(stop.? - now >= 10);
 }
 
 test "EventLoop file async close" {
     const allocator = std.testing.allocator;
     const test_filename = "runtime/io/test_async_close.txt";
 
-    // Create a dummy file
     const file = try std.fs.cwd().createFile(test_filename, .{ .read = true });
     file.close();
     defer std.fs.cwd().deleteFile(test_filename) catch {};
@@ -348,17 +282,12 @@ test "EventLoop file async close" {
     var loop = try EventLoop.init(allocator);
     defer loop.deinit();
 
-    var events = try std.ArrayList(EventType).initCapacity(allocator, 64);
+    var events = try std.ArrayList(EventLoop.EventType).initCapacity(allocator, 64);
     defer events.deinit(allocator);
 
-    // Open file first
     try loop.openFile(test_filename, &events, EventLoop.OpenMode.read_only);
 
-    var open_retries: usize = 0;
-    while (events.items.len == 0 and open_retries < 100) : (open_retries += 1) {
-        try loop.poll();
-        if (events.items.len == 0) std.Thread.sleep(1 * std.time.ns_per_ms);
-    }
+    try pollUntilEvent(&loop, &events);
 
     if (events.items.len != 1) return error.TestFailed;
     const open_event = events.items[0];
@@ -368,41 +297,33 @@ test "EventLoop file async close" {
     events.clearRetainingCapacity();
     try loop.startCloseFile(fd, &events);
 
-    var close_retries: usize = 0;
-    var closed = false;
+    try pollUntilEvent(&loop, &events);
 
-    // Check for immediate completion (macOS/Synchronous)
+    var closed = false;
     for (events.items) |event| {
         switch (event) {
-            .close_complete => |ev| {
-                if (ev.fd == fd) closed = true;
+            .close_complete => |_| {
+                closed = true;
             },
             .err => |err| {
-                std.debug.print("Close error: {}\n", .{err.error_code});
+                std.debug.print("Close error: {}\n", .{err.code});
                 return error.TestFailed;
             },
             else => {},
         }
     }
 
-    while (!closed and close_retries < 100) : (close_retries += 1) {
-        events.clearRetainingCapacity();
-        try loop.poll();
+    try std.testing.expect(closed);
+}
 
-        for (events.items) |event| {
-            switch (event) {
-                .close_complete => |ev| {
-                    if (ev.fd == fd) closed = true;
-                },
-                .err => |err| {
-                    std.debug.print("Close error: {}\n", .{err.error_code});
-                    return error.TestFailed;
-                },
-                else => {},
-            }
-        }
-        if (!closed) std.Thread.sleep(1 * std.time.ns_per_ms);
+fn pollUntilEvent(loop: *EventLoop, events: *std.ArrayList(EventLoop.EventType)) !void {
+    var retries: usize = 0;
+    while (events.items.len == 0 and retries < 100) : (retries += 1) {
+        try loop.poll();
+        if (events.items.len == 0) std.Thread.sleep(1 * std.time.ns_per_ms);
     }
 
-    try std.testing.expect(closed);
+    if (events.items.len == 0) {
+        @panic("event loop didn't return any events after 100 1ms retries");
+    }
 }
