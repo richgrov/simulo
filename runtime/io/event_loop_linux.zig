@@ -48,7 +48,6 @@ pub const WriteCompleteEvent = struct {
 
 pub const OpenCompleteEvent = struct {
     fd: std.c.fd_t,
-    path: []const u8,
 };
 
 pub const ErrorEvent = struct {
@@ -59,7 +58,7 @@ pub const ErrorEvent = struct {
 const Operation = union(enum) {
     read: ReadContext,
     write: WriteContext,
-    open: OpenContext,
+    open: struct {},
     close: CloseContext,
     connect: ConnectContext,
     timer: TimerContext,
@@ -78,10 +77,6 @@ const ReadContext = struct {
 const WriteContext = struct {
     fd: std.c.fd_t,
     buffer: []const u8,
-};
-
-const OpenContext = struct {
-    path: [:0]u8,
 };
 
 const CloseContext = struct {
@@ -138,12 +133,9 @@ pub const EventLoop = struct {
     }
 
     pub fn openFile(self: *EventLoop, path: [:0]const u8, events: *std.ArrayList(EventType), mode: OpenMode) !void {
-        const path_dupe = try self.allocator.dupeZ(u8, path);
-        errdefer self.allocator.free(path_dupe);
-
         const context = Context{
             .events = events,
-            .op = .{ .open = .{ .path = path_dupe } },
+            .op = .{ .open = .{} },
         };
 
         const index, _ = try self.slab.insert(context);
@@ -160,7 +152,7 @@ pub const EventLoop = struct {
             .read_write => c.O_RDWR,
         };
 
-        c.io_uring_prep_openat(sqe, c.AT_FDCWD, path_dupe.ptr, flags, 0);
+        c.io_uring_prep_openat(sqe, c.AT_FDCWD, path, flags, 0);
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
@@ -309,9 +301,7 @@ pub const EventLoop = struct {
 
             if (self.slab.get(index)) |context| {
                 switch (context.op) {
-                    .open => |*open_ctx| {
-                        defer self.allocator.free(open_ctx.path);
-
+                    .open => |_| {
                         if (res < 0) {
                             const err_code = posixErrToAnyErr(std.posix.errno(res));
                             try context.events.appendBounded(.{
@@ -324,7 +314,6 @@ pub const EventLoop = struct {
                             try context.events.appendBounded(.{
                                 .open_complete = .{
                                     .fd = @intCast(res),
-                                    .path = open_ctx.path,
                                 },
                             });
                         }

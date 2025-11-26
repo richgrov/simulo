@@ -44,7 +44,6 @@ pub const WriteCompleteEvent = struct {
 
 pub const OpenCompleteEvent = struct {
     fd: std.c.fd_t,
-    path: []const u8,
 };
 
 pub const ErrorEvent = struct {
@@ -141,7 +140,6 @@ pub const EventLoop = struct {
         try events.appendBounded(.{
             .open_complete = .{
                 .fd = fd,
-                .path = path,
             },
         });
     }

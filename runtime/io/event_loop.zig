@@ -46,7 +46,6 @@ test "EventLoop file reading" {
         return error.TestFailed;
     }
     try std.testing.expect(open_event.open_complete.fd >= 0);
-    try std.testing.expect(std.mem.eql(u8, open_event.open_complete.path, "runtime/io/test.txt"));
 
     const fd = open_event.open_complete.fd;
 
