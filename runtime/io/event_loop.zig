@@ -34,7 +34,7 @@ test "EventLoop file reading" {
 
     const fd = open_event.open_complete.fd;
 
-    try loop.startReadFile(fd, &test_buffer, &events);
+    try loop.startRead(fd, &test_buffer, &events);
 
     var total_bytes: usize = 0;
     var found_complete = false;
@@ -208,7 +208,7 @@ test "EventLoop TCP connection" {
     var response = try std.ArrayList(u8).initCapacity(allocator, 1024);
     defer response.deinit(allocator);
 
-    try loop.startReadSocket(fd, &read_buffer, &events);
+    try loop.startRead(fd, &read_buffer, &events);
 
     var read_complete = false;
     while (!read_complete) {

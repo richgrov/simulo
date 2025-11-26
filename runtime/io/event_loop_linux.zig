@@ -163,7 +163,7 @@ pub const EventLoop = struct {
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
-    pub fn startReadFile(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
+    pub fn startRead(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
         const context = Context{
             .events = events,
             .op = .{ .read = .{ .fd = fd, .buffer = buffer } },
@@ -173,10 +173,6 @@ pub const EventLoop = struct {
         errdefer self.slab.delete(index) catch unreachable;
 
         try self.submitRead(index, fd, buffer);
-    }
-
-    pub fn startReadSocket(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
-        try self.startReadFile(fd, buffer, events);
     }
 
     fn submitRead(self: *EventLoop, index: usize, fd: std.c.fd_t, buffer: []u8) !void {

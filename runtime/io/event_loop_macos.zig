@@ -22,7 +22,6 @@ const TimerContext = struct {
 const ReadContext = struct {
     fd: std.c.fd_t,
     buffer: []u8,
-    is_file: bool,
 };
 
 const WriteContext = union(enum) {
@@ -139,14 +138,13 @@ pub const EventLoop = struct {
         try events.appendBounded(.{ .connect_complete = .{ .fd = fd } });
     }
 
-    fn startReadFd(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType), is_file: bool) !void {
+    pub fn startRead(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
         const context = Context{
             .events = events,
             .op = .{
                 .read = .{
                     .fd = fd,
                     .buffer = buffer,
-                    .is_file = is_file,
                 },
             },
         };
@@ -229,14 +227,6 @@ pub const EventLoop = struct {
         if (nevents == -1) {
             return error.KQueueEventAddFailed;
         }
-    }
-
-    pub fn startReadFile(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
-        try self.startReadFd(fd, buffer, events, true);
-    }
-
-    pub fn startReadSocket(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
-        try self.startReadFd(fd, buffer, events, false);
     }
 
     pub fn closeFile(self: *EventLoop, fd: std.c.fd_t) void {
