@@ -263,7 +263,7 @@ pub const EventLoop = struct {
             return error.SubmissionQueueFull;
         }
 
-        c.io_uring_prep_write(sqe, fd, buffer.ptr, @intCast(buffer.len), @bitCast(-1));
+        c.io_uring_prep_write(sqe, fd, buffer.ptr, @intCast(buffer.len), @bitCast(@as(i64, -1)));
         c.io_uring_sqe_set_data(sqe, @ptrFromInt(index));
     }
 
