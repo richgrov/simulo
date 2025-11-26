@@ -9,6 +9,10 @@ const c = @cImport({
     @cInclude("errno.h");
 });
 
+extern fn zig_io_uring_get_sqe(ring: *c.io_uring) ?*c.io_uring_sqe;
+extern fn zig_io_uring_peek_cqe(ring: *c.io_uring, cqe_ptr: *?*c.io_uring_cqe) c_int;
+extern fn zig_io_uring_cqe_seen(ring: *c.io_uring, cqe: *c.io_uring_cqe) void;
+
 pub const EventType = union(enum) {
     read_complete: ReadCompleteEvent,
     write_complete: WriteCompleteEvent,
@@ -144,7 +148,7 @@ pub const EventLoop = struct {
 
         const index, _ = try self.slab.insert(context);
 
-        const sqe = c.io_uring_get_sqe(&self.ring);
+        const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
             self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
@@ -176,7 +180,7 @@ pub const EventLoop = struct {
 
         const index, _ = try self.slab.insert(context);
 
-        const sqe = c.io_uring_get_sqe(&self.ring);
+        const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
             self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
@@ -209,7 +213,7 @@ pub const EventLoop = struct {
 
         const index, _ = try self.slab.insert(context);
 
-        const sqe = c.io_uring_get_sqe(&self.ring);
+        const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
             self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
@@ -236,7 +240,7 @@ pub const EventLoop = struct {
     }
 
     fn submitRead(self: *EventLoop, index: usize, fd: std.c.fd_t, buffer: []u8) !void {
-        const sqe = c.io_uring_get_sqe(&self.ring);
+        const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
             // If we can't submit, we have a problem.
             // If this is a re-submission, the context is already in the slab.
@@ -257,7 +261,7 @@ pub const EventLoop = struct {
 
         const index, _ = try self.slab.insert(context);
 
-        const sqe = c.io_uring_get_sqe(&self.ring);
+        const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
             self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
@@ -275,7 +279,7 @@ pub const EventLoop = struct {
 
         const index, _ = try self.slab.insert(context);
 
-        const sqe = c.io_uring_get_sqe(&self.ring);
+        const sqe = zig_io_uring_get_sqe(&self.ring);
         if (sqe == null) {
             self.slab.delete(index) catch unreachable;
             return error.SubmissionQueueFull;
@@ -297,8 +301,8 @@ pub const EventLoop = struct {
         }
 
         var cqe: ?*c.io_uring_cqe = null;
-        while (c.io_uring_peek_cqe(&self.ring, &cqe) == 0) {
-            defer c.io_uring_cqe_seen(&self.ring, cqe.?);
+        while (zig_io_uring_peek_cqe(&self.ring, &cqe) == 0) {
+            defer zig_io_uring_cqe_seen(&self.ring, cqe.?);
 
             const index = @as(usize, cqe.?.user_data);
             const res = cqe.?.res;
