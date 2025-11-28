@@ -10,3 +10,6 @@
 [submodule "vendor/opencv"]
 	path = vendor/opencv
 	url = https://github.com/opencv/opencv.git
+[submodule "vendor/BearSSL"]
+	path = vendor/BearSSL
+	url = https://www.bearssl.org/git/BearSSL
