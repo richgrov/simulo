@@ -70,21 +70,21 @@ pub const LocalRun = struct {
 };
 
 pub const Runtime = struct {
-    allocator: std.mem.Allocator,
-    remote: Remote,
-    logger: Logger("runtime", 2048),
+    allocator: std.mem.Allocator = undefined,
+    remote: Remote = undefined,
+    logger: Logger("runtime", 2048) = .init(),
 
-    poll_profiler: PollProfiler,
+    poll_profiler: PollProfiler = undefined,
     frame_count: usize = 0,
     second_timer: i64 = 0,
 
-    wasm: Wasm,
+    wasm: Wasm = undefined,
     wasm_entry: ?Wasm.Function = null,
     first_poll: bool = false,
     //audio_player: AudioPlayer,
-    assets: std.StringHashMap(AssetData),
+    assets: std.StringHashMap(AssetData) = undefined,
     next_program: ?DownloadPacket = null,
-    devices: std.ArrayList(devices.Device),
+    devices: std.ArrayList(devices.Device) = .empty,
     calibrations_remaining: usize = 0,
 
     schedule: ?struct {
@@ -93,23 +93,21 @@ pub const Runtime = struct {
     } = null,
     was_running: bool = false,
 
-    pub fn init(allocator: std.mem.Allocator) !Runtime {
-        var logger = Logger("runtime", 2048).init();
-
+    pub fn init(self: *Runtime, allocator: std.mem.Allocator) !void {
         if (build_options.cloud) {
-            logger.info("simulo runtime (git: {s}, api: {s})", .{
+            self.logger.info("simulo runtime (git: {s}, api: {s})", .{
                 build_options.git_hash,
                 build_options.api_url,
             });
         } else {
-            logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
+            self.logger.info("simulo runtime (git: {s})", .{build_options.git_hash});
         }
 
-        var remote = try Remote.init(allocator);
-        errdefer remote.deinit();
-        try remote.start();
+        try self.remote.init(allocator);
+        errdefer self.remote.deinit();
+        try self.remote.start();
 
-        const poll_profiler = PollProfiler.init();
+        self.poll_profiler = PollProfiler.init();
 
         var wasm = try Wasm.init();
         errdefer wasm.deinit();
@@ -118,19 +116,10 @@ pub const Runtime = struct {
         //runtime.audio_player = try AudioPlayer.init();
         //errdefer runtime.audio_player.deinit();
 
-        var assets = std.StringHashMap(AssetData).init(allocator);
-        errdefer assets.deinit();
-
-        const device_list = std.ArrayList(devices.Device).initCapacity(allocator, 0) catch unreachable;
-
-        return .{
+        self.* = .{
             .allocator = allocator,
-            .remote = remote,
-            .logger = logger,
-            .poll_profiler = poll_profiler,
             .wasm = wasm,
-            .assets = assets,
-            .devices = device_list,
+            .assets = std.StringHashMap(AssetData).init(allocator),
         };
     }
 

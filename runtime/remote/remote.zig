@@ -49,18 +49,16 @@ pub const Remote = struct {
     inbound_queue: Spsc(Packet, 128),
     logger: Logger("remote", 2048),
 
-    pub fn init(allocator: std.mem.Allocator) !Remote {
-        const machine_id = try std.process.getEnvVarOwned(allocator, "SIMULO_MACHINE_ID");
-        errdefer allocator.free(machine_id);
-        if (machine_id.len > 64) {
-            allocator.free(machine_id);
-            return error.InvalidId;
+    pub fn init(self: *Remote, allocator: std.mem.Allocator) !void {
+        const machine_id = std.posix.getenv("SIMULO_MACHINE_ID") orelse return error.NoMachineId;
+        if (machine_id.len != 36) {
+            return error.InvalidMachineId;
         }
 
         const private_key = try readPrivateKey();
         const key_pair = try std.crypto.sign.Ed25519.KeyPair.generateDeterministic(private_key);
 
-        return Remote{
+        self.* = Remote{
             .allocator = allocator,
             .id = machine_id,
             .secret_key = key_pair,
@@ -75,7 +73,6 @@ pub const Remote = struct {
         if (self.read_thread) |*thread| {
             thread.join();
         }
-        self.allocator.free(self.id);
     }
 
     pub fn start(self: *Remote) !void {
@@ -117,7 +114,7 @@ pub const Remote = struct {
             defer client.deinit();
 
             var sse_buf: [1024 * 16]u8 = undefined;
-            self.sse_handler = SseHandler.init(self.allocator, &sse_buf, &Remote.onEvent);
+            self.sse_handler.init(self.allocator, &sse_buf, &Remote.onEvent);
 
             const response = client.fetch(.{
                 .method = .GET,
@@ -204,7 +201,7 @@ pub const Remote = struct {
             var buf: [64 * 1024]u8 = undefined;
             var reader = dest.reader(&.{});
             while (true) {
-                const n = reader.readStreaming(&buf) catch |err| {
+                const n = reader.interface.readSliceShort(&buf) catch |err| {
                     if (err == error.EndOfStream) {
                         break;
                     }
@@ -305,17 +302,19 @@ pub const Remote = struct {
 };
 
 const SseHandler = struct {
+    vtable: std.io.Writer.VTable,
     interface: std.io.Writer,
     allocator: std.mem.Allocator,
     data: std.ArrayList(u8),
     on_event: *const fn (handler: *SseHandler, data: []const u8) void,
 
-    pub fn init(allocator: std.mem.Allocator, buf: []u8, on_event: *const fn (handler: *SseHandler, data: []const u8) void) SseHandler {
-        return .{
+    pub fn init(self: *SseHandler, allocator: std.mem.Allocator, buf: []u8, on_event: *const fn (handler: *SseHandler, data: []const u8) void) void {
+        self.* = .{
+            .vtable = std.io.Writer.VTable{
+                .drain = SseHandler.drain,
+            },
             .interface = .{
-                .vtable = &std.io.Writer.VTable{
-                    .drain = SseHandler.drain,
-                },
+                .vtable = &self.vtable,
                 .buffer = &[_]u8{},
             },
             .allocator = allocator,
