@@ -3,17 +3,9 @@ const packet = @import("./packet.zig");
 const Packet = packet.Packet;
 
 pub const NoOpRemote = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator) !NoOpRemote {
-        return NoOpRemote{
-            .allocator = allocator,
-        };
-    }
+    pub fn init(_: *NoOpRemote, _: std.mem.Allocator) !void {}
 
     pub fn deinit(_: *NoOpRemote) void {}
-
-    pub fn start(_: *NoOpRemote) !void {}
 
     pub fn sendPing(_: *NoOpRemote) void {}
 
@@ -25,3 +17,4 @@ pub const NoOpRemote = struct {
 
     pub fn fetch(_: *NoOpRemote, _: []const u8, _: *const [32]u8, _: []const u8) !void {}
 };
+

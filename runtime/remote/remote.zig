@@ -65,6 +65,8 @@ pub const Remote = struct {
             .inbound_queue = Spsc(Packet, 128).init(),
             .logger = Logger("remote", 2048).init(),
         };
+
+        self.read_thread = try std.Thread.spawn(.{}, Remote.readLoop, .{self});
     }
 
     pub fn deinit(self: *Remote) void {
@@ -73,10 +75,6 @@ pub const Remote = struct {
         if (self.read_thread) |*thread| {
             thread.join();
         }
-    }
-
-    pub fn start(self: *Remote) !void {
-        self.read_thread = try std.Thread.spawn(.{}, Remote.readLoop, .{self});
     }
 
     pub fn sendProfile(_: *Remote, _: anytype, _: []const profile.Logs) void {}

@@ -105,7 +105,6 @@ pub const Runtime = struct {
 
         try self.remote.init(allocator);
         errdefer self.remote.deinit();
-        try self.remote.start();
 
         self.poll_profiler = PollProfiler.init();
 
