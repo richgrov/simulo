@@ -199,14 +199,9 @@ pub const Remote = struct {
             var buf: [64 * 1024]u8 = undefined;
             var reader = dest.reader(&.{});
             while (true) {
-                const n = reader.interface.readSliceShort(&buf) catch |err| {
-                    if (err == error.EndOfStream) {
-                        break;
-                    }
-                    return err;
-                };
-
+                const n = try reader.interface.readSliceShort(&buf);
                 hasher.update(buf[0..n]);
+                if (n < buf.len) break;
             }
 
             var hash_bytes: [32]u8 = undefined;
