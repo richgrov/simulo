@@ -62,7 +62,7 @@ pub const DisplayDevice = struct {
 
     logger: Logger("display", 1024),
     poll_profiler: DisplayProfiler,
-    first_poll: bool = true,
+    was_running: bool = false,
     view: Mat4,
     projection: union(enum) {
         d2: struct { near: f32, far: f32 },
@@ -191,16 +191,21 @@ pub const DisplayDevice = struct {
         const width = self.window.getWidth();
         const height = self.window.getHeight();
 
+        const running = events != null;
+        const run_state_changed = running != self.was_running;
         if (events) |w| {
-            if (self.first_poll) {
-                self.first_poll = false;
+            if (run_state_changed) {
                 wasm_message.writeResizeEvent(w, @intCast(width), @intCast(height)) catch |err| {
                     self.logger.err("failed to write resize event: {s}", .{@errorName(err)});
                 };
             }
-        } else {
-            self.first_poll = true;
+        } else if (run_state_changed) {
+            for (FIRST_PROGRAM_VISIBLE_RENDER_LAYER..FIRST_PROGRAM_VISIBLE_RENDER_LAYER + MAX_PROGRAM_VISIBLE_RENDER_LAYERS) |layer| {
+                self.renderer.clearLayer(@intCast(layer));
+            }
+            self.renderer.clearUiMaterials();
         }
+        self.was_running = running;
 
         self.poll_profiler.log(.setup_frame);
 
