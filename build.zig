@@ -322,6 +322,9 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         runtime.linkSystemLibrary("libpng", .{ .preferred_link_mode = .static });
         runtime.linkSystemLibrary("libtiff", .{ .preferred_link_mode = .static });
         runtime.linkSystemLibrary("libwebp", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("libwebpmux", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("libwebpdemux", .{ .preferred_link_mode = .static });
+        runtime.linkSystemLibrary("sharpyuv", .{ .preferred_link_mode = .static });
         runtime.linkSystemLibrary("zlib", .{ .preferred_link_mode = .static });
     } else {
         runtime.linkSystemLibrary("opencv4", .{});
