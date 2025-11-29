@@ -14,6 +14,7 @@ const Serial = @import("../serial/serial.zig").Serial;
 
 const EyeGuard = @import("../eyeguard.zig").EyeGuard;
 const Logger = @import("../log.zig").Logger;
+const IniIterator = @import("../ini.zig").Iterator;
 
 const wasm_message = @import("../wasm_message.zig");
 
@@ -79,6 +80,34 @@ pub const DisplayDevice = struct {
     },
 
     camera_chan: poses.DetectionSpsc,
+
+    pub fn createFromIni(allocator: std.mem.Allocator, ini: *IniIterator) !DisplayDevice {
+        var name: ?[]const u8 = null;
+        var port_path: ?[]const u8 = null;
+        var skip_calibration = false;
+
+        while (try ini.nextProperty()) |event| {
+            switch (event) {
+                .pair => |pair| {
+                    if (std.mem.eql(u8, pair.key, "name")) {
+                        name = pair.value;
+                    } else if (std.mem.eql(u8, pair.key, "port_path")) {
+                        port_path = pair.value;
+                    } else if (std.mem.eql(u8, pair.key, "skip_calibration")) {
+                        skip_calibration = try pair.valueAsBool();
+                    }
+                },
+                .err => return error.ConfigParseError,
+            }
+        }
+
+        return DisplayDevice.init(
+            allocator,
+            name orelse return error.MissingDeviceName,
+            if (skip_calibration) DMat3.scale(.{ 1.0 / 640.0, 1.0 / 640.0 }) else null,
+            if (port_path) |p| @ptrCast(p) else null,
+        );
+    }
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, transform_override: ?DMat3, serial_port: ?[:0]const u8) !DisplayDevice {
         const gpu = try allocator.create(Gpu);

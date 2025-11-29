@@ -1,9 +1,29 @@
 const std = @import("std");
 
+pub const PropertyEvent = struct {
+    key: []const u8,
+    value: [:0]const u8,
+
+    pub fn valueAsBool(self: *const PropertyEvent) !bool {
+        if (std.mem.eql(u8, self.value, "true")) {
+            return true;
+        } else if (std.mem.eql(u8, self.value, "false")) {
+            return false;
+        } else {
+            return error.ValueNotBool;
+        }
+    }
+};
+
+pub const ErrorEvent = struct {
+    line: usize,
+    message: []const u8,
+};
+
 pub const Event = union(enum) {
     section: []const u8,
-    pair: struct { key: []const u8, value: [:0]const u8 },
-    err: struct { line: usize, message: []const u8 },
+    pair: PropertyEvent,
+    err: ErrorEvent,
 };
 
 pub const Iterator = struct {
@@ -44,6 +64,18 @@ pub const Iterator = struct {
     }
 
     pub fn next(self: *Self) !?Event {
+        return self.doNext(true);
+    }
+
+    pub fn nextProperty(self: *Self) !?union(enum) { pair: PropertyEvent, err: ErrorEvent } {
+        return switch (try self.doNext(false) orelse return null) {
+            .section => unreachable,
+            .pair => |pair| .{ .pair = pair },
+            .err => |err| .{ .err = err },
+        };
+    }
+
+    fn doNext(self: *Self, allowSection: bool) !?Event {
         while (self.read_index < self.len) {
             self.skipWhitespace(true);
 
@@ -66,6 +98,10 @@ pub const Iterator = struct {
 
         const c = self.buf[self.read_index];
         if (c == '[') {
+            if (!allowSection) {
+                return null;
+            }
+
             self.read_index += 1;
             const start = self.write_index;
             var end: usize = undefined;

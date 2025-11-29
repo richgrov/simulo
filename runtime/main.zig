@@ -7,7 +7,6 @@ const util = @import("util");
 const Runtime = @import("runtime.zig").Runtime;
 const Logger = @import("log.zig").Logger;
 
-const DeviceConfig = @import("device/config.zig").DeviceConfig;
 const DevConfig = @import("dev/config.zig").DevConfig;
 const fs_storage = @import("fs_storage.zig");
 
@@ -58,12 +57,6 @@ pub fn main() !void {
             return;
         };
 
-        var config = DeviceConfig.init(allocator, &config_parser) catch |err| {
-            std.debug.print("error: failed to parse devices.ini: {s}", .{@errorName(err)});
-            return;
-        };
-        defer config.deinit();
-
         var parser = ini.Iterator.init("simulo.ini") catch |err| {
             std.debug.print("error: failed to open simulo.ini: {s}\n", .{@errorName(err)});
             return;
@@ -74,7 +67,7 @@ pub fn main() !void {
             return;
         };
 
-        try runtime.run(.{ .program = dev_config.program_path, .assets = dev_config.assets_dir, .devices = &config });
+        try runtime.run(.{ .program = dev_config.program_path, .assets = dev_config.assets_dir, .devices = &config_parser });
     }
 }
 

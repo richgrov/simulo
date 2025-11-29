@@ -4,6 +4,7 @@ const util = @import("util");
 
 const Logger = @import("../log.zig").Logger;
 const DisplayDevice = @import("display.zig").DisplayDevice;
+const IniIterator = @import("../ini.zig").Iterator;
 
 const PoseDetector = @import("../inference/pose.zig").PoseDetector;
 const Runtime = @import("../runtime.zig").Runtime;
@@ -12,6 +13,29 @@ pub const CameraDevice = struct {
     id: util.FixedArrayList(u8, 16),
     pose_detector: PoseDetector,
     logger: Logger("camera", 1024) = Logger("camera", 1024).init(),
+
+    pub fn createFromIni(ini: *IniIterator) !CameraDevice {
+        var name: ?[]const u8 = null;
+        var port_path: ?[]const u8 = null;
+
+        while (try ini.nextProperty()) |event| {
+            switch (event) {
+                .pair => |pair| {
+                    if (std.mem.eql(u8, pair.key, "name")) {
+                        name = pair.value;
+                    } else if (std.mem.eql(u8, pair.key, "port_path")) {
+                        port_path = pair.value;
+                    }
+                },
+                .err => return error.ConfigParseError,
+            }
+        }
+
+        return CameraDevice.init(
+            name orelse return error.MissingDeviceName,
+            port_path orelse return error.MissingPortPath,
+        );
+    }
 
     pub fn init(id: []const u8, camera_id: []const u8) !CameraDevice {
         return .{

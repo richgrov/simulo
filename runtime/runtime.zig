@@ -12,7 +12,6 @@ const reflect = util.reflect;
 
 const IniIterator = @import("ini.zig").Iterator;
 
-const DeviceConfig = @import("device/config.zig").DeviceConfig;
 const devices = @import("device/device.zig");
 const fs_storage = @import("fs_storage.zig");
 
@@ -66,7 +65,7 @@ pub const DeviceId = struct { index: usize };
 pub const LocalRun = struct {
     program: []const u8,
     assets: []const u8,
-    devices: *const DeviceConfig,
+    devices: *IniIterator,
 };
 
 pub const Runtime = struct {
@@ -155,9 +154,8 @@ pub const Runtime = struct {
         try wasm.exposeFunction("simulo_drop_material", wasmDropMaterial);
     }
 
-    fn applyDeviceConfig(self: *Runtime, devices_config: *const DeviceConfig) !void {
-        const device_map = &devices_config.devices;
-        var new_devices = try std.ArrayList(devices.Device).initCapacity(self.allocator, device_map.count());
+    fn applyDeviceConfig(self: *Runtime, ini: *IniIterator) !void {
+        var new_devices = try std.ArrayList(devices.Device).initCapacity(self.allocator, 8);
         errdefer {
             for (new_devices.items) |*device| {
                 device.deinit(self);
@@ -166,24 +164,25 @@ pub const Runtime = struct {
         }
 
         var display_count: usize = 0;
-        var device_iter = device_map.iterator();
-        while (device_iter.next()) |entry| {
-            const id = entry.key_ptr.*;
-            const device_type: devices.Device = switch (entry.value_ptr.*) {
-                .camera => |*camera| .{ .camera = try devices.CameraDevice.init(id, camera.port_path) },
 
-                .projector => |*projector| blk: {
-                    if (!projector.skip_calibration) display_count += 1;
-                    break :blk .{ .display = try devices.DisplayDevice.init(
-                        self.allocator,
-                        id,
-                        if (projector.skip_calibration) DMat3.scale(.{ 1.0 / 640.0, 1.0 / 640.0 }) else null,
-                        projector.port_path,
-                    ) };
-                },
+        while (try ini.next()) |event| {
+            const section = switch (event) {
+                .section => |s| s,
+                else => return error.ExpectedSection,
             };
 
-            try new_devices.append(self.allocator, device_type);
+            if (std.mem.eql(u8, section, "projector")) {
+                const dev = try devices.DisplayDevice.createFromIni(self.allocator, ini);
+                if (dev.calibration_state == .capturing_background) display_count += 1;
+                try new_devices.append(self.allocator, .{ .display = dev });
+                continue;
+            } else if (std.mem.eql(u8, section, "camera")) {
+                const dev = try devices.CameraDevice.createFromIni(ini);
+                try new_devices.append(self.allocator, .{ .camera = dev });
+                continue;
+            } else {
+                return error.InvalidSection;
+            }
         }
 
         for (self.devices.items) |*device| {
@@ -314,13 +313,7 @@ pub const Runtime = struct {
             return;
         };
 
-        var devices_config = DeviceConfig.init(self.allocator, &ini_parser) catch |err| {
-            self.logger.err("error: failed to parse config: {s}", .{@errorName(err)});
-            return;
-        };
-        defer devices_config.deinit();
-
-        self.applyDeviceConfig(&devices_config) catch |err| {
+        self.applyDeviceConfig(&ini_parser) catch |err| {
             self.logger.err("error: failed to apply config: {s}", .{@errorName(err)});
             return;
         };
