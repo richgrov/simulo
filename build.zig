@@ -327,6 +327,10 @@ fn createRuntime(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.
         runtime.linkSystemLibrary("opencv4", .{});
     }
 
+    runtime.addLibraryPath(b.path("vendor/BearSSL/build"));
+    runtime.addIncludePath(b.path("vendor/BearSSL/inc"));
+    runtime.linkSystemLibrary("bearssl", .{ .preferred_link_mode = .static });
+
     runtime.addCSourceFiles(.{
         .files = &[_][]const u8{"runtime/audio/miniaudio.c"},
     });

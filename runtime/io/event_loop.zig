@@ -34,7 +34,7 @@ test "EventLoop file reading" {
 
     const fd = open_event.open_complete.fd;
 
-    try loop.startRead(fd, &test_buffer, &events);
+    try loop.startReadFile(fd, &test_buffer, &events);
 
     var total_bytes: usize = 0;
     var found_complete = false;
@@ -53,6 +53,7 @@ test "EventLoop file reading" {
                     } else {
                         total_bytes += read_event.bytes_read;
                         try received_content.appendSlice(allocator, test_buffer[0..read_event.bytes_read]);
+                        try loop.startReadFile(fd, &test_buffer, &events);
                     }
                 },
                 .err => |err_event| {
@@ -157,7 +158,7 @@ test "EventLoop TCP connection" {
 
     const address = try std.net.Address.parseIp("127.0.0.1", 9001);
 
-    try loop.connectTcp(address, &events);
+    try loop.connectTcp(address, &events, 0);
 
     var connected = false;
     var fd: std.c.fd_t = -1;
@@ -208,7 +209,7 @@ test "EventLoop TCP connection" {
     var response = try std.ArrayList(u8).initCapacity(allocator, 1024);
     defer response.deinit(allocator);
 
-    try loop.startRead(fd, &read_buffer, &events);
+    try loop.startReadSocket(fd, &read_buffer, &events);
 
     var read_complete = false;
     while (!read_complete) {

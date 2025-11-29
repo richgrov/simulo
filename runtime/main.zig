@@ -8,6 +8,7 @@ const Runtime = @import("runtime.zig").Runtime;
 const Logger = @import("log.zig").Logger;
 
 const DevConfig = @import("dev/config.zig").DevConfig;
+const EventLoop = @import("io/event_loop.zig").EventLoop;
 const fs_storage = @import("fs_storage.zig");
 
 const ini = @import("ini.zig");
@@ -34,6 +35,12 @@ pub fn main() !void {
         std.debug.print("error: failed to initialize fs storage: {s}", .{@errorName(err)});
         return;
     };
+
+    var event_loop = EventLoop.init(allocator) catch |err| {
+        std.debug.print("error: failed to initialize event loop: {s}", .{@errorName(err)});
+        return;
+    };
+    defer event_loop.deinit();
 
     var runtime = Runtime{};
     try runtime.init(allocator);
@@ -82,6 +89,7 @@ test {
     comptime {
         _ = ini;
         _ = @import("io/event_loop.zig");
+        _ = @import("io/https.zig");
     }
 }
 

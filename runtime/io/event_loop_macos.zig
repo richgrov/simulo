@@ -22,6 +22,7 @@ const TimerContext = struct {
 const ReadContext = struct {
     fd: std.c.fd_t,
     buffer: []u8,
+    is_file: bool,
 };
 
 const WriteContext = union(enum) {
@@ -31,6 +32,7 @@ const WriteContext = union(enum) {
     },
     connect: struct {
         fd: std.c.fd_t,
+        id: u32,
     },
 };
 
@@ -98,7 +100,7 @@ pub const EventLoop = struct {
         try events.appendBounded(.{ .open_complete = .{ .fd = fd } });
     }
 
-    pub fn connectTcp(self: *EventLoop, address: std.net.Address, events: *std.ArrayList(EventType)) !void {
+    pub fn connectTcp(self: *EventLoop, address: std.net.Address, events: *std.ArrayList(EventType), id: u32) !void {
         const sock_flags = std.posix.SOCK.STREAM | std.posix.SOCK.NONBLOCK | std.posix.SOCK.CLOEXEC;
         const fd = try std.posix.socket(address.any.family, sock_flags, std.posix.IPPROTO.TCP);
         errdefer std.posix.close(fd);
@@ -111,7 +113,7 @@ pub const EventLoop = struct {
             const context = Context{
                 .events = events,
                 .op = .{
-                    .write = .{ .connect = .{ .fd = fd } },
+                    .write = .{ .connect = .{ .fd = fd, .id = id } },
                 },
             };
 
@@ -138,13 +140,14 @@ pub const EventLoop = struct {
         try events.appendBounded(.{ .connect_complete = .{ .fd = fd } });
     }
 
-    pub fn startRead(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
+    pub fn startReadFile(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
         const context = Context{
             .events = events,
             .op = .{
                 .read = .{
                     .fd = fd,
                     .buffer = buffer,
+                    .is_file = true,
                 },
             },
         };
@@ -155,7 +158,38 @@ pub const EventLoop = struct {
         const change_event = c.struct_kevent{
             .ident = @as(c_uint, @intCast(fd)),
             .filter = c.EVFILT_READ,
-            .flags = c.EV_ADD | c.EV_ENABLE,
+            .flags = c.EV_ADD | c.EV_ENABLE | c.EV_ONESHOT,
+            .fflags = 0,
+            .data = 0,
+            .udata = @ptrFromInt(index),
+        };
+
+        const changelist = [_]c.struct_kevent{change_event};
+        const nevents = c.kevent(self.kqueue_fd, &changelist, changelist.len, null, 0, null);
+        if (nevents == -1) {
+            return error.KQueueEventAddFailed;
+        }
+    }
+
+    pub fn startReadSocket(self: *EventLoop, fd: std.c.fd_t, buffer: []u8, events: *std.ArrayList(EventType)) !void {
+        const context = Context{
+            .events = events,
+            .op = .{
+                .read = .{
+                    .fd = fd,
+                    .buffer = buffer,
+                    .is_file = false,
+                },
+            },
+        };
+
+        const index, _ = try self.slab.insert(context);
+        errdefer self.slab.delete(index) catch unreachable;
+
+        const change_event = c.struct_kevent{
+            .ident = @as(c_uint, @intCast(fd)),
+            .filter = c.EVFILT_READ,
+            .flags = c.EV_ADD | c.EV_ENABLE | c.EV_ONESHOT,
             .fflags = 0,
             .data = 0,
             .udata = @ptrFromInt(index),
@@ -268,8 +302,14 @@ pub const EventLoop = struct {
                     const buffer = read_ctx.buffer;
 
                     const bytes_read = std.posix.read(fd, buffer) catch |err| {
-                        if (err != error.WouldBlock) {
-                            defer self.slab.delete(index) catch unreachable;
+                        defer self.slab.delete(index) catch unreachable;
+                        if (err == error.WouldBlock) {
+                            if (context.op.read.is_file) {
+                                try self.startReadFile(fd, buffer, context.events);
+                            } else {
+                                try self.startReadSocket(fd, buffer, context.events);
+                            }
+                        } else {
                             try context.events.appendBounded(.{ .err = .{ .code = err } });
                         }
                         continue;
@@ -280,8 +320,9 @@ pub const EventLoop = struct {
                             .{ .read_complete = .{ .bytes_read = bytes_read } },
                         );
 
-                        const is_eof = bytes_read >= event.data;
+                        const is_eof = bytes_read >= event.data and ((event.flags & c.EV_EOF != 0) == !context.op.read.is_file);
                         if (is_eof) {
+                            std.debug.print("bytes equals data\n", .{});
                             defer self.slab.delete(index) catch unreachable;
                             try context.events.appendBounded(
                                 .{ .read_complete = .{ .bytes_read = 0 } },
@@ -290,6 +331,7 @@ pub const EventLoop = struct {
                     } else {
                         // 0 bytes read usually means EOF for sockets (if we got here)
                         // or just empty read.
+                        std.debug.print("0 bytes read\n", .{});
                         defer self.slab.delete(index) catch unreachable;
                         try context.events.appendBounded(
                             .{ .read_complete = .{ .bytes_read = 0 } },
