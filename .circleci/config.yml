@@ -1,16 +1,80 @@
 version: 2.1
 
 jobs:
-  say-hello:
-    docker:
-      - image: cimg/base:current
+  build-macos:
+    macos:
+      xcode: 16.2.0
+    environment:
+      VULKAN_SDK_VERSION: 1.4.304.0
     steps:
       - checkout
       - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+          name: Checkout submodules
+          command: git submodule update --init --recursive
+
+      - run:
+          name: Install Homebrew dependencies
+          command: |
+            brew install ninja cmake wasmtime libtiff eigen
+
+      - restore_cache:
+          keys:
+            - macos-dependencies-v1-{{ checksum "setup_macos.sh" }}-{{ checksum ".github/workflows/build.yml" }}
+            - macos-dependencies-v1-
+
+      - run:
+          name: Build ONNX Runtime and OpenCV
+          command: |
+            chmod +x ./setup_macos.sh
+            ./setup_macos.sh
+
+      - save_cache:
+          key: macos-dependencies-v1-{{ checksum "setup_macos.sh" }}-{{ checksum ".github/workflows/build.yml" }}
+          paths:
+            - vendor/onnxruntime/build
+            - vendor/opencv/build
+
+      - run:
+          name: Download Vulkan SDK
+          command: |
+            curl -O https://sdk.lunarg.com/sdk/download/latest/mac/vulkan_sdk.zip
+            unzip vulkan_sdk.zip
+            sudo ./vulkansdk-macOS-${VULKAN_SDK_VERSION}.app/Contents/MacOS/vulkansdk-macOS-${VULKAN_SDK_VERSION} --root ~/VulkanSDK/${VULKAN_SDK_VERSION} --accept-licenses --default-answer --confirm-command install com.lunarg.vulkan.core com.lunarg.vulkan.usr com.lunarg.vulkan.sdl2 com.lunarg.vulkan.glm com.lunarg.vulkan.volk com.lunarg.vulkan.vma
+
+      - run:
+          name: Setup Zig
+          command: |
+            curl -L https://ziglang.org/download/0.15.1/zig-macos-aarch64-0.15.1.tar.xz -o zig.tar.xz
+            tar -xf zig.tar.xz
+            echo 'export PATH="'$(pwd)'/zig-macos-aarch64-0.15.1:$PATH"' >> $BASH_ENV
+
+      - run:
+          name: Run tests
+          command: |
+            source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
+            zig build test -Doptimize=ReleaseSafe
+
+      - run:
+          name: Build local
+          command: |
+            source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
+            zig build install -Doptimize=ReleaseSafe -p zig-out-local -Dcpu=baseline
+
+      - run:
+          name: Build cloud
+          command: |
+            source ~/VulkanSDK/${VULKAN_SDK_VERSION}/setup-env.sh
+            zig build install -Doptimize=ReleaseSafe -Dcloud=true -p zig-out-cloud -Dcpu=baseline
+
+      - store_artifacts:
+          path: zig-out-local
+          destination: simulo-runtime-local-macos-arm64
+
+      - store_artifacts:
+          path: zig-out-cloud
+          destination: simulo-runtime-cloud-macos-arm64
 
 workflows:
-  say-hello-workflow:
+  build-workflow:
     jobs:
-      - say-hello
+      - build-macos
