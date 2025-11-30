@@ -25,8 +25,10 @@ jobs:
       - run:
           name: Build ONNX Runtime and OpenCV
           command: |
-            chmod +x ./setup_macos.sh
-            ./setup_macos.sh
+            if [ ! -d vendor/onnxruntime/build ]; then
+              chmod +x ./setup_macos.sh
+              ./setup_macos.sh
+            fi
 
       - save_cache:
           key: macos-dependencies-v1-{{ checksum "setup_macos.sh" }}-{{ checksum ".github/workflows/build.yml" }}
