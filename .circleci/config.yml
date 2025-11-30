@@ -15,7 +15,7 @@ jobs:
       - run:
           name: Install Homebrew dependencies
           command: |
-            brew install ninja cmake wasmtime libtiff eigen
+            brew install ninja cmake wasmtime libtiff eigen zig
 
       - restore_cache:
           keys:
@@ -40,13 +40,6 @@ jobs:
             curl -o vulkan_sdk.zip https://sdk.lunarg.com/sdk/download/${VULKAN_SDK_VERSION}/mac/vulkansdk-macos-${VULKAN_SDK_VERSION}.zip
             unzip vulkan_sdk.zip
             sudo ./vulkansdk-macOS-${VULKAN_SDK_VERSION}.app/Contents/MacOS/vulkansdk-macOS-${VULKAN_SDK_VERSION} --root ~/VulkanSDK/${VULKAN_SDK_VERSION} --accept-licenses --default-answer --confirm-command install com.lunarg.vulkan.core com.lunarg.vulkan.usr com.lunarg.vulkan.sdl2 com.lunarg.vulkan.glm com.lunarg.vulkan.volk com.lunarg.vulkan.vma
-
-      - run:
-          name: Setup Zig
-          command: |
-            curl -L https://ziglang.org/download/0.15.1/zig-macos-aarch64-0.15.1.tar.xz -o zig.tar.xz
-            tar -xf zig.tar.xz
-            echo 'export PATH="'$(pwd)'/zig-macos-aarch64-0.15.1:$PATH"' >> $BASH_ENV
 
       - run:
           name: Run tests
