@@ -82,6 +82,7 @@ test {
     comptime {
         _ = ini;
         _ = @import("io/event_loop.zig");
+        _ = @import("log.zig");
     }
 }
 
