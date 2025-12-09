@@ -104,7 +104,7 @@ pub const DisplayDevice = struct {
         return DisplayDevice.init(
             allocator,
             name orelse return error.MissingDeviceName,
-            if (skip_calibration) DMat3.fromRowMajorPtr(
+            if (skip_calibration) DMat3.fromRowMajorPtr(&[_]f64{
                 0.003465738042295429,
                 0.00036398162088034246,
                 -0.7055546341447464,
@@ -114,7 +114,7 @@ pub const DisplayDevice = struct {
                 -1.8032730687712297e-05,
                 0.0008616631598779344,
                 1.0,
-            ) else null,
+            }) else null,
             if (port_path) |p| @ptrCast(p) else null,
         );
     }
